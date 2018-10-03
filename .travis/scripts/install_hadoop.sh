@@ -24,7 +24,7 @@ install_prereqs() {
 
 download_hadoop() {
   wget -q http://www-eu.apache.org/dist/hadoop/common/$HADOOP/$HADOOP.tar.gz &&
-  sudo tar -xzvf $HADOOP.tar.gz --directory $INSTALL_DIR &&
+  sudo tar -xzf $HADOOP.tar.gz --directory $INSTALL_DIR &&
   sudo chown -R $USER:$USER $HADOOP_DIR &&
   echo "download_hadoop successful" 
 }

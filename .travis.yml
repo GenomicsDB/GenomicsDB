@@ -17,6 +17,15 @@ env:
         - GENOMICSDB_RELEASE_VERSION=0.9.2
         - CLASSPATH=$GENOMICSDB_INSTALL_DIR/bin/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-jar-with-dependencies.jar:$GENOMICSDB_BUILD_DIR/target/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples.jar:.
 
+matrix:
+    include:
+      - name: "Basic build"
+        os: linux
+
+      - name: "Spark/HDFS support"
+        os: linux
+        env: SPARK_HDFS_SUPPORT=true
+
 install:
     # Install dependencies
     - pip install -r requirements.txt
@@ -32,6 +41,7 @@ install:
     - sudo update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-4.9 60;
     - sudo apt-get install libdbi-dev libdbd-pgsql -y
     - sudo apt-get -y install openjdk-8-jdk icedtea-plugin
+    - sudo apt-get -y install zip unzip
     - jdk_switcher use openjdk8
     - echo $JAVA_HOME
     - export PATH=$JAVA_HOME/bin:$PATH
@@ -40,6 +50,13 @@ install:
     # Copy protobuf binaries
     - wget https://github.com/Intel-HLS/GenomicsDB/releases/download/0.4.0/protobuf-3.0.2-trusty.tar.gz -O protobuf-3.0.2-trusty.tar.gz
     - tar xzf protobuf-3.0.2-trusty.tar.gz && sudo rsync -a protobuf-3.0.2-trusty/ /usr/
+    # install spark/hdfs/scala
+    - if [[ $SPARK_HDFS_SUPPORT == true ]]; then
+        wget -q https://downloads.lightbend.com/scala/2.11.8/scala-2.11.8.deb;
+        sudo dpkg -i scala-2.11.8.deb;
+        source $TRAVIS_BUILD_DIR/.travis/scripts/install_hadoop.sh;
+        source $TRAVIS_BUILD_DIR/.travis/scripts/install_spark.sh;
+      fi
     # Install gtest
     #- sudo apt-get -y install libgtest0 libgtest-dev
     # above package (libgtest0) not built for 14.04
@@ -48,6 +65,7 @@ install:
     - sudo cmake . -DBUILD_SHARED_LIBS=1
     - sudo make
     - sudo mv libgtest* /usr/lib
+
     # Install libcsv
     - cd $TRAVIS_BUILD_DIR
     - cd dependencies && git clone https://github.com/rgamble/libcsv && cd libcsv && ./configure && make
@@ -55,6 +73,9 @@ install:
     # Install lcov to coveralls conversion + upload tool
     - gem install coveralls-lcov
     - mkdir -p $GENOMICSDB_BUILD_DIR
+    # get jacoco
+    - wget https://github.com/jacoco/jacoco/releases/download/v0.8.2/jacoco-0.8.2.zip
+    - unzip -j jacoco-0.8.2.zip lib/jacocoagent.jar lib/jacococli.jar -d $GENOMICSDB_BUILD_DIR
 
 before_script:
     - cd $GENOMICSDB_BUILD_DIR
@@ -70,7 +91,15 @@ script:
     - cd $GENOMICSDB_BUILD_DIR
     - cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True
     - ln -s $TRAVIS_BUILD_DIR/tests
-    - make -j 4 && make install && make test ARGS=-V
+    - make -j 4 && make install
+    - if [[ $SPARK_HDFS_SUPPORT == true ]]; then
+       echo "Run spark/hdfs tests";
+       /usr/local/spark/sbin/start-master.sh;
+       /usr/local/spark/sbin/start-slaves.sh;
+       python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests;
+      else
+        make test ARGS=-V;
+      fi
 
 after_success:
     - cd $GENOMICSDB_BUILD_DIR
