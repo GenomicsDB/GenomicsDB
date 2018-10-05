@@ -201,6 +201,7 @@
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
         <version>2.15.2</version>
+<!-- removing for OSX build
         <executions>
           <execution>
             <id>scala-compile-first</id>
@@ -210,6 +211,7 @@
             </goals>
           </execution>
         </executions>
+-->
       </plugin>
       <plugin>
         <groupId>net.alchim31.maven</groupId>
