@@ -5,33 +5,42 @@
   <modelVersion>4.0.0</modelVersion>
 
 
-  <groupId>com.intel</groupId>
+  <groupId>org.genomicsdb</groupId>
   <artifactId>genomicsdb</artifactId>
   <!-- Build version passed from parent Makefile -->
   <version>${genomicsdb.version}</version>
 
-  <name>com.intel:genomicsdb</name>
-  <description>Java API and Apache Spark bindings for GenomicsDB</description>
-  <url>https://github.com/Intel-HLS/GenomicsDB/wiki</url>
+  <name>org.genomicsdb:genomicsdb</name>
+  <description>Java API for GenomicsDB</description>
+  <url>https://github.com/GenomicsDB/GenomicsDB/wiki</url>
 
   <licenses>
     <license>
-      <name>MIT and Intel License</name>
-      <url>https://github.com/Intel-HLS/GenomicsDB/blob/master/LICENSE</url>
+      <name>MIT and other recursive licenses</name>
+      <url>https://github.com/GenomicsDB/GenomicsDB/blob/master/LICENSE</url>
     </license>
   </licenses>
 
   <developers>
     <developer>
-      <id>Intel-HLS</id>
-      <name>Intel-HLS</name>
-      <url>https://github.com/Intel-HLS</url>
+      <id>support</id>
+      <name>Support</name>
+      <email>support@genomicsdb.org</email>
+      <url>https://www.genomicsdb.org</url>
+      <organization>GenomicsDB</organization>
+    </developer>
+    <developer>
+      <id>nalini</id>
+      <name>Nalini Ganapati</name>
+      <email>nalini@omicsautomation.com</email>
+      <url>https://www.omicsautomation.com</url>
+      <organization>Omics Data Automation, Inc.</organization>
     </developer>
   </developers>
 
   <scm>
-    <connection>scm:git:https://github.com/Intel-HLS/GenomicsDB.git</connection>
-    <url>https://github.com/Intel-HLS/GenomicsDB.git</url>
+    <connection>scm:git:https://github.com/GenomicsDB/GenomicsDB.git</connection>
+    <url>https://github.com/GenomicsDB/GenomicsDB.git</url>
   </scm>
 
   <!-- Distribution management section to push jars to Maven central-->
