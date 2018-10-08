@@ -22,10 +22,18 @@ install_prereqs() {
   echo "install_prereqs successful"
 }
 
+download_gcs_connector() {
+  if [[ $INSTALL_TYPE == gcs ]]; then
+    wget -nv https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-latest-hadoop2.jar
+    cp gcs-connector-latest-hadoop2.jar ${HADOOP_DIR}/share/hadoop/common
+  fi
+}
+
 download_hadoop() {
-  wget -q http://www-eu.apache.org/dist/hadoop/common/$HADOOP/$HADOOP.tar.gz &&
+  wget -nv http://www-eu.apache.org/dist/hadoop/common/$HADOOP/$HADOOP.tar.gz &&
   sudo tar -xzf $HADOOP.tar.gz --directory $INSTALL_DIR &&
   sudo chown -R $USER:$USER $HADOOP_DIR &&
+  download_gcs_connector &&
   echo "download_hadoop successful" 
 }
 
