@@ -28,6 +28,7 @@ import os
 import sys
 import shutil
 import difflib
+import errno
 from collections import OrderedDict
 
 query_json_template_string="""
