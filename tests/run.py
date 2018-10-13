@@ -29,6 +29,7 @@ import sys
 import shutil
 from collections import OrderedDict
 import jsondiff
+import errno
 
 query_json_template_string="""
 {   
@@ -177,6 +178,7 @@ def main():
     os.chdir(parent_dir)
     tmpdir = tempfile.mkdtemp()
     ws_dir=tmpdir+os.path.sep+'ws';
+    jacoco_enabled = os.path.isfile(gcda_prefix_dir+os.path.sep+'jacocoagent.jar') and os.path.isfile(gcda_prefix_dir+os.path.sep+'jacococli.jar')
     loader_tests = [
             { "name" : "t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
@@ -873,15 +875,26 @@ def main():
         with open(loader_json_filename, 'wb') as fptr:
             json.dump(test_loader_dict, fptr, indent=4, separators=(',', ': '));
             fptr.close();
+        if jacoco_enabled:
+            jacoco_dest_file = "=destfile="+gcda_prefix_dir+os.path.sep+"target"+os.path.sep+"jacoco-reports"+os.path.sep+"jacoco-ci.exec"
+            jacoco = " -javaagent:"+gcda_prefix_dir+os.path.sep+"jacocoagent.jar"+jacoco_dest_file
+            try:
+                os.makedirs(gcda_prefix_dir+os.path.sep+'target'+os.path.sep+'jacoco-reports'+os.path.sep+'jacoco-ci')
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    sys.stderr.write('Error creating jacoco-reports dir:'+e.errno+' '+e.filename+' '+e.strerror)
+                    cleanup_and_exit(tmpdir, -1);
+        else:
+            jacoco = ''
         if(test_name  == 'java_t0_1_2'):
-            import_cmd = 'java -ea TestGenomicsDB --load '+loader_json_filename
+            import_cmd = 'java'+jacoco+' -ea TestGenomicsDB --load '+loader_json_filename
 
         elif(test_name == 'java_buffer_stream_multi_contig_t0_1_2'):
-            import_cmd = 'java -ea TestBufferStreamGenomicsDBImporter -iterators '+loader_json_filename+' ' + \
+            import_cmd = 'java'+jacoco+' -ea TestBufferStreamGenomicsDBImporter -iterators '+loader_json_filename+' ' + \
                     test_params_dict['stream_name_to_filename_mapping'] + \
                     ' 1024 0 0 100 true '
         elif(test_name == 'java_buffer_stream_t0_1_2'):
-            import_cmd = 'java -ea TestBufferStreamGenomicsDBImporter '+loader_json_filename \
+            import_cmd = 'java'+jacoco+' -ea TestBufferStreamGenomicsDBImporter '+loader_json_filename \
                     +' '+test_params_dict['stream_name_to_filename_mapping']
         elif(test_name.find('java_genomicsdb_importer_from_vcfs') != -1):
             arg_list = ''
@@ -898,7 +911,7 @@ def main():
                 for callset_name, callset_info in callset_mapping_dict['callsets'].iteritems():
                     arg_list += ' '+callset_info['filename'];
                 cs_fptr.close();
-            import_cmd = 'java -ea TestGenomicsDBImporterWithMergedVCFHeader --size_per_column_partition 16384 ' \
+            import_cmd = 'java'+jacoco+' -ea TestGenomicsDBImporterWithMergedVCFHeader --size_per_column_partition 16384 ' \
                                    '--segment_size 10485760'+arg_list
         else:
             import_cmd = exe_path+os.path.sep+'vcf2tiledb '+loader_json_filename
@@ -959,7 +972,7 @@ def main():
                                 misc_args += ('--chromosome '+query_contig_interval_dict['contig'] \
                                         + ' --begin %d --end %d')%(query_contig_interval_dict['begin'],
                                                 query_contig_interval_dict['end'])
-                            query_command = 'java -ea TestGenomicsDB --query -l '+loader_argument+' '+query_json_filename \
+                            query_command = 'java'+jacoco+' -ea TestGenomicsDB --query -l '+loader_argument+' '+query_json_filename \
                                 + ' ' + misc_args;
                             pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE);
                         else:
@@ -1004,6 +1017,13 @@ def main():
                                     print(json.dumps(json_diff_result, indent=4, separators=(',', ': ')));
                                 cleanup_and_exit(tmpdir, -1);
         shutil.rmtree(ws_dir, ignore_errors=True)
+    if jacoco_enabled:
+        jacoco_ci_report_dir = gcda_prefix_dir+os.path.sep+'target'+os.path.sep+'jacoco-reports'+os.path.sep
+        jacoco_report_cmd = 'java -jar '+gcda_prefix_dir+os.path.sep+'jacococli.jar report '+jacoco_ci_report_dir+'jacoco-ci.exec --classfiles '+gcda_prefix_dir+os.path.sep+'target'+os.path.sep+'classes --html '+jacoco_ci_report_dir+'jacoco-ci --xml '+jacoco_ci_report_dir+'jacoco-ci'+os.path.sep+'jacoco-ci.xml'
+        pid = subprocess.Popen(jacoco_report_cmd, shell=True, stdout=subprocess.PIPE);
+        stdout_string = pid.communicate()[0]
+        if(pid.returncode != 0):
+            sys.stderr.write('Jacoco report generation command:'+jacoco_report_cmd+' failed\n')
     cleanup_and_exit(tmpdir, 0); 
 
 if __name__ == '__main__':
