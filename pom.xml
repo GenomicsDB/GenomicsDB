@@ -5,33 +5,42 @@
   <modelVersion>4.0.0</modelVersion>
 
 
-  <groupId>com.intel</groupId>
+  <groupId>org.genomicsdb</groupId>
   <artifactId>genomicsdb</artifactId>
   <!-- Build version passed from parent Makefile -->
   <version>${genomicsdb.version}</version>
 
-  <name>com.intel:genomicsdb</name>
-  <description>Java API and Apache Spark bindings for GenomicsDB</description>
-  <url>https://github.com/Intel-HLS/GenomicsDB/wiki</url>
+  <name>org.genomicsdb:genomicsdb</name>
+  <description>Java API for GenomicsDB</description>
+  <url>https://github.com/GenomicsDB/GenomicsDB/wiki</url>
 
   <licenses>
     <license>
-      <name>MIT and Intel License</name>
-      <url>https://github.com/Intel-HLS/GenomicsDB/blob/master/LICENSE</url>
+      <name>MIT and other recursive licenses</name>
+      <url>https://github.com/GenomicsDB/GenomicsDB/blob/master/LICENSE</url>
     </license>
   </licenses>
 
   <developers>
     <developer>
-      <id>Intel-HLS</id>
-      <name>Intel-HLS</name>
-      <url>https://github.com/Intel-HLS</url>
+      <id>support</id>
+      <name>Support</name>
+      <email>support@genomicsdb.org</email>
+      <url>https://www.genomicsdb.org</url>
+      <organization>GenomicsDB</organization>
+    </developer>
+    <developer>
+      <id>nalini</id>
+      <name>Nalini Ganapati</name>
+      <email>nalini@omicsautomation.com</email>
+      <url>https://www.omicsautomation.com</url>
+      <organization>Omics Data Automation, Inc.</organization>
     </developer>
   </developers>
 
   <scm>
-    <connection>scm:git:https://github.com/Intel-HLS/GenomicsDB.git</connection>
-    <url>https://github.com/Intel-HLS/GenomicsDB.git</url>
+    <connection>scm:git:https://github.com/GenomicsDB/GenomicsDB.git</connection>
+    <url>https://github.com/GenomicsDB/GenomicsDB.git</url>
   </scm>
 
   <!-- Distribution management section to push jars to Maven central-->
@@ -65,6 +74,7 @@
     <test_source_directory>${genomicsdb_source_directory}/src/test/java</test_source_directory>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <surefireArgLine>-Djava.library.path=${project.basedir}/bin:${java.library.path}</surefireArgLine>
   </properties>
 
   <dependencies>
@@ -151,10 +161,56 @@
           </compilerArgs>
         </configuration>
       </plugin>
+      <!-- Jacoco adapted from 
+           https://www.petrikainulainen.net/programming/maven/creating-code-coverage-reports-for-unit-and-integration-tests-with-the-jacoco-maven-plugin/ -->
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>0.8.2</version>
+        <executions>
+          <!--
+            Prepares the property pointing to the JaCoCo runtime agent which
+            is passed as VM argument when Maven the Surefire plugin is executed.
+          -->
+          <execution>
+            <id>pre-unit-test</id>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+            <configuration>
+              <!-- Sets the path to the file which contains the execution data. -->
+              <destFile>${project.build.directory}/jacoco-reports/jacoco-ut.exec</destFile>
+              <!--
+                  Sets the name of the property containing the settings
+                  for JaCoCo runtime agent.
+              -->
+              <propertyName>surefireJacoco</propertyName>
+            </configuration>
+          </execution>
+          <!--
+            Ensures that the code coverage report for unit tests is created after
+            unit tests have been run.
+          -->
+          <execution>
+            <id>post-unit-test</id>
+            <phase>test</phase>
+            <goals>
+              <goal>report</goal>
+            </goals>
+            <configuration>
+              <!-- Sets the path to the file which contains the execution data. -->
+              <dataFile>${project.build.directory}/jacoco-reports/jacoco-ut.exec</dataFile>
+              <!-- Sets the output directory for the code coverage report. -->
+              <outputDirectory>${project.build.directory}/jacoco-reports/jacoco-ut</outputDirectory>
+              </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
         <version>2.15.2</version>
+<!-- removing for OSX build
         <executions>
           <execution>
             <id>scala-compile-first</id>
@@ -164,6 +220,7 @@
             </goals>
           </execution>
         </executions>
+-->
       </plugin>
       <plugin>
         <groupId>net.alchim31.maven</groupId>
@@ -212,7 +269,7 @@
             <include>**/*.scala</include>
           </includes>
           <forkMode>once</forkMode>
-          <argLine>-Djava.library.path=${project.basedir}/bin:${java.library.path}</argLine>
+          <argLine>${surefireJacoco} ${surefireArgLine}</argLine>
           <systemPropertyVariables>
             <buildDirectory>${project.build.directory}</buildDirectory>
           </systemPropertyVariables>

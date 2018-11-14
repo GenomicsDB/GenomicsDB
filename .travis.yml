@@ -16,45 +16,97 @@ env:
         - PATH=$GENOMICSDB_INSTALL_DIR/bin:$TRAVIS_BUILD_DIR/bin:$PATH
         - GENOMICSDB_RELEASE_VERSION=0.9.2
         - CLASSPATH=$GENOMICSDB_INSTALL_DIR/bin/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-jar-with-dependencies.jar:$GENOMICSDB_BUILD_DIR/target/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples.jar:.
+        - secure: ns0xWDbnmDb71J0/edoJ4jN/xtPg4yxnbexe/AcTwHUOkLehEuGHY7tlZa8cTlBsV19+CFXpYXn4LezS/7989gPfI5Kl0lLg1T8I4V+t2iJTAXurjew0i1AVjQBKfVWtYhGJQOws8DMUDunTxEJMahZzdNK1McLxvongJ7mD1rLabSlLE81lSnsVwvms/4Cp6c2hxec8mNsxxV9CUDzrsX63te/srvPuG+FMD1E32PYuTJJpNH3O7/nvbuW5bOvdwT5Yq/dHGF96U+YZpvqH1PqqtXUuZRJltFUaTsdEclv9Q1DpSpikEmPL+iOJRgS1W0i+mZ2wShFYmSZIv/fwlVoE4bNnLd/dJOTsS6hSpVpEPJnK/YizPNxoB21LAZACdg6rSBnPClfMnYdkNilL9h1s/u4P6RTHUztc8Ty6z1qpi78pOjS3t26o36m87MtXnkkTp06Q0O5kDSM35xsTdBevGeT3lWfYSxRpM/ypqb6xTnii8ZQ+Ohe+m7AVFhE5nFh2JUxQRCcl0xjZQyy2nbLPmDfvnAM+yIvGBZPPiCVJgWy5Vs3Jm1TC5Ju63Rz+RzJfAIiy6DhnUDK74ip5NMP1PXey8ySKnOfcPcxCdJVqqtEARvt+zIhrbGZCkjDUR1L2OOBheZ6RKY/rsuAsVOBo9s+ELBz0Y4hWXDhmn5c=
+
+matrix:
+    include:
+      - name: "Basic build Linux"
+        os: linux
+        env: INSTALL_TYPE=basic
+
+      - name: "Basic build OSX"
+        os: osx
+        language: generic
+        env: TOXENV=py34 INSTALL_TYPE=basic
+
+# commenting out for now because these seem flaky
+#      - name: "Spark/HDFS Linux"
+#        os: linux
+#        env: INSTALL_TYPE=hdfs
+#
+#      - name: "Spark/GCS Linux"
+#        os: linux
+#        env: INSTALL_TYPE=gcs
+
+before_install:
+    - if [[ $TRAVIS_OS_NAME == osx ]]; then brew update; fi
+    - if [[ $TRAVIS_OS_NAME == osx ]]; then brew list python &>/dev/null || brew install python; fi
+    - if [[ $TRAVIS_OS_NAME == osx ]]; then brew list python3 &>/dev/null || brew install python3; fi
+    - if [[ $INSTALL_TYPE == gcs ]]; then
+        pushd $TRAVIS_BUILD_DIR/.travis/resources/gcs;
+        openssl aes-256-cbc -K $encrypted_7798cc2401f2_key -iv $encrypted_7798cc2401f2_iv -in GCS.json.enc -out ~/GCS.json -d;
+        popd;
+      fi
 
 install:
     # Install dependencies
     - pip install -r requirements.txt
     - sudo pip2 install jsondiff
-    - sudo apt-get -y install lcov mpich zlib1g-dev libssl-dev rsync cmake uuid-dev libcurl4-openssl-dev
-    - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
-    - sudo add-apt-repository -y ppa:openjdk-r/ppa
-    - sudo apt-get update -q
-    - sudo apt-get install gcc-4.9 -y
-    - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 60
-    - sudo apt-get install g++-4.9 -y
-    - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 60
-    - sudo update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-4.9 60;
-    - sudo apt-get install libdbi-dev libdbd-pgsql -y
-    - sudo apt-get -y install openjdk-8-jdk icedtea-plugin
-    - jdk_switcher use openjdk8
+    - if [[ $TRAVIS_OS_NAME == linux ]]; then
+        sudo apt-get -y install lcov mpich zlib1g-dev libssl-dev rsync cmake uuid-dev libcurl4-openssl-dev;
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y;
+        sudo add-apt-repository -y ppa:openjdk-r/ppa;
+        sudo apt-get update -q;
+        sudo apt-get install gcc-4.9 -y;
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 60;
+        sudo apt-get install g++-4.9 -y;
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 60;
+        sudo update-alternatives --install /usr/bin/gcov gcov /usr/bin/gcov-4.9 60;
+        sudo apt-get install libdbi-dev libdbd-pgsql -y;
+        sudo apt-get -y install openjdk-8-jdk icedtea-plugin;
+        sudo apt-get -y install zip unzip;
+        wget -nv https://github.com/Intel-HLS/GenomicsDB/releases/download/0.4.0/protobuf-3.0.2-trusty.tar.gz -O protobuf-3.0.2-trusty.tar.gz;
+        tar xzf protobuf-3.0.2-trusty.tar.gz && sudo rsync -a protobuf-3.0.2-trusty/ /usr/;
+        sudo apt-get -y install libgtest-dev;
+        cd /usr/src/gtest;
+        sudo cmake . -DBUILD_SHARED_LIBS=1;
+        sudo make;
+        sudo mv libgtest* /usr/lib;
+        cd $TRAVIS_BUILD_DIR;
+        cd dependencies && git clone https://github.com/rgamble/libcsv && cd libcsv && ./configure && make;
+        jdk_switcher use openjdk8;
+      elif [[ $TRAVIS_OS_NAME == osx ]]; then
+        export PG_DATA=$(brew --prefix)/var/postgres;
+        pg_ctl -w start -l postgres.log --pgdata ${PG_DATA};
+        createuser -s postgres;
+        brew upgrade cmake;
+        brew install lcov mpich openssl ossp-uuid protobuf@3.1 libcsv;
+        export OPENSSL_ROOT_DIR=/usr/local/opt/openssl;
+        cd $TRAVIS_BUILD_DIR/dependencies;
+        wget -nv https://github.com/google/googletest/archive/release-1.8.1.tar.gz;
+        tar -xzf release-1.8.1.tar.gz;
+        cd googletest-release-1.8.1/googletest && cmake . -DBUILD_SHARED_LIBS=1 && make && cp libgtest* /usr/local/lib && cp -r include/gtest /usr/local/include;
+        ls $TRAVIS_BUILD_DIR/dependencies/googletest-release-1.8.1/googletest/;
+        JAVA_HOME=$(/usr/libexec/java_home);
+      fi
     - echo $JAVA_HOME
     - export PATH=$JAVA_HOME/bin:$PATH
     - which javac && javac -version
     - which java && java -version
-    # Copy protobuf binaries
-    - wget https://github.com/Intel-HLS/GenomicsDB/releases/download/0.4.0/protobuf-3.0.2-trusty.tar.gz -O protobuf-3.0.2-trusty.tar.gz
-    - tar xzf protobuf-3.0.2-trusty.tar.gz && sudo rsync -a protobuf-3.0.2-trusty/ /usr/
-    # Install gtest
-    #- sudo apt-get -y install libgtest0 libgtest-dev
-    # above package (libgtest0) not built for 14.04
-    - sudo apt-get -y install libgtest-dev
-    - cd /usr/src/gtest
-    - sudo cmake . -DBUILD_SHARED_LIBS=1
-    - sudo make
-    - sudo mv libgtest* /usr/lib
-    # Install libcsv
+    # install spark/hdfs/scala 
     - cd $TRAVIS_BUILD_DIR
-    - cd dependencies && git clone https://github.com/rgamble/libcsv && cd libcsv && ./configure && make
+    - if [[ $INSTALL_TYPE != basic ]]; then
+        wget -nv https://downloads.lightbend.com/scala/2.11.8/scala-2.11.8.deb;
+        sudo dpkg -i scala-2.11.8.deb;
+        source $TRAVIS_BUILD_DIR/.travis/scripts/install_hadoop.sh;
+        source $TRAVIS_BUILD_DIR/.travis/scripts/install_spark.sh;
+      fi
+
     - cd $TRAVIS_BUILD_DIR
-    # Install lcov to coveralls conversion + upload tool
-    - gem install coveralls-lcov
     - mkdir -p $GENOMICSDB_BUILD_DIR
+    # get jacoco
+    - wget https://github.com/jacoco/jacoco/releases/download/v0.8.2/jacoco-0.8.2.zip
+    - unzip -j jacoco-0.8.2.zip lib/jacocoagent.jar lib/jacococli.jar -d $GENOMICSDB_BUILD_DIR
 
 before_script:
     - cd $GENOMICSDB_BUILD_DIR
@@ -68,9 +120,25 @@ script:
     #- pylint $TRAVIS_BUILD_DIR/docker/vcf_combiner/usr/bin/combine_vcf.py
     - pytest $TRAVIS_BUILD_DIR/docker/vcf_combiner/usr/bin/combine_vcf.py
     - cd $GENOMICSDB_BUILD_DIR
-    - cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True
+    - if [[ $TRAVIS_OS_NAME == linux ]]; then
+        cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True;
+      elif [[ $TRAVIS_OS_NAME == osx ]]; then
+        cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_FIND_FRAMEWORK=LAST -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True -DPROTOBUF_REGENERATE=True -DPROTOBUF_LIBRARY=/usr/local/opt/protobuf@3.1/lib/libprotobuf.so -DPROTOBUF_INCLUDE_DIRS=/usr/local/opt/protobuf@3.1/include -DPROTOBUF_LIBRARY_DEBUG=/usr/local/opt/protobuf@3.1/lib/libprotobuf.so -DPROTOBUF_LITE_LIBRARY=/usr/local/opt/protobuf@3.1/lib/libprotobuf-lite.so -DPROTOBUF_PROTOC_EXECUTABLE=/usr/local/opt/protobuf@3.1/bin/protoc -DPROTOBUF_PROTOC_LIBRARY=/usr/local/opt/protobuf@3.1/lib/libprotoc.so -DPROTOBUF_LIBRARIES=/usr/local/opt/protobuf@3.1/lib/libprotobuf.a -DGTEST_ROOT=$TRAVIS_BUILD_DIR/dependencies/googletest-release-1.8.1/googletest -DOPENSSL_PREFIX_DIR=/usr/local/opt/openssl;
+      fi
     - ln -s $TRAVIS_BUILD_DIR/tests
-    - make -j 4 && make install && make test ARGS=-V
+    - make -j 4 && make install
+    - if [[ $INSTALL_TYPE == hdfs ]]; then
+        echo "Run spark/hdfs tests";
+        /usr/local/spark/sbin/start-master.sh;
+        travis_wait 20 python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests;
+      elif [[ $INSTALL_TYPE == gcs ]]; then
+        echo "Run spark/gcs tests";
+        /usr/local/spark/sbin/start-master.sh;
+        export GOOGLE_APPLICATION_CREDENTIALS=~/GCS.json;
+        travis_wait 40 python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local gs://$GS_BUCKET client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests;
+      else
+        make test ARGS=-V;
+      fi
 
 after_success:
     - cd $GENOMICSDB_BUILD_DIR

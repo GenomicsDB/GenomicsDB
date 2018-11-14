@@ -28,6 +28,7 @@ import os
 import sys
 import shutil
 import difflib
+import errno
 from collections import OrderedDict
 
 query_json_template_string="""
@@ -190,6 +191,7 @@ def main():
     template_vcf_header_path=parent_dir+os.path.sep+'inputs'+os.path.sep+'template_vcf_header.vcf';
     tmpdir = tempfile.mkdtemp()
     ws_dir=tmpdir+os.path.sep+'ws';
+    jacoco_enabled = os.path.isfile(sys.argv[1]+os.path.sep+'jacocoagent.jar') and os.path.isfile(sys.argv[1]+os.path.sep+'jacococli.jar')
     loader_tests = [
             { "name" : "t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
@@ -327,6 +329,17 @@ def main():
                 ]
             },
     ];
+    if jacoco_enabled:
+        jacoco_dest_file = "=destfile="+sys.argv[1]+os.path.sep+"target"+os.path.sep+"jacoco-reports"+os.path.sep+"jacoco-ci.exec"
+        jacoco = " -javaagent:"+sys.argv[1]+os.path.sep+"jacocoagent.jar"+jacoco_dest_file
+        try:
+            os.makedirs(sys.argv[1]+os.path.sep+'target'+os.path.sep+'jacoco-reports'+os.path.sep+'jacoco-ci')
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                sys.stderr.write('Error creating jacoco-reports dir:'+e.errno+' '+e.filename+' '+e.strerror)
+                cleanup_and_exit("", tmpdir, -1);
+    else:
+        jacoco = ''
     if("://" in namenode):
         pid = subprocess.Popen('hadoop fs -mkdir -p '+namenode+'/home/hadoop/.tiledb/', shell=True, stdout=subprocess.PIPE);
         stdout_string = pid.communicate()[0]
@@ -360,6 +373,8 @@ def main():
                     sys.stderr.write('Loading stdout: '+stdout_string+'\n');
                     sys.stderr.write('Loading stderr: '+stderr_string+'\n');
                     cleanup_and_exit(namenode, tmpdir, -1);
+                else:
+                    sys.stdout.write('Loading passed for test: '+test_name+' rank '+str(i)+'\n');
             with open(loader_json_filename, 'wb') as fptr:
                 json.dump(test_loader_dict, fptr, indent=4, separators=(',', ': '));
                 fptr.close();
@@ -374,7 +389,7 @@ def main():
                     json.dump(test_query_dict, fptr, indent=4, separators=(',', ': '));
                     fptr.close();
                 loader_argument = loader_json_filename;
-                spark_cmd = 'spark-submit --class TestGenomicsDBSparkHDFS --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-jar-with-dependencies.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --hostfile '+hostfile_path+' --template_vcf_header '+template_vcf_header_path+' --spark_master '+spark_master+' --jar_dir '+jar_dir;
+                spark_cmd = 'spark-submit --class TestGenomicsDBSparkHDFS --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-jar-with-dependencies.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --hostfile '+hostfile_path+' --template_vcf_header '+template_vcf_header_path+' --spark_master '+spark_master+' --jar_dir '+jar_dir;
                 pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
                 stdout_string, stderr_string = pid.communicate()
                 if(pid.returncode != 0):
@@ -397,6 +412,14 @@ def main():
                         cleanup_and_exit(namenode, tmpdir, -1);
                     else:
                         sys.stdout.write('Query test: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions passed\n');
+    if jacoco_enabled:
+        jacoco_ci_report_dir = sys.argv[1]+os.path.sep+'target'+os.path.sep+'jacoco-reports'+os.path.sep
+        jacoco_report_cmd = 'java -jar '+sys.argv[1]+os.path.sep+'jacococli.jar report '+jacoco_ci_report_dir+'jacoco-ci.exec --classfiles '+sys.argv[1]+os.path.sep+'target'+os.path.sep+'classes --html '+jacoco_ci_report_dir+'jacoco-ci --xml '+jacoco_ci_report_dir+'jacoco-ci'+os.path.sep+'jacoco-ci.xml'
+        pid = subprocess.Popen(jacoco_report_cmd, shell=True, stdout=subprocess.PIPE);
+        stdout_string = pid.communicate()[0]
+        if(pid.returncode != 0):
+            sys.stderr.write('Jacoco report generation command:'+jacoco_report_cmd+' failed\n')
+            cleanup_and_exit(namenode, tmpdir, -1); 
     cleanup_and_exit(namenode, tmpdir, 0); 
 
 if __name__ == '__main__':
