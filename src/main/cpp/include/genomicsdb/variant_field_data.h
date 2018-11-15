@@ -656,6 +656,7 @@ template< class VariantFieldTy >
 class VariantFieldCreator : public VariantFieldCreatorBase {
   public:
     VariantFieldCreator() {}
+    virtual ~VariantFieldCreator() = default;
     virtual std::unique_ptr<VariantFieldBase> Create(const bool is_variable_length_field) const
     {
       return std::unique_ptr<VariantFieldBase>(new VariantFieldTy(is_variable_length_field));

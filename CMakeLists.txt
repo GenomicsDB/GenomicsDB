@@ -2,6 +2,10 @@ project(GenomicsDB)
 cmake_minimum_required(VERSION 2.8)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
+if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  message(FATAL_ERROR CMAKE_CXX_COMPILER_ID " Compiler not yet supported. Exiting.")
+endif()
+
 #git tag
 execute_process(
     COMMAND git log -1 --format=%h
@@ -46,6 +50,11 @@ set(USE_HDFS True CACHE BOOL "Enables HDFS support")
 
 #See https://cmake.org/Wiki/CMake_RPATH_handling#Common_questions
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH True)
+#ifdef APPLE
+  set(CMAKE_MACOSX_RPATH True CACHE BOOL "Set rpath on OSX")
+  set(CMAKE_FIND_FRAMEWORK LAST CACHE STRING "Try to find frameworks on Mac OS X last")
+#endif
+
 enable_testing()
 
 #Platform check modules
@@ -57,7 +66,7 @@ if(BUILD_DISTRIBUTABLE_LIBRARY)
     set(DISABLE_MPI True)
     set(DISABLE_OPENMP True)
     #For the GNU compiler, link in static gcc libraries
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     endif()
@@ -79,13 +88,13 @@ if(NOT test_stack_protector_strong)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector")
 endif()
 
-#Warnings
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+#Compiler Warning Options
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-reorder -Wno-unknown-pragmas -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-result")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -z noexecstack -z relro -z now")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -z noexecstack -z relro -z now")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-reorder -Wno-unused-variable")
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-reorder -Wno-unused-variable -Wno-pessimizing-move")
 endif()
 
 #MPI library/compiler etc
@@ -227,10 +236,9 @@ endif()
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG -g3 -gdwarf-3")
 set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 -fvisibility=hidden")
 set(CMAKE_CXX_FLAGS_COVERAGE "-DDEBUG -g3 -gdwarf-3 --coverage")
-# CMake doesn't add "-pie" by default for executables (CMake issue #14983)
-if(BUILD_DISTRIBUTABLE_LIBRARY)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie ")
-endif()
+
+#CMake doesn't add "-pie" by default for executables (CMake issue #14983)
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
 
 #Clean all
 add_custom_target(clean-all ${CMAKE_MAKE_PROGRAM} clean)
