@@ -11,11 +11,11 @@ if(PROTOBUF_REGENERATE)
         CACHE INTERNAL "Path to protocol buffers generated C++ headers")
     add_custom_target(PROTOBUF_GENERATED_CXX_TARGET DEPENDS ${PROTOBUF_GENERATED_CXX_SRCS} ${PROTOBUF_GENERATED_CXX_HDRS})
     set(PROTOBUF_GENERATED_JAVA_SRCS
-      ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/com/intel/genomicsdb/GenomicsDBColumn.java
-        ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/com/intel/genomicsdb/GenomicsDBCallsetsMapProto.java
-        ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/com/intel/genomicsdb/GenomicsDBExportConfiguration.java
-        ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/com/intel/genomicsdb/GenomicsDBImportConfiguration.java
-        ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/com/intel/genomicsdb/GenomicsDBVidMapProto.java
+      ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/org/genomicsdb/GenomicsDBColumn.java
+        ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/org/genomicsdb/GenomicsDBCallsetsMapProto.java
+        ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/org/genomicsdb/GenomicsDBExportConfiguration.java
+        ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/org/genomicsdb/GenomicsDBImportConfiguration.java
+        ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/org/genomicsdb/GenomicsDBVidMapProto.java
         )
 else()
     set(PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/src/main/protobuf-generated/cpp/include")
@@ -27,10 +27,10 @@ else()
         list(APPEND PROTOBUF_GENERATED_CXX_HDRS "${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS}/${CURR_FILENAME}.pb.h")
     endforeach()
     set(PROTOBUF_GENERATED_JAVA_SRCS
-        src/main/protobuf-generated/java/com/intel/genomicsdb/GenomicsDBCallsetsMapProto.java
-        src/main/protobuf-generated/java/com/intel/genomicsdb/GenomicsDBExportConfiguration.java
-        src/main/protobuf-generated/java/com/intel/genomicsdb/GenomicsDBImportConfiguration.java
-        src/main/protobuf-generated/java/com/intel/genomicsdb/GenomicsDBVidMapProto.java
+        src/main/protobuf-generated/java/org/genomicsdb/GenomicsDBCallsetsMapProto.java
+        src/main/protobuf-generated/java/org/genomicsdb/GenomicsDBExportConfiguration.java
+        src/main/protobuf-generated/java/org/genomicsdb/GenomicsDBImportConfiguration.java
+        src/main/protobuf-generated/java/org/genomicsdb/GenomicsDBVidMapProto.java
         )
 endif()
 set(PROTOBUF_GENERATED_CXX_SRCS ${PROTOBUF_GENERATED_CXX_SRCS} CACHE INTERNAL "Protocol buffers generated C++ sources")

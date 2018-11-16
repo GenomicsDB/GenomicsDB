@@ -27,7 +27,7 @@
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBJNIException(#X);
 
 JNIEXPORT jint JNICALL 
-Java_com_intel_genomicsdb_GenomicsDBUtilsJni_jniCreateTileDBWorkspace
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniCreateTileDBWorkspace
 (JNIEnv *env, jclass currClass, jstring workspace, jboolean replace) 
 {
   auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
@@ -39,7 +39,7 @@ Java_com_intel_genomicsdb_GenomicsDBUtilsJni_jniCreateTileDBWorkspace
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_intel_genomicsdb_GenomicsDBUtilsJni_jniIsTileDBArray
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniIsTileDBArray
 (JNIEnv *env, jclass currClass, jstring workspace, jstring arrayName)
 {
   auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
@@ -54,7 +54,7 @@ Java_com_intel_genomicsdb_GenomicsDBUtilsJni_jniIsTileDBArray
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_com_intel_genomicsdb_GenomicsDBUtilsJni_jniListTileDBArrays
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniListTileDBArrays
 (JNIEnv *env, jclass currClass, jstring workspace)
 {
   auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
@@ -71,7 +71,7 @@ Java_com_intel_genomicsdb_GenomicsDBUtilsJni_jniListTileDBArrays
 }
 
 JNIEXPORT jint JNICALL
-Java_com_intel_genomicsdb_GenomicsDBUtilsJni_jniWriteToFile
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniWriteToFile
 (JNIEnv *env, jclass currClass, jstring filename, jstring contents, jlong length)
 {
   auto filename_cstr = env->GetStringUTFChars(filename, NULL);
@@ -85,7 +85,7 @@ Java_com_intel_genomicsdb_GenomicsDBUtilsJni_jniWriteToFile
 }
 
 JNIEXPORT jint JNICALL
-Java_com_intel_genomicsdb_GenomicsDBUtilsJni_jniMoveFile
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniMoveFile
 (JNIEnv *env, jclass currClass, jstring source, jstring destination)
 {
   auto source_cstr = env->GetStringUTFChars(source, NULL);

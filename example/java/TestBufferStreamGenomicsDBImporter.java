@@ -20,15 +20,17 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import com.intel.genomicsdb.exception.GenomicsDBException;
-import com.intel.genomicsdb.importer.model.SampleInfo;
-import com.intel.genomicsdb.importer.GenomicsDBImporter;
 import htsjdk.tribble.AbstractFeatureReader;
 import htsjdk.tribble.readers.LineIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
+
+import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.importer.GenomicsDBImporter;
+import org.genomicsdb.importer.model.SampleInfo;
+
 import org.json.simple.parser.ContainerFactory;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
