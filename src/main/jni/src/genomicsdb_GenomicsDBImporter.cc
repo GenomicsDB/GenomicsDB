@@ -35,7 +35,7 @@
     (reinterpret_cast<GenomicsDBImporter*>(static_cast<std::uintptr_t>(X)))
 
 JNIEXPORT jint JNICALL
-Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniGenomicsDBImporter(
+Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniGenomicsDBImporter(
   JNIEnv* env,
   jobject obj,
   jstring loader_configuration_file,
@@ -63,7 +63,7 @@ Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniGenomicsDBImporter(
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniInitializeGenomicsDBImporterObject(
+Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniInitializeGenomicsDBImporterObject(
   JNIEnv* env,
   jobject obj,
   jstring loader_configuration_file,
@@ -87,7 +87,7 @@ Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniInitializeGenomicsDB
 }
 
 JNIEXPORT void JNICALL
-Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniAddBufferStream(
+Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniAddBufferStream(
   JNIEnv* env,
   jobject obj,
   jlong handle,
@@ -120,7 +120,7 @@ Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniAddBufferStream(
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniSetupGenomicsDBLoader(
+Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniSetupGenomicsDBLoader(
   JNIEnv* env,
   jobject obj,
   jlong handle,
@@ -140,7 +140,7 @@ Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniSetupGenomicsDBLoade
 }
 
 JNIEXPORT void JNICALL
-Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniWriteDataToBufferStream(
+Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniWriteDataToBufferStream(
   JNIEnv* env,
   jobject obj,
   jlong handle,
@@ -166,7 +166,7 @@ Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniWriteDataToBufferStr
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniImportBatch(
+Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniImportBatch(
   JNIEnv* env,
   jobject obj,
   jlong handle,
@@ -205,7 +205,7 @@ Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniImportBatch(
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniGetChromosomeIntervalsForColumnPartition(
+Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniGetChromosomeIntervalsForColumnPartition(
   JNIEnv* env,
   jclass currClass,
   jstring loader_configuration_file,
@@ -256,7 +256,7 @@ Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniGetChromosomeInterva
 
 
 JNIEXPORT jlong JNICALL
-Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniCopyVidMap
+Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniCopyVidMap
   (JNIEnv* env,
    jobject obj,
    jlong handle,
@@ -289,7 +289,7 @@ Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniCopyVidMap
 
 
 JNIEXPORT jlong JNICALL
-Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniCopyCallsetMap
+Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniCopyCallsetMap
   (JNIEnv* env,
    jobject obj,
    jlong handle,
@@ -324,7 +324,7 @@ Java_com_intel_genomicsdb_importer_GenomicsDBImporterJni_jniCopyCallsetMap
 
 
 JNIEXPORT void JNICALL
-Java_com_intel_genomicsdb_GenomicsDBUtilsJni_jniConsolidateTileDBArray
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniConsolidateTileDBArray
   (JNIEnv *env, 
    jclass currClass, 
    jstring workspace, 

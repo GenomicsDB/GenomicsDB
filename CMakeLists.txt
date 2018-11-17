@@ -2,6 +2,10 @@ project(GenomicsDB)
 cmake_minimum_required(VERSION 2.8)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
+if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+  message(FATAL_ERROR CMAKE_CXX_COMPILER_ID " Compiler not yet supported. Exiting.")
+endif()
+
 #git tag
 execute_process(
     COMMAND git log -1 --format=%h
@@ -46,6 +50,11 @@ set(USE_HDFS True CACHE BOOL "Enables HDFS support")
 
 #See https://cmake.org/Wiki/CMake_RPATH_handling#Common_questions
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH True)
+#ifdef APPLE
+  set(CMAKE_MACOSX_RPATH True CACHE BOOL "Set rpath on OSX")
+  set(CMAKE_FIND_FRAMEWORK LAST CACHE STRING "Try to find frameworks on Mac OS X last")
+#endif
+
 enable_testing()
 
 #Platform check modules
@@ -57,7 +66,7 @@ if(BUILD_DISTRIBUTABLE_LIBRARY)
     set(DISABLE_MPI True)
     set(DISABLE_OPENMP True)
     #For the GNU compiler, link in static gcc libraries
-    if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     endif()
@@ -79,13 +88,13 @@ if(NOT test_stack_protector_strong)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector")
 endif()
 
-#Warnings
-if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+#Compiler Warning Options
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-reorder -Wno-unknown-pragmas -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-result")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -z noexecstack -z relro -z now")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -z noexecstack -z relro -z now")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-reorder -Wno-unused-variable")
+elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-reorder -Wno-unused-variable -Wno-pessimizing-move")
 endif()
 
 #MPI library/compiler etc
@@ -227,9 +236,10 @@ endif()
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG -g3 -gdwarf-3")
 set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 -fvisibility=hidden")
 set(CMAKE_CXX_FLAGS_COVERAGE "-DDEBUG -g3 -gdwarf-3 --coverage")
+
 # CMake doesn't add "-pie" by default for executables (CMake issue #14983)
 if(BUILD_DISTRIBUTABLE_LIBRARY)
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie ")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
 endif()
 
 #Clean all
@@ -322,49 +332,49 @@ add_subdirectory(example)
 
 if(BUILD_JAVA)
     set(JAVA_SCALA_SOURCES
-        ./src/main/java/com/intel/genomicsdb/exception/GenomicsDBException.java
-        ./src/main/java/com/intel/genomicsdb/importer/extensions/CallSetMapExtensions.java
-        ./src/main/java/com/intel/genomicsdb/importer/extensions/JsonFileExtensions.java
-        ./src/main/java/com/intel/genomicsdb/importer/extensions/VidMapExtensions.java
-        ./src/main/java/com/intel/genomicsdb/importer/model/ChromosomeInterval.java
-        ./src/main/java/com/intel/genomicsdb/importer/model/SampleInfo.java
-        ./src/main/java/com/intel/genomicsdb/importer/Constants.java
-        ./src/main/java/com/intel/genomicsdb/importer/GenomicsDBImporter.java
-        ./src/main/java/com/intel/genomicsdb/importer/GenomicsDBImporterJni.java
-        ./src/main/java/com/intel/genomicsdb/importer/GenomicsDBImporterStreamWrapper.java
-        ./src/main/java/com/intel/genomicsdb/importer/MultiChromosomeIterator.java
-        ./src/main/java/com/intel/genomicsdb/importer/SilentByteBufferStream.java
-        ./src/main/java/com/intel/genomicsdb/model/CommandLineImportConfig.java
-        ./src/main/java/com/intel/genomicsdb/model/ImportConfig.java
-        ./src/main/java/com/intel/genomicsdb/model/BatchCompletionCallbackFunctionArgument.java
-        ./src/main/java/com/intel/genomicsdb/reader/GenomicsDBFeatureIterator.java
-        ./src/main/java/com/intel/genomicsdb/reader/GenomicsDBFeatureReader.java
-        ./src/main/java/com/intel/genomicsdb/reader/GenomicsDBFeatureReaderJni.java
-        ./src/main/java/com/intel/genomicsdb/reader/GenomicsDBQueryStream.java
-        ./src/main/java/com/intel/genomicsdb/reader/GenomicsDBTimer.java
-        ./src/main/java/com/intel/genomicsdb/spark/GenomicsDBConfiguration.java
-        ./src/main/java/com/intel/genomicsdb/spark/GenomicsDBInputFormat.java
-        ./src/main/java/com/intel/genomicsdb/spark/GenomicsDBInputSplit.java
-        ./src/main/java/com/intel/genomicsdb/spark/GenomicsDBJavaSparkFactory.java
-        ./src/main/java/com/intel/genomicsdb/spark/GenomicsDBPartitionInfo.java
-        ./src/main/java/com/intel/genomicsdb/spark/GenomicsDBRecordReader.java
-	./src/main/java/com/intel/genomicsdb/spark/GenomicsDBQueryInfo.java
-        ./src/main/java/com/intel/genomicsdb/Constants.java
-        ./src/main/java/com/intel/genomicsdb/GenomicsDBLibLoader.java
-        ./src/main/scala/com/intel/genomicsdb/GenomicsDBContext.scala
-        ./src/main/scala/com/intel/genomicsdb/GenomicsDBPartition.scala
-        ./src/main/scala/com/intel/genomicsdb/GenomicsDBRDD.scala
-        ./src/main/scala/com/intel/genomicsdb/GenomicsDBScalaSparkFactory.scala
-        ./src/test/java/com/intel/genomicsdb/importer/GenomicsDBImporterSpec.java
-        ./src/test/java/com/intel/genomicsdb/reader/ChrArrayFolderComparatorSpec.java
-        ./src/test/java/com/intel/genomicsdb/spark/GenomicsDBInputFormatTest.java
-        ./src/test/java/com/intel/genomicsdb/model/CommandLineImportConfigSpec.java
-        ./src/test/java/com/intel/genomicsdb/model/GenomicsDBCallsetsMapProtoSpec.java
-        ./src/test/java/com/intel/genomicsdb/model/GenomicsDBExportConfigurationSpec.java
-        ./src/test/java/com/intel/genomicsdb/model/GenomicsDBImportConfigurationSpec.java
-        ./src/test/java/com/intel/genomicsdb/model/GenomicsDBVidMappingProtoSpec.java
-        ./src/test/java/com/intel/genomicsdb/model/ImportConfigSpec.java
-        ./src/test/java/com/intel/genomicsdb/GenomicsDBTestUtils.java
+        ./src/main/java/org/genomicsdb/exception/GenomicsDBException.java
+        ./src/main/java/org/genomicsdb/importer/extensions/CallSetMapExtensions.java
+        ./src/main/java/org/genomicsdb/importer/extensions/JsonFileExtensions.java
+        ./src/main/java/org/genomicsdb/importer/extensions/VidMapExtensions.java
+        ./src/main/java/org/genomicsdb/importer/model/ChromosomeInterval.java
+        ./src/main/java/org/genomicsdb/importer/model/SampleInfo.java
+        ./src/main/java/org/genomicsdb/importer/Constants.java
+        ./src/main/java/org/genomicsdb/importer/GenomicsDBImporter.java
+        ./src/main/java/org/genomicsdb/importer/GenomicsDBImporterJni.java
+        ./src/main/java/org/genomicsdb/importer/GenomicsDBImporterStreamWrapper.java
+        ./src/main/java/org/genomicsdb/importer/MultiChromosomeIterator.java
+        ./src/main/java/org/genomicsdb/importer/SilentByteBufferStream.java
+        ./src/main/java/org/genomicsdb/model/CommandLineImportConfig.java
+        ./src/main/java/org/genomicsdb/model/ImportConfig.java
+        ./src/main/java/org/genomicsdb/model/BatchCompletionCallbackFunctionArgument.java
+        ./src/main/java/org/genomicsdb/reader/GenomicsDBFeatureIterator.java
+        ./src/main/java/org/genomicsdb/reader/GenomicsDBFeatureReader.java
+        ./src/main/java/org/genomicsdb/reader/GenomicsDBFeatureReaderJni.java
+        ./src/main/java/org/genomicsdb/reader/GenomicsDBQueryStream.java
+        ./src/main/java/org/genomicsdb/reader/GenomicsDBTimer.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBConfiguration.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBInputFormat.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBInputSplit.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBJavaSparkFactory.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBPartitionInfo.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBRecordReader.java
+	./src/main/java/org/genomicsdb/spark/GenomicsDBQueryInfo.java
+        ./src/main/java/org/genomicsdb/Constants.java
+        ./src/main/java/org/genomicsdb/GenomicsDBLibLoader.java
+        ./src/main/scala/org/genomicsdb/GenomicsDBContext.scala
+        ./src/main/scala/org/genomicsdb/GenomicsDBPartition.scala
+        ./src/main/scala/org/genomicsdb/GenomicsDBRDD.scala
+        ./src/main/scala/org/genomicsdb/GenomicsDBScalaSparkFactory.scala
+        ./src/test/java/org/genomicsdb/importer/GenomicsDBImporterSpec.java
+        ./src/test/java/org/genomicsdb/reader/ChrArrayFolderComparatorSpec.java
+        ./src/test/java/org/genomicsdb/spark/GenomicsDBInputFormatTest.java
+        ./src/test/java/org/genomicsdb/model/CommandLineImportConfigSpec.java
+        ./src/test/java/org/genomicsdb/model/GenomicsDBCallsetsMapProtoSpec.java
+        ./src/test/java/org/genomicsdb/model/GenomicsDBExportConfigurationSpec.java
+        ./src/test/java/org/genomicsdb/model/GenomicsDBImportConfigurationSpec.java
+        ./src/test/java/org/genomicsdb/model/GenomicsDBVidMappingProtoSpec.java
+        ./src/test/java/org/genomicsdb/model/ImportConfigSpec.java
+        ./src/test/java/org/genomicsdb/GenomicsDBTestUtils.java
         )
     if(PROTOBUF_REGENERATE)
         #Must be set here - see https://cmake.org/cmake/help/v3.3/command/set_source_files_properties.html

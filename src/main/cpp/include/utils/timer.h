@@ -33,7 +33,9 @@
 #ifdef __MACH__
 #include <mach/clock.h>
 #include <mach/mach.h>
-#define CLOCK_THREAD_CPUTIME_ID 0
+#ifndef CLOCK_THREAD_CPUTIME_ID
+#  define CLOCK_THREAD_CPUTIME_ID 0
+#endif
 int clock_gettime(clock_id_t clk_id, struct timespec *tp);
 #endif
 

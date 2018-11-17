@@ -31,7 +31,7 @@ import "genomicsdb_coordinates.proto";
 import "genomicsdb_vid_mapping.proto";
 import "genomicsdb_callsets_mapping.proto";
 
-option java_package = "com.intel.genomicsdb.model";
+option java_package = "org.genomicsdb.model";
 option java_outer_classname = "GenomicsDBExportConfiguration";
 
 message GenomicsDBColumnOrIntervalList {

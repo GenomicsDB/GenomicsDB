@@ -21,11 +21,10 @@
  */
 
 import com.googlecode.protobuf.format.JsonFormat;
-import com.intel.genomicsdb.importer.GenomicsDBImporter;
-import com.intel.genomicsdb.model.GenomicsDBExportConfiguration;
-import com.intel.genomicsdb.reader.GenomicsDBFeatureReader;
+
 import gnu.getopt.Getopt;
 import gnu.getopt.LongOpt;
+
 import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.tribble.FeatureCodec;
 import htsjdk.variant.bcf2.BCF2Codec;
@@ -35,6 +34,10 @@ import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
+
+import org.genomicsdb.importer.GenomicsDBImporter;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.reader.GenomicsDBFeatureReader;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
