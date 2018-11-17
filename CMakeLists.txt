@@ -237,8 +237,10 @@ set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG -g3 -gdwarf-3")
 set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG -O3 -fvisibility=hidden")
 set(CMAKE_CXX_FLAGS_COVERAGE "-DDEBUG -g3 -gdwarf-3 --coverage")
 
-#CMake doesn't add "-pie" by default for executables (CMake issue #14983)
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
+# CMake doesn't add "-pie" by default for executables (CMake issue #14983)
+if(BUILD_DISTRIBUTABLE_LIBRARY)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
+endif()
 
 #Clean all
 add_custom_target(clean-all ${CMAKE_MAKE_PROGRAM} clean)
