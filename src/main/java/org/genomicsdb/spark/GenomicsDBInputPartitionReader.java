@@ -26,19 +26,23 @@ import org.genomicsdb.reader.GenomicsDBFeatureReader;
 import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.encoders.*;
+import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.*;
 import org.apache.spark.sql.types.DataTypes.*;
 import org.apache.spark.sql.*;
 import org.apache.spark.ml.linalg.SQLDataTypes;
+import org.apache.spark.unsafe.types.UTF8String;
 
 import htsjdk.variant.variantcontext.*;
 import htsjdk.tribble.FeatureCodec;
 import htsjdk.variant.bcf2.BCF2Codec;
 import htsjdk.tribble.readers.PositionalBufferedStream;
+import htsjdk.tribble.CloseableTribbleIterator;
 
 import org.json.simple.JSONObject;
+import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
@@ -59,7 +63,7 @@ import java.lang.RuntimeException;
 public class GenomicsDBInputPartitionReader implements InputPartitionReader<InternalRow> {
 
   private GenomicsDBFeatureReader<VariantContext, PositionalBufferedStream> fReader;
-  private GenomicsDBRecordReader<VariantContext, PositionalBufferedStream> rReader;
+  private CloseableTribbleIterator<VariantContext> iterator;
   private GenomicsDBInputPartition inputPartition;
 
   public GenomicsDBInputPartitionReader() {
@@ -82,68 +86,56 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
     try {
       fReader = new GenomicsDBFeatureReader<>(amendedQuery,
               (FeatureCodec<VariantContext, PositionalBufferedStream>) new BCF2Codec(), Optional.of(loaderJson));
+      this.iterator = fReader.iterator();
     }
     catch (IOException e) {
       e.printStackTrace();
       fReader = null;
     }
-    rReader = new GenomicsDBRecordReader<>(fReader);
-    try {
-      rReader.initialize(inputPartition);
-    }
-    catch (IOException e) {
-      e.printStackTrace();
-    }
   }
 
   public InternalRow get() {
     VariantContext val;
-    try {
-      val = (VariantContext)rReader.getCurrentValue();
-    }
-    catch (IOException | InterruptedException e) {
-      e.printStackTrace();
-      return null;
-    }
+    val = (VariantContext)this.iterator.next();
 
     // get ref allele info
-    String[] alleles = new String[val.getNAlleles()];
+    UTF8String[] alleles = new UTF8String[val.getNAlleles()];
     List<Allele> vcAlleles = val.getAlleles();
     for(int i=0; i<val.getNAlleles(); i++) {
-      alleles[i] = vcAlleles.get(i).getBaseString();
+      alleles[i] = UTF8String.fromString(vcAlleles.get(i).getBaseString());
     }
 
     // get alt allele info
     List<Allele> vcAltAlleles = val.getAlternateAlleles();
-    String[] altAlleles = null;
+    UTF8String[] altAlleles = null;
     if(vcAltAlleles != null && vcAltAlleles.size() > 0) {
-      altAlleles = new String[vcAltAlleles.size()];
+      altAlleles = new UTF8String[vcAltAlleles.size()];
       for(int i=0; i<vcAltAlleles.size(); i++) {
-        altAlleles[i] = vcAltAlleles.get(i).getBaseString();
+        altAlleles[i] = UTF8String.fromString(vcAltAlleles.get(i).getBaseString());
       }
     }
 
-    String[] sampleNames = new String[val.getNSamples()];
-    String[] genotypes = new String[val.getNSamples()];
+    UTF8String[] sampleNames = new UTF8String[val.getNSamples()];
+    UTF8String[] genotypes = new UTF8String[val.getNSamples()];
 
     // get sample name and genotype info
     int i=0;
     for (Genotype g: val.getGenotypesOrderedByName()) {
-      sampleNames[i] = g.getSampleName();
-      genotypes[i++] = g.getGenotypeString();
+      sampleNames[i] = UTF8String.fromString(g.getSampleName());
+      genotypes[i++] = UTF8String.fromString(g.getGenotypeString());
     }
 
-    //ArrayList<Object> rowObjects = new ArrayList<>(inputPartition.getSchema().size());
-    Object[] rowObjects = new Object[inputPartition.getSchema().size()];
+    ArrayList<Object> rowObjects = new ArrayList<>(inputPartition.getSchema().size());
+    //Object[] rowObjects = new Object[inputPartition.getSchema().size()];
     // put down the default schema fields
-    rowObjects[0] = val.getContig();
-    rowObjects[1] = val.getStart();
-    rowObjects[2] = val.getType().toString();
-    rowObjects[3] = alleles;
-    rowObjects[4] = altAlleles;
-    rowObjects[5] = sampleNames;
-    rowObjects[6] = genotypes;
-    i = 7;
+    rowObjects.add(UTF8String.fromString(val.getContig()));
+    rowObjects.add(val.getStart());
+    rowObjects.add(UTF8String.fromString(val.getType().toString()));
+    rowObjects.add(ArrayData.toArrayData(alleles));
+    rowObjects.add(ArrayData.toArrayData(altAlleles));
+    rowObjects.add(ArrayData.toArrayData(sampleNames));
+    rowObjects.add(ArrayData.toArrayData(genotypes));
+
     // go through the schema and try to extract items if we haven't
     // already extracted all that is specified there
     for (StructField sf: JavaConverters.asJavaIterableConverter(inputPartition.getSchema().toIterable()).asJava()) {
@@ -159,35 +151,24 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
       }
       else {
         //getDataFromVariantContext(sf, val, rowObjects);
-        rowObjects[i] = getDataFromVariantContext(sf, val);
-        i++;
+        rowObjects.add(getDataFromVariantContext(sf, val));
       }
     }
     // in case this is needed...below is the needed transformation to send a Map/HashMap
     // JavaConverters.mapAsScalaMapConverter(genotypes).asScala().toMap(Predef.$conforms()));
-    Row row = RowFactory.create(rowObjects);
-    ExpressionEncoder<Row> encoder = RowEncoder.apply(inputPartition.getSchema());
-    InternalRow iRow = encoder.toRow(row);
+    //Row row = RowFactory.create(rowObjects);
+    //ExpressionEncoder<Row> encoder = RowEncoder.apply(inputPartition.getSchema());
+    //InternalRow iRow = encoder.toRow(row);
+    InternalRow iRow = InternalRow.fromSeq(JavaConverters.asScalaIteratorConverter(rowObjects.iterator()).asScala().toSeq());
     return iRow;
   }
 
   public boolean next() {
-    try {
-      return rReader.nextKeyValue();
-    }
-    catch (IOException | InterruptedException e) {
-      e.printStackTrace();
-      return false;
-    }
+    return this.iterator.hasNext();
   }
 
   public void close() {
-    try {
-      rReader.close();
-    }
-    catch (IOException e) {
-      e.printStackTrace();
-    }
+    this.iterator.close();
   }
 
   private Object getDataFromVariantContext(StructField sf, VariantContext vc) 
@@ -218,15 +199,22 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
   private String createTmpQueryFile(String queryJson) 
 		  throws FileNotFoundException, IOException, ParseException {
     JSONObject amended = new JSONObject();
-    amended.put("workspace",inputPartition.getPartitionInfo().getWorkspace());
     amended.put("array",inputPartition.getPartitionInfo().getArrayName());
-    amended.put("query_column_ranges",inputPartition.getPartitionInfo().getArrayName());
     if (inputPartition.getQueryInfo().getBeginPosition() == inputPartition.getQueryInfo().getEndPosition()) {
-      amended.put("query_column_ranges","[["+inputPartition.getQueryInfo().getBeginPosition()+"]]");
+      JSONArray l1 = new JSONArray();
+      ArrayList<Long> a = new ArrayList<>(1);
+      a.add(inputPartition.getQueryInfo().getBeginPosition());
+      l1.add(a);
+      amended.put("query_column_ranges",l1);
     }
     else {
-      amended.put("query_column_ranges","[[["+inputPartition.getQueryInfo().getBeginPosition()+","+
-                  inputPartition.getQueryInfo().getEndPosition()+"]]]");
+      JSONArray l1 = new JSONArray();
+      ArrayList<ArrayList<Long>> a = new ArrayList<>(1);
+      a.add(new ArrayList<Long>(2));
+      a.get(0).add(inputPartition.getQueryInfo().getBeginPosition());
+      a.get(0).add(inputPartition.getQueryInfo().getEndPosition());
+      l1.add(a);
+      amended.put("query_column_ranges", l1);
     }
 
     try {
@@ -243,7 +231,7 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
       }
   
       obj.forEach((k, v) -> {
-        if (!(k.equals("workspace") || k.equals("array"))) {
+        if (!(k.equals("query_column_ranges") || k.equals("array"))) {
           amended.put(k, v);
         }
       });

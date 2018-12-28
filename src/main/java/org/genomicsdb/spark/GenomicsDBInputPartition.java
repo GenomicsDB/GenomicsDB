@@ -58,7 +58,7 @@ public class GenomicsDBInputPartition implements InputPartition<InternalRow> {
     loaderFile = gConf.get(GenomicsDBConfiguration.LOADERJSON);
     queryFile = gConf.get(GenomicsDBConfiguration.QUERYJSON);
     this.partition = new GenomicsDBPartitionInfo(partition);
-    this.queryRange = new GenomicsDBQueryInfo(queryRange);
+    this.queryRange = new GenomicsDBQueryInfo(query);
     this.schema = schema;
   }
 

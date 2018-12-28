@@ -49,11 +49,6 @@ public class GenomicsDBRecordReader<VCONTEXT extends Feature, SOURCE>
     this.currentKey = -1;
   }
 
-  public void initialize(InputPartition inputPartition)
-    throws IOException {
-    initialize();
-  }
-
   public void initialize(InputSplit inputSplit, TaskAttemptContext taskAttemptContext)
     throws IOException, InterruptedException {
     initialize();
