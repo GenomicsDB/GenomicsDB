@@ -31,7 +31,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-public class GenomicsDBInputSplit extends InputSplit implements Writable {
+public class GenomicsDBInputSplit extends InputSplit implements Writable, GenomicsDBInputInterface {
 
   // Note that for now the assumption is that there is
   // one GenomicsDB instance per node, hence one host
@@ -116,6 +116,17 @@ public class GenomicsDBInputSplit extends InputSplit implements Writable {
     return queryRange;
   }
 
+  public void setHost(String loc) {
+    if (hosts == null) 
+    {
+      hosts = new String[]{loc};
+    }
+    else
+    {
+      hosts[0] = loc;
+    }
+  }
+    
   /**
    * Called from {@link org.apache.spark.rdd.NewHadoopRDD#getPreferredLocations(Partition)}
    *
@@ -128,5 +139,13 @@ public class GenomicsDBInputSplit extends InputSplit implements Writable {
       return new String[]{};
     }
     return hosts;
+  }
+
+  public void setPartitionInfo(GenomicsDBPartitionInfo p) {
+    partition = p;
+  }
+
+  public void setQueryInfo(GenomicsDBQueryInfo q) {
+    queryRange = q;
   }
 }

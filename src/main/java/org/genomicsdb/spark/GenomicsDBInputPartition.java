@@ -27,11 +27,11 @@ import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.StructType;
 
-public class GenomicsDBInputPartition implements InputPartition<InternalRow> {
+public class GenomicsDBInputPartition implements InputPartition<InternalRow>, GenomicsDBInputInterface {
 
+  private String loaderFile;
   private GenomicsDBPartitionInfo partition;
   private GenomicsDBQueryInfo queryRange;
-  private String loaderFile;
   private String queryFile;
   private String[] hosts;
   private StructType schema;
@@ -94,4 +94,20 @@ public class GenomicsDBInputPartition implements InputPartition<InternalRow> {
     return queryFile;
   }
 
+  public void setGenomicsDBConf(GenomicsDBConfiguration g) {
+    loaderFile = g.get(GenomicsDBConfiguration.LOADERJSON);
+    queryFile = g.get(GenomicsDBConfiguration.QUERYJSON);
+  }
+
+  public void setGenomicsDBSchema(StructType s) {
+    schema = s;
+  }
+
+  public void setPartitionInfo(GenomicsDBPartitionInfo p) {
+    partition = p;
+  }
+
+  public void setQueryInfo(GenomicsDBQueryInfo q) {
+    queryRange = q;
+  }
 }

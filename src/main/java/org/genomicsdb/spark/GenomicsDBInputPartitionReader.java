@@ -55,8 +55,6 @@ import java.io.FileWriter;
 import java.io.FileReader;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
 import java.util.*;
 import java.lang.RuntimeException;
 
@@ -76,7 +74,9 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
     String amendedQuery = queryJson;
     if (inputPartition.getPartitionInfo() != null) {
       try {
-        amendedQuery = createTmpQueryFile(queryJson);
+        amendedQuery = GenomicsDBInput.createTmpQueryFile(queryJson,
+                                                          inputPartition.getPartitionInfo(),
+                                                          inputPartition.getQueryInfo());
       }
       catch (ParseException | IOException e) {
         e.printStackTrace();
@@ -194,64 +194,5 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
       throw new RuntimeException("Unsupported StructField "+sf.name()+
                                  ". StructField names must start with INFO_ or FORMAT_");
     }
-  }
-
-  private String createTmpQueryFile(String queryJson) 
-		  throws FileNotFoundException, IOException, ParseException {
-    JSONObject amended = new JSONObject();
-    amended.put("array",inputPartition.getPartitionInfo().getArrayName());
-    if (inputPartition.getQueryInfo().getBeginPosition() == inputPartition.getQueryInfo().getEndPosition()) {
-      JSONArray l1 = new JSONArray();
-      ArrayList<Long> a = new ArrayList<>(1);
-      a.add(inputPartition.getQueryInfo().getBeginPosition());
-      l1.add(a);
-      amended.put("query_column_ranges",l1);
-    }
-    else {
-      JSONArray l1 = new JSONArray();
-      ArrayList<ArrayList<Long>> a = new ArrayList<>(1);
-      a.add(new ArrayList<Long>(2));
-      a.get(0).add(inputPartition.getQueryInfo().getBeginPosition());
-      a.get(0).add(inputPartition.getQueryInfo().getEndPosition());
-      l1.add(a);
-      amended.put("query_column_ranges", l1);
-    }
-
-    try {
-
-      JSONParser parser = new JSONParser();
-      FileReader queryJsonReader = new FileReader(queryJson);
-      JSONObject obj = null;
-      try {
-        obj = (JSONObject)parser.parse(queryJsonReader);
-      }
-      catch(ParseException | IOException e) {
-        queryJsonReader.close();
-        throw e;
-      }
-  
-      obj.forEach((k, v) -> {
-        if (!(k.equals("query_column_ranges") || k.equals("array"))) {
-          amended.put(k, v);
-        }
-      });
-      queryJsonReader.close();
-    }
-    catch (FileNotFoundException e) {
-      e.printStackTrace();
-      return null;
-    }
-    File tmpQueryFile = File.createTempFile("queryJson", ".json");
-    tmpQueryFile.deleteOnExit();
-    FileWriter fptr = new FileWriter(tmpQueryFile);
-    try {
-        fptr.write(amended.toJSONString());
-    }
-    catch(IOException e) {
-        fptr.close();
-        throw new IOException(e);
-    }
-    fptr.close();
-    return tmpQueryFile.getAbsolutePath();
   }
 }

@@ -358,6 +358,7 @@ if(BUILD_JAVA)
 	./src/main/java/org/genomicsdb/spark/GenomicsDBDataSourceReader.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartition.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartitionReader.java
+	./src/main/java/org/genomicsdb/spark/GenomicsDBInput.java
         ./src/main/java/org/genomicsdb/Constants.java
         ./src/main/java/org/genomicsdb/GenomicsDBLibLoader.java
         ./src/main/scala/org/genomicsdb/GenomicsDBContext.scala

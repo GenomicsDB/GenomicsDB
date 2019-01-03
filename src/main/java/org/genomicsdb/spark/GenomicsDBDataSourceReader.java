@@ -42,11 +42,7 @@ import java.io.FileNotFoundException;
 
 public class GenomicsDBDataSourceReader implements DataSourceReader {
 
-  private GenomicsDBConfiguration genomicsDBConfiguration;
-
-  private long minQueryBlockSize;
-  private long maxQueryBlockSize;
-  private StructType schema;
+  GenomicsDBInput input;
 
   public GenomicsDBDataSourceReader() {
   }
@@ -79,7 +75,7 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
         finalSchema = finalSchema.add(sf);
       }
     }
-    genomicsDBConfiguration = new GenomicsDBConfiguration();
+    GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration();
     genomicsDBConfiguration.setLoaderJsonFile(options.get(GenomicsDBConfiguration.LOADERJSON).get());
     genomicsDBConfiguration.setQueryJsonFile(options.get(GenomicsDBConfiguration.QUERYJSON).get());
     try {
@@ -88,94 +84,17 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
     catch (FileNotFoundException e) {
       e.printStackTrace();
     }
-    this.minQueryBlockSize = options.getLong("genomicsdb.minqueryblocksize", 1);
-    this.maxQueryBlockSize = options.getLong("genomicsdb.maxqueryblocksize", Long.MAX_VALUE);
-    this.schema = finalSchema;
+    input = new GenomicsDBInput<GenomicsDBInputPartition>(genomicsDBConfiguration, finalSchema,
+                                options.getLong("genomicsdb.minqueryblocksize", 1),
+                                options.getLong("genomicsdb.maxqueryblocksize", Long.MAX_VALUE),
+                                GenomicsDBInputPartition.class);
   }
 
   public List<InputPartition<InternalRow>> planInputPartitions() {
-
-    try {
-      genomicsDBConfiguration.populateListFromJson(GenomicsDBConfiguration.LOADERJSON);
-      genomicsDBConfiguration.populateListFromJson(GenomicsDBConfiguration.QUERYJSON);
-    }
-    catch (IOException | ParseException e) {
-      e.printStackTrace();
-      return null;
-    }
-
-    ArrayList<GenomicsDBPartitionInfo> partitionsList = genomicsDBConfiguration.getPartitions();
-    ArrayList<GenomicsDBQueryInfo> queryRangeList = genomicsDBConfiguration.getQueryRanges();
-
-    long goalBlockSize = Math.max(minQueryBlockSize, 
-		           Math.min(genomicsDBConfiguration.getQueryBlockSize(), maxQueryBlockSize));
-
-    ArrayList<InputPartition<InternalRow>> inputPartitions = new ArrayList<InputPartition<InternalRow>>();
-    // For now, assuming that each of partitions and queryRange are sorted
-    // by start position, and that query ranges don't overlap.
-    // TODO: not sure anything in GenomicsDB enforces the above assumption....
-    int pIndex = 0;
-    int qIndex = 0;
-    GenomicsDBPartitionInfo partition = null;
-    if (!partitionsList.isEmpty())
-      partition = partitionsList.get(pIndex);
-
-    // if workspace contains hdfs://, or s3:// or gc:// they're hdfs compliant and we support it
-    if (partition != null && !(partition.getWorkspace().contains("s3://") ||
-		partition.getWorkspace().contains("hdfs://") ||  
-		partition.getWorkspace().contains("gs://"))) {
-      List<String> hosts = genomicsDBConfiguration.getHosts();
-      for (int i=0; i<hosts.size(); i++) {
-        inputPartitions.add(new GenomicsDBInputPartition(hosts.get(i), genomicsDBConfiguration, schema));
-      }
-    }
-    else if (partition != null) {
-      while (qIndex < queryRangeList.size() && partition != null) {
-        GenomicsDBQueryInfo queryRange = queryRangeList.get(qIndex);
-  
-        // advance partition index if needed
-        // i.e., advance till we find the partition that contains the query begin position
-        while ((pIndex + 1) < partitionsList.size() && partition.getBeginPosition() < queryRange.getBeginPosition()) {
-          pIndex++;
-  	  partition = partitionsList.get(pIndex);
-        }
-        if (partition.getBeginPosition() > queryRange.getBeginPosition()) {
-          pIndex--;
-  	  partition = partitionsList.get(pIndex);
-        }
-  
-        long queryBlockSize = queryRange.getEndPosition() - queryRange.getBeginPosition() + 1;
-        if (queryBlockSize < goalBlockSize) {
-          inputPartitions.add(new GenomicsDBInputPartition(partition, queryRange, genomicsDBConfiguration, schema));
-        }
-        else {
-          // bigger than goalBlockSize, so break up into "query chunks"
-  
-  	  long queryBlockStart = queryRange.getBeginPosition();
-	  long queryBlockMargin = genomicsDBConfiguration.getQueryBlockSizeMargin();
-  	  while (queryBlockStart < queryRange.getEndPosition()) {
-            long blockSize = (queryBlockSize > (goalBlockSize+queryBlockMargin)) ? goalBlockSize : queryBlockSize;
-  	    GenomicsDBQueryInfo queryBlock = new GenomicsDBQueryInfo(queryBlockStart, queryBlockStart + blockSize - 1);
-  	    inputPartitions.add(new GenomicsDBInputPartition(partition, queryBlock, genomicsDBConfiguration, schema));
-  
-  	    // if this queryBlock spans multiple partitions, need to add those as splits as well
-  	    while ((pIndex + 1) < partitionsList.size() &&
-                    queryBlockStart + blockSize - 1 >= partitionsList.get(pIndex+1).getBeginPosition()) {
-  	      pIndex++;
-              partition = partitionsList.get(pIndex);
-  	      inputPartitions.add(new GenomicsDBInputPartition(partition, queryBlock, genomicsDBConfiguration, schema));
-  	    }
-  	    queryBlockStart += blockSize;
-  	    queryBlockSize -= blockSize;
-  	  }
-        }
-        qIndex++;
-      }
-    }
-    return inputPartitions;
+    return input.divideInput();
   }
 
   public StructType readSchema() {
-    return schema;
+    return input.getSchema();
   }
 }
