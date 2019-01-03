@@ -60,6 +60,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       long minQBS, long maxQBS, Class<T> clazz) {
     genomicsDBConfiguration = gdbconf;
     this.clazz = clazz;
+    this.schema = schema;
     minQueryBlockSize = minQBS;
     maxQueryBlockSize = maxQBS;
   }
