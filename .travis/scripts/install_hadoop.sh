@@ -16,7 +16,7 @@ install_prereqs() {
   if [[ -f /usr/java/latest ]]; then
       sudo rm /usr/java/latest
   fi
-  sudo apt update &&
+#  sudo apt update &&
   sudo apt install openjdk-8-jre-headless &&
   sudo ln -s /usr/lib/jvm/java-1.8.0-openjdk-amd64/ /usr/java/latest &&
   echo "install_prereqs successful"

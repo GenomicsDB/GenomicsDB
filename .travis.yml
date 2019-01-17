@@ -29,11 +29,11 @@ matrix:
         language: generic
         env: TOXENV=py34 INSTALL_TYPE=basic
 
-# commenting out for now because these seem flaky
-#      - name: "Spark/HDFS Linux"
-#        os: linux
-#        env: INSTALL_TYPE=hdfs
+      - name: "Spark/HDFS Linux"
+        os: linux
+        env: INSTALL_TYPE=hdfs
 #
+# commenting out for now because these seem flaky
 #      - name: "Spark/GCS Linux"
 #        os: linux
 #        env: INSTALL_TYPE=gcs
