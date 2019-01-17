@@ -59,6 +59,7 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
     StructField [] fields = new StructField[] {
                                  new StructField("contig", DataTypes.StringType, false, Metadata.empty()),
                                  new StructField("startPos", DataTypes.IntegerType, false, Metadata.empty()),
+                                 new StructField("id", DataTypes.StringType, true, Metadata.empty()),
                                  new StructField("variantType", DataTypes.StringType, true, Metadata.empty()),
                                  new StructField("alleles", new ArrayType(DataTypes.StringType, true), false, Metadata.empty()),
                                  new StructField("alternateAlleles", new ArrayType(DataTypes.StringType, true), true, Metadata.empty()),

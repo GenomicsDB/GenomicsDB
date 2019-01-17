@@ -126,13 +126,18 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
     }
 
     ArrayList<Object> rowObjects = new ArrayList<>(inputPartition.getSchema().size());
-    //Object[] rowObjects = new Object[inputPartition.getSchema().size()];
     // put down the default schema fields
     rowObjects.add(UTF8String.fromString(val.getContig()));
     rowObjects.add(val.getStart());
+    rowObjects.add(UTF8String.fromString(val.getID()));
     rowObjects.add(UTF8String.fromString(val.getType().toString()));
     rowObjects.add(ArrayData.toArrayData(alleles));
-    rowObjects.add(ArrayData.toArrayData(altAlleles));
+    if(altAlleles == null) {
+      rowObjects.add(null);
+    }
+    else {
+      rowObjects.add(ArrayData.toArrayData(altAlleles));
+    }
     rowObjects.add(ArrayData.toArrayData(sampleNames));
     rowObjects.add(ArrayData.toArrayData(genotypes));
 
@@ -141,6 +146,7 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
     for (StructField sf: JavaConverters.asJavaIterableConverter(inputPartition.getSchema().toIterable()).asJava()) {
       if (sf.name().equals("contig") ||
           sf.name().equals("startPos") ||
+          sf.name().equals("id") ||
           sf.name().equals("variantType") ||
           sf.name().equals("alleles") ||
           sf.name().equals("alternateAlleles") ||
@@ -150,8 +156,12 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
         continue;
       }
       else {
-        //getDataFromVariantContext(sf, val, rowObjects);
-        rowObjects.add(getDataFromVariantContext(sf, val));
+        if (sf.name().startsWith("INFO_")) {
+          rowObjects.add(getDataFromVariantContext(sf, val));
+        }
+        else if (sf.name().startsWith("FORMAT_")) {
+          rowObjects.add(ArrayData.toArrayData(getDataFromVariantContext(sf, val)));
+        }
       }
     }
     // in case this is needed...below is the needed transformation to send a Map/HashMap
@@ -175,19 +185,47 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
     throws RuntimeException {
     if (sf.name().startsWith("INFO_")) {
       String infoname = sf.name().substring(5);
-      //rowObjects.add(vc.getAttribute(infoname));
       return vc.getAttribute(infoname);
-    } else if (sf.name().startsWith("FORMAT_")) {
+    } 
+    else if (sf.name().startsWith("FORMAT_")) {
       String formatname = sf.name().substring(7);
-      Object[] rowObjectArray = new Object[vc.getNSamples()];
+      if (!(sf.dataType() instanceof ArrayType)) {
+        throw new RuntimeException("Unsupported dataype: schema field "+sf.name()+
+             " has type "+sf.dataType().simpleString()+" but must be ArrayType");
+      }
+
+      Object[] rowObjectArray;
+      DataType eType = ((ArrayType)sf.dataType()).elementType();
+      if (eType instanceof IntegerType) {
+        rowObjectArray = new Integer[vc.getNSamples()];
+      }
+      else if (eType instanceof LongType) {
+        rowObjectArray = new Long[vc.getNSamples()];
+      }
+      else if (eType instanceof DoubleType) {
+        rowObjectArray = new Double[vc.getNSamples()];
+      }
+      else if (eType instanceof FloatType) {
+        rowObjectArray = new Float[vc.getNSamples()];
+      }
+      else if (eType instanceof StringType) {
+        rowObjectArray = new String[vc.getNSamples()];
+      }
+      else {
+        throw new RuntimeException("Unsupported element type "+
+              ((ArrayType)sf.dataType()).elementType().simpleString()+
+              " for schema field "+sf.name());
+      }
       int i=0;
+      
       for (Genotype g: vc.getGenotypesOrderedByName()) {
-        rowObjectArray[i++] = g.getAnyAttribute(formatname);
+        Class<?> cType = rowObjectArray.getClass().getComponentType();
+        rowObjectArray[i++] = cType.cast(g.getAnyAttribute(formatname));
         // TODO: special treatment here for fields/attributes that
         // have arrays? think they show up as arraylists here so might
         // need to do the conversion
+        // Not sure we'll have any fields like that so ignore for now
       }
-      //rowObjects.add(rowObjectArray);
       return rowObjectArray;
     }
     else {
