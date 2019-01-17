@@ -39,7 +39,7 @@ matrix:
 #        env: INSTALL_TYPE=gcs
 
 before_install:
-    - if [[ $TRAVIS_OS_NAME == osx ]]; then brew update; fi
+#    - if [[ $TRAVIS_OS_NAME == osx ]]; then brew update; fi
     - if [[ $TRAVIS_OS_NAME == osx ]]; then brew list python &>/dev/null || brew install python; fi
     - if [[ $TRAVIS_OS_NAME == osx ]]; then brew list python3 &>/dev/null || brew install python3; fi
     - if [[ $INSTALL_TYPE == gcs ]]; then
@@ -76,6 +76,8 @@ install:
         cd dependencies && git clone https://github.com/rgamble/libcsv && cd libcsv && ./configure && make;
         jdk_switcher use openjdk8;
       elif [[ $TRAVIS_OS_NAME == osx ]]; then
+        brew upgrade postgresql;
+        brew postgresql-upgrade-database;
         export PG_DATA=$(brew --prefix)/var/postgres;
         pg_ctl -w start -l postgres.log --pgdata ${PG_DATA};
         createuser -s postgres;
@@ -88,6 +90,7 @@ install:
         cd googletest-release-1.8.1/googletest && cmake . -DBUILD_SHARED_LIBS=1 && make && cp libgtest* /usr/local/lib && cp -r include/gtest /usr/local/include;
         ls $TRAVIS_BUILD_DIR/dependencies/googletest-release-1.8.1/googletest/;
         JAVA_HOME=$(/usr/libexec/java_home);
+        ls -tl /usr/local/opt/readline/lib/;
       fi
     - echo $JAVA_HOME
     - export PATH=$JAVA_HOME/bin:$PATH
