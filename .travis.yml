@@ -90,7 +90,6 @@ install:
         cd googletest-release-1.8.1/googletest && cmake . -DBUILD_SHARED_LIBS=1 && make && cp libgtest* /usr/local/lib && cp -r include/gtest /usr/local/include;
         ls $TRAVIS_BUILD_DIR/dependencies/googletest-release-1.8.1/googletest/;
         JAVA_HOME=$(/usr/libexec/java_home);
-        ls -tl /usr/local/opt/readline/lib/;
       fi
     - echo $JAVA_HOME
     - export PATH=$JAVA_HOME/bin:$PATH
