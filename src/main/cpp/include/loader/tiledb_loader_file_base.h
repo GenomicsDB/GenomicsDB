@@ -115,8 +115,10 @@ class BufferReaderBase : public virtual GenomicsDBImportReaderBase
       if(src == 0)
         return 0u;
       if(m_num_valid_bytes_in_buffer+num_bytes > m_buffer.size()) {
+#ifdef DEBUG
         std::cerr << "Buffer resized from " << m_buffer.size()
                   << " bytes to " <<  m_num_valid_bytes_in_buffer+num_bytes << "\n";
+#endif
         m_buffer.resize(m_num_valid_bytes_in_buffer+num_bytes);
 
       }
