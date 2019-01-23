@@ -135,8 +135,7 @@ LoaderArrayWriter::LoaderArrayWriter(
   if(m_import_config_ptr->delete_and_create_tiledb_array())
     m_storage_manager->delete_array(array_name);
   //Open array in write mode
-  m_array_descriptor = m_storage_manager->open_array(array_name, &id_mapper,
-      "w", m_import_config_ptr->get_tiledb_compression_level());
+  m_array_descriptor = m_storage_manager->open_array(array_name, &id_mapper, "w");
   //Check if array already exists
   //Array does not exist - define it first
   if(m_array_descriptor < 0)

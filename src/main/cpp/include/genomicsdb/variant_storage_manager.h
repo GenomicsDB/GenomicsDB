@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2018-2019 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -231,8 +232,7 @@ class VariantStorageManager
     VariantStorageManager& operator=(const VariantStorageManager& other) = delete;
     VariantStorageManager(VariantStorageManager&& other) = delete;
     
-    int open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode,
-        const int tiledb_zlib_compression_level=TILEDB_COMPRESSION_LEVEL_GZIP);
+    int open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode);
     void close_array(const int ad, const bool consolidate_tiledb_array=false);
     int define_array(const VariantArraySchema* variant_array_schema, const size_t num_cells_per_tile=1000u);
     void delete_array(const std::string& array_name);
