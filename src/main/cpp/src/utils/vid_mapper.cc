@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2018-2019 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -427,18 +428,23 @@ void VidMapper::build_tiledb_array_schema(VariantArraySchema*& array_schema, con
           : TILEDB_VAR_NUM);
     }
   }
-  //COORDS
+
+  // Add type for coords
   types.push_back(std::type_index(typeid(int64_t)));
-  //For compression
-  //no compression - empty vector
+
   std::vector<int> compression;
-  if(compress_fields)
-    for(auto i=0u;i<types.size();++i)   //types contains entry for coords also
+  std::vector<int> compression_level;
+  for(auto i=0u; i<types.size(); ++i) { // types contains entry for coords also
+    if(compress_fields) {
       compression.push_back(TILEDB_GZIP);
-  else
-    for(auto i=0u;i<types.size();++i)   //types contains entry for coords also
+      compression_level.push_back(TILEDB_COMPRESSION_LEVEL_GZIP);
+    } else {
       compression.push_back(TILEDB_NO_COMPRESSION);
-  array_schema = new VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression);
+      compression_level.push_back(0);
+    }
+  }
+
+  array_schema = new VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression, compression_level);
 }
 
 void VidMapper::build_file_partitioning(const int partition_idx, const RowRange row_partition)

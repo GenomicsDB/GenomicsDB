@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2018-2019 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -500,8 +501,7 @@ VariantStorageManager::VariantStorageManager(const std::string& workspace, const
   }
 }
 
-int VariantStorageManager::open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode,
-    const int tiledb_zlib_compression_level)
+int VariantStorageManager::open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode)
 {
   auto mode_iter = VariantStorageManager::m_mode_string_to_int.find(mode);
   VERIFY_OR_THROW(mode_iter != VariantStorageManager::m_mode_string_to_int.end() && "Unknown mode of opening an array");
@@ -529,7 +529,6 @@ int VariantStorageManager::open_array(const std::string& array_name, const VidMa
           vid_mapper, tmp_schema,
           m_tiledb_ctx, tiledb_array,
           m_segment_size);
-      tiledb_array_set_zlib_compression_level(tiledb_array, tiledb_zlib_compression_level);
       return idx;
     }
   }
@@ -550,25 +549,29 @@ int VariantStorageManager::define_array(const VariantArraySchema* variant_array_
   std::vector<int> cell_val_num(variant_array_schema->attribute_num());
   std::vector<int> types(variant_array_schema->attribute_num()+1u);  //+1 for the co-ordinates
   std::vector<int> compression(variant_array_schema->attribute_num()+1u);  //+1 for the co-ordinates
-  for(auto i=0ull;i<variant_array_schema->attribute_num();++i)
-  {
+  std::vector<int> compression_level(variant_array_schema->attribute_num()+1u); //+1 for the co-ordinates
+
+  for(auto i=0ull; i<variant_array_schema->attribute_num(); ++i) {
     attribute_names[i] = variant_array_schema->attribute_name(i).c_str();
     cell_val_num[i] = variant_array_schema->val_num(i);
     types[i] = VariantFieldTypeUtil::get_tiledb_type_for_variant_field_type(variant_array_schema->type(i));
     compression[i] = variant_array_schema->compression(i);
+    compression_level[i] = variant_array_schema->compression_level(i);
   }
+
   //Co-ordinates
   types[variant_array_schema->attribute_num()] = VariantFieldTypeUtil::get_tiledb_type_for_variant_field_type(
       variant_array_schema->dim_type());
   compression[variant_array_schema->attribute_num()] = variant_array_schema->dim_compression_type();
+  compression_level[variant_array_schema->attribute_num()] = variant_array_schema->dim_compression_level();
   std::vector<const char*> dim_names(variant_array_schema->dim_names().size());
   std::vector<int64_t> dim_domains(2u*dim_names.size());
-  for(auto i=0ull;i<dim_names.size();++i)
-  {
+  for(auto i=0ull; i<dim_names.size(); ++i) {
     dim_names[i] = variant_array_schema->dim_names()[i].c_str();
     dim_domains[2u*i] = variant_array_schema->dim_domains()[i].first;
     dim_domains[2u*i+1u] = variant_array_schema->dim_domains()[i].second;
   }
+
   //TileDB C API
   TileDB_ArraySchema array_schema;
   memset(&array_schema, 0, sizeof(TileDB_ArraySchema));
@@ -589,6 +592,8 @@ int VariantStorageManager::define_array(const VariantArraySchema* variant_array_
       &(cell_val_num[0]),
       // Compression
       &(compression[0]),
+      // Compression Level
+      &(compression_level[0]),
       // Sparse array
       0,
       // Dimensions
@@ -669,31 +674,35 @@ int VariantStorageManager::get_array_schema(const std::string& array_name, Varia
     &tiledb_array_schema);
   if(status != TILEDB_OK)
     return -1;
+
   //Attribute attributes
   std::vector<std::string> attribute_names(tiledb_array_schema.attribute_num_);
   std::vector<int> val_num(tiledb_array_schema.attribute_num_);
   std::vector<std::type_index> attribute_types(tiledb_array_schema.attribute_num_+1u, std::type_index(typeid(void)));//+1 for co-ordinates
   std::vector<int> compression(tiledb_array_schema.attribute_num_+1u);  //+1 for co-ordinates
-  for(auto i=0u;i<attribute_names.size();++i)
-  {
+  std::vector<int> compression_level(tiledb_array_schema.attribute_num_+1u);  //+1 for co-ordinates
+  for(auto i=0u; i<attribute_names.size(); ++i) {
     attribute_names[i] = tiledb_array_schema.attributes_[i];
     val_num[i] = tiledb_array_schema.cell_val_num_[i];
     attribute_types[i] = VariantFieldTypeUtil::get_variant_field_type_for_tiledb_type(tiledb_array_schema.types_[i]);
     compression[i] = tiledb_array_schema.compression_[i];
+    compression_level[i] = tiledb_array_schema.compression_level_[i];
   }
+
   //Co-ords
   auto coords_idx = tiledb_array_schema.attribute_num_;
   attribute_types[coords_idx] = std::type_index(typeid(int64_t));
   compression[coords_idx] = tiledb_array_schema.compression_[coords_idx];
+  compression_level[coords_idx] = tiledb_array_schema.compression_level_[coords_idx];
   std::vector<std::string> dim_names(tiledb_array_schema.dim_num_);
   auto dim_domains = std::vector<std::pair<int64_t,int64_t>>(tiledb_array_schema.dim_num_);
   auto dim_domains_ptr = reinterpret_cast<const int64_t*>(tiledb_array_schema.domain_);
-  for(auto i=0;i<tiledb_array_schema.dim_num_;++i)
-  {
+  for(auto i=0; i<tiledb_array_schema.dim_num_; ++i) {
     dim_names[i] = tiledb_array_schema.dimensions_[i];
     dim_domains[i].first = dim_domains_ptr[2*i];
     dim_domains[i].second = dim_domains_ptr[2*i+1];
   }
+
   *variant_array_schema = std::move(VariantArraySchema(
         array_name,
         attribute_names,
@@ -702,6 +711,7 @@ int VariantStorageManager::get_array_schema(const std::string& array_name, Varia
         attribute_types,
         val_num, 
         compression,
+	compression_level,
         TILEDB_COL_MAJOR));
   // Free array schema
   tiledb_array_free_schema(&tiledb_array_schema);

@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2018-2019 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -57,11 +58,13 @@ class AttributeInfo
       m_idx = -1;
       m_length = -1;
       m_compression_type = -1;
+      m_compression_level = -1;
       m_element_size = UNDEFINED_UINT64_T_VALUE;
     }
     int m_idx;
     int m_length;
     int m_compression_type;
+    int m_compression_level;
     std::string m_name;
     std::type_index m_type;
     size_t m_element_size;
@@ -78,6 +81,7 @@ class VariantArraySchema
     { 
       m_cell_order = TILEDB_COL_MAJOR;
       m_dim_compression_type = -1;
+      m_dim_compression_level = -1;
       m_dim_size_in_bytes = 0;
     }
     /*
@@ -89,11 +93,12 @@ class VariantArraySchema
         const std::vector<std::pair<int64_t, int64_t> >& dim_domains,
         const std::vector<std::type_index>& types,
         const std::vector<int>& val_num, 
-        const std::vector<int> compression,
+        const std::vector<int>& compression,
+        const std::vector<int>& compression_level,
         int cell_order = TILEDB_COL_MAJOR);
     /*
      * Access functions
-     * */
+     */
     inline const std::string& array_name() const { return m_array_name; }
     inline size_t attribute_num() const { return m_attributes_vector.size(); }
     inline const std::string& attribute_name(int idx) const
@@ -126,11 +131,17 @@ class VariantArraySchema
       assert(static_cast<size_t>(idx) < m_attributes_vector.size());
       return m_attributes_vector[idx].m_compression_type;
     }
+    inline const int compression_level(int idx) const
+    {
+      assert(static_cast<size_t>(idx) < m_attributes_vector.size());
+      return m_attributes_vector[idx].m_compression_level;
+    }
     inline const std::vector<std::pair<int64_t,int64_t>>& dim_domains() const { return m_dim_domains; }
     inline const std::vector<std::string>& dim_names() const { return m_dim_names; }
     inline const std::type_index& dim_type() const { return m_dim_type; }
     inline size_t dim_length() const { return m_dim_names.size(); }
     inline const int dim_compression_type() const { return m_dim_compression_type; }
+    inline const int dim_compression_level() const { return m_dim_compression_level; }
     inline const size_t dim_size_in_bytes() const { return m_dim_size_in_bytes; }
   private:
     std::string m_array_name;
@@ -143,6 +154,7 @@ class VariantArraySchema
     std::vector<std::string> m_dim_names;
     std::type_index m_dim_type;
     int m_dim_compression_type;
+    int m_dim_compression_level;
     size_t m_dim_size_in_bytes;
 };
 
