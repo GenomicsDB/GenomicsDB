@@ -160,12 +160,38 @@ def modify_query_column_ranges_for_PB(test_query_dict):
                 new_query_column_ranges.append(new_entry)
         test_query_dict['query_column_ranges'] = new_query_column_ranges
 
-
-
 def cleanup_and_exit(tmpdir, exit_code):
     if(exit_code == 0):
         shutil.rmtree(tmpdir, ignore_errors=True)
     sys.exit(exit_code);
+
+def substitute_workspace_dir(jsonfile, wsdir):
+    import fileinput
+    for line in fileinput.input(jsonfile, inplace=True):
+        print line.replace("#WORKSPACE_DIR#", wsdir),
+
+def test_pre_1_0_0_query_compatibility(tmpdir):
+    sys.stdout.write("Testing compatibility with workspace/arrays from releases before 1.0.0...") 
+    import tarfile
+    compatDir = tmpdir+'/compat_100_test'
+    tar = tarfile.open('inputs/compatibility.pre.1.0.0.test.tar')
+    tar.extractall(path=compatDir)
+    loader_json = compatDir+'/t0_1_2.json'
+    query_json = compatDir+'/t0_1_2_java_vcf.json'
+    substitute_workspace_dir(loader_json, compatDir)
+    substitute_workspace_dir(query_json, compatDir)
+    query_command = 'java -ea TestGenomicsDB --query -l '+loader_json+' '+query_json
+    pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE);
+    stdout_string = pid.communicate()[0]
+    if(pid.returncode != 0):
+        sys.stderr.write('Compatibility Test Query : '+query_command+' failed\n');
+        cleanup_and_exit(tmpdir, -1);
+    actual_md5sum = str(hashlib.md5(stdout_string).hexdigest())
+    golden_str, golden_md5sum = get_file_content_and_md5sum('golden_outputs/java_t0_1_2_vcf_at_0')
+    if (actual_md5sum != golden_md5sum):
+        sys.stderr.write('Compatibility Test Query : '+query_command+' failed. Results did not match with golden output.\n');
+        cleanup_and_exit(tmpdir, -1)
+    sys.stdout.write("Successful\n")
 
 def main():
     if(len(sys.argv) < 3):
@@ -1017,6 +1043,7 @@ def main():
                                     print(json.dumps(json_diff_result, indent=4, separators=(',', ': ')));
                                 cleanup_and_exit(tmpdir, -1);
         shutil.rmtree(ws_dir, ignore_errors=True)
+    test_pre_1_0_0_query_compatibility(tmpdir);
     if jacoco_enabled:
         jacoco_ci_report_dir = gcda_prefix_dir+os.path.sep+'target'+os.path.sep+'jacoco-reports'+os.path.sep
         jacoco_report_cmd = 'java -jar '+gcda_prefix_dir+os.path.sep+'jacococli.jar report '+jacoco_ci_report_dir+'jacoco-ci.exec --classfiles '+gcda_prefix_dir+os.path.sep+'target'+os.path.sep+'classes --html '+jacoco_ci_report_dir+'jacoco-ci --xml '+jacoco_ci_report_dir+'jacoco-ci'+os.path.sep+'jacoco-ci.xml'
