@@ -1,6 +1,6 @@
 /*
  * The MIT License (MIT)
- * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2019 Omics Data Automation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -22,32 +22,29 @@
 
 package org.genomicsdb.spark;
 
-import org.apache.spark.sql.types.StructType;
-import java.util.Map;
+import java.io.Serializable;
 
-/**
- * This interface declares some methods to be used by
- * classes that define quantums of data that are divided
- * from a large amount of data to be distributed to many workers.
- * Currently intended to be implemeented by GenomicsDBInputSplit
- * and GenomicsDBInputPartition
- */
-interface GenomicsDBInputInterface {
-  default void setHost(String h) {
+public class GenomicsDBVidSchema implements Serializable {
+
+  boolean isInfo;
+  Class<?> clazz;
+  String length;
+
+  public GenomicsDBVidSchema(boolean isInfo, Class<?> clazz, String length) {
+    this.isInfo = isInfo;
+    this.clazz = clazz;
+    this.length = length;
   }
 
-  default void setGenomicsDBConf(GenomicsDBConfiguration g) {
+  public boolean isInfo() {
+    return isInfo;
   }
 
-  default void setGenomicsDBSchema(StructType s) {
+  public Class<?> getFieldClass() {
+    return clazz;
   }
 
-  default void setGenomicsDBVidSchema(Map<String, GenomicsDBVidSchema> vMap) {
-  }
-
-  default void setPartitionInfo(GenomicsDBPartitionInfo p) {
-  }
-
-  default void setQueryInfo(GenomicsDBQueryInfo q) {
+  public String getLength() {
+    return length;
   }
 }

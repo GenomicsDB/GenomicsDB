@@ -131,11 +131,11 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
    * default constructor
    */
   public GenomicsDBInputFormat() {
-    input = new GenomicsDBInput<GenomicsDBInputSplit>(null, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
+    input = new GenomicsDBInput<GenomicsDBInputSplit>(null, null, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
   }
 
   public GenomicsDBInputFormat(GenomicsDBConfiguration conf) {
-    input = new GenomicsDBInput<GenomicsDBInputSplit>(conf, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
+    input = new GenomicsDBInput<GenomicsDBInputSplit>(conf, null, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
   }
 
   /**

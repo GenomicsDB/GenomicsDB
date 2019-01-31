@@ -57,6 +57,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.*;
 import java.lang.RuntimeException;
+import java.lang.NumberFormatException;
+import java.lang.NullPointerException;
+import java.lang.reflect.Array;
 
 public class GenomicsDBInputPartitionReader implements InputPartitionReader<InternalRow> {
 
@@ -98,13 +101,6 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
     VariantContext val;
     val = (VariantContext)this.iterator.next();
 
-    // get ref allele info
-    UTF8String[] alleles = new UTF8String[val.getNAlleles()];
-    List<Allele> vcAlleles = val.getAlleles();
-    for(int i=0; i<val.getNAlleles(); i++) {
-      alleles[i] = UTF8String.fromString(vcAlleles.get(i).getBaseString());
-    }
-
     // get alt allele info
     List<Allele> vcAltAlleles = val.getAlternateAlleles();
     UTF8String[] altAlleles = null;
@@ -131,7 +127,7 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
     rowObjects.add(val.getStart());
     rowObjects.add(UTF8String.fromString(val.getID()));
     rowObjects.add(UTF8String.fromString(val.getType().toString()));
-    rowObjects.add(ArrayData.toArrayData(alleles));
+    rowObjects.add(UTF8String.fromString(val.getReference().getBaseString()));
     if(altAlleles == null) {
       rowObjects.add(null);
     }
@@ -146,22 +142,54 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
     for (StructField sf: JavaConverters.asJavaIterableConverter(inputPartition.getSchema().toIterable()).asJava()) {
       if (sf.name().equals("contig") ||
           sf.name().equals("startPos") ||
-          sf.name().equals("id") ||
+          sf.name().equals("ID") ||
           sf.name().equals("variantType") ||
-          sf.name().equals("alleles") ||
+          sf.name().equals("refAllele") ||
           sf.name().equals("alternateAlleles") ||
           sf.name().equals("sampleNames") ||
-          sf.name().equals("genotypes")) {
+          sf.name().equals("GT")) {
         // we've already added these fields
         continue;
       }
       else {
+        Map<String, GenomicsDBVidSchema> vMap = inputPartition.getGenomicsDBVidSchema();
+        GenomicsDBVidSchema field = vMap.get(sf.name());
+        // TODO: add logging and mention couldn't find field....
+        if (field == null) {
+          rowObjects.add(null);
+          continue;
+        }
+
+        // if INFO field and single object per VariantContext
+        if (field.isInfo() && (field.getLength().equals("") || 
+                               field.getLength().equals("1"))) {
+          rowObjects.add(getDataFromVariantContext(sf.name(), val, field));
+        }
+        else if (field.isInfo() && field.getFieldClass().equals(String.class)) {
+          rowObjects.add(UTF8String.fromString((String)getDataFromVariantContext(sf.name(), val, field)));
+        }
+        // FORMAT fields and INFO with multiple objects per VC
+        // will use ArrayType
+        else {
+          System.out.println("SF name is:"+sf.name());
+          Object obj = getDataFromVariantContext(sf.name(), val, field);
+          if (obj!= null) {
+            rowObjects.add(ArrayData.toArrayData(obj));
+          }
+          else {
+            rowObjects.add(null);
+          }
+        }
+
+
+/*
         if (sf.name().startsWith("INFO_")) {
           rowObjects.add(getDataFromVariantContext(sf, val));
         }
         else if (sf.name().startsWith("FORMAT_")) {
           rowObjects.add(ArrayData.toArrayData(getDataFromVariantContext(sf, val)));
         }
+*/
       }
     }
     // in case this is needed...below is the needed transformation to send a Map/HashMap
@@ -181,8 +209,113 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
     this.iterator.close();
   }
 
-  private Object getDataFromVariantContext(StructField sf, VariantContext vc) 
+  private int getFieldLength(VariantContext vc, GenomicsDBVidSchema field) 
     throws RuntimeException {
+    String length = field.getLength();
+    int l;
+    try {
+      l = Integer.parseInt(length);
+    } catch (NumberFormatException | NullPointerException e) {
+      switch (length) {
+        case "A": l = vc.getAlternateAlleles().size(); break;
+        case "R": l = vc.getAlleles().size(); break;
+        case "G": l = vc.getAlleles().size()*(vc.getAlleles().size()+1)/2; break;
+        default: throw new RuntimeException("Unsupported length field "+length+
+                                            " in vid mapping");
+      }
+    }
+    return l;
+  }
+
+  private Object[] createObjectArray(VariantContext vc, GenomicsDBVidSchema field) {
+    int l = getFieldLength(vc, field);
+    return (Object[])Array.newInstance(field.getFieldClass(), l);
+  }
+
+  private Object getDataFromVariantContext(String fName, VariantContext vc, GenomicsDBVidSchema field) 
+    throws RuntimeException {
+    if (field.isInfo() && (field.getLength().equals("1") ||
+                           field.getFieldClass().equals(String.class))) {
+      return vc.getAttribute(fName);
+    }
+    else {
+      Object[] rowObjectArray;
+      // these fields are just Arrays of elements
+      // either INFO fields that are arrays...
+      if (field.isInfo()) { 
+        rowObjectArray = vc.getAttributeAsList(fName)
+                           .toArray((Object[])Array.newInstance(field.getFieldClass(), 0));
+/*
+        rowObjectArray = createObjectArray(vc, field);
+        int i=0;
+        for (Genotype g: vc.getGenotypesOrderedByName()) {
+          rowObjectArray[i++] = field.getFieldClass().cast(g.getAnyAttribute(fName));
+        }
+*/
+      }
+      // ...Or FORMAT/genotype fields that have a single object per sample
+      else if (!field.isInfo() && (field.getLength().equals("1") ||
+                              field.getFieldClass().equals(String.class))) {
+        if (field.getFieldClass().equals(String.class)) {
+          rowObjectArray = (Object[])Array.newInstance(UTF8String.class,
+                                                       vc.getNSamples());
+        }
+        else {
+          rowObjectArray = (Object[])Array.newInstance(field.getFieldClass(),
+                                                       vc.getNSamples());
+        }
+        // sorta hacky but...in cases where we've added the _FORMAT
+        // suffix, we need to remove it before querying for that attribute
+        String noSuffix = fName;
+        if (fName.endsWith("_FORMAT")) {
+          noSuffix = fName.substring(0, fName.length()-7);
+        }
+        int i=0;
+        for (Genotype g: vc.getGenotypesOrderedByName()) {
+          if (g.hasAnyAttribute(noSuffix)) {
+            if (field.getFieldClass().equals(String.class)) {
+              rowObjectArray[i++] = UTF8String.fromString(
+                                                    (String)((g.getAnyAttribute(noSuffix))));
+            }
+            else {
+              rowObjectArray[i++] = field.getFieldClass().cast((g.getAnyAttribute(noSuffix)));
+            }
+          }
+          else {
+            rowObjectArray[i++] = null;
+          }
+        }
+      }
+      // these fields are Arrays of Arrays
+      // basically FORMAT/genotype fields that are also arrays
+      else {
+        rowObjectArray = (Object[])Array.newInstance(ArrayData.class, 
+                                                     vc.getNSamples());
+
+        int i=0;
+        for (Genotype g: vc.getGenotypesOrderedByName()) {
+          if (g.hasAnyAttribute(fName)) {
+/*
+            int l = getFieldLength(vc, field);
+            Object[] tempObj = (Object[])Array.newInstance(field.getFieldClass(), l);
+            List attrArray = (List)(g.getAnyAttribute(fName));
+            for(int j=0; j<l; j++) {
+              tempObj[j] = (Object)attrArray.get(j);
+            }
+            rowObjectArray[i++] = ArrayData.toArrayData(tempObj);
+*/
+            rowObjectArray[i++] = ArrayData.toArrayData(((List)(g.getAnyAttribute(fName)))
+                                         .toArray((Object[])Array.newInstance(field.getFieldClass(), 0)));
+          }
+          else {
+            rowObjectArray[i++] = null;
+          }
+        }
+      }
+      return rowObjectArray;
+    }
+
+/*
     if (sf.name().startsWith("INFO_")) {
       String infoname = sf.name().substring(5);
       return vc.getAttribute(infoname);
@@ -232,5 +365,6 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
       throw new RuntimeException("Unsupported StructField "+sf.name()+
                                  ". StructField names must start with INFO_ or FORMAT_");
     }
+*/
   }
 }

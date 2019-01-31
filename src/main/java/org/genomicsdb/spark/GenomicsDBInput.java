@@ -29,7 +29,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.util.HashMap;
+import java.util.Map;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.FileReader;
@@ -49,6 +49,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
 
   public GenomicsDBConfiguration genomicsDBConfiguration;
   private StructType schema;
+  private Map<String, GenomicsDBVidSchema> vMap;
   private long minQueryBlockSize;
   private long maxQueryBlockSize;
   private Class<T> clazz;
@@ -57,10 +58,11 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     * constructor
     */
   GenomicsDBInput(GenomicsDBConfiguration gdbconf, StructType schema, 
-      long minQBS, long maxQBS, Class<T> clazz) {
+      Map<String, GenomicsDBVidSchema> vMap, long minQBS, long maxQBS, Class<T> clazz) {
     genomicsDBConfiguration = gdbconf;
     this.clazz = clazz;
     this.schema = schema;
+    this.vMap = vMap;
     minQueryBlockSize = minQBS;
     maxQueryBlockSize = maxQBS;
   }
@@ -109,6 +111,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
       instance.setGenomicsDBConf(genomicsDBConfiguration);
       instance.setGenomicsDBSchema(schema);
+      instance.setGenomicsDBVidSchema(vMap);
       return instance;
     }
     else if (GenomicsDBInputSplit.class.isAssignableFrom(clazz)) {
@@ -138,6 +141,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       instance.setQueryInfo(qrange);
       instance.setGenomicsDBConf(genomicsDBConfiguration);
       instance.setGenomicsDBSchema(schema);
+      instance.setGenomicsDBVidSchema(vMap);
       return instance;
     }
     else if (GenomicsDBInputSplit.class.isAssignableFrom(clazz)) {
