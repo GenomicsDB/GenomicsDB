@@ -1,0 +1,652 @@
+[
+  {
+    "AD": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "DP_FORMAT": [
+      2,
+      null,
+      null,
+      null
+    ],
+    "alternateAlleles": [
+      ""
+    ],
+    "GQ": [
+      0,
+      null,
+      null,
+      null
+    ],
+    "PID": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "refAllele": "C",
+    "GT": [
+      0,
+      ".",
+      ".",
+      "."
+    ],
+    "startPos": 12141,
+    "contig": "1",
+    "SB": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "sampleNames": [
+      "HG00141",
+      "HG01530",
+      "HG01958",
+      "NA12878"
+    ],
+    "MIN_DP": [
+      0,
+      null,
+      null,
+      null
+    ],
+    "END": 12144,
+    "ID": ".",
+    "PL": [
+      [
+        0,
+        0
+      ],
+      null,
+      null,
+      null
+    ],
+    "PGT": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "AD": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "DP_FORMAT": [
+      2,
+      null,
+      3,
+      null
+    ],
+    "alternateAlleles": [
+      ""
+    ],
+    "GQ": [
+      0,
+      null,
+      0,
+      null
+    ],
+    "PID": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "refAllele": "C",
+    "GT": [
+      0,
+      ".",
+      "0/0",
+      "."
+    ],
+    "startPos": 12145,
+    "contig": "1",
+    "SB": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "sampleNames": [
+      "HG00141",
+      "HG01530",
+      "HG01958",
+      "NA12878"
+    ],
+    "MIN_DP": [
+      0,
+      null,
+      0,
+      null
+    ],
+    "END": 12277,
+    "ID": ".",
+    "PL": [
+      [
+        0,
+        0
+      ],
+      null,
+      [
+        0,
+        0,
+        0
+      ],
+      null
+    ],
+    "PGT": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "AD": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "DP_FORMAT": [
+      2,
+      null,
+      null,
+      null
+    ],
+    "alternateAlleles": [
+      ""
+    ],
+    "GQ": [
+      0,
+      null,
+      null,
+      null
+    ],
+    "PID": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "refAllele": "C",
+    "GT": [
+      0,
+      ".",
+      ".",
+      "."
+    ],
+    "startPos": 12278,
+    "contig": "1",
+    "SB": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "sampleNames": [
+      "HG00141",
+      "HG01530",
+      "HG01958",
+      "NA12878"
+    ],
+    "MIN_DP": [
+      0,
+      null,
+      null,
+      null
+    ],
+    "END": 12295,
+    "ID": ".",
+    "PL": [
+      [
+        0,
+        0
+      ],
+      null,
+      null,
+      null
+    ],
+    "PGT": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "MQRankSum": 0.056,
+    "AD": [
+      null,
+      null,
+      null,
+      [
+        6,
+        2,
+        3,
+        0
+      ]
+    ],
+    "MQ": 55.72,
+    "DP_FORMAT": [
+      null,
+      null,
+      null,
+      8
+    ],
+    "BaseQRankSum": 1.07,
+    "alternateAlleles": [
+      "T",
+      "TG",
+      ""
+    ],
+    "GQ": [
+      null,
+      null,
+      null,
+      40
+    ],
+    "PID": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "refAllele": "TGG",
+    "DP": 9,
+    "MQ0": 0,
+    "GT": [
+      ".",
+      ".",
+      ".",
+      "0/1/0"
+    ],
+    "startPos": 17384,
+    "contig": "1",
+    "SB": [
+      null,
+      null,
+      null,
+      [
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "sampleNames": [
+      "HG00141",
+      "HG01530",
+      "HG01958",
+      "NA12878"
+    ],
+    "MIN_DP": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "ClippingRankSum": -1.067,
+    "ID": ".",
+    "PL": [
+      null,
+      null,
+      null,
+      [
+        40,
+        0,
+        197,
+        58,
+        203,
+        262,
+        123,
+        456,
+        789,
+        12,
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9
+      ]
+    ],
+    "PGT": [
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "MQRankSum": -0.432,
+    "AD": [
+      [
+        58,
+        22,
+        17,
+        17,
+        17
+      ],
+      [
+        40,
+        36,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        37,
+        120,
+        37,
+        37
+      ],
+      [
+        6,
+        0,
+        0,
+        3,
+        0
+      ]
+    ],
+    "MQ": 31.72,
+    "DP_FORMAT": [
+      80,
+      76,
+      120,
+      8
+    ],
+    "BaseQRankSum": -2.074,
+    "alternateAlleles": [
+      "A",
+      "T",
+      "*",
+      ""
+    ],
+    "GQ": [
+      99,
+      99,
+      99,
+      40
+    ],
+    "PID": [
+      "17385_G_A",
+      null,
+      "17385_G_T",
+      null
+    ],
+    "refAllele": "G",
+    "DP": 285,
+    "ReadPosRankSum": 0.005,
+    "MQ0": 3,
+    "GT": [
+      "0/1/0",
+      "0/1",
+      "2/2",
+      "0/4/0"
+    ],
+    "startPos": 17385,
+    "contig": "1",
+    "SB": [
+      [
+        58,
+        0,
+        22,
+        0
+      ],
+      [
+        9,
+        31,
+        13,
+        23
+      ],
+      [
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "RAW_MQ": 2.5,
+    "sampleNames": [
+      "HG00141",
+      "HG01530",
+      "HG01958",
+      "NA12878"
+    ],
+    "MIN_DP": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "ClippingRankSum": -1.859,
+    "ID": ".",
+    "PL": [
+      [
+        504,
+        0,
+        9807,
+        678,
+        1870,
+        2548,
+        123,
+        456,
+        789,
+        12,
+        1870,
+        2548,
+        123,
+        456,
+        789,
+        12,
+        456,
+        789,
+        12,
+        12,
+        1870,
+        2548,
+        123,
+        456,
+        789,
+        12,
+        456,
+        789,
+        12,
+        12,
+        456,
+        789,
+        12,
+        12,
+        12
+      ],
+      [
+        1018,
+        0,
+        1116,
+        1137,
+        1224,
+        2361,
+        1137,
+        1224,
+        2361,
+        2361,
+        1137,
+        1224,
+        2361,
+        2361,
+        2361
+      ],
+      [
+        3336,
+        4536,
+        7349,
+        358,
+        958,
+        0,
+        4536,
+        7349,
+        958,
+        7349,
+        4536,
+        7349,
+        958,
+        7349,
+        7349
+      ],
+      [
+        40,
+        0,
+        6,
+        9,
+        0,
+        6,
+        9,
+        6,
+        9,
+        9,
+        203,
+        3,
+        8,
+        3,
+        8,
+        8,
+        456,
+        5,
+        5,
+        12,
+        0,
+        6,
+        9,
+        6,
+        9,
+        9,
+        3,
+        8,
+        8,
+        5,
+        6,
+        9,
+        9,
+        8,
+        9
+      ]
+    ],
+    "PGT": [
+      "0|1",
+      null,
+      "0|1",
+      null
+    ]
+  },
+  {
+    "AD": [
+      null,
+      null,
+      null,
+      [
+        6,
+        3,
+        0
+      ]
+    ],
+    "DP_FORMAT": [
+      null,
+      null,
+      null,
+      8
+    ],
+    "alternateAlleles": [
+      "*",
+      ""
+    ],
+    "GQ": [
+      null,
+      null,
+      null,
+      40
+    ],
+    "PID": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "refAllele": "G",
+    "DP": 9,
+    "GT": [
+      ".",
+      ".",
+      ".",
+      "0/2/0"
+    ],
+    "startPos": 17386,
+    "contig": "1",
+    "SB": [
+      null,
+      null,
+      null,
+      [
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "sampleNames": [
+      "HG00141",
+      "HG01530",
+      "HG01958",
+      "NA12878"
+    ],
+    "MIN_DP": [
+      null,
+      null,
+      null,
+      null
+    ],
+    "ID": ".",
+    "PL": [
+      null,
+      null,
+      null,
+      [
+        40,
+        203,
+        456,
+        12,
+        0,
+        3,
+        5,
+        6,
+        8,
+        9
+      ]
+    ],
+    "PGT": [
+      null,
+      null,
+      null,
+      null
+    ]
+  }
+]

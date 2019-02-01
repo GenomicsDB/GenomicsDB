@@ -171,7 +171,6 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
         // FORMAT fields and INFO with multiple objects per VC
         // will use ArrayType
         else {
-          System.out.println("SF name is:"+sf.name());
           Object obj = getDataFromVariantContext(sf.name(), val, field);
           if (obj!= null) {
             rowObjects.add(ArrayData.toArrayData(obj));

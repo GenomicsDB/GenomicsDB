@@ -422,6 +422,7 @@ if(BUILD_JAVA)
         ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDB.java
         ${CMAKE_SOURCE_DIR}/example/java/TestBufferStreamGenomicsDBImporter.java
         ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDBSparkHDFS.java
+        ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDBDataSourceV2.java
         ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDBImporterWithMergedVCFHeader.java)
 
     add_jar(genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples

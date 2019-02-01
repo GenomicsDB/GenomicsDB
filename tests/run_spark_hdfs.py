@@ -21,6 +21,7 @@
 #CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import json
+import jsondiff
 import tempfile
 import subprocess
 import hashlib
@@ -158,6 +159,14 @@ def get_file_content_and_md5sum(filename):
         fptr.close();
         return (data_filter, md5sum_hash_str);
 
+def get_json_from_file(filename):
+    with open(filename, 'rb') as fptr:
+        data = fptr.read();
+        json_out = json.loads(data)
+        fptr.close();
+
+        return json_out;
+
 def print_diff(golden_output, test_output):
     print("=======Golden output:=======");
     print(golden_output);
@@ -188,6 +197,7 @@ def main():
     parent_dir=os.path.dirname(os.path.realpath(__file__))
     os.chdir(parent_dir)
     hostfile_path=parent_dir+os.path.sep+'hostfile';
+    vid_path=parent_dir+os.path.sep+'inputs'+os.path.sep;
     template_vcf_header_path=parent_dir+os.path.sep+'inputs'+os.path.sep+'template_vcf_header.vcf';
     tmpdir = tempfile.mkdtemp()
     ws_dir=tmpdir+os.path.sep+'ws';
@@ -412,6 +422,35 @@ def main():
                         cleanup_and_exit(namenode, tmpdir, -1);
                     else:
                         sys.stdout.write('Query test: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions passed\n');
+                # add another spark run command to test datasourcev2 stuff
+                if('vid_mapping_file' in query_param_dict):
+                    vid_path_final=vid_path+query_param_dict['vid_mapping_file'];
+                else:
+                    vid_path_final=vid_path+"vid.json";
+                spark_cmd_v2 = 'spark-submit --class TestGenomicsDBDataSourceV2 --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-jar-with-dependencies.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --hostfile '+hostfile_path+' --vid '+vid_path_final+' --spark_master '+spark_master;
+                pid = subprocess.Popen(spark_cmd_v2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
+                stdout_string, stderr_string = pid.communicate()
+                if(pid.returncode != 0):
+                    sys.stderr.write('Query test V2: '+test_name+' with query file '+query_json_filename+' failed\n');
+                    sys.stderr.write('Spark command was: '+spark_cmd_v2+'\n');
+                    sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
+                    sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
+                    cleanup_and_exit(namenode, tmpdir, -1);
+                stdout_list = stdout_string.splitlines(True);
+                stdout_filter = "".join(stdout_list);
+                stdout_json = json.loads(stdout_filter);
+                if('golden_output' in query_param_dict and 'spark' in query_param_dict['golden_output']):
+                    json_golden = get_json_from_file(query_param_dict['golden_output']['spark']+'_v2');
+                    checkdiff = jsondiff.diff(stdout_json, json_golden);
+                    if (not checkdiff):
+                        sys.stdout.write('Query test V2: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions passed\n');
+                    else:
+                        sys.stdout.write('Mismatch in query test V2: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions\n');
+                        print(checkdiff);
+                        sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
+                        sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
+                        cleanup_and_exit(namenode, tmpdir, -1);
+            
     if jacoco_enabled:
         jacoco_ci_report_dir = sys.argv[1]+os.path.sep+'target'+os.path.sep+'jacoco-reports'+os.path.sep
         jacoco_report_cmd = 'java -jar '+sys.argv[1]+os.path.sep+'jacococli.jar report '+jacoco_ci_report_dir+'jacoco-ci.exec --classfiles '+sys.argv[1]+os.path.sep+'target'+os.path.sep+'classes --html '+jacoco_ci_report_dir+'jacoco-ci --xml '+jacoco_ci_report_dir+'jacoco-ci'+os.path.sep+'jacoco-ci.xml'
