@@ -6,7 +6,7 @@ install_gtest() {
      echo "Installing google test"
      cd $TRAVIS_BUILD_DIR/dependencies
      wget -nv https://github.com/google/googletest/archive/release-1.8.1.tar.gz &&
-     tar -xz release-1.8.1.tar.gz &&
+     tar -xzf release-1.8.1.tar.gz &&
      cd googletest-release-1.8.1/googletest && cmake . -DBUILD_SHARED_LIBS=1 && make &&
      cd $GTEST_DIR && tar cf $CACHE_DIR/googletest.tar googletest/libgtest* googletest/include/gtest
   else
