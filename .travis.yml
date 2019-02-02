@@ -93,7 +93,7 @@ install:
     - export PATH=$JAVA_HOME/bin:$PATH
     - which javac && javac -version
     - which java && java -version
-    # install spark/hdfs/scala 
+    # install spark/hdfs/scala
     - cd $TRAVIS_BUILD_DIR
     - if [[ $INSTALL_TYPE != basic ]]; then
         wget -nv https://downloads.lightbend.com/scala/2.11.8/scala-2.11.8.deb;
@@ -138,6 +138,10 @@ script:
         /usr/local/spark/sbin/start-master.sh;
         export GOOGLE_APPLICATION_CREDENTIALS=~/GCS.json;
         travis_wait 40 python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local gs://$GS_BUCKET client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests;
+      elif [[ $TRAVIS_OS_NAME == osx && ! -f $CACHE_DIR/intialized ]]
+        touch $CACHE_DIR/initialized;
+      else
+        make test ARGS=-V;
       fi
 
 after_success:
