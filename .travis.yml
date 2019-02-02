@@ -4,17 +4,15 @@ dist: trusty
 language: python
 python: "3.4"
 
-services:
-    - postgresql
-
 env:
     global:
+        - CACHE_DIR=$TRAVIS_BUILD_DIR/cached
         - LD_LIBRARY_PATH=$TRAVIS_BUILD_DIR/dependencies/libcsv/.libs
         - JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
         - GENOMICSDB_BUILD_DIR=$TRAVIS_BUILD_DIR/build
         - GENOMICSDB_INSTALL_DIR=$GENOMICSDB_BUILD_DIR/install
         - PATH=$GENOMICSDB_INSTALL_DIR/bin:$TRAVIS_BUILD_DIR/bin:$PATH
-        - GENOMICSDB_RELEASE_VERSION=0.9.2
+        - GENOMICSDB_RELEASE_VERSION=x.y.z-travis-test
         - CLASSPATH=$GENOMICSDB_INSTALL_DIR/bin/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-jar-with-dependencies.jar:$GENOMICSDB_BUILD_DIR/target/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples.jar:.
         - secure: ns0xWDbnmDb71J0/edoJ4jN/xtPg4yxnbexe/AcTwHUOkLehEuGHY7tlZa8cTlBsV19+CFXpYXn4LezS/7989gPfI5Kl0lLg1T8I4V+t2iJTAXurjew0i1AVjQBKfVWtYhGJQOws8DMUDunTxEJMahZzdNK1McLxvongJ7mD1rLabSlLE81lSnsVwvms/4Cp6c2hxec8mNsxxV9CUDzrsX63te/srvPuG+FMD1E32PYuTJJpNH3O7/nvbuW5bOvdwT5Yq/dHGF96U+YZpvqH1PqqtXUuZRJltFUaTsdEclv9Q1DpSpikEmPL+iOJRgS1W0i+mZ2wShFYmSZIv/fwlVoE4bNnLd/dJOTsS6hSpVpEPJnK/YizPNxoB21LAZACdg6rSBnPClfMnYdkNilL9h1s/u4P6RTHUztc8Ty6z1qpi78pOjS3t26o36m87MtXnkkTp06Q0O5kDSM35xsTdBevGeT3lWfYSxRpM/ypqb6xTnii8ZQ+Ohe+m7AVFhE5nFh2JUxQRCcl0xjZQyy2nbLPmDfvnAM+yIvGBZPPiCVJgWy5Vs3Jm1TC5Ju63Rz+RzJfAIiy6DhnUDK74ip5NMP1PXey8ySKnOfcPcxCdJVqqtEARvt+zIhrbGZCkjDUR1L2OOBheZ6RKY/rsuAsVOBo9s+ELBz0Y4hWXDhmn5c=
 
@@ -23,20 +21,28 @@ matrix:
       - name: "Basic build Linux"
         os: linux
         env: INSTALL_TYPE=basic
+        services: postgres
 
       - name: "Basic build OSX"
         os: osx
         language: generic
-        env: TOXENV=py34 INSTALL_TYPE=basic
+        env: TOXENV=py34 INSTALL_TYPE=basic PROTOBUF_VERSION=3.0.0-beta-1 PROTOBUF_HOME=$TRAVIS_BUILD_DIR/dependencies/protobuf
+        cache:
+          directories: $HOME/.m2 $HOME/Library/Caches/Homebrew $CACHE_DIR
 
       - name: "Spark/HDFS Linux"
         os: linux
         env: INSTALL_TYPE=hdfs
+        services: postgres
+
 #
 # commenting out for now because these seem flaky
 #      - name: "Spark/GCS Linux"
 #        os: linux
 #        env: INSTALL_TYPE=gcs
+
+# before_cache:
+#    - if [[ $TRAVIS_OS_NAME == osx ]]; then brew cleanup; fi
 
 before_install:
 #    - if [[ $TRAVIS_OS_NAME == osx ]]; then brew update; fi
@@ -49,6 +55,9 @@ before_install:
       fi
 
 install:
+    - if [[ -d $CACHE_DIR ]]; then
+        mkdir -p $CACHE_DIR;
+      fi
     # Install dependencies
     - pip install -r requirements.txt
     - sudo pip2 install jsondiff
@@ -76,26 +85,15 @@ install:
         cd dependencies && git clone https://github.com/rgamble/libcsv && cd libcsv && ./configure && make;
         jdk_switcher use openjdk8;
       elif [[ $TRAVIS_OS_NAME == osx ]]; then
-        brew upgrade postgresql;
-        brew postgresql-upgrade-database;
-        export PG_DATA=$(brew --prefix)/var/postgres;
-        pg_ctl -w start -l postgres.log --pgdata ${PG_DATA};
-        createuser -s postgres;
-        brew upgrade cmake;
-        brew install lcov mpich openssl ossp-uuid protobuf@3.1 libcsv;
-        export OPENSSL_ROOT_DIR=/usr/local/opt/openssl;
-        cd $TRAVIS_BUILD_DIR/dependencies;
-        wget -nv https://github.com/google/googletest/archive/release-1.8.1.tar.gz;
-        tar -xzf release-1.8.1.tar.gz;
-        cd googletest-release-1.8.1/googletest && cmake . -DBUILD_SHARED_LIBS=1 && make && cp libgtest* /usr/local/lib && cp -r include/gtest /usr/local/include;
-        ls $TRAVIS_BUILD_DIR/dependencies/googletest-release-1.8.1/googletest/;
+        HOMEBREW_NO_AUTO_UPDATE=1 brew install lcov mpich ossp-uuid libcsv;
+        source $TRAVIS_BUILD_DIR/.travis/scripts/install_osx_dependencies.sh;
         JAVA_HOME=$(/usr/libexec/java_home);
       fi
     - echo $JAVA_HOME
     - export PATH=$JAVA_HOME/bin:$PATH
     - which javac && javac -version
     - which java && java -version
-    # install spark/hdfs/scala 
+    # install spark/hdfs/scala
     - cd $TRAVIS_BUILD_DIR
     - if [[ $INSTALL_TYPE != basic ]]; then
         wget -nv https://downloads.lightbend.com/scala/2.11.8/scala-2.11.8.deb;
@@ -114,9 +112,11 @@ before_script:
     - cd $GENOMICSDB_BUILD_DIR
     # Reset line coverage
     - lcov --directory . --zerocounters
-    - psql -U postgres -c 'create database gendb'
-    - psql -U postgres gendb < $TRAVIS_BUILD_DIR/src/resources/gendb_state_for_tests.txt
-    - psql gendb -U postgres -c 'select count(*) from reference'
+    - if [[ $TRAVIS_OS_NAME == linux ]]; then
+        psql -U postgres -c 'create database gendb';
+        psql -U postgres gendb < $TRAVIS_BUILD_DIR/src/resources/gendb_state_for_tests.txt;
+        psql gendb -U postgres -c 'select count(*) from reference';
+      fi
 
 script:
     #- pylint $TRAVIS_BUILD_DIR/docker/vcf_combiner/usr/bin/combine_vcf.py
@@ -125,7 +125,7 @@ script:
     - if [[ $TRAVIS_OS_NAME == linux ]]; then
         cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True;
       elif [[ $TRAVIS_OS_NAME == osx ]]; then
-        cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_FIND_FRAMEWORK=LAST -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True -DPROTOBUF_REGENERATE=True -DPROTOBUF_LIBRARY=/usr/local/opt/protobuf@3.1/lib/libprotobuf.so -DPROTOBUF_INCLUDE_DIRS=/usr/local/opt/protobuf@3.1/include -DPROTOBUF_LIBRARY_DEBUG=/usr/local/opt/protobuf@3.1/lib/libprotobuf.so -DPROTOBUF_LITE_LIBRARY=/usr/local/opt/protobuf@3.1/lib/libprotobuf-lite.so -DPROTOBUF_PROTOC_EXECUTABLE=/usr/local/opt/protobuf@3.1/bin/protoc -DPROTOBUF_PROTOC_LIBRARY=/usr/local/opt/protobuf@3.1/lib/libprotoc.so -DPROTOBUF_LIBRARIES=/usr/local/opt/protobuf@3.1/lib/libprotobuf.a -DGTEST_ROOT=$TRAVIS_BUILD_DIR/dependencies/googletest-release-1.8.1/googletest -DOPENSSL_PREFIX_DIR=/usr/local/opt/openssl;
+        cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_FIND_FRAMEWORK=LAST -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DPROTOBUF_LIBRARY=$PROTOBUF_HOME/lib/libprotobuf.dylib -DPROTOBUF_INCLUDE_DIRS=$PROTOBUF_HOME/include -DPROTOBUF_PROTOC_EXECUTABLE=$PROTOBUF_HOME/bin/protoc -DPROTOBUF_PROTOC_LIBRARY=$PROTOBUF_HOME/lib/libprotoc.dylib -DPROTOBUF_LIBRARIES=$PROTOBUF_HOME/lib/libprotobuf.dylib -DGTEST_ROOT=$TRAVIS_BUILD_DIR/dependencies/googletest-release-1.8.1/googletest -DOPENSSL_PREFIX_DIR=/usr/local/opt/openssl -DCMAKE_C_COMPILER=/usr/local/opt/mpich/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/local/opt/mpich/bin/mpicxx;
       fi
     - ln -s $TRAVIS_BUILD_DIR/tests
     - make -j 4 && make install
@@ -138,6 +138,8 @@ script:
         /usr/local/spark/sbin/start-master.sh;
         export GOOGLE_APPLICATION_CREDENTIALS=~/GCS.json;
         travis_wait 40 python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local gs://$GS_BUCKET client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests;
+      elif [[ $TRAVIS_OS_NAME == osx && ! -f $CACHE_DIR/initialized ]]; then
+        touch $CACHE_DIR/initialized;
       else
         make test ARGS=-V;
       fi
