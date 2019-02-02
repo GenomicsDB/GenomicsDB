@@ -1,8 +1,7 @@
 #!/bin/sh
 
-# Run this script to generate the configure script and other files that will
-# be included in the distribution.  These files are not checked in because they
-# are automatically generated.
+# Required for v3.0.0-beta-1 - suggested workaround for not finding googlemock/googletest 
+# 1.7.0 versions.
 
 set -e
 
@@ -15,8 +14,7 @@ __EOF__
   exit 1
 fi
 
-# Check that gmock is present.  Usually it is already there since the
-# directory is set up as an SVN external.
+# Check that gmock is present. 
 if test ! -e gmock; then
   curl $curlopts -L -O https://github.com/google/googlemock/archive/release-1.7.0.zip
   unzip -q release-1.7.0.zip
@@ -31,7 +29,7 @@ fi
 
 set -ex
 
-# TODO(kenton):  Remove the ",no-obsolete" part and fix the resulting warnings.
+# Remove the ",no-obsolete" part and fix the resulting warnings.
 autoreconf -f -i -Wall,no-obsolete
 
 rm -rf autom4te.cache config.h.in~
