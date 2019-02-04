@@ -197,7 +197,7 @@ def main():
     parent_dir=os.path.dirname(os.path.realpath(__file__))
     os.chdir(parent_dir)
     hostfile_path=parent_dir+os.path.sep+'hostfile';
-    vid_path=parent_dir+os.path.sep+'inputs'+os.path.sep;
+    vid_path=parent_dir+os.path.sep;
     template_vcf_header_path=parent_dir+os.path.sep+'inputs'+os.path.sep+'template_vcf_header.vcf';
     tmpdir = tempfile.mkdtemp()
     ws_dir=tmpdir+os.path.sep+'ws';
@@ -426,7 +426,7 @@ def main():
                 if('vid_mapping_file' in query_param_dict):
                     vid_path_final=vid_path+query_param_dict['vid_mapping_file'];
                 else:
-                    vid_path_final=vid_path+"vid.json";
+                    vid_path_final=vid_path+"inputs"+os.path.sep+"vid.json";
                 spark_cmd_v2 = 'spark-submit --class TestGenomicsDBDataSourceV2 --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-jar-with-dependencies.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --hostfile '+hostfile_path+' --vid '+vid_path_final+' --spark_master '+spark_master;
                 pid = subprocess.Popen(spark_cmd_v2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
                 stdout_string, stderr_string = pid.communicate()

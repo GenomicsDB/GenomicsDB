@@ -112,6 +112,9 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
         else if (field.getFieldClass().equals(Double.class)) {
           typeName = "Double";
         }
+        else if (field.getFieldClass().equals(Boolean.class)) {
+          typeName = "Boolean";
+        }
         else {
           throw new RuntimeException("Unsupported field type in vid!");
         }
@@ -175,6 +178,7 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
             // seems to be giving us. Otherwise spark will complain later
             // when we try to create the dataframe about unboxing from double to float
             case "float": clazz = Double.class; break;
+            case "flag": clazz = Boolean.class; break;
             default: throw new RuntimeException("Unsupported type "+vType+" in vid mapping");
           }
           String length = (String)v.getOrDefault("length", "1").toString();
