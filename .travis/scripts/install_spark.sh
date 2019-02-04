@@ -5,7 +5,7 @@
 INSTALL_DIR=${INSTALL_DIR:-/usr}
 USER=`whoami`
 
-SPARK=spark-${SPARK_VER:-2.1.1}-bin-hadoop${HADOOP_VER:-2.7}
+SPARK=spark-${SPARK_VER:-2.4.0}-bin-hadoop${HADOOP_VER:-2.7}
 SPARK_DIR=${INSTALL_DIR}/$SPARK
 SPARK_LOCAL_DIR="/usr/local/spark"
 
