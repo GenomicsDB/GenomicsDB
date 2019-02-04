@@ -10,7 +10,7 @@ SPARK_DIR=${INSTALL_DIR}/$SPARK
 SPARK_LOCAL_DIR="/usr/local/spark"
 
 download_spark() {
-  wget -q http://d3kbcqa49mib13.cloudfront.net/$SPARK.tgz
+  wget -q http://http://apache.cs.utah.edu/spark/spark-${SPARK_VER}/$SPARK.tgz
   sudo tar -zxf $SPARK.tgz --directory $INSTALL_DIR &&
   sudo chown -R $USER:$USER $SPARK_DIR &&
   sudo ln -s $INSTALL_DIR/$SPARK $SPARK_LOCAL_DIR &&
