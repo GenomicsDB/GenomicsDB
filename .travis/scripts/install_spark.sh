@@ -5,12 +5,13 @@
 INSTALL_DIR=${INSTALL_DIR:-/usr}
 USER=`whoami`
 
-SPARK=spark-${SPARK_VER:-2.4.0}-bin-hadoop${HADOOP_VER:-2.7}
+SPARK_VER=${SPARK_VER:-2.4.0}
+SPARK=spark-$SPARK_VER-bin-hadoop${HADOOP_VER:-2.7}
 SPARK_DIR=${INSTALL_DIR}/$SPARK
 SPARK_LOCAL_DIR="/usr/local/spark"
 
 download_spark() {
-  wget -q http://http://apache.cs.utah.edu/spark/spark-${SPARK_VER}/$SPARK.tgz
+  wget -nv --trust-server-names "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=spark/spark-$SPARK_VER/$SPARK.tgz"
   sudo tar -zxf $SPARK.tgz --directory $INSTALL_DIR &&
   sudo chown -R $USER:$USER $SPARK_DIR &&
   sudo ln -s $INSTALL_DIR/$SPARK $SPARK_LOCAL_DIR &&
@@ -32,6 +33,7 @@ configure_spark() {
   sudo echo "SPARK_MASTER_HOST=$IP" > ${SPARK_LOCAL_DIR}/conf/spark-env.sh &&
   sudo echo "SPARK_LOCAL_IP=$IP" >> ${SPARK_LOCAL_DIR}/conf/spark-env.sh &&
   sudo echo "localhost" > ${SPARK_LOCAL_DIR}/conf/slaves &&
+  sudo cp ${SPARK_LOCAL_DIR}/conf/log4j.properties.template ${SPARK_LOCAL_DIR}/conf/log4j.properties &&
   echo "$IP $MASTER" | sudo tee --append /etc/hosts &&
   echo "configure_spark successful"
 }
