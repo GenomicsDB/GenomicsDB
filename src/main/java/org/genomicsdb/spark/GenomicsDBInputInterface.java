@@ -23,31 +23,24 @@
 package org.genomicsdb.spark;
 
 import org.apache.spark.sql.types.StructType;
+
 import java.util.Map;
 
 /**
- * This interface declares some methods to be used by
- * classes that define quantums of data that are divided
- * from a large amount of data to be distributed to many workers.
- * Currently intended to be implemeented by GenomicsDBInputSplit
- * and GenomicsDBInputPartition
+ * This interface declares some methods to be used by classes that define quantums of data that are
+ * divided from a large amount of data to be distributed to many workers. Currently intended to be
+ * implemeented by GenomicsDBInputSplit and GenomicsDBInputPartition
  */
 interface GenomicsDBInputInterface {
-  default void setHost(String h) {
-  }
+  default void setHost(String h) {}
 
-  default void setGenomicsDBConf(GenomicsDBConfiguration g) {
-  }
+  default void setGenomicsDBConf(GenomicsDBConfiguration g) {}
 
-  default void setGenomicsDBSchema(StructType s) {
-  }
+  default void setGenomicsDBSchema(StructType s) {}
 
-  default void setGenomicsDBVidSchema(Map<String, GenomicsDBVidSchema> vMap) {
-  }
+  default void setGenomicsDBVidSchema(Map<String, GenomicsDBVidSchema> vMap) {}
 
-  default void setPartitionInfo(GenomicsDBPartitionInfo p) {
-  }
+  default void setPartitionInfo(GenomicsDBPartitionInfo p) {}
 
-  default void setQueryInfo(GenomicsDBQueryInfo q) {
-  }
+  default void setQueryInfo(GenomicsDBQueryInfo q) {}
 }

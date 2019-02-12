@@ -117,12 +117,9 @@ public class GenomicsDBInputSplit extends InputSplit implements Writable, Genomi
   }
 
   public void setHost(String loc) {
-    if (hosts == null) 
-    {
+    if (hosts == null) {
       hosts = new String[]{loc};
-    }
-    else
-    {
+    } else {
       hosts[0] = loc;
     }
   }

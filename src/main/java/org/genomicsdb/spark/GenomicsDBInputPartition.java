@@ -22,14 +22,15 @@
 
 package org.genomicsdb.spark;
 
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.reader.InputPartition;
 import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
-import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.StructType;
 
 import java.util.Map;
 
-public class GenomicsDBInputPartition implements InputPartition<InternalRow>, GenomicsDBInputInterface {
+public class GenomicsDBInputPartition
+    implements InputPartition<InternalRow>, GenomicsDBInputInterface {
 
   private String loaderFile;
   private GenomicsDBPartitionInfo partition;
@@ -39,11 +40,9 @@ public class GenomicsDBInputPartition implements InputPartition<InternalRow>, Ge
   private StructType schema;
   private Map<String, GenomicsDBVidSchema> vMap;
 
-  public GenomicsDBInputPartition() {
-  }
+  public GenomicsDBInputPartition() {}
 
-  public GenomicsDBInputPartition(String host, GenomicsDBConfiguration gConf,
-                                  StructType schema) {
+  public GenomicsDBInputPartition(String host, GenomicsDBConfiguration gConf, StructType schema) {
     hosts = new String[1];
     hosts[0] = host;
     loaderFile = gConf.get(GenomicsDBConfiguration.LOADERJSON);
@@ -54,9 +53,9 @@ public class GenomicsDBInputPartition implements InputPartition<InternalRow>, Ge
   }
 
   public GenomicsDBInputPartition(GenomicsDBPartitionInfo partition,
-                                  GenomicsDBQueryInfo query,
-                                  GenomicsDBConfiguration gConf,
-                                  StructType schema) {
+      GenomicsDBQueryInfo query,
+      GenomicsDBConfiguration gConf,
+      StructType schema) {
     hosts = null;
     loaderFile = gConf.get(GenomicsDBConfiguration.LOADERJSON);
     queryFile = gConf.get(GenomicsDBConfiguration.QUERYJSON);
@@ -70,9 +69,8 @@ public class GenomicsDBInputPartition implements InputPartition<InternalRow>, Ge
   }
 
   public String[] preferredLocations() {
-    if (hosts == null)
-    {
-      return new String[]{};
+    if (hosts == null) {
+      return new String[] {};
     }
     return hosts;
   }
