@@ -64,6 +64,9 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   private long QueryBlockSize = 10000000;
   private long QueryBlockSizeMargin = 500000;
 
+  public GenomicsDBConfiguration() {
+    super();
+  }
   public GenomicsDBConfiguration(Configuration configuration) throws FileNotFoundException {
     super(configuration);
   }

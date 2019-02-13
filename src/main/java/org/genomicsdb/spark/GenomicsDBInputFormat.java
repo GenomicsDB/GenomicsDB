@@ -47,8 +47,8 @@ import java.util.Optional;
 public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
   extends InputFormat<String, VCONTEXT> implements Configurable {
 
-  private GenomicsDBConfiguration genomicsDBConfiguration;
   private Configuration configuration;
+  private GenomicsDBInput input;
 
   Logger logger = Logger.getLogger(GenomicsDBInputFormat.class);
 
@@ -63,11 +63,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
    */
   public List<InputSplit> getSplits(JobContext jobContext) throws FileNotFoundException {
 
-    // TODO: maybe parameterize min & max?
-    long minSize = 1;
-    long maxSize = Long.MAX_VALUE;
-
-    genomicsDBConfiguration = new GenomicsDBConfiguration(configuration);
+    GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(configuration);
     genomicsDBConfiguration.setLoaderJsonFile(
       configuration.get(GenomicsDBConfiguration.LOADERJSON));
     genomicsDBConfiguration.setQueryJsonFile(
@@ -75,186 +71,8 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     genomicsDBConfiguration.setHostFile(
       configuration.get(GenomicsDBConfiguration.MPIHOSTFILE));
 
-    try {
-      genomicsDBConfiguration.populateListFromJson(GenomicsDBConfiguration.LOADERJSON);
-      genomicsDBConfiguration.populateListFromJson(GenomicsDBConfiguration.QUERYJSON);
-    }
-    catch (FileNotFoundException e) {
-      e.printStackTrace();
-      return null;
-    }
-    catch (IOException e) {
-      e.printStackTrace();
-      return null;
-    }
-    catch (ParseException e) {
-      e.printStackTrace();
-      return null;
-    }
-
-    ArrayList<GenomicsDBPartitionInfo> partitionsList = genomicsDBConfiguration.getPartitions();
-    ArrayList<GenomicsDBQueryInfo> queryRangeList = genomicsDBConfiguration.getQueryRanges();
-
-    long goalBlockSize = Math.max(minSize, 
-		           Math.min(genomicsDBConfiguration.getQueryBlockSize(), maxSize));
-
-    ArrayList<InputSplit> inputSplits = new ArrayList<InputSplit>();
-    // For now, assuming that each of partitions and queryRange are sorted
-    // by start position, and that query ranges don't overlap.
-    // TODO: not sure anything in GenomicsDB enforces the above assumption....
-    int pIndex = 0;
-    int qIndex = 0;
-    GenomicsDBPartitionInfo partition = null;
-    if (!partitionsList.isEmpty())
-      partition = partitionsList.get(pIndex);
-
-    // if workspace contains hdfs://, or s3:// or gc:// they're hdfs compliant and we support it
-    if (partition != null && !(partition.getWorkspace().contains("s3://") ||
-		partition.getWorkspace().contains("hdfs://") ||  
-		partition.getWorkspace().contains("gs://"))) {
-      List<String> hosts = genomicsDBConfiguration.getHosts();
-      for (int i=0; i<hosts.size(); i++) {
-        inputSplits.add(new GenomicsDBInputSplit(hosts.get(i)));
-      }
-    }
-    else if (partition != null) {
-      while (qIndex < queryRangeList.size() && partition != null) {
-        GenomicsDBQueryInfo queryRange = queryRangeList.get(qIndex);
-  
-        // advance partition index if needed
-        // i.e., advance till we find the partition that contains the query begin position
-        while ((pIndex + 1) < partitionsList.size() && partition.getBeginPosition() < queryRange.getBeginPosition()) {
-          pIndex++;
-  	  partition = partitionsList.get(pIndex);
-        }
-        if (partition.getBeginPosition() > queryRange.getBeginPosition()) {
-          pIndex--;
-  	  partition = partitionsList.get(pIndex);
-        }
-  
-        long queryBlockSize = queryRange.getEndPosition() - queryRange.getBeginPosition() + 1;
-        if (queryBlockSize < goalBlockSize) {
-          inputSplits.add(new GenomicsDBInputSplit(partition, queryRange));
-        }
-        else {
-          // bigger than goalBlockSize, so break up into "query chunks"
-  
-  	  long queryBlockStart = queryRange.getBeginPosition();
-	  long queryBlockMargin = genomicsDBConfiguration.getQueryBlockSizeMargin();
-  	  while (queryBlockStart < queryRange.getEndPosition()) {
-            long blockSize = (queryBlockSize > (goalBlockSize+queryBlockMargin)) ? goalBlockSize : queryBlockSize;
-  	    GenomicsDBQueryInfo queryBlock = new GenomicsDBQueryInfo(queryBlockStart, queryBlockStart + blockSize - 1);
-  	    inputSplits.add(new GenomicsDBInputSplit(partition, queryBlock));
-  
-  	    // if this queryBlock spans multiple partitions, need to add those as splits as well
-  	    while ((pIndex + 1) < partitionsList.size() &&
-                    queryBlockStart + blockSize - 1 >= partitionsList.get(pIndex+1).getBeginPosition()) {
-  	      pIndex++;
-              partition = partitionsList.get(pIndex);
-  	      inputSplits.add(new GenomicsDBInputSplit(partition, queryBlock));
-  	    }
-  	    queryBlockStart += blockSize;
-  	    queryBlockSize -= blockSize;
-  	  }
-        }
-        qIndex++;
-      }
-    }
-    return inputSplits;
-  }
-
-  /**
-   * Creates tmp query file based on inputSplit and existing query file
-   *
-   * @param queryJson Existing query json file
-   * @param inputSplit used to populate workspace, array and query_column_ranges
-   * @return  Returns path to temporary query file
-   * @throws FileNotFoundException  Thrown if queryJson file isn't found
-   * @throws IOException  Thrown if other IO exception while handling file operations
-   * @throws ParseException  Thrown if JSON parsing fails
-   */
-  String createTmpQueryFile(String queryJson, GenomicsDBInputSplit inputSplit) 
-		  throws FileNotFoundException, IOException, ParseException {
-    String indentString = "    ";
-    String amendedQuery = "{\n";
-    amendedQuery += indentString + "\"workspace\": \""+inputSplit.getPartitionInfo().getWorkspace()+"\",\n";
-    amendedQuery += indentString + "\"array\": \""+inputSplit.getPartitionInfo().getArrayName()+"\",\n";
-    if (inputSplit.getQueryInfo().getBeginPosition() == inputSplit.getQueryInfo().getEndPosition()) {
-      amendedQuery += indentString + "\"query_column_ranges\": [["+inputSplit.getQueryInfo().getBeginPosition()+"]]";
-    }
-    else {
-      amendedQuery += indentString + "\"query_column_ranges\": [[["+inputSplit.getQueryInfo().getBeginPosition()+","
-	      +inputSplit.getQueryInfo().getEndPosition()+"]]]";
-    }
-
-    try {
-
-      JSONParser parser = new JSONParser();
-      FileReader queryJsonReader = new FileReader(queryJson);
-      JSONObject obj = null;
-      try {
-        obj = (JSONObject)parser.parse(queryJsonReader);
-      }
-      catch(ParseException | IOException e) {
-        queryJsonReader.close();
-        throw e;
-      }
-  
-      if (obj.containsKey("query_row_ranges")) {
-        amendedQuery += ",\n" + indentString + "\"query_row_ranges\": "+obj.get("query_row_ranges").toString()+"";
-      }
-      if (obj.containsKey("vid_mapping_file")) {
-        amendedQuery += ",\n" + indentString + "\"vid_mapping_file\": \""+obj.get("vid_mapping_file").toString()+"\"";
-      }
-      if (obj.containsKey("callset_mapping_file")) {
-        amendedQuery += ",\n" + indentString + "\"callset_mapping_file\": \""+obj.get("callset_mapping_file").toString()+"\"";
-      }
-      if (obj.containsKey("vcf_header_filename")) {
-        amendedQuery += ",\n" + indentString + "\"vcf_header_filename\": "+obj.get("vcf_header_filename").toString();
-      }
-      if (obj.containsKey("query_attributes")) {
-        amendedQuery += ",\n" + indentString + "\"query_attributes\": "+obj.get("query_attributes").toString();
-      }
-      if (obj.containsKey("reference_genome")) {
-        amendedQuery += ",\n" + indentString + "\"reference_genome\": \""+obj.get("reference_genome").toString()+"\"";
-      }
-      if (obj.containsKey("segment_size")) {
-        amendedQuery += ",\n" + indentString + "\"segment_size\": "+obj.get("segment_size").toString();
-      }
-      if (obj.containsKey("produce_GT_field")) {
-        amendedQuery += ",\n" + indentString + "\"produce_GT_field\": "+obj.get("produce_GT_field").toString();
-      }
-      if (obj.containsKey("produce_FILTER_field")) {
-        amendedQuery += ",\n" + indentString + "\"produce_FILTER_field\": "+obj.get("produce_FILTER_field").toString();
-      }
-      amendedQuery += "\n}\n";
-      queryJsonReader.close();
-    }
-    catch (FileNotFoundException e) {
-      e.printStackTrace();
-      return null;
-    }
-    catch (IOException e) {
-      e.printStackTrace();
-      return null;
-    }
-    catch (ParseException e) {
-      e.printStackTrace();
-      return null;
-    }
-    
-    File tmpQueryFile = File.createTempFile("queryJson", ".json");
-    tmpQueryFile.deleteOnExit();
-    FileWriter fptr = new FileWriter(tmpQueryFile);
-    try {
-        fptr.write(amendedQuery);
-    }
-    catch(IOException e) {
-        fptr.close();
-        throw new IOException(e);
-    }
-    fptr.close();
-    return tmpQueryFile.getAbsolutePath();
+    input.setGenomicsDBConfiguration(genomicsDBConfiguration);
+    return input.divideInput();
   }
 
   public RecordReader<String, VCONTEXT>
@@ -289,7 +107,9 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     String amendedQuery = queryJson;
     if (gSplit.getPartitionInfo() != null) {
       try {
-        amendedQuery = createTmpQueryFile(queryJson, gSplit);
+        amendedQuery = GenomicsDBInput.createTmpQueryFile(queryJson, 
+                                                          gSplit.getPartitionInfo(),
+                                                          gSplit.getQueryInfo());
       }
       catch (ParseException e) {
         e.printStackTrace();
@@ -311,10 +131,11 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
    * default constructor
    */
   public GenomicsDBInputFormat() {
+    input = new GenomicsDBInput<GenomicsDBInputSplit>(null, null, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
   }
 
   public GenomicsDBInputFormat(GenomicsDBConfiguration conf) {
-    genomicsDBConfiguration = conf;
+    input = new GenomicsDBInput<GenomicsDBInputSplit>(conf, null, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
   }
 
   /**
@@ -324,7 +145,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
    * @return  Returns the same object for forward function calls
    */
   public GenomicsDBInputFormat<VCONTEXT, SOURCE> setLoaderJsonFile(String jsonFile) {
-    genomicsDBConfiguration.setLoaderJsonFile(jsonFile);
+    input.getGenomicsDBConfiguration().setLoaderJsonFile(jsonFile);
     return this;
   }
 
@@ -334,7 +155,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
    * @return  Returns the same object for forward function calls
    */
   public GenomicsDBInputFormat<VCONTEXT, SOURCE> setQueryJsonFile(String jsonFile) {
-    genomicsDBConfiguration.setQueryJsonFile(jsonFile);
+    input.getGenomicsDBConfiguration().setQueryJsonFile(jsonFile);
     return this;
   }
 
@@ -346,7 +167,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
    */
   public GenomicsDBInputFormat<VCONTEXT, SOURCE> setHostFile(String hostFile)
       throws FileNotFoundException {
-    genomicsDBConfiguration.setHostFile(hostFile);
+    input.getGenomicsDBConfiguration().setHostFile(hostFile);
     return this;
   }
 

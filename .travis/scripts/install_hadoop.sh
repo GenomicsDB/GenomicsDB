@@ -30,7 +30,7 @@ download_gcs_connector() {
 }
 
 download_hadoop() {
-  wget -nv http://www-eu.apache.org/dist/hadoop/common/$HADOOP/$HADOOP.tar.gz &&
+  wget -nv --trust-server-names "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=hadoop/common/$HADOOP/$HADOOP.tar.gz" &&
   sudo tar -xzf $HADOOP.tar.gz --directory $INSTALL_DIR &&
   sudo chown -R $USER:$USER $HADOOP_DIR &&
   download_gcs_connector &&

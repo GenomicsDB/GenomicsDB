@@ -1,0 +1,267 @@
+[
+  {
+    "AD": [
+      null
+    ],
+    "DP_FORMAT": [
+      6
+    ],
+    "alternateAlleles": [
+      ""
+    ],
+    "GQ": [
+      0
+    ],
+    "PID": [
+      null
+    ],
+    "refAllele": "A",
+    "GT": [
+      "./."
+    ],
+    "startPos": 12203,
+    "contig": "1",
+    "SB": [
+      null
+    ],
+    "sampleNames": [
+      "HG00141"
+    ],
+    "MIN_DP": [
+      0
+    ],
+    "END": 12206,
+    "ID": ".",
+    "PL": [
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "PGT": [
+      null
+    ]
+  },
+  {
+    "MQRankSum": -0.329,
+    "AD": [
+      [
+        58,
+        22,
+        17
+      ]
+    ],
+    "MQ": 31.72,
+    "DP_FORMAT": [
+      80
+    ],
+    "BaseQRankSum": -2.096,
+    "alternateAlleles": [
+      "TA",
+      ""
+    ],
+    "GQ": [
+      99
+    ],
+    "PID": [
+      "17385_G_A"
+    ],
+    "refAllele": "TCGA",
+    "DP": 80,
+    "ReadPosRankSum": 0.005,
+    "MQ0": 8,
+    "GT": [
+      "./."
+    ],
+    "startPos": 12207,
+    "contig": "1",
+    "SB": [
+      [
+        58,
+        0,
+        22,
+        0
+      ]
+    ],
+    "sampleNames": [
+      "HG00141"
+    ],
+    "MIN_DP": [
+      null
+    ],
+    "ClippingRankSum": -1.859,
+    "ID": ".",
+    "PL": [
+      [
+        504,
+        0,
+        9807,
+        678,
+        1870,
+        2548
+      ]
+    ],
+    "PGT": [
+      "0|1"
+    ]
+  },
+  {
+    "AD": [
+      [
+        58,
+        22,
+        17
+      ]
+    ],
+    "DP_FORMAT": [
+      80
+    ],
+    "alternateAlleles": [
+      "*",
+      ""
+    ],
+    "GQ": [
+      99
+    ],
+    "PID": [
+      "17385_G_A"
+    ],
+    "refAllele": "T",
+    "DP": 80,
+    "GT": [
+      "./."
+    ],
+    "startPos": 12208,
+    "contig": "1",
+    "SB": [
+      [
+        58,
+        0,
+        22,
+        0
+      ]
+    ],
+    "sampleNames": [
+      "HG00141"
+    ],
+    "MIN_DP": [
+      null
+    ],
+    "ID": ".",
+    "PL": [
+      [
+        504,
+        0,
+        9807,
+        678,
+        1870,
+        2548
+      ]
+    ],
+    "PGT": [
+      "0|1"
+    ]
+  },
+  {
+    "AD": [
+      [
+        58,
+        22,
+        17
+      ]
+    ],
+    "DP_FORMAT": [
+      80
+    ],
+    "alternateAlleles": [
+      "*",
+      ""
+    ],
+    "GQ": [
+      99
+    ],
+    "PID": [
+      "17385_G_A"
+    ],
+    "refAllele": "T",
+    "DP": 80,
+    "GT": [
+      "./."
+    ],
+    "startPos": 12209,
+    "contig": "1",
+    "SB": [
+      [
+        58,
+        0,
+        22,
+        0
+      ]
+    ],
+    "sampleNames": [
+      "HG00141"
+    ],
+    "MIN_DP": [
+      null
+    ],
+    "ID": ".",
+    "PL": [
+      [
+        504,
+        0,
+        9807,
+        678,
+        1870,
+        2548
+      ]
+    ],
+    "PGT": [
+      "0|1"
+    ]
+  },
+  {
+    "AD": [
+      null
+    ],
+    "DP_FORMAT": [
+      6
+    ],
+    "alternateAlleles": [
+      ""
+    ],
+    "GQ": [
+      0
+    ],
+    "PID": [
+      null
+    ],
+    "refAllele": "A",
+    "GT": [
+      "./."
+    ],
+    "startPos": 12210,
+    "contig": "1",
+    "SB": [
+      null
+    ],
+    "sampleNames": [
+      "HG00141"
+    ],
+    "MIN_DP": [
+      0
+    ],
+    "END": 12280,
+    "ID": ".",
+    "PL": [
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "PGT": [
+      null
+    ]
+  }
+]

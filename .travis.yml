@@ -132,7 +132,7 @@ script:
     - if [[ $INSTALL_TYPE == hdfs ]]; then
         echo "Run spark/hdfs tests";
         /usr/local/spark/sbin/start-master.sh;
-        travis_wait 20 python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests;
+        travis_wait 40 python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests;
       elif [[ $INSTALL_TYPE == gcs ]]; then
         echo "Run spark/gcs tests";
         /usr/local/spark/sbin/start-master.sh;

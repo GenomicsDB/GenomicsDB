@@ -1,0 +1,330 @@
+[
+  {
+    "AD": [
+      null,
+      null,
+      null
+    ],
+    "DP_FORMAT": [
+      2,
+      null,
+      null
+    ],
+    "alternateAlleles": [
+      ""
+    ],
+    "GQ": [
+      0,
+      null,
+      null
+    ],
+    "PID": [
+      null,
+      null,
+      null
+    ],
+    "refAllele": "C",
+    "GT": [
+      "./.",
+      ".",
+      "."
+    ],
+    "startPos": 12141,
+    "contig": "1",
+    "SB": [
+      null,
+      null,
+      null
+    ],
+    "sampleNames": [
+      "HG00141",
+      "HG01530",
+      "HG01958"
+    ],
+    "MIN_DP": [
+      0,
+      null,
+      null
+    ],
+    "END": 12144,
+    "ID": ".",
+    "PL": [
+      [
+        0,
+        0,
+        0
+      ],
+      null,
+      null
+    ],
+    "PGT": [
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "AD": [
+      null,
+      null,
+      null
+    ],
+    "DP_FORMAT": [
+      2,
+      null,
+      3
+    ],
+    "alternateAlleles": [
+      ""
+    ],
+    "GQ": [
+      0,
+      null,
+      0
+    ],
+    "PID": [
+      null,
+      null,
+      null
+    ],
+    "refAllele": "C",
+    "GT": [
+      "./.",
+      ".",
+      "./."
+    ],
+    "startPos": 12145,
+    "contig": "1",
+    "SB": [
+      null,
+      null,
+      null
+    ],
+    "sampleNames": [
+      "HG00141",
+      "HG01530",
+      "HG01958"
+    ],
+    "MIN_DP": [
+      0,
+      null,
+      0
+    ],
+    "END": 12277,
+    "ID": ".",
+    "PL": [
+      [
+        0,
+        0,
+        0
+      ],
+      null,
+      [
+        0,
+        0,
+        0
+      ]
+    ],
+    "PGT": [
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "AD": [
+      null,
+      null,
+      null
+    ],
+    "DP_FORMAT": [
+      2,
+      null,
+      null
+    ],
+    "alternateAlleles": [
+      ""
+    ],
+    "GQ": [
+      0,
+      null,
+      null
+    ],
+    "PID": [
+      null,
+      null,
+      null
+    ],
+    "refAllele": "C",
+    "GT": [
+      "./.",
+      ".",
+      "."
+    ],
+    "startPos": 12278,
+    "contig": "1",
+    "SB": [
+      null,
+      null,
+      null
+    ],
+    "sampleNames": [
+      "HG00141",
+      "HG01530",
+      "HG01958"
+    ],
+    "MIN_DP": [
+      0,
+      null,
+      null
+    ],
+    "END": 12295,
+    "ID": ".",
+    "PL": [
+      [
+        0,
+        0,
+        0
+      ],
+      null,
+      null
+    ],
+    "PGT": [
+      null,
+      null,
+      null
+    ]
+  },
+  {
+    "MQRankSum": -0.432,
+    "AD": [
+      [
+        58,
+        22,
+        17,
+        17
+      ],
+      [
+        40,
+        36,
+        0,
+        0
+      ],
+      [
+        0,
+        37,
+        120,
+        37
+      ]
+    ],
+    "MQ": 31.72,
+    "DP_FORMAT": [
+      80,
+      76,
+      120
+    ],
+    "BaseQRankSum": -2.074,
+    "alternateAlleles": [
+      "A",
+      "T",
+      ""
+    ],
+    "GQ": [
+      99,
+      99,
+      99
+    ],
+    "PID": [
+      "17385_G_A",
+      null,
+      "17385_G_T"
+    ],
+    "refAllele": "G",
+    "DP": 276,
+    "ReadPosRankSum": 0.005,
+    "MQ0": 3,
+    "GT": [
+      "./.",
+      "./.",
+      "./."
+    ],
+    "startPos": 17385,
+    "contig": "1",
+    "SB": [
+      [
+        58,
+        0,
+        22,
+        0
+      ],
+      [
+        9,
+        31,
+        13,
+        23
+      ],
+      [
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "RAW_MQ": 8,
+    "sampleNames": [
+      "HG00141",
+      "HG01530",
+      "HG01958"
+    ],
+    "MIN_DP": [
+      null,
+      null,
+      null
+    ],
+    "ClippingRankSum": -1.859,
+    "ID": ".",
+    "PL": [
+      [
+        504,
+        0,
+        9807,
+        678,
+        1870,
+        2548,
+        678,
+        1870,
+        2548,
+        2548
+      ],
+      [
+        1018,
+        0,
+        1116,
+        1137,
+        1224,
+        2361,
+        1137,
+        1224,
+        2361,
+        2361
+      ],
+      [
+        3336,
+        4536,
+        7349,
+        358,
+        958,
+        0,
+        4536,
+        7349,
+        958,
+        7349
+      ]
+    ],
+    "PGT": [
+      "0|1",
+      null,
+      "0|1"
+    ]
+  }
+]
