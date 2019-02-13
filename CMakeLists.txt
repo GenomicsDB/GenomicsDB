@@ -42,7 +42,7 @@ set(MAVEN_QUIET False CACHE BOOL "Do not print mvn messages")
 set(GENOMICSDB_SPARK_PROFILE "" CACHE STRING "Profile to choose Apache Spark version") # used in Maven builds
 set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when optimized zlib is used")
 set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf files in build directory")
-set(ENABLE_LIBCURL False CACHE BOOL "Enable libcurl for use in htslib to read VCF files directly off S3/GCS/http(s) URLs")
+set(ENABLE_LIBCURL True CACHE BOOL "Enable libcurl for use in htslib to read VCF files directly off S3/GCS/http(s) URLs")
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
