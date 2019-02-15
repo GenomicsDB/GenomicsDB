@@ -1,7 +1,7 @@
 The MIT License (MIT)
 
 Copyright (c) 2016-2018 Intel Corporation
-Copyright (c) 2018 Omics Data Automation, Inc.
+Copyright (c) 2018-2019 Omics Data Automation, Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -20,8 +20,7 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
--------------------------------------------------------------------------------------
+-libcsv------------------------------------------------------------------------------------------
 
 We use libcsv (https://sourceforge.net/projects/libcsv/) to parse CSV files. libcsv
 is licensed under the GNU Library or Lesser General Public License version 2.0 (LGPLv2).
@@ -29,10 +28,10 @@ So, if you are re-distributing binaries or object files, they may be subject to 
 terms. Please ensure that any binaries/object files you distribute are compliant with
 LGPLv2. You can disable libcsv usage by not setting the USE_LIBCSV and LIBCSV_DIR flags
 during compilation. However, your binaries/executables will not be able to import CSV
-files into TileDB.
+files into GenomicsDB.
 
+-protobuf----------------------------------------------------------------------------------------
 
--------------------------------------------------------------------------------------
 We use Google protocol buffers in GenomicsDB for representing the mapping information.
 Quoting from the protobuf license
 (https://github.com/google/protobuf/blob/master/LICENSE):
@@ -45,7 +44,7 @@ If you distribute the GenomicsDB binaries with the protobuf support library link
 statically, you must specify that the protobuf support library (in binary form) is covered
 by the Protocol Buffers license (https://github.com/google/protobuf/blob/master/LICENSE).
 
--------------------------------------------------------------------------------------
+-libuuid-----------------------------------------------------------------------------------------
 
 We use libuuid (https://sourceforge.net/projects/libuuid/) which is licensed under the GNU Library
 or Lesser General Public License version 2.0 (LGPLv2). So, if you are re-distributing binaries or
