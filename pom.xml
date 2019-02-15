@@ -60,7 +60,6 @@
     <spark.version>2.4.0</spark.version>
     <spark.core.artifactid>spark-core_2.11</spark.core.artifactid>
     <spark.sql.artifactid>spark-sql_2.11</spark.sql.artifactid>
-    <spark.mllib.artifactid>spark-mllib_2.11</spark.mllib.artifactid>
     <htsjdk.version>2.9.1</htsjdk.version>
     <json.simple.version>[1.1.1,)</json.simple.version>
     <log4j.version>1.2.17</log4j.version>
@@ -88,11 +87,6 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>${spark.sql.artifactid}</artifactId>
-      <version>${spark.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>${spark.mllib.artifactid}</artifactId>
       <version>${spark.version}</version>
     </dependency>
     <dependency>
