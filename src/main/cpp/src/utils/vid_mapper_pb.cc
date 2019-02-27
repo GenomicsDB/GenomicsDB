@@ -41,11 +41,11 @@ ProtoBufBasedVidMapper::ProtoBufBasedVidMapper(
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
   assert (vid_map_protobuf->IsInitialized() &&
-      vid_map_protobuf->contigs_size()!=0 &&
-      vid_map_protobuf->fields_size()!=0);
+          vid_map_protobuf->contigs_size()!=0 &&
+          vid_map_protobuf->fields_size()!=0);
 
   assert (callset_map_protobuf->IsInitialized() &&
-      callset_map_protobuf->callsets_size()!= 0);
+          callset_map_protobuf->callsets_size()!= 0);
 
   initialize(vid_map_protobuf, callset_map_protobuf, buffer_stream_info_vec);
 }
@@ -75,7 +75,7 @@ int ProtoBufBasedVidMapper::parse_callset_protobuf(
   m_max_callset_row_idx = -1;
 
   google::protobuf::RepeatedPtrField<SampleIDToTileDBIDMap>::const_iterator it =
-      callset_map_protobuf->callsets().cbegin();
+    callset_map_protobuf->callsets().cbegin();
 
   for (; it != callset_map_protobuf->callsets().cend(); ++it) {
     SampleIDToTileDBIDMap sample_info = *it;
@@ -89,12 +89,12 @@ int ProtoBufBasedVidMapper::parse_callset_protobuf(
 
       if(m_callset_name_to_row_idx[callset_name] != row_idx) {
         throw ProtoBufBasedVidMapperException(
-            std::string("ERROR: Callset/sample ")
-            + callset_name
-            + " have two TileDB row indexes: "
-            + std::to_string(m_callset_name_to_row_idx[callset_name])
-            + ", "
-            + std::to_string(row_idx));
+          std::string("ERROR: Callset/sample ")
+          + callset_name
+          + " have two TileDB row indexes: "
+          + std::to_string(m_callset_name_to_row_idx[callset_name])
+          + ", "
+          + std::to_string(row_idx));
       }
     }
 
@@ -131,25 +131,25 @@ int ProtoBufBasedVidMapper::parse_callset_protobuf(
       assert(file_idx < static_cast<int64_t>(m_file_idx_to_info.size()));
       int64_t other_row_idx = 0ll;
       auto added_successfully = m_file_idx_to_info[file_idx].add_local_tiledb_row_idx_pair(
-          idx_in_file,
-          row_idx,
-          other_row_idx);
+                                  idx_in_file,
+                                  row_idx,
+                                  other_row_idx);
       if(!added_successfully)
         throw ProtoBufBasedVidMapperException(std::string("Attempting to import a sample from file/stream ")+stream_name
-            +" multiple times under aliases '"+m_row_idx_to_info[other_row_idx].m_name
-            +"' and '"+callset_name+"' with row indexes "+std::to_string(other_row_idx)
-                  +" and "+std::to_string(row_idx)+" respectively");
+                                              +" multiple times under aliases '"+m_row_idx_to_info[other_row_idx].m_name
+                                              +"' and '"+callset_name+"' with row indexes "+std::to_string(other_row_idx)
+                                              +" and "+std::to_string(row_idx)+" respectively");
     }
 
     m_callset_name_to_row_idx[callset_name] = row_idx;
     VERIFY_OR_THROW(static_cast<size_t>(row_idx) < m_row_idx_to_info.size());
     if(m_row_idx_to_info[row_idx].m_is_initialized &&
         m_row_idx_to_info[row_idx].m_name != callset_name)
-          throw ProtoBufBasedVidMapperException(
-            std::string("Callset/sample ")
-            + callset_name
-            + " has the same TileDB row index as "
-            + m_row_idx_to_info[row_idx].m_name);
+      throw ProtoBufBasedVidMapperException(
+        std::string("Callset/sample ")
+        + callset_name
+        + " has the same TileDB row index as "
+        + m_row_idx_to_info[row_idx].m_name);
 
     m_row_idx_to_info[row_idx].set_info(
       row_idx,
@@ -163,13 +163,11 @@ int ProtoBufBasedVidMapper::parse_callset_protobuf(
     buffer_stream_info_vec.size(), -1);
 
   auto max_buffer_stream_idx_with_global_file_idx = -1ll;
-  for(auto i=0ull;i<buffer_stream_info_vec.size();++i)
-  {
+  for(auto i=0ull; i<buffer_stream_info_vec.size(); ++i) {
     const auto& info = buffer_stream_info_vec[i];
     int64_t global_file_idx;
     auto found = get_global_file_idx(info.m_name, global_file_idx);
-    if(found)
-    {
+    if(found) {
       auto& curr_file_info = m_file_idx_to_info[global_file_idx];
       curr_file_info.m_type = info.m_type;
       curr_file_info.m_buffer_stream_idx = i;
@@ -212,8 +210,7 @@ int ProtoBufBasedVidMapper::parse_contigs_from_vidmap(
   for (auto contig_idx = 0L; contig_idx < num_contigs; ++contig_idx) {
     contig_name = vid_map_protobuf->contigs(contig_idx).name();
 
-    if(m_contig_name_to_idx.find(contig_name) != m_contig_name_to_idx.end())
-    {
+    if(m_contig_name_to_idx.find(contig_name) != m_contig_name_to_idx.end()) {
       std::cerr << "Contig/chromosome name "
                 << contig_name
                 << " appears more than once in vid map\n"
@@ -224,7 +221,7 @@ int ProtoBufBasedVidMapper::parse_contigs_from_vidmap(
     }
 
     auto tiledb_column_offset =
-        vid_map_protobuf->contigs(contig_idx).tiledb_column_offset();
+      vid_map_protobuf->contigs(contig_idx).tiledb_column_offset();
 
     VERIFY_OR_THROW(tiledb_column_offset >= 0LL);
     auto length = vid_map_protobuf->contigs(contig_idx).length();
@@ -233,30 +230,30 @@ int ProtoBufBasedVidMapper::parse_contigs_from_vidmap(
 
     m_contig_name_to_idx[contig_name] = contig_idx;
     m_contig_idx_to_info[contig_idx].set_info(
-                                       contig_idx,
-                                       contig_name,
-                                       length,
-                                       tiledb_column_offset);
+      contig_idx,
+      contig_name,
+      length,
+      tiledb_column_offset);
     m_contig_begin_2_idx[contig_idx].first = tiledb_column_offset;
     m_contig_begin_2_idx[contig_idx].second = contig_idx;
     m_contig_end_2_idx[contig_idx].first =
-        tiledb_column_offset + length - 1; //inclusive
+      tiledb_column_offset + length - 1; //inclusive
     m_contig_end_2_idx[contig_idx].second = contig_idx;
 
     if(duplicate_contigs_exist) {
-        throw ProtoBufBasedVidMapperException(
-          std::string("Duplicate contigs found: ")
-          + contig_name);
+      throw ProtoBufBasedVidMapperException(
+        std::string("Duplicate contigs found: ")
+        + contig_name);
     }
 
     std::sort(
-        m_contig_begin_2_idx.begin(),
-        m_contig_begin_2_idx.end(),
-        contig_offset_idx_pair_cmp);
+      m_contig_begin_2_idx.begin(),
+      m_contig_begin_2_idx.end(),
+      contig_offset_idx_pair_cmp);
     std::sort(
-        m_contig_end_2_idx.begin(),
-        m_contig_end_2_idx.end(),
-        contig_offset_idx_pair_cmp);
+      m_contig_end_2_idx.begin(),
+      m_contig_end_2_idx.end(),
+      contig_offset_idx_pair_cmp);
   }
 
   // Check that there are no spurious overlaps.
@@ -265,16 +262,14 @@ int ProtoBufBasedVidMapper::parse_contigs_from_vidmap(
   auto last_contig_end_column = -1ll;
   auto overlapping_contigs_exist = false;
   for (auto contig_idx = 0UL; contig_idx < m_contig_begin_2_idx.size();
-      ++contig_idx)
+       ++contig_idx)
 //  for (const auto& offset_idx_pair : m_contig_begin_2_idx)
   {
 //    auto contig_idx = offset_idx_pair.second;
     const auto& contig_info = m_contig_idx_to_info[contig_idx];
-    if(last_contig_idx >= 0)
-    {
+    if(last_contig_idx >= 0) {
       const auto& last_contig_info = m_contig_idx_to_info[last_contig_idx];
-      if(contig_info.m_tiledb_column_offset <= last_contig_end_column)
-      {
+      if(contig_info.m_tiledb_column_offset <= last_contig_end_column) {
         std::cerr << "Contig/chromosome "
                   << contig_info.m_name
                   << " begins at TileDB column "
@@ -285,14 +280,14 @@ int ProtoBufBasedVidMapper::parse_contigs_from_vidmap(
                   << last_contig_info.m_tiledb_column_offset
                   << ", "
                   << last_contig_info.m_tiledb_column_offset +
-                     last_contig_info.m_length-1
+                  last_contig_info.m_length-1
                   << "]" << "\n";
         overlapping_contigs_exist = true;
       }
     }
     last_contig_idx = contig_idx;
     last_contig_end_column =
-        contig_info.m_tiledb_column_offset + contig_info.m_length - 1;
+      contig_info.m_tiledb_column_offset + contig_info.m_length - 1;
   }
 
   if(overlapping_contigs_exist) {
@@ -313,7 +308,7 @@ int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
   auto duplicate_fields_exist = false;
 
   for (auto pb_field_idx = 0, field_idx = 0; pb_field_idx < num_fields;
-      ++pb_field_idx) {
+       ++pb_field_idx) {
     field_name = vid_map_protobuf->fields(pb_field_idx).name();
     if(m_field_name_to_idx.find(field_name) != m_field_name_to_idx.end()) {
       std::cerr << "Duplicate field name "
@@ -326,9 +321,9 @@ int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
     // Known fields
     auto known_field_enum = 0u;
     auto is_known_field =
-        KnownFieldInfo::get_known_field_enum_for_name(
-          field_name,
-          known_field_enum);
+      KnownFieldInfo::get_known_field_enum_for_name(
+        field_name,
+        known_field_enum);
     // Map
     m_field_name_to_idx[field_name] = field_idx;
     m_field_idx_to_info[field_idx].set_info(field_name, field_idx);
@@ -337,10 +332,9 @@ int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
     //Field type - int, char etc
     if(vid_map_protobuf->fields(pb_field_idx).type_size() == 0u)
       throw VidMapperException(std::string("Attribute 'type' is mandatory for all fields in GenomicsDB ")
-          +" field "+field_name+" missing 'type' in Protobuf structure");
+                               +" field "+field_name+" missing 'type' in Protobuf structure");
     FieldElementTypeDescriptor type_descriptor(vid_map_protobuf->fields(pb_field_idx).type_size());
-    for(auto i=0u;i<static_cast<unsigned>(vid_map_protobuf->fields(pb_field_idx).type_size());++i)
-    {
+    for(auto i=0u; i<static_cast<unsigned>(vid_map_protobuf->fields(pb_field_idx).type_size()); ++i) {
       field_type = vid_map_protobuf->fields(pb_field_idx).type(i);
       auto type_index_ht_type_pair = get_type_index_and_bcf_ht_type(field_type.c_str());
       type_descriptor.set_tuple_element_type(i, type_index_ht_type_pair.first, type_index_ht_type_pair.second);
@@ -349,7 +343,7 @@ int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
 
     // VCF class type can be an array of values: INFO, FORMAT and FILTER
     auto class_type_size =
-        vid_map_protobuf->fields(pb_field_idx).vcf_field_class_size();
+      vid_map_protobuf->fields(pb_field_idx).vcf_field_class_size();
 
     if (class_type_size > 0L) {
       for (int i = 0; i < class_type_size; ++i) {
@@ -359,47 +353,43 @@ int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
           ref.m_is_vcf_INFO_field = true;
         else if(class_name == "FORMAT") {
           ref.m_is_vcf_FORMAT_field = true;
-        } else
-          if(class_name == "FILTER")
-            ref.m_is_vcf_FILTER_field = true;
+        } else if(class_name == "FILTER")
+          ref.m_is_vcf_FILTER_field = true;
       }
     }
     if (vid_map_protobuf->fields(pb_field_idx).length_size() > 0) {
       ref.m_length_descriptor.resize(vid_map_protobuf->fields(pb_field_idx).length_size());
-      for(auto i=0;i<vid_map_protobuf->fields(pb_field_idx).length_size();++i)
-      {
+      for(auto i=0; i<vid_map_protobuf->fields(pb_field_idx).length_size(); ++i) {
         auto& pb_length_descriptor_component = vid_map_protobuf->fields(pb_field_idx).length(i);
         if(pb_length_descriptor_component.has_fixed_length())
           ref.m_length_descriptor.set_num_elements(i, pb_length_descriptor_component.fixed_length());
-        else
-        {
+        else {
           assert(pb_length_descriptor_component.has_variable_length_descriptor());
           parse_string_length_descriptor(field_name.c_str(),
-              pb_length_descriptor_component.variable_length_descriptor().c_str(),
-              pb_length_descriptor_component.variable_length_descriptor().size(),
-              ref.m_length_descriptor, i);
+                                         pb_length_descriptor_component.variable_length_descriptor().c_str(),
+                                         pb_length_descriptor_component.variable_length_descriptor().size(),
+                                         ref.m_length_descriptor, i);
         }
       }
     } else {
       if(is_known_field) {
         auto length_descriptor_code =
-            KnownFieldInfo::get_length_descriptor_for_known_field_enum(
-                known_field_enum);
+          KnownFieldInfo::get_length_descriptor_for_known_field_enum(
+            known_field_enum);
         ref.m_length_descriptor.set_length_descriptor(0u, length_descriptor_code);
         if(length_descriptor_code == BCF_VL_FIXED)
           ref.m_length_descriptor.set_num_elements(0u,
               KnownFieldInfo::get_num_elements_for_known_field_enum(
-                  known_field_enum,
-                  0u,
-                  0u)
-              );  //don't care about ploidy
+                known_field_enum,
+                0u,
+                0u)
+                                                  );  //don't care about ploidy
       }
     }
 
     //Sometimes the VCF type can be different from the real datatype of the field
     //For example, for multi-D vectors, the VCF type is string: @$@#@#!#$%$%
-    if(vid_map_protobuf->fields(pb_field_idx).has_vcf_type())
-    {
+    if(vid_map_protobuf->fields(pb_field_idx).has_vcf_type()) {
       auto type_index_ht_type_pair = get_type_index_and_bcf_ht_type(vid_map_protobuf->fields(pb_field_idx).vcf_type().c_str());
       type_descriptor.resize_num_elements_in_tuple(1u);
       type_descriptor.set_tuple_element_type(0u, type_index_ht_type_pair.first, type_index_ht_type_pair.second);
@@ -408,16 +398,15 @@ int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
 
     //Generally used when multi-D vectors are represented as delimited strings in the VCF
     //Used mostly in conjunction with the vcf_type attribute
-    if(vid_map_protobuf->fields(pb_field_idx).vcf_delimiter_size() > 0)
-    {
-      for(auto i=0;i<vid_map_protobuf->fields(pb_field_idx).vcf_delimiter_size();++i)
+    if(vid_map_protobuf->fields(pb_field_idx).vcf_delimiter_size() > 0) {
+      for(auto i=0; i<vid_map_protobuf->fields(pb_field_idx).vcf_delimiter_size(); ++i)
         ref.m_length_descriptor.set_vcf_delimiter(i,
             vid_map_protobuf->fields(pb_field_idx).vcf_delimiter(i).c_str());
     }
 
     if(vid_map_protobuf->fields(pb_field_idx).has_vcf_field_combine_operation())
       set_VCF_field_combine_operation(ref,
-          vid_map_protobuf->fields(pb_field_idx).vcf_field_combine_operation().c_str());
+                                      vid_map_protobuf->fields(pb_field_idx).vcf_field_combine_operation().c_str());
 
     ref.modify_field_type_if_multi_dim_field();
     ref.compute_element_size();

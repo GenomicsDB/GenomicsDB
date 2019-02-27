@@ -3,8 +3,7 @@
 #define VERIFY_OR_THROW(X) if(!(X)) throw File2TileDBBinaryException(#X);
 
 //Move constructor
-File2TileDBBinaryColumnPartitionBase::File2TileDBBinaryColumnPartitionBase(File2TileDBBinaryColumnPartitionBase&& other)
-{
+File2TileDBBinaryColumnPartitionBase::File2TileDBBinaryColumnPartitionBase(File2TileDBBinaryColumnPartitionBase&& other) {
   m_column_interval_begin = other.m_column_interval_begin;
   m_column_interval_end = other.m_column_interval_end;
   m_begin_buffer_offset_for_local_callset = std::move(other.m_begin_buffer_offset_for_local_callset);
@@ -22,8 +21,7 @@ File2TileDBBinaryColumnPartitionBase::File2TileDBBinaryColumnPartitionBase(File2
   other.m_buffer_ptr = 0;
 }
 
-File2TileDBBinaryColumnPartitionBase::~File2TileDBBinaryColumnPartitionBase()
-{
+File2TileDBBinaryColumnPartitionBase::~File2TileDBBinaryColumnPartitionBase() {
   if(m_base_reader_ptr)
     delete m_base_reader_ptr;
   m_base_reader_ptr = 0;
@@ -31,8 +29,7 @@ File2TileDBBinaryColumnPartitionBase::~File2TileDBBinaryColumnPartitionBase()
 }
 
 void File2TileDBBinaryColumnPartitionBase::initialize_base_class_members(const int64_t begin, const int64_t end,
-    const uint64_t num_enabled_callsets, GenomicsDBImportReaderBase* reader_ptr)
-{
+    const uint64_t num_enabled_callsets, GenomicsDBImportReaderBase* reader_ptr) {
   m_column_interval_begin = begin;
   m_column_interval_end = end;
   //buffer offsets for each callset in this partition
@@ -48,8 +45,7 @@ void File2TileDBBinaryColumnPartitionBase::initialize_base_class_members(const i
 #ifdef PRODUCE_BINARY_CELLS
 
 template<class FieldType>
-bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, const FieldType val, bool print_sep)
-{
+bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, const FieldType val, bool print_sep) {
   int64_t add_size = sizeof(FieldType);
   //Do not write anything past the limit
   if(buffer_offset + add_size > buffer_offset_limit)
@@ -62,8 +58,7 @@ bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, in
 
 //specialization for char* type
 template<>
-bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, const char* val, bool print_sep)
-{
+bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, const char* val, bool print_sep) {
   int64_t add_size = strlen(val)*sizeof(char);
   //Do not write anything past the limit
   if(buffer_offset + add_size > buffer_offset_limit)
@@ -74,15 +69,13 @@ bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, in
 }
 
 template<>
-bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, char* val, bool print_sep)
-{
+bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, char* val, bool print_sep) {
   return tiledb_buffer_print<const char*>(buffer, buffer_offset, buffer_offset_limit, val, print_sep);
 }
 
 //specialization for std::string type
 template<>
-bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, const std::string& val, bool print_sep)
-{
+bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, const std::string& val, bool print_sep) {
   int64_t add_size = val.length()*sizeof(char);
   //Do not write anything past the limit
   if(buffer_offset + add_size > buffer_offset_limit)
@@ -93,14 +86,12 @@ bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, in
 }
 
 template<>
-bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, std::string& val, bool print_sep)
-{
+bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, std::string& val, bool print_sep) {
   return tiledb_buffer_print<const std::string&>(buffer, buffer_offset, buffer_offset_limit, val, print_sep);
 }
 
 template<class FieldType>
-bool File2TileDBBinaryBase::tiledb_buffer_print_null(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit)
-{
+bool File2TileDBBinaryBase::tiledb_buffer_print_null(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit) {
   return tiledb_buffer_print<FieldType>(buffer, buffer_offset, buffer_offset_limit, get_tiledb_null_value<FieldType>());
 }
 
@@ -108,8 +99,7 @@ bool File2TileDBBinaryBase::tiledb_buffer_print_null(std::vector<uint8_t>& buffe
 
 #ifdef PRODUCE_CSV_CELLS
 template<class FieldType>
-bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, const FieldType val, bool print_sep)
-{
+bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, const FieldType val, bool print_sep) {
   std::stringstream ss;
   if(print_sep)
     ss << "," << val;
@@ -126,8 +116,7 @@ bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, in
 }
 
 template<class FieldType>
-bool File2TileDBBinaryBase::tiledb_buffer_print_null(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit)
-{
+bool File2TileDBBinaryBase::tiledb_buffer_print_null(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit) {
   //return tiledb_buffer_print<char>(buffer, buffer_offset, buffer_offset_limit, '\0');
   //Print nothing for null fields when producing a CSV - except for a separator
   return tiledb_buffer_print<const char*>(buffer, buffer_offset, buffer_offset_limit, "");
@@ -135,18 +124,15 @@ bool File2TileDBBinaryBase::tiledb_buffer_print_null(std::vector<uint8_t>& buffe
 #endif
 
 template<>
-bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, const std::string val, bool print_sep)
-{
+bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, const std::string val, bool print_sep) {
   return tiledb_buffer_print<const std::string&>(buffer, buffer_offset, buffer_offset_limit, static_cast<const std::string&>(val), print_sep);
 }
 
 template<class FieldType>
 void File2TileDBBinaryBase::tiledb_buffer_resize_if_needed_and_print_null(std::vector<uint8_t>& buffer,
-    int64_t& buffer_offset)
-{
+    int64_t& buffer_offset) {
   auto original_offset = buffer_offset;
-  while(tiledb_buffer_print_null<FieldType>(buffer, buffer_offset, buffer.size()))
-  {
+  while(tiledb_buffer_print_null<FieldType>(buffer, buffer_offset, buffer.size())) {
     buffer.resize(2u*buffer.size()+1u);
     buffer_offset = original_offset;
   }
@@ -154,11 +140,9 @@ void File2TileDBBinaryBase::tiledb_buffer_resize_if_needed_and_print_null(std::v
 
 template<class FieldType>
 void File2TileDBBinaryBase::tiledb_buffer_resize_if_needed_and_print(std::vector<uint8_t>& buffer,
-    int64_t& buffer_offset, const FieldType val, bool print_sep)
-{
+    int64_t& buffer_offset, const FieldType val, bool print_sep) {
   auto original_offset = buffer_offset;
-  while(tiledb_buffer_print<FieldType>(buffer, buffer_offset, buffer.size(), val))
-  {
+  while(tiledb_buffer_print<FieldType>(buffer, buffer_offset, buffer.size(), val)) {
     buffer.resize(2u*buffer.size()+1u);
     buffer_offset = original_offset;
   }
@@ -260,8 +244,7 @@ File2TileDBBinaryBase::File2TileDBBinaryBase(const std::string& filename,
     VidMapper& vid_mapper,
     size_t max_size_per_callset,
     bool treat_deletions_as_intervals,
-    bool parallel_partitions, bool noupdates, bool close_file)
-{
+    bool parallel_partitions, bool noupdates, bool close_file) {
   m_filename = filename;
   m_file_idx = file_idx;
   m_buffer_stream_idx = buffer_stream_idx;
@@ -277,42 +260,38 @@ File2TileDBBinaryBase::File2TileDBBinaryBase(const std::string& filename,
   vid_mapper.get_local_tiledb_row_idx_vec(filename, m_local_callset_idx_to_tiledb_row_idx);
   m_local_callset_idx_to_enabled_idx.resize(m_local_callset_idx_to_tiledb_row_idx.size(), -1ll);
   m_enabled_local_callset_idx_vec.clear();
-  for(auto i=0ull;i<m_local_callset_idx_to_tiledb_row_idx.size();++i)
-    if(m_local_callset_idx_to_tiledb_row_idx[i] >= 0)
-    {
+  for(auto i=0ull; i<m_local_callset_idx_to_tiledb_row_idx.size(); ++i)
+    if(m_local_callset_idx_to_tiledb_row_idx[i] >= 0) {
       m_local_callset_idx_to_enabled_idx[i] = m_enabled_local_callset_idx_vec.size();
       m_enabled_local_callset_idx_vec.push_back(i);
     }
   std::sort(m_enabled_local_callset_idx_vec.begin(), m_enabled_local_callset_idx_vec.end(),
-      LocalCallSetIdxCompareByTileDBRowIdx(m_local_callset_idx_to_tiledb_row_idx));
+            LocalCallSetIdxCompareByTileDBRowIdx(m_local_callset_idx_to_tiledb_row_idx));
   m_base_reader_ptr = 0;
   m_histogram = 0;
   auto* GT_field_info_ptr = vid_mapper.get_field_info("GT");
   m_store_phase_information_for_GT = (GT_field_info_ptr && GT_field_info_ptr->m_length_descriptor.contains_phase_information());
 }
 
-void File2TileDBBinaryBase::initialize_base_column_partitions(const std::vector<ColumnRange>& partition_bounds)
-{
+void File2TileDBBinaryBase::initialize_base_column_partitions(const std::vector<ColumnRange>& partition_bounds) {
   m_base_reader_ptr = !m_parallel_partitions ? create_new_reader_object(m_filename, !m_close_file) : 0;
   //Initialize base partition pointers
   m_base_partition_ptrs.resize(partition_bounds.size(), 0);
-  for(auto i=0ull;i<m_base_partition_ptrs.size();++i)
-  {
+  for(auto i=0ull; i<m_base_partition_ptrs.size(); ++i) {
     m_base_partition_ptrs[i] = create_new_column_partition_object();
     const auto& column_partition = partition_bounds[i];
     //If parallel partitions, each interval gets its own reader
     auto base_reader_ptr = m_parallel_partitions ? create_new_reader_object(m_filename, !m_close_file) : m_base_reader_ptr;
     //Initialize base class members
     m_base_partition_ptrs[i]->initialize_base_class_members(
-        column_partition.first, column_partition.second,
-        m_enabled_local_callset_idx_vec.size(), base_reader_ptr);
+      column_partition.first, column_partition.second,
+      m_enabled_local_callset_idx_vec.size(), base_reader_ptr);
   }
   //Sub-class virtual function
   initialize_column_partitions(partition_bounds);
 }
 
-void File2TileDBBinaryBase::copy_simple_members(const File2TileDBBinaryBase& other)
-{
+void File2TileDBBinaryBase::copy_simple_members(const File2TileDBBinaryBase& other) {
   m_parallel_partitions = other.m_parallel_partitions;
   m_noupdates = other.m_noupdates;
   m_close_file = other.m_close_file;
@@ -325,8 +304,7 @@ void File2TileDBBinaryBase::copy_simple_members(const File2TileDBBinaryBase& oth
   m_max_size_per_callset = other.m_max_size_per_callset;
 }
 
-File2TileDBBinaryBase::File2TileDBBinaryBase(File2TileDBBinaryBase&& other)
-{
+File2TileDBBinaryBase::File2TileDBBinaryBase(File2TileDBBinaryBase&& other) {
   copy_simple_members(other);
   m_vid_mapper = other.m_vid_mapper;
   other.m_vid_mapper = 0;
@@ -341,10 +319,8 @@ File2TileDBBinaryBase::File2TileDBBinaryBase(File2TileDBBinaryBase&& other)
   other.m_histogram = 0;
 }
 
-File2TileDBBinaryBase::~File2TileDBBinaryBase()
-{
-  for(auto& x : m_base_partition_ptrs)
-  {
+File2TileDBBinaryBase::~File2TileDBBinaryBase() {
+  for(auto& x : m_base_partition_ptrs) {
     if(!m_parallel_partitions)
       x->m_base_reader_ptr = 0;
     delete x;
@@ -360,8 +336,7 @@ File2TileDBBinaryBase::~File2TileDBBinaryBase()
   m_histogram = 0;
 }
 
-void File2TileDBBinaryBase::clear()
-{
+void File2TileDBBinaryBase::clear() {
   m_filename.clear();
   m_local_callset_idx_to_tiledb_row_idx.clear();
   m_enabled_local_callset_idx_vec.clear();
@@ -372,34 +347,28 @@ void File2TileDBBinaryBase::clear()
 void File2TileDBBinaryBase::read_next_batch(std::vector<std::vector<uint8_t>*>& buffer_vec,
     std::vector<ColumnPartitionBatch>& partition_batches,
     std::vector<BufferStreamIdentifier>& exhausted_buffer_stream_identifiers, size_t& num_exhausted_buffer_streams,
-    bool close_file)
-{
-  if(m_parallel_partitions)
-  {
-#pragma omp parallel for
-    for(auto partition_idx=0u;partition_idx<partition_batches.size();++partition_idx)
-    {
+    bool close_file) {
+  if(m_parallel_partitions) {
+    #pragma omp parallel for
+    for(auto partition_idx=0u; partition_idx<partition_batches.size(); ++partition_idx) {
       auto& curr_file_batch = partition_batches[partition_idx].get_partition_file_batch(m_file_idx);
       assert(static_cast<size_t>(curr_file_batch.get_buffer_idx()) < buffer_vec.size());
       read_next_batch(*(buffer_vec[curr_file_batch.get_buffer_idx()]), *(m_base_partition_ptrs[partition_idx]),
-          curr_file_batch, partition_idx,
-          exhausted_buffer_stream_identifiers, num_exhausted_buffer_streams,
-          close_file);
+                      curr_file_batch, partition_idx,
+                      exhausted_buffer_stream_identifiers, num_exhausted_buffer_streams,
+                      close_file);
     }
-  }
-  else
-  {
+  } else {
     //Open file handles if needed
     if(m_close_file)
       m_base_reader_ptr->add_reader();
-    for(auto partition_idx=0u;partition_idx<partition_batches.size();++partition_idx)
-    {
+    for(auto partition_idx=0u; partition_idx<partition_batches.size(); ++partition_idx) {
       auto& curr_file_batch = partition_batches[partition_idx].get_partition_file_batch(m_file_idx);
       assert(static_cast<size_t>(curr_file_batch.get_buffer_idx()) < buffer_vec.size());
       read_next_batch(*(buffer_vec[curr_file_batch.get_buffer_idx()]), *(m_base_partition_ptrs[partition_idx]),
-          curr_file_batch, partition_idx,
-          exhausted_buffer_stream_identifiers, num_exhausted_buffer_streams,
-          close_file);
+                      curr_file_batch, partition_idx,
+                      exhausted_buffer_stream_identifiers, num_exhausted_buffer_streams,
+                      close_file);
     }
     //Close file handles if needed
     if(close_file)
@@ -412,8 +381,7 @@ void File2TileDBBinaryBase::read_next_batch(std::vector<uint8_t>& buffer,
     File2TileDBBinaryColumnPartitionBase& partition_info,
     ColumnPartitionFileBatch& partition_file_batch, const unsigned partition_idx,
     std::vector<BufferStreamIdentifier>& exhausted_buffer_stream_identifiers, size_t& num_exhausted_buffer_streams,
-    bool close_file)
-{
+    bool close_file) {
   //Nothing to do
   if(!partition_file_batch.m_fetch || partition_file_batch.m_completed)
     return;
@@ -421,8 +389,7 @@ void File2TileDBBinaryBase::read_next_batch(std::vector<uint8_t>& buffer,
   if(m_parallel_partitions && m_close_file)
     partition_info.m_base_reader_ptr->add_reader();
   //Setup buffer offsets first
-  for(auto i=0ull;i<static_cast<size_t>(partition_file_batch.get_num_orders());++i)
-  {
+  for(auto i=0ull; i<static_cast<size_t>(partition_file_batch.get_num_orders()); ++i) {
     auto curr_offset = partition_file_batch.get_offset_for_local_callset_idx(i, m_max_size_per_callset);
     partition_info.m_begin_buffer_offset_for_local_callset[i] = curr_offset;
     partition_info.m_buffer_offset_for_local_callset[i] = curr_offset;
@@ -435,40 +402,35 @@ void File2TileDBBinaryBase::read_next_batch(std::vector<uint8_t>& buffer,
   auto buffer_full = false;
   auto read_one_line_fully = false;
   //Set buffer full to false
-  for(auto i=0ull;i<partition_info.m_buffer_full_for_local_callset.size();++i)
+  for(auto i=0ull; i<partition_info.m_buffer_full_for_local_callset.size(); ++i)
     partition_info.m_buffer_full_for_local_callset[i] = false;
   partition_info.m_buffer_ptr = &(buffer);
-  while(has_data && !buffer_full)
-  {
+  while(has_data && !buffer_full) {
     buffer_full = convert_record_to_binary(buffer, partition_info);
-    if(!buffer_full)
-    {
+    if(!buffer_full) {
       //Store buffer offsets at the beginning of the line
-      for(auto i=0ull;i<static_cast<size_t>(partition_file_batch.get_num_orders());++i)
+      for(auto i=0ull; i<static_cast<size_t>(partition_file_batch.get_num_orders()); ++i)
         partition_info.m_last_full_line_end_buffer_offset_for_local_callset[i] = partition_info.m_buffer_offset_for_local_callset[i];
       read_one_line_fully = true;
       //For buffered readers, if the read buffer is empty return control to caller
-      if(is_read_buffer_exhausted)
-      {
+      if(is_read_buffer_exhausted) {
         assert(m_buffer_stream_idx >= 0); //must be valid buffer stream
         exhausted_buffer_stream_identifiers[num_exhausted_buffer_streams++] = std::move(BufferStreamIdentifier(m_buffer_stream_idx, partition_idx));
         break;
       }
       has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, false, true);  //no need to re-seek, use next_line() directly, advance file pointer
-    }
-    else
+    } else
       VERIFY_OR_THROW(read_one_line_fully && "Buffer did not have space to hold a line fully - increase buffer size")
-  }
+    }
   //put Tiledb NULL for row_idx as end-of-batch marker
-  for(auto i=0ull;i<static_cast<size_t>(partition_file_batch.get_num_orders());++i)
-  {
+  for(auto i=0ull; i<static_cast<size_t>(partition_file_batch.get_num_orders()); ++i) {
 #ifdef PRODUCE_BINARY_CELLS
     tiledb_buffer_print_null<int64_t>(buffer, partition_info.m_last_full_line_end_buffer_offset_for_local_callset[i],
-        partition_info.m_begin_buffer_offset_for_local_callset[i] + m_max_size_per_callset);
+                                      partition_info.m_begin_buffer_offset_for_local_callset[i] + m_max_size_per_callset);
 #endif
 #ifdef PRODUCE_CSV_CELLS
     tiledb_buffer_print<char>(buffer, partition_info.m_last_full_line_end_buffer_offset_for_local_callset[i],
-        partition_info.m_begin_buffer_offset_for_local_callset[i] + m_max_size_per_callset, '\0', false);
+                              partition_info.m_begin_buffer_offset_for_local_callset[i] + m_max_size_per_callset, '\0', false);
 #endif
   }
   if(!has_data)
@@ -480,8 +442,7 @@ void File2TileDBBinaryBase::read_next_batch(std::vector<uint8_t>& buffer,
   partition_file_batch.advance_write_idx();
 }
 
-void File2TileDBBinaryBase::create_histogram(uint64_t max_histogram_range, unsigned num_bins)
-{
+void File2TileDBBinaryBase::create_histogram(uint64_t max_histogram_range, unsigned num_bins) {
   if(m_histogram)
     delete m_histogram;
   m_histogram = new UniformHistogram(0, max_histogram_range, num_bins);
@@ -489,18 +450,16 @@ void File2TileDBBinaryBase::create_histogram(uint64_t max_histogram_range, unsig
   if(m_close_file && !m_parallel_partitions)
     m_base_reader_ptr->add_reader();
   //Should really have 1 partition only
-  for(auto* base_partition_ptr : m_base_partition_ptrs)
-  {
+  for(auto* base_partition_ptr : m_base_partition_ptrs) {
     auto& partition_info = *base_partition_ptr;
     if(m_close_file && m_parallel_partitions)
       partition_info.m_base_reader_ptr->add_reader();
     auto is_read_buffer_exhausted = false;
     auto has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, m_close_file, false);
-    while(has_data && !is_read_buffer_exhausted)
-    {
+    while(has_data && !is_read_buffer_exhausted) {
       auto column_idx = partition_info.get_column_position_in_record();
       auto num_callsets = get_num_callsets_in_record(partition_info);
-      for(auto i=0ull;i<num_callsets;++i)
+      for(auto i=0ull; i<num_callsets; ++i)
         m_histogram->add_interval(column_idx, column_idx);
       has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, false, true);
     }
@@ -512,13 +471,12 @@ void File2TileDBBinaryBase::create_histogram(uint64_t max_histogram_range, unsig
 }
 
 void File2TileDBBinaryBase::print_all_partitions(const std::string& results_directory, const std::string& output_type, const int rank,
-    const bool close_file)
-{
+    const bool close_file) {
   //Open file handles if needed
   if(!m_parallel_partitions && m_close_file)
     m_base_reader_ptr->add_reader();
-#pragma omp parallel for if(m_parallel_partitions)
-  for(auto partition_idx=0u;partition_idx<m_base_partition_ptrs.size();++partition_idx)
+  #pragma omp parallel for if(m_parallel_partitions)
+  for(auto partition_idx=0u; partition_idx<m_base_partition_ptrs.size(); ++partition_idx)
     print_partition(*(m_base_partition_ptrs[partition_idx]), results_directory, output_type, rank < 0 ? partition_idx : rank, close_file);
   //Close file handles if needed
   if(!m_parallel_partitions && close_file)
@@ -528,8 +486,7 @@ void File2TileDBBinaryBase::print_all_partitions(const std::string& results_dire
 
 void File2TileDBBinaryBase::print_partition(File2TileDBBinaryColumnPartitionBase& partition_info,
     const std::string& results_directory, const std::string& output_type,
-    const unsigned partition_idx, const bool close_file)
-{
+    const unsigned partition_idx, const bool close_file) {
   //Open file handles if needed
   if(m_parallel_partitions && m_close_file)
     partition_info.m_base_reader_ptr->add_reader();

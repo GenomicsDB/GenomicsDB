@@ -2,21 +2,21 @@
  * The MIT License (MIT)
  * Copyright (c) 2016 Intel Corporation
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of 
- * this software and associated documentation files (the "Software"), to deal in 
- * the Software without restriction, including without limitation the rights to 
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of 
- * the Software, and to permit persons to whom the Software is furnished to do so, 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all 
+ * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS 
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR 
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER 
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
@@ -25,19 +25,18 @@
 
 GenomicsDBColumnarField::GenomicsDBColumnarField(const std::type_index element_type, const int length_descriptor,
     const unsigned fixed_length_field_length, const size_t num_bytes)
-: m_element_type(element_type), m_length_descriptor(length_descriptor),
-  m_fixed_length_field_num_elements(fixed_length_field_length),
-  m_free_buffer_list_length(0ull), m_live_buffer_list_length(0ull)
-{
+  : m_element_type(element_type), m_length_descriptor(length_descriptor),
+    m_fixed_length_field_num_elements(fixed_length_field_length),
+    m_free_buffer_list_length(0ull), m_live_buffer_list_length(0ull) {
   m_element_size = (element_type == std::type_index(typeid(bool)))
-    ? sizeof(char)
-    : VariantFieldTypeUtil::size(m_element_type);
+                   ? sizeof(char)
+                   : VariantFieldTypeUtil::size(m_element_type);
   m_log2_element_size = __builtin_ctzll(m_element_size);
   m_fixed_length_field_size = m_fixed_length_field_num_elements*m_element_size;
   assert(m_element_size > 0u);
   m_buffer_size = (length_descriptor == BCF_VL_FIXED)
-    ? GET_ALIGNED_BUFFER_SIZE(num_bytes, m_fixed_length_field_size)
-    : GET_ALIGNED_BUFFER_SIZE(num_bytes, m_element_size);
+                  ? GET_ALIGNED_BUFFER_SIZE(num_bytes, m_fixed_length_field_size)
+                  : GET_ALIGNED_BUFFER_SIZE(num_bytes, m_element_size);
   assign_function_pointers();
   m_free_buffer_list_head_ptr = 0;
   m_live_buffer_list_head_ptr = 0;
@@ -47,8 +46,7 @@ GenomicsDBColumnarField::GenomicsDBColumnarField(const std::type_index element_t
   add_new_buffer();
 }
 
-void GenomicsDBColumnarField::copy_simple_members(const GenomicsDBColumnarField& other)
-{
+void GenomicsDBColumnarField::copy_simple_members(const GenomicsDBColumnarField& other) {
   m_length_descriptor = other.m_length_descriptor;
   m_fixed_length_field_num_elements = other.m_fixed_length_field_num_elements;
   m_fixed_length_field_size = other.m_fixed_length_field_size;
@@ -65,8 +63,7 @@ void GenomicsDBColumnarField::copy_simple_members(const GenomicsDBColumnarField&
 }
 
 GenomicsDBColumnarField::GenomicsDBColumnarField(GenomicsDBColumnarField&& other)
-  : m_element_type(typeid(void))
-{
+  : m_element_type(typeid(void)) {
   copy_simple_members(other);
   m_free_buffer_list_head_ptr = other.m_free_buffer_list_head_ptr;
   other.m_free_buffer_list_head_ptr = 0;
@@ -76,20 +73,17 @@ GenomicsDBColumnarField::GenomicsDBColumnarField(GenomicsDBColumnarField&& other
   other.m_live_buffer_list_tail_ptr = 0;
 }
 
-GenomicsDBColumnarField::~GenomicsDBColumnarField()
-{
+GenomicsDBColumnarField::~GenomicsDBColumnarField() {
   GenomicsDBBuffer* ptr = m_free_buffer_list_head_ptr;
   GenomicsDBBuffer* next_ptr = ptr;
-  while(ptr)
-  {
+  while(ptr) {
     next_ptr = ptr->get_next_buffer();
     delete ptr;
     ptr = next_ptr;
   }
   m_free_buffer_list_head_ptr = 0;
   ptr = m_live_buffer_list_head_ptr;
-  while(ptr)
-  {
+  while(ptr) {
     next_ptr = ptr->get_next_buffer();
     delete ptr;
     ptr = next_ptr;
@@ -101,186 +95,163 @@ GenomicsDBColumnarField::~GenomicsDBColumnarField()
 
 //template specialization for printer
 template<typename T>
-class GenomicsDBColumnarFieldPrintOperator<T, true>
-{
-  public:
-    static void print(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements)
-    {
+class GenomicsDBColumnarFieldPrintOperator<T, true> {
+ public:
+  static void print(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements) {
+    assert(num_elements > 0u);
+    auto data = reinterpret_cast<const T*>(ptr);
+    fptr << "[ " << data[0u];
+    for(auto i=1u; i<num_elements; ++i)
+      fptr << ", " << data[i];
+    fptr << " ]";
+  }
+  static void print_csv(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
+                        const bool is_variable_length_field, const bool is_valid) {
+    if(is_variable_length_field)
+      fptr << num_elements;
+    if(is_valid) {
+      if(is_variable_length_field)
+        fptr << ",";
       assert(num_elements > 0u);
       auto data = reinterpret_cast<const T*>(ptr);
-      fptr << "[ " << data[0u];
-      for(auto i=1u;i<num_elements;++i)
-        fptr << ", " << data[i];
-      fptr << " ]";
+      fptr << data[0u];
+      for(auto i=1u; i<num_elements; ++i)
+        fptr << "," << data[i];
+    } else if(!is_variable_length_field) {
+      for(auto i=1u; i<num_elements; ++i)
+        fptr.put(',');
     }
-    static void print_csv(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
-        const bool is_variable_length_field, const bool is_valid)
-    {
-      if(is_variable_length_field)
-        fptr << num_elements;
-      if(is_valid)
-      {
-        if(is_variable_length_field)
-          fptr << ",";
-        assert(num_elements > 0u);
-        auto data = reinterpret_cast<const T*>(ptr);
-        fptr << data[0u];
-        for(auto i=1u;i<num_elements;++i)
-          fptr << "," << data[i];
-      }
-      else
-        if(!is_variable_length_field)
-        {
-          for(auto i=1u;i<num_elements;++i)
-            fptr.put(',');
-        }
-    }
+  }
 };
 
 template<typename T>
-class GenomicsDBColumnarFieldPrintOperator<T, false>
-{
-  public:
-    static void print(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements)
-    {
-      assert(num_elements > 0u);
-      auto data = reinterpret_cast<const T*>(ptr);
-      fptr << *data;
-    }
-    static void print_csv(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
-        const bool is_variable_length_field, const bool is_valid)
-    {
-      if(is_valid)
-        print(fptr, ptr, num_elements);
-    }
+class GenomicsDBColumnarFieldPrintOperator<T, false> {
+ public:
+  static void print(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements) {
+    assert(num_elements > 0u);
+    auto data = reinterpret_cast<const T*>(ptr);
+    fptr << *data;
+  }
+  static void print_csv(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
+                        const bool is_variable_length_field, const bool is_valid) {
+    if(is_valid)
+      print(fptr, ptr, num_elements);
+  }
 };
 
 //string specialization
 template<>
-class GenomicsDBColumnarFieldPrintOperator<char*, false>
-{
-  public:
-    static void print(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements)
-    {
-      assert(num_elements > 0u);
+class GenomicsDBColumnarFieldPrintOperator<char*, false> {
+ public:
+  static void print(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements) {
+    assert(num_elements > 0u);
+    auto data = reinterpret_cast<const char*>(ptr);
+    fptr << "\"";
+    fptr.write(data, num_elements);
+    fptr << "\"";
+  }
+  static void print_csv(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
+                        const bool is_variable_length_field, const bool is_valid) {
+    if(is_valid) {
       auto data = reinterpret_cast<const char*>(ptr);
-      fptr << "\"";
       fptr.write(data, num_elements);
-      fptr << "\"";
     }
-    static void print_csv(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
-        const bool is_variable_length_field, const bool is_valid)
-    {
-      if(is_valid)
-      {
-        auto data = reinterpret_cast<const char*>(ptr);
-        fptr.write(data, num_elements);
-      }
-    }
+  }
 };
 
 template<>
-class GenomicsDBColumnarFieldPrintOperator<char*, true>
-{
-  public:
-    static void print(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements)
-    {
-      GenomicsDBColumnarFieldPrintOperator<char*, false>::print(fptr, ptr, num_elements);
-    }
-    static void print_csv(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
-        const bool is_variable_length_field, const bool is_valid)
-    {
-      GenomicsDBColumnarFieldPrintOperator<char*, false>::print_csv(fptr, ptr, num_elements,
-          is_variable_length_field, is_valid);
-    }
+class GenomicsDBColumnarFieldPrintOperator<char*, true> {
+ public:
+  static void print(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements) {
+    GenomicsDBColumnarFieldPrintOperator<char*, false>::print(fptr, ptr, num_elements);
+  }
+  static void print_csv(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
+                        const bool is_variable_length_field, const bool is_valid) {
+    GenomicsDBColumnarFieldPrintOperator<char*, false>::print_csv(fptr, ptr, num_elements,
+        is_variable_length_field, is_valid);
+  }
 };
 
 template<bool print_as_list>
-void GenomicsDBColumnarField::assign_print_function_pointers(const int bcf_ht_type)
-{
-  switch(bcf_ht_type)
-  {
-    case BCF_HT_FLAG:
-      m_print = GenomicsDBColumnarFieldPrintOperator<bool, print_as_list>::print;
-      m_print_csv = GenomicsDBColumnarFieldPrintOperator<bool, print_as_list>::print_csv;
-      break;
-    case BCF_HT_INT:
-      m_print = GenomicsDBColumnarFieldPrintOperator<int, print_as_list>::print;
-      m_print_csv = GenomicsDBColumnarFieldPrintOperator<int, print_as_list>::print_csv;
-      break;
-    case BCF_HT_UINT:
-      m_print = GenomicsDBColumnarFieldPrintOperator<unsigned, print_as_list>::print;
-      m_print_csv = GenomicsDBColumnarFieldPrintOperator<unsigned, print_as_list>::print_csv;
-      break;
-    case BCF_HT_INT64:
-      m_print = GenomicsDBColumnarFieldPrintOperator<int64_t, print_as_list>::print;
-      m_print_csv = GenomicsDBColumnarFieldPrintOperator<int64_t, print_as_list>::print_csv;
-      break;
-    case BCF_HT_UINT64:
-      m_print = GenomicsDBColumnarFieldPrintOperator<uint64_t, print_as_list>::print;
-      m_print_csv = GenomicsDBColumnarFieldPrintOperator<uint64_t, print_as_list>::print_csv;
-      break;
-    case BCF_HT_REAL:
-      m_print = GenomicsDBColumnarFieldPrintOperator<float, print_as_list>::print;
-      m_print_csv = GenomicsDBColumnarFieldPrintOperator<float, print_as_list>::print_csv;
-      break;
-    case BCF_HT_DOUBLE:
-      m_print = GenomicsDBColumnarFieldPrintOperator<double, print_as_list>::print;
-      m_print_csv = GenomicsDBColumnarFieldPrintOperator<double, print_as_list>::print_csv;
-      break;
-    case BCF_HT_CHAR:
-      m_print = GenomicsDBColumnarFieldPrintOperator<char, print_as_list>::print;
-      m_print_csv = GenomicsDBColumnarFieldPrintOperator<char, print_as_list>::print_csv;
-      break;
-    case BCF_HT_STR:
-      m_print = GenomicsDBColumnarFieldPrintOperator<char*, false>::print;
-      m_print_csv = GenomicsDBColumnarFieldPrintOperator<char*, print_as_list>::print_csv;
-      break;
-    default:
-      throw GenomicsDBColumnarFieldException(std::string("Unhandled type ")+m_element_type.name());
+void GenomicsDBColumnarField::assign_print_function_pointers(const int bcf_ht_type) {
+  switch(bcf_ht_type) {
+  case BCF_HT_FLAG:
+    m_print = GenomicsDBColumnarFieldPrintOperator<bool, print_as_list>::print;
+    m_print_csv = GenomicsDBColumnarFieldPrintOperator<bool, print_as_list>::print_csv;
+    break;
+  case BCF_HT_INT:
+    m_print = GenomicsDBColumnarFieldPrintOperator<int, print_as_list>::print;
+    m_print_csv = GenomicsDBColumnarFieldPrintOperator<int, print_as_list>::print_csv;
+    break;
+  case BCF_HT_UINT:
+    m_print = GenomicsDBColumnarFieldPrintOperator<unsigned, print_as_list>::print;
+    m_print_csv = GenomicsDBColumnarFieldPrintOperator<unsigned, print_as_list>::print_csv;
+    break;
+  case BCF_HT_INT64:
+    m_print = GenomicsDBColumnarFieldPrintOperator<int64_t, print_as_list>::print;
+    m_print_csv = GenomicsDBColumnarFieldPrintOperator<int64_t, print_as_list>::print_csv;
+    break;
+  case BCF_HT_UINT64:
+    m_print = GenomicsDBColumnarFieldPrintOperator<uint64_t, print_as_list>::print;
+    m_print_csv = GenomicsDBColumnarFieldPrintOperator<uint64_t, print_as_list>::print_csv;
+    break;
+  case BCF_HT_REAL:
+    m_print = GenomicsDBColumnarFieldPrintOperator<float, print_as_list>::print;
+    m_print_csv = GenomicsDBColumnarFieldPrintOperator<float, print_as_list>::print_csv;
+    break;
+  case BCF_HT_DOUBLE:
+    m_print = GenomicsDBColumnarFieldPrintOperator<double, print_as_list>::print;
+    m_print_csv = GenomicsDBColumnarFieldPrintOperator<double, print_as_list>::print_csv;
+    break;
+  case BCF_HT_CHAR:
+    m_print = GenomicsDBColumnarFieldPrintOperator<char, print_as_list>::print;
+    m_print_csv = GenomicsDBColumnarFieldPrintOperator<char, print_as_list>::print_csv;
+    break;
+  case BCF_HT_STR:
+    m_print = GenomicsDBColumnarFieldPrintOperator<char*, false>::print;
+    m_print_csv = GenomicsDBColumnarFieldPrintOperator<char*, print_as_list>::print_csv;
+    break;
+  default:
+    throw GenomicsDBColumnarFieldException(std::string("Unhandled type ")+m_element_type.name());
   }
 }
 
-void GenomicsDBColumnarField::assign_function_pointers()
-{
+void GenomicsDBColumnarField::assign_function_pointers() {
   auto bcf_ht_type = VariantFieldTypeUtil::get_bcf_ht_type_for_variant_field_type(m_element_type);
   //Validity function
-  switch(bcf_ht_type)
-  {
-    case BCF_HT_INT:
-    case BCF_HT_UINT:
-      m_check_tiledb_valid_element = GenomicsDBColumnarField::check_tiledb_valid_element<int>;
-      break;
-    case BCF_HT_INT64:
-    case BCF_HT_UINT64:
-      m_check_tiledb_valid_element = GenomicsDBColumnarField::check_tiledb_valid_element<int64_t>;
-      break;
-    case BCF_HT_REAL:
-      m_check_tiledb_valid_element = GenomicsDBColumnarField::check_tiledb_valid_element<float>;
-      break;
-    case BCF_HT_DOUBLE:
-      m_check_tiledb_valid_element = GenomicsDBColumnarField::check_tiledb_valid_element<double>;
-      break;
-    case BCF_HT_FLAG:
-    case BCF_HT_CHAR:
-    case BCF_HT_STR:
-      m_check_tiledb_valid_element = GenomicsDBColumnarField::check_tiledb_valid_element<char>;
-      break;
-    default:
-      throw GenomicsDBColumnarFieldException(std::string("Unhandled type ")+m_element_type.name());
+  switch(bcf_ht_type) {
+  case BCF_HT_INT:
+  case BCF_HT_UINT:
+    m_check_tiledb_valid_element = GenomicsDBColumnarField::check_tiledb_valid_element<int>;
+    break;
+  case BCF_HT_INT64:
+  case BCF_HT_UINT64:
+    m_check_tiledb_valid_element = GenomicsDBColumnarField::check_tiledb_valid_element<int64_t>;
+    break;
+  case BCF_HT_REAL:
+    m_check_tiledb_valid_element = GenomicsDBColumnarField::check_tiledb_valid_element<float>;
+    break;
+  case BCF_HT_DOUBLE:
+    m_check_tiledb_valid_element = GenomicsDBColumnarField::check_tiledb_valid_element<double>;
+    break;
+  case BCF_HT_FLAG:
+  case BCF_HT_CHAR:
+  case BCF_HT_STR:
+    m_check_tiledb_valid_element = GenomicsDBColumnarField::check_tiledb_valid_element<char>;
+    break;
+  default:
+    throw GenomicsDBColumnarFieldException(std::string("Unhandled type ")+m_element_type.name());
   }
   //Singleton field
   if(m_length_descriptor == BCF_VL_FIXED && m_fixed_length_field_num_elements == 1u)
     assign_print_function_pointers<false>(bcf_ht_type);
+  else if(bcf_ht_type == BCF_HT_CHAR) //multi char field == string
+    assign_print_function_pointers<true>(BCF_HT_STR);
   else
-    if(bcf_ht_type == BCF_HT_CHAR) //multi char field == string
-      assign_print_function_pointers<true>(BCF_HT_STR);
-    else
-      assign_print_function_pointers<true>(bcf_ht_type);
+    assign_print_function_pointers<true>(bcf_ht_type);
 }
 
-void GenomicsDBColumnarField::move_buffer_to_live_list(GenomicsDBBuffer* buffer)
-{
+void GenomicsDBColumnarField::move_buffer_to_live_list(GenomicsDBBuffer* buffer) {
   assert(buffer && !(buffer->is_in_live_list()));
   //Store neighbours in free list in tmp variables
   auto next_in_free_list = buffer->get_next_buffer();
@@ -288,15 +259,12 @@ void GenomicsDBColumnarField::move_buffer_to_live_list(GenomicsDBBuffer* buffer)
   //Insert into live list
   //Since this will be the last element in the live list
   buffer->set_next_buffer(0);
-  if(m_live_buffer_list_head_ptr == 0)
-  {
+  if(m_live_buffer_list_head_ptr == 0) {
     assert(m_live_buffer_list_tail_ptr == 0);
     m_live_buffer_list_head_ptr = buffer;
     m_live_buffer_list_tail_ptr = buffer;
     buffer->set_previous_buffer(0);
-  }
-  else
-  {
+  } else {
     assert(m_live_buffer_list_tail_ptr);
     assert(m_live_buffer_list_tail_ptr->get_next_buffer() == 0);
     m_live_buffer_list_tail_ptr->set_next_buffer(buffer);
@@ -320,8 +288,7 @@ void GenomicsDBColumnarField::move_buffer_to_live_list(GenomicsDBBuffer* buffer)
   ++m_live_buffer_list_length;
 }
 
-void GenomicsDBColumnarField::move_buffer_to_free_list(GenomicsDBBuffer* buffer)
-{
+void GenomicsDBColumnarField::move_buffer_to_free_list(GenomicsDBBuffer* buffer) {
   assert(buffer && (buffer->is_in_live_list()));
   //Store neighbours in live list in tmp variables
   auto next_in_live_list = buffer->get_next_buffer();
@@ -350,55 +317,47 @@ void GenomicsDBColumnarField::move_buffer_to_free_list(GenomicsDBBuffer* buffer)
   --m_live_buffer_list_length;
 }
 
-void GenomicsDBColumnarField::move_all_buffers_from_live_list_to_free_list()
-{
+void GenomicsDBColumnarField::move_all_buffers_from_live_list_to_free_list() {
   while(m_live_buffer_list_head_ptr)
     move_buffer_to_free_list(m_live_buffer_list_head_ptr);
 }
 
-void GenomicsDBColumnarField::set_valid_vector_in_live_buffer_list_tail_ptr()
-{
+void GenomicsDBColumnarField::set_valid_vector_in_live_buffer_list_tail_ptr() {
   auto buffer_ptr = get_live_buffer_list_tail_ptr();
   assert(buffer_ptr);
   auto& valid_vector = buffer_ptr->get_valid_vector();
   if(m_length_descriptor == BCF_VL_FIXED)
-    for(auto i=0ull;i<buffer_ptr->get_num_live_entries();++i)
-    {
+    for(auto i=0ull; i<buffer_ptr->get_num_live_entries(); ++i) {
       assert(i < valid_vector.size());
       valid_vector[i] = m_check_tiledb_valid_element(buffer_ptr->get_buffer_pointer() + (m_fixed_length_field_size*i),
-          m_fixed_length_field_num_elements);
-    }
-  else
-    for(auto i=0ull;i<buffer_ptr->get_num_live_entries();++i)
-    {
+                        m_fixed_length_field_num_elements);
+    } else
+    for(auto i=0ull; i<buffer_ptr->get_num_live_entries(); ++i) {
       assert(i < valid_vector.size());
       valid_vector[i] = (buffer_ptr->get_size_of_variable_length_field(i) > 0u);
     }
 }
 
 void GenomicsDBColumnarField::print_data_in_buffer_at_index(std::ostream& fptr,
-    const GenomicsDBBuffer* buffer_ptr, const size_t index) const
-{
+    const GenomicsDBBuffer* buffer_ptr, const size_t index) const {
   m_print(fptr, get_pointer_to_data_in_buffer_at_index(buffer_ptr, index),
-      get_length_of_data_in_buffer_at_index(buffer_ptr, index));
+          get_length_of_data_in_buffer_at_index(buffer_ptr, index));
 }
 
 void GenomicsDBColumnarField::print_ALT_data_in_buffer_at_index(std::ostream& fptr,
-    const GenomicsDBBuffer* buffer_ptr, const size_t index) const
-{
+    const GenomicsDBBuffer* buffer_ptr, const size_t index) const {
   auto curr_ptr = reinterpret_cast<const void*>(get_pointer_to_data_in_buffer_at_index(buffer_ptr, index));
   auto total_length = get_length_of_data_in_buffer_at_index(buffer_ptr, index);
   auto first = true;
   auto remaining_bytes = total_length;
   fptr << "[ ";
-  do
-  {
+  do {
     if(!first)
       fptr << ", ";
     auto next_ptr = memchr(curr_ptr, TILEDB_ALT_ALLELE_SEPARATOR[0], remaining_bytes);
     auto string_length = (next_ptr)
-      ? (reinterpret_cast<const uint8_t*>(next_ptr)-reinterpret_cast<const uint8_t*>(curr_ptr))
-      : remaining_bytes;
+                         ? (reinterpret_cast<const uint8_t*>(next_ptr)-reinterpret_cast<const uint8_t*>(curr_ptr))
+                         : remaining_bytes;
     auto char_ptr = reinterpret_cast<const char*>(curr_ptr);
     fptr << "\"";
     if(string_length == 1u && char_ptr[0] == TILEDB_NON_REF_VARIANT_REPRESENTATION[0])
@@ -408,18 +367,17 @@ void GenomicsDBColumnarField::print_ALT_data_in_buffer_at_index(std::ostream& fp
     fptr << "\"";
     remaining_bytes -= (next_ptr ? (string_length+1u) : string_length);
     curr_ptr = next_ptr ? reinterpret_cast<const void*>(reinterpret_cast<const uint8_t*>(next_ptr)+1)
-      : 0;
+               : 0;
     assert((curr_ptr && remaining_bytes)
-        || (curr_ptr == 0 && remaining_bytes == 0u));
+           || (curr_ptr == 0 && remaining_bytes == 0u));
     first = false;
   } while(curr_ptr);
   fptr << " ]";
 }
 
 void GenomicsDBColumnarField::print_data_in_buffer_at_index_as_csv(std::ostream& fptr,
-    const GenomicsDBBuffer* buffer_ptr, const size_t index) const
-{
+    const GenomicsDBBuffer* buffer_ptr, const size_t index) const {
   m_print_csv(fptr, get_pointer_to_data_in_buffer_at_index(buffer_ptr, index),
-      get_length_of_data_in_buffer_at_index(buffer_ptr, index),
-      m_length_descriptor != BCF_VL_FIXED, buffer_ptr->is_valid(index));
+              get_length_of_data_in_buffer_at_index(buffer_ptr, index),
+              m_length_descriptor != BCF_VL_FIXED, buffer_ptr->is_valid(index));
 }
