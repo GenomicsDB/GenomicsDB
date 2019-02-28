@@ -477,7 +477,7 @@ class VidMapper {
    * Given a TileDB row idx, return the file_idx
    */
   bool get_global_file_idx_for_row(int64_t row_idx, int64_t& file_idx) const {
-    if(row_idx >= static_cast<int64_t>(m_row_idx_to_info.size()))
+    if (row_idx >= static_cast<int64_t>(m_row_idx_to_info.size()))
       return false;
     file_idx = m_row_idx_to_info[row_idx].m_file_idx;
     return (file_idx < 0) ? false : true;
@@ -487,7 +487,7 @@ class VidMapper {
    */
   bool get_local_file_idx_for_row(int64_t row_idx, int64_t& file_idx) const {
     auto found = get_global_file_idx_for_row(row_idx, file_idx);
-    if(!found)
+    if (!found)
       return false;
     file_idx = m_file_idx_to_info[file_idx].m_local_file_idx;
     return (file_idx < 0) ? false : true;
@@ -499,7 +499,7 @@ class VidMapper {
   inline bool get_owner_idx_for_row_idx(const int64_t row_idx, int& owner_idx, int& local_file_idx) {
     int64_t file_idx;
     auto found_file = get_global_file_idx_for_row(row_idx, file_idx);
-    if(!found_file) return false;
+    if (!found_file) return false;
     assert(static_cast<size_t>(file_idx) < m_file_idx_to_info.size());
     owner_idx = m_file_idx_to_info[file_idx].m_owner_idx;
     local_file_idx = m_file_idx_to_info[file_idx].m_local_file_idx;
@@ -516,12 +516,12 @@ class VidMapper {
    */
   bool get_local_tiledb_row_idx_vec(const std::string& filename, std::vector<int64_t>& row_idx_vec) const {
     auto iter = m_filename_to_idx.find(filename);
-    if(iter != m_filename_to_idx.end()) {
+    if (iter != m_filename_to_idx.end()) {
       auto file_idx = (*iter).second;
       assert(file_idx < static_cast<int64_t>(m_file_idx_to_info.size()));
       return get_local_tiledb_row_idx_vec(file_idx, row_idx_vec);
     } else {
-      for(auto i=0u; i<row_idx_vec.size(); ++i)
+      for (auto i=0u; i<row_idx_vec.size(); ++i)
         row_idx_vec[i] = -1;
       return false;
     }
@@ -531,8 +531,8 @@ class VidMapper {
    */
   bool get_local_tiledb_row_idx_vec(const int64_t file_idx, std::vector<int64_t>& row_idx_vec) const {
     assert(file_idx < static_cast<int64_t>(m_file_idx_to_info.size()));
-    for(const auto& pair : m_file_idx_to_info[file_idx].m_local_tiledb_row_idx_pairs) {
-      if(static_cast<size_t>(pair.first) >= row_idx_vec.size())
+    for (const auto& pair : m_file_idx_to_info[file_idx].m_local_tiledb_row_idx_pairs) {
+      if (static_cast<size_t>(pair.first) >= row_idx_vec.size())
         row_idx_vec.resize(static_cast<size_t>(pair.first)+1ull, -1ll);
       row_idx_vec[pair.first] = pair.second;
     }
@@ -550,7 +550,7 @@ class VidMapper {
    */
   int64_t get_or_append_global_file_idx(const std::string& filename) {
     auto iter = m_filename_to_idx.find(filename);
-    if(iter == m_filename_to_idx.end()) {
+    if (iter == m_filename_to_idx.end()) {
       auto file_idx = m_file_idx_to_info.size();
       iter = m_filename_to_idx.insert(std::make_pair(filename, file_idx)).first;
       m_file_idx_to_info.emplace_back();
@@ -563,7 +563,7 @@ class VidMapper {
    */
   bool get_num_callsets_in_file(const std::string& filename, int& num_callsets) const {
     auto iter = m_filename_to_idx.find(filename);
-    if(iter == m_filename_to_idx.end()) {
+    if (iter == m_filename_to_idx.end()) {
       num_callsets = -1;
       return false;
     } else {
@@ -578,7 +578,7 @@ class VidMapper {
    */
   bool get_global_file_idx(const std::string& filename, int64_t& file_idx) const {
     auto iter = m_filename_to_idx.find(filename);
-    if(iter == m_filename_to_idx.end())
+    if (iter == m_filename_to_idx.end())
       return false;
     file_idx = (*iter).second;
     return true;
@@ -597,7 +597,7 @@ class VidMapper {
   inline bool get_file_type(const std::string& filename, unsigned& file_type) const {
     int64_t file_idx = -1;
     auto status = get_global_file_idx(filename, file_idx);
-    if(!status)
+    if (!status)
       return false;
     file_type = get_file_type(file_idx);
     return true;
@@ -654,7 +654,7 @@ class VidMapper {
    */
   inline bool get_global_contig_idx(const std::string& name, int& contig_idx) const {
     auto iter = m_contig_name_to_idx.find(name);
-    if(iter != m_contig_name_to_idx.end()) {
+    if (iter != m_contig_name_to_idx.end()) {
       contig_idx = (*iter).second;
       return true;
     } else {
@@ -684,7 +684,7 @@ class VidMapper {
    */
   inline bool get_global_field_idx(const std::string& name, int& field_idx) const {
     auto iter = m_field_name_to_idx.find(name);
-    if(iter != m_field_name_to_idx.end()) {
+    if (iter != m_field_name_to_idx.end()) {
       field_idx = (*iter).second;
       return true;
     } else {
@@ -706,7 +706,7 @@ class VidMapper {
   inline const FieldInfo* get_field_info(const std::string& name) const {
     int field_idx = -1;
     auto status = get_global_field_idx(name, field_idx);
-    if(!status)
+    if (!status)
       return 0;
     return &(get_field_info(field_idx));
   }
@@ -738,7 +738,7 @@ class VidMapper {
    */
   inline bool get_contig_info(const std::string& contig_name, ContigInfo& info) const {
     auto iter = m_contig_name_to_idx.find(contig_name);
-    if(iter == m_contig_name_to_idx.end())
+    if (iter == m_contig_name_to_idx.end())
       return false;
     info = get_contig_info((*iter).second);
     return true;

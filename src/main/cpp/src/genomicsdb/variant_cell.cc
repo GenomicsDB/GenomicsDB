@@ -28,7 +28,7 @@ BufferVariantCell::BufferVariantCell(const VariantArraySchema& array_schema) {
   clear();
   m_array_schema = &array_schema;
   resize(array_schema.attribute_num());
-  for(auto i=0u; i<array_schema.attribute_num(); ++i)
+  for (auto i=0u; i<array_schema.attribute_num(); ++i)
     update_field_info(i, i);
 }
 
@@ -37,7 +37,7 @@ BufferVariantCell::BufferVariantCell(const VariantArraySchema& array_schema, con
   m_array_schema = &array_schema;
   assert(query_config.is_bookkeeping_done());
   resize(query_config.get_num_queried_attributes());
-  for(auto i=0u; i<query_config.get_num_queried_attributes(); ++i)
+  for (auto i=0u; i<query_config.get_num_queried_attributes(); ++i)
     update_field_info(i, query_config.get_schema_idx_for_query_idx(i));
 }
 
@@ -45,7 +45,7 @@ BufferVariantCell::BufferVariantCell(const VariantArraySchema& array_schema, con
   clear();
   m_array_schema = &array_schema;
   resize(attribute_ids.size());
-  for(auto i=0u; i<attribute_ids.size(); ++i)
+  for (auto i=0u; i<attribute_ids.size(); ++i)
     update_field_info(i, attribute_ids[i]);
 }
 
@@ -80,7 +80,7 @@ void BufferVariantCell::set_cell(const void* ptr) {
 #ifdef DEBUG
   auto cell_size = *(reinterpret_cast<const size_t*>(cell_ptr+2*sizeof(int64_t)));
 #endif
-  for(auto i=0u; i<m_field_ptrs.size(); ++i) {
+  for (auto i=0u; i<m_field_ptrs.size(); ++i) {
     auto schema_idx = m_schema_idxs[i];
     auto length = m_field_lengths[i];
     //#define DEBUG_VARIANT_CELL_OFFSETS
@@ -91,7 +91,7 @@ void BufferVariantCell::set_cell(const void* ptr) {
               << " length_offset "<< offset;
 #endif
     //check if variable length field - read length from buffer
-    if(m_array_schema->is_variable_length_field(schema_idx)) {
+    if (m_array_schema->is_variable_length_field(schema_idx)) {
       length = *(reinterpret_cast<const int*>(cell_ptr+offset));
       m_field_lengths[i] = length;
       offset += sizeof(int);
@@ -123,11 +123,11 @@ void GenomicsDBColumnarCell::print(std::ostream& fptr, const VariantQueryConfig*
        << end_position
        << " ],\n";
   assert(coords[1] <= end_position);
-  if(vid_mapper) {
+  if (vid_mapper) {
     std::string contig_name;
     int64_t contig_position;
     auto status = vid_mapper->get_contig_location(coords[1], contig_name, contig_position);
-    if(status)
+    if (status)
       fptr << indent_string << "\"genomic_interval\": { \"" << contig_name << "\" : [ "<<contig_position+1
            << ", " << (contig_position+1+(end_position - coords[1])) << " ] },\n";
   }
@@ -135,12 +135,12 @@ void GenomicsDBColumnarCell::print(std::ostream& fptr, const VariantQueryConfig*
   indent_string += g_json_indent_unit;
   auto first_valid_field = true;
   //First field is always END - ignore
-  for(auto i=1u; i<query_config->get_num_queried_attributes(); ++i) {
-    if(is_valid(i)) {
-      if(!first_valid_field)
+  for (auto i=1u; i<query_config->get_num_queried_attributes(); ++i) {
+    if (is_valid(i)) {
+      if (!first_valid_field)
         fptr << ",\n";
       fptr << indent_string << "\"" << (query_config->get_query_attribute_name(i)) << "\": ";
-      if(i == ALT_query_idx)
+      if (i == ALT_query_idx)
         m_iterator->print_ALT(i, fptr);
       else
         m_iterator->print(i, fptr);
@@ -161,7 +161,7 @@ void GenomicsDBColumnarCell::print_csv(std::ostream& fptr, const VariantQueryCon
   fptr << "," << end_position;
   assert(coords[1] <= end_position);
   //First field is always END - ignore
-  for(auto i=1ull; i<query_config->get_num_queried_attributes(); ++i) {
+  for (auto i=1ull; i<query_config->get_num_queried_attributes(); ++i) {
     fptr << ",";
     m_iterator->print_csv(i, fptr); //even if invalid, must print nulls
   }

@@ -76,14 +76,14 @@ GenomicsDBColumnarField::GenomicsDBColumnarField(GenomicsDBColumnarField&& other
 GenomicsDBColumnarField::~GenomicsDBColumnarField() {
   GenomicsDBBuffer* ptr = m_free_buffer_list_head_ptr;
   GenomicsDBBuffer* next_ptr = ptr;
-  while(ptr) {
+  while (ptr) {
     next_ptr = ptr->get_next_buffer();
     delete ptr;
     ptr = next_ptr;
   }
   m_free_buffer_list_head_ptr = 0;
   ptr = m_live_buffer_list_head_ptr;
-  while(ptr) {
+  while (ptr) {
     next_ptr = ptr->get_next_buffer();
     delete ptr;
     ptr = next_ptr;
@@ -101,24 +101,24 @@ class GenomicsDBColumnarFieldPrintOperator<T, true> {
     assert(num_elements > 0u);
     auto data = reinterpret_cast<const T*>(ptr);
     fptr << "[ " << data[0u];
-    for(auto i=1u; i<num_elements; ++i)
+    for (auto i=1u; i<num_elements; ++i)
       fptr << ", " << data[i];
     fptr << " ]";
   }
   static void print_csv(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
                         const bool is_variable_length_field, const bool is_valid) {
-    if(is_variable_length_field)
+    if (is_variable_length_field)
       fptr << num_elements;
-    if(is_valid) {
-      if(is_variable_length_field)
+    if (is_valid) {
+      if (is_variable_length_field)
         fptr << ",";
       assert(num_elements > 0u);
       auto data = reinterpret_cast<const T*>(ptr);
       fptr << data[0u];
-      for(auto i=1u; i<num_elements; ++i)
+      for (auto i=1u; i<num_elements; ++i)
         fptr << "," << data[i];
-    } else if(!is_variable_length_field) {
-      for(auto i=1u; i<num_elements; ++i)
+    } else if (!is_variable_length_field) {
+      for (auto i=1u; i<num_elements; ++i)
         fptr.put(',');
     }
   }
@@ -134,7 +134,7 @@ class GenomicsDBColumnarFieldPrintOperator<T, false> {
   }
   static void print_csv(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
                         const bool is_variable_length_field, const bool is_valid) {
-    if(is_valid)
+    if (is_valid)
       print(fptr, ptr, num_elements);
   }
 };
@@ -152,7 +152,7 @@ class GenomicsDBColumnarFieldPrintOperator<char*, false> {
   }
   static void print_csv(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
                         const bool is_variable_length_field, const bool is_valid) {
-    if(is_valid) {
+    if (is_valid) {
       auto data = reinterpret_cast<const char*>(ptr);
       fptr.write(data, num_elements);
     }
@@ -174,7 +174,7 @@ class GenomicsDBColumnarFieldPrintOperator<char*, true> {
 
 template<bool print_as_list>
 void GenomicsDBColumnarField::assign_print_function_pointers(const int bcf_ht_type) {
-  switch(bcf_ht_type) {
+  switch (bcf_ht_type) {
   case BCF_HT_FLAG:
     m_print = GenomicsDBColumnarFieldPrintOperator<bool, print_as_list>::print;
     m_print_csv = GenomicsDBColumnarFieldPrintOperator<bool, print_as_list>::print_csv;
@@ -219,7 +219,7 @@ void GenomicsDBColumnarField::assign_print_function_pointers(const int bcf_ht_ty
 void GenomicsDBColumnarField::assign_function_pointers() {
   auto bcf_ht_type = VariantFieldTypeUtil::get_bcf_ht_type_for_variant_field_type(m_element_type);
   //Validity function
-  switch(bcf_ht_type) {
+  switch (bcf_ht_type) {
   case BCF_HT_INT:
   case BCF_HT_UINT:
     m_check_tiledb_valid_element = GenomicsDBColumnarField::check_tiledb_valid_element<int>;
@@ -243,9 +243,9 @@ void GenomicsDBColumnarField::assign_function_pointers() {
     throw GenomicsDBColumnarFieldException(std::string("Unhandled type ")+m_element_type.name());
   }
   //Singleton field
-  if(m_length_descriptor == BCF_VL_FIXED && m_fixed_length_field_num_elements == 1u)
+  if (m_length_descriptor == BCF_VL_FIXED && m_fixed_length_field_num_elements == 1u)
     assign_print_function_pointers<false>(bcf_ht_type);
-  else if(bcf_ht_type == BCF_HT_CHAR) //multi char field == string
+  else if (bcf_ht_type == BCF_HT_CHAR) //multi char field == string
     assign_print_function_pointers<true>(BCF_HT_STR);
   else
     assign_print_function_pointers<true>(bcf_ht_type);
@@ -259,7 +259,7 @@ void GenomicsDBColumnarField::move_buffer_to_live_list(GenomicsDBBuffer* buffer)
   //Insert into live list
   //Since this will be the last element in the live list
   buffer->set_next_buffer(0);
-  if(m_live_buffer_list_head_ptr == 0) {
+  if (m_live_buffer_list_head_ptr == 0) {
     assert(m_live_buffer_list_tail_ptr == 0);
     m_live_buffer_list_head_ptr = buffer;
     m_live_buffer_list_tail_ptr = buffer;
@@ -273,12 +273,12 @@ void GenomicsDBColumnarField::move_buffer_to_live_list(GenomicsDBBuffer* buffer)
   }
   buffer->set_is_in_live_list(true);
   //Fix neighbours of buffer in free list
-  if(next_in_free_list)
+  if (next_in_free_list)
     next_in_free_list->set_previous_buffer(previous_in_free_list);
-  if(previous_in_free_list)
+  if (previous_in_free_list)
     previous_in_free_list->set_next_buffer(next_in_free_list);
   //If this was the head pointer, advance it
-  if(buffer == m_free_buffer_list_head_ptr)
+  if (buffer == m_free_buffer_list_head_ptr)
     m_free_buffer_list_head_ptr = next_in_free_list;
   //Reset idx pointed to in tail to 0
   m_curr_index_in_live_buffer_list_tail = 0u;
@@ -297,20 +297,20 @@ void GenomicsDBColumnarField::move_buffer_to_free_list(GenomicsDBBuffer* buffer)
   //Since this will be the first element in the free list
   buffer->set_previous_buffer(0);
   buffer->set_next_buffer(m_free_buffer_list_head_ptr);
-  if(m_free_buffer_list_head_ptr)
+  if (m_free_buffer_list_head_ptr)
     m_free_buffer_list_head_ptr->set_previous_buffer(buffer);
   m_free_buffer_list_head_ptr = buffer;
   buffer->set_is_in_live_list(false);
   //Fix neighbours of buffer in live list
-  if(next_in_live_list)
+  if (next_in_live_list)
     next_in_live_list->set_previous_buffer(previous_in_live_list);
-  if(previous_in_live_list)
+  if (previous_in_live_list)
     previous_in_live_list->set_next_buffer(next_in_live_list);
   //If this was the tail, update to previous
-  if(buffer == m_live_buffer_list_tail_ptr)
+  if (buffer == m_live_buffer_list_tail_ptr)
     m_live_buffer_list_tail_ptr = previous_in_live_list;
   //If this was the head, update to next
-  if(buffer == m_live_buffer_list_head_ptr)
+  if (buffer == m_live_buffer_list_head_ptr)
     m_live_buffer_list_head_ptr = next_in_live_list;
   //Modify lengths
   ++m_free_buffer_list_length;
@@ -318,7 +318,7 @@ void GenomicsDBColumnarField::move_buffer_to_free_list(GenomicsDBBuffer* buffer)
 }
 
 void GenomicsDBColumnarField::move_all_buffers_from_live_list_to_free_list() {
-  while(m_live_buffer_list_head_ptr)
+  while (m_live_buffer_list_head_ptr)
     move_buffer_to_free_list(m_live_buffer_list_head_ptr);
 }
 
@@ -326,13 +326,13 @@ void GenomicsDBColumnarField::set_valid_vector_in_live_buffer_list_tail_ptr() {
   auto buffer_ptr = get_live_buffer_list_tail_ptr();
   assert(buffer_ptr);
   auto& valid_vector = buffer_ptr->get_valid_vector();
-  if(m_length_descriptor == BCF_VL_FIXED)
-    for(auto i=0ull; i<buffer_ptr->get_num_live_entries(); ++i) {
+  if (m_length_descriptor == BCF_VL_FIXED)
+    for (auto i=0ull; i<buffer_ptr->get_num_live_entries(); ++i) {
       assert(i < valid_vector.size());
       valid_vector[i] = m_check_tiledb_valid_element(buffer_ptr->get_buffer_pointer() + (m_fixed_length_field_size*i),
                         m_fixed_length_field_num_elements);
     } else
-    for(auto i=0ull; i<buffer_ptr->get_num_live_entries(); ++i) {
+    for (auto i=0ull; i<buffer_ptr->get_num_live_entries(); ++i) {
       assert(i < valid_vector.size());
       valid_vector[i] = (buffer_ptr->get_size_of_variable_length_field(i) > 0u);
     }
@@ -352,7 +352,7 @@ void GenomicsDBColumnarField::print_ALT_data_in_buffer_at_index(std::ostream& fp
   auto remaining_bytes = total_length;
   fptr << "[ ";
   do {
-    if(!first)
+    if (!first)
       fptr << ", ";
     auto next_ptr = memchr(curr_ptr, TILEDB_ALT_ALLELE_SEPARATOR[0], remaining_bytes);
     auto string_length = (next_ptr)
@@ -360,7 +360,7 @@ void GenomicsDBColumnarField::print_ALT_data_in_buffer_at_index(std::ostream& fp
                          : remaining_bytes;
     auto char_ptr = reinterpret_cast<const char*>(curr_ptr);
     fptr << "\"";
-    if(string_length == 1u && char_ptr[0] == TILEDB_NON_REF_VARIANT_REPRESENTATION[0])
+    if (string_length == 1u && char_ptr[0] == TILEDB_NON_REF_VARIANT_REPRESENTATION[0])
       fptr.write(g_vcf_NON_REF.c_str(), g_vcf_NON_REF.length());
     else
       fptr.write(char_ptr, string_length);
@@ -371,7 +371,7 @@ void GenomicsDBColumnarField::print_ALT_data_in_buffer_at_index(std::ostream& fp
     assert((curr_ptr && remaining_bytes)
            || (curr_ptr == 0 && remaining_bytes == 0u));
     first = false;
-  } while(curr_ptr);
+  } while (curr_ptr);
   fptr << " ]";
 }
 

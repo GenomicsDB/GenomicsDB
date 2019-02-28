@@ -67,8 +67,8 @@ int main(int argc, char** argv) {
   std::string split_output_filename;
   auto split_callset_mapping_file = false;
   auto print_version_only = false;
-  while((c=getopt_long(argc, argv, "T:r:", long_options, NULL)) >= 0) {
-    switch(c) {
+  while ((c=getopt_long(argc, argv, "T:r:", long_options, NULL)) >= 0) {
+    switch (c) {
     case 'T':
       g_tmp_scratch_dir = optarg;
       break;
@@ -99,8 +99,8 @@ int main(int argc, char** argv) {
       exit(-1);
     }
   }
-  if(!print_version_only) {
-    if(optind+1 > argc) {
+  if (!print_version_only) {
+    if (optind+1 > argc) {
       std::cerr << "Needs <loader_json_config_file>\n";
       exit(-1);
     }
@@ -109,33 +109,33 @@ int main(int argc, char** argv) {
     ProfilerStart("gprofile.log");
 #endif
     //Split files as per the partitions defined - don't load data
-    if(split_files) {
+    if (split_files) {
       GenomicsDBImportConfig loader_config;
       loader_config.read_from_file(loader_json_config_file, my_world_mpi_rank);
-      if(loader_config.is_partitioned_by_row()) {
+      if (loader_config.is_partitioned_by_row()) {
         std::cerr << "Splitting is available for column partitioning, row partitioning should be trivial if samples are scattered across files. See wiki page https://github.com/Intel-HLS/GenomicsDB/wiki/Dealing-with-multiple-GenomicsDB-partitions for more information\n";
         return 0;
       }
       VidMapper id_mapper = loader_config.get_vid_mapper(); //copy
       //Might specify more VCF files from the command line
-      for(auto i=optind+1; i<argc; ++i)
+      for (auto i=optind+1; i<argc; ++i)
         id_mapper.get_or_append_global_file_idx(argv[i]);
       //Single split output
-      if(!produce_all_partitions && id_mapper.get_num_files() == 1u && !split_output_filename.empty())
+      if (!produce_all_partitions && id_mapper.get_num_files() == 1u && !split_output_filename.empty())
         id_mapper.set_single_split_file_path(0u, split_output_filename);
       std::vector<std::vector<uint8_t>> empty_buffers;
       std::vector<LoaderConverterMessageExchange> empty_exchange;
       const auto& column_partitions = loader_config.get_sorted_column_partitions();
       auto loop_bound = (produce_all_partitions ? column_partitions.size() : 1u);
-      for(auto i=0ull; i<loop_bound; ++i) {
+      for (auto i=0ull; i<loop_bound; ++i) {
         int rank = produce_all_partitions ? i : my_world_mpi_rank;
         VCF2TileDBConverter converter(loader_config, rank,
                                       &empty_buffers, &empty_exchange);
         converter.print_all_partitions(results_directory, "", rank);
-        if(split_callset_mapping_file)
+        if (split_callset_mapping_file)
           id_mapper.write_partition_callsets_json_file(loader_config.get_callset_mapping_file(), results_directory, rank);
       }
-      if(split_callset_mapping_file)
+      if (split_callset_mapping_file)
         id_mapper.write_partition_loader_json_file(loader_json_config_file, loader_config.get_callset_mapping_file(),
             results_directory, (produce_all_partitions ? column_partitions.size() : 1u), my_world_mpi_rank);
     } else {

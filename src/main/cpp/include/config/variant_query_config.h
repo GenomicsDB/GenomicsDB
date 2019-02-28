@@ -125,7 +125,7 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
    */
   inline bool get_query_idx_for_name(const std::string& name, unsigned& idx) const {
     auto iter = m_query_attribute_name_to_query_idx.find(name);
-    if(iter != m_query_attribute_name_to_query_idx.end()) {
+    if (iter != m_query_attribute_name_to_query_idx.end()) {
       idx = (*iter).second;
       return true;
     } else
@@ -146,7 +146,7 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   }
   std::vector<int> get_query_attributes_schema_idxs() const {
     auto schema_idx_vec = std::vector<int>(m_query_attributes_info_vec.size(), UNDEFINED_ATTRIBUTE_IDX_VALUE);
-    for(auto i=0u; i<m_query_attributes_info_vec.size(); ++i)
+    for (auto i=0u; i<m_query_attributes_info_vec.size(); ++i)
       schema_idx_vec[i] = m_query_attributes_info_vec[i].m_schema_idx;
     return schema_idx_vec;
   }
@@ -297,7 +297,7 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
    */
   inline uint64_t get_query_row_idx_for_array_row_idx(int64_t row_idx) const {
     assert(row_idx >= m_smallest_row_idx && (row_idx-m_smallest_row_idx) < static_cast<int64_t>(get_num_rows_in_array()));
-    if(m_query_all_rows)
+    if (m_query_all_rows)
       return row_idx - m_smallest_row_idx;
     assert((row_idx-m_smallest_row_idx) < static_cast<int64_t>(m_array_row_idx_to_query_row_idx.size()));
     return m_array_row_idx_to_query_row_idx[row_idx-m_smallest_row_idx];

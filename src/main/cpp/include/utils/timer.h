@@ -76,21 +76,21 @@ class Timer {
   }
   void print_last_interval(const std::string& prefix="", std::ostream& fptr = std::cout) const {
     fptr<<"GENOMICSDB_TIMER,";
-    if(!prefix.empty())
+    if (!prefix.empty())
       fptr << prefix <<",";
     fptr << "Wall-clock time(s),"<< std::setprecision(6) << ((double)m_last_interval_wall_clock_time)/1000000ll << ",Cpu time(s),"
          << ((double)m_last_interval_cpu_time)/1000000000ll << "\n";
   }
   void print(const std::string& prefix="", std::ostream& fptr = std::cout) const {
     fptr<<"GENOMICSDB_TIMER,";
-    if(!prefix.empty())
+    if (!prefix.empty())
       fptr << prefix <<",";
     fptr << "Wall-clock time(s),"<< std::setprecision(6) << ((double)m_cumulative_wall_clock_time)/1000000ll << ",Cpu time(s),"
          << ((double)m_cumulative_cpu_time)/1000000000ll << "\n";
   }
   void print_detail(const std::string& prefix="", std::ostream& fptr = std::cout) const {
     fptr<<"GENOMICSDB_TIMER,";
-    if(!prefix.empty())
+    if (!prefix.empty())
       fptr << prefix <<",";
     fptr << "Wall-clock time(s),"<< std::setprecision(6) << ((double)m_cumulative_wall_clock_time)/1000000ll
          << ",Cpu time(s)," << ((double)m_cumulative_cpu_time)/1000000000ll

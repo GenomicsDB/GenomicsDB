@@ -186,7 +186,7 @@ class LineBasedTextFile2TileDBBinary : public File2TileDBBinaryBase {
     std::swap(m_array_schema, other.m_array_schema);
   }
   virtual ~LineBasedTextFile2TileDBBinary() {
-    if(m_array_schema)
+    if (m_array_schema)
       delete m_array_schema;
     m_array_schema = 0;
   }

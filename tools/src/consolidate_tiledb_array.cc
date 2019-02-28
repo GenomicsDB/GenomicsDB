@@ -24,7 +24,7 @@
 #include "tiledb_loader.h"
 
 int main(int argc, char** argv) {
-  if(argc < 3) {
+  if (argc < 3) {
     std::cerr << "Needs 2 arguments <workspace_directory> <array_name>\n";
     exit(-1);
   }

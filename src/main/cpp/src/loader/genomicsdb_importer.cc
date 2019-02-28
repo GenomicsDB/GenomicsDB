@@ -31,12 +31,12 @@ void GenomicsDBImporter::add_buffer_stream(
   const uint8_t* initialization_buffer,
   const size_t num_bytes_in_initialization_buffer) {
 
-  if(m_is_loader_setup)
+  if (m_is_loader_setup)
     throw GenomicsDBImporterException(
       std::string("Cannot add buffer stream once setup_loader() \
         has been called for a given GenomicsDBImporter object"));
   //Duplicate buffer name
-  if(m_buffer_stream_names.find(name) != m_buffer_stream_names.end())
+  if (m_buffer_stream_names.find(name) != m_buffer_stream_names.end())
     throw GenomicsDBImporterException(
       std::string("Duplicate buffer stream name ")+name);
   m_buffer_stream_names.insert(name);
@@ -81,10 +81,10 @@ GenomicsDBImporter::GenomicsDBImporter(GenomicsDBImporter&& other) {
 GenomicsDBImporter::~GenomicsDBImporter() {
   m_loader_config_file.clear();
   m_buffer_stream_info_vec.clear();
-  if(m_loader_ptr)
+  if (m_loader_ptr)
     delete m_loader_ptr;
   m_loader_ptr = 0;
-  if(m_read_state)
+  if (m_read_state)
     delete m_read_state;
   m_read_state = 0;
 }
@@ -92,7 +92,7 @@ GenomicsDBImporter::~GenomicsDBImporter() {
 void GenomicsDBImporter::setup_loader(
   const std::string& buffer_stream_callset_mapping_json_string) {
 
-  if(m_is_loader_setup) //already setup
+  if (m_is_loader_setup) //already setup
     return;
   m_loader_ptr = new VCF2TileDBLoader(
     m_loader_config_file,
@@ -104,7 +104,7 @@ void GenomicsDBImporter::setup_loader(
 }
 
 void GenomicsDBImporter::import_batch() {
-  if(!m_is_loader_setup)
+  if (!m_is_loader_setup)
     throw GenomicsDBImporterException(
       std::string("Cannot import data till setup_loader() \
           has been called for a given GenomicsDBImporter object"));

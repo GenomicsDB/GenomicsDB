@@ -104,33 +104,33 @@ class SQLBasedVidMapper : public VidMapper {
 
   /* following three methods return contig mappings */
   std::vector<ContigInfo>& get_contigs() {
-    return(m_contig_idx_to_info);
+    return (m_contig_idx_to_info);
   }
 
   std::vector<std::pair<int64_t, int>>& get_contig_begin_offsets() {
-    return(m_contig_begin_2_idx);
+    return (m_contig_begin_2_idx);
   }
 
   std::vector<std::pair<int64_t, int>>& get_contig_end_offsets() {
-    return(m_contig_end_2_idx);
+    return (m_contig_end_2_idx);
   }
 
   /* following two methods return callset mappings */
   std::vector<CallSetInfo>& get_callsets() {
-    return(m_row_idx_to_info);
+    return (m_row_idx_to_info);
   }
 
   std::unordered_map<std::string, int64_t>& get_callset_name_to_idx_map() {
-    return(m_callset_name_to_row_idx);
+    return (m_callset_name_to_row_idx);
   }
 
   /* following two methods return field mappings */
   std::vector<FieldInfo>& get_fields() {
-    return(m_field_idx_to_info);
+    return (m_field_idx_to_info);
   }
 
   std::unordered_map<std::string, int>& get_field_name_to_idx_map() {
-    return(m_field_name_to_idx);
+    return (m_field_name_to_idx);
   }
 
   ~SQLBasedVidMapper();

@@ -75,7 +75,7 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
   m_query_attribute_idx_vec.resize(attribute_ids.size()+1u);//+1 for the COORDS
   m_query_attribute_idx_num_cells_to_increment_vec.resize(attribute_ids.size()+1u, 0u);
   m_query_attribute_idx_to_tiledb_buffer_idx.resize(attribute_ids.size()+1u);//+1 for the COORDS
-  for(auto i=0ull; i<attribute_ids.size(); ++i) {
+  for (auto i=0ull; i<attribute_ids.size(); ++i) {
     auto schema_idx = attribute_ids[i];
     attribute_names[i] = variant_array_schema.attribute_name(schema_idx).c_str();
     m_query_attribute_idx_to_tiledb_buffer_idx[i] = m_buffer_pointers.size();
@@ -96,7 +96,7 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
     m_buffer_pointers.push_back(0);
     m_buffer_sizes.push_back(0);
     m_skip_counts.push_back(0u);
-    if(is_variable_length_field) {
+    if (is_variable_length_field) {
       m_buffer_pointers.push_back(0);
       m_buffer_sizes.push_back(0);
       m_skip_counts.push_back(0u);
@@ -113,7 +113,7 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
   m_buffer_sizes.push_back(0);
   m_skip_counts.push_back(0u);
   //Set row idx for live cell markers
-  for(auto i=0ull; i<query_config.get_num_rows_in_array(); ++i)
+  for (auto i=0ull; i<query_config.get_num_rows_in_array(); ++i)
     m_live_cell_markers.set_row_idx(i, m_smallest_row_idx_in_array+i);
   //END query idx
   assert(m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_END_IDX));
@@ -124,35 +124,35 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
 }
 
 SingleCellTileDBIterator::~SingleCellTileDBIterator() {
-  if(m_cell)
+  if (m_cell)
     delete m_cell;
   m_cell = 0;
-  if(m_owned_tiledb_array)
+  if (m_owned_tiledb_array)
     tiledb_array_finalize(m_owned_tiledb_array);
   m_owned_tiledb_array = 0;
   m_tiledb_array = 0;
 #ifdef DO_PROFILING
   std::cerr << "Iterator stats";
-  for(auto i=0u; i<GenomicsDBIteratorStatsEnum::NUM_STATS; ++i)
+  for (auto i=0u; i<GenomicsDBIteratorStatsEnum::NUM_STATS; ++i)
     std::cerr << "," << m_num_cells_traversed_stats[i];
   std::cerr << "\n";
   std::cerr << "Useless cell segment lengths histogram\n";
-  for(auto i=0ull; i<m_useless_cell_interval_lengths_histogram.size(); ++i)
+  for (auto i=0ull; i<m_useless_cell_interval_lengths_histogram.size(); ++i)
     std::cerr << i << "  " <<m_useless_cell_interval_lengths_histogram[i]<<"\n";
   auto num_live_list_entries = 0ull;
   auto num_free_list_entries = 0ull;
-  for(const auto& field : m_fields) {
+  for (const auto& field : m_fields) {
     num_free_list_entries += field.get_free_buffer_list_length();
     num_live_list_entries += field.get_live_buffer_list_length();
   }
   std::cerr << "Buffer_lists_lengths final "<<num_free_list_entries
             <<" "<<num_live_list_entries <<"\n";
   std::cerr << "Histogram:\n";
-  for(auto val : m_num_cells_traversed_in_find_intersecting_intervals_mode_histogram)
+  for (auto val : m_num_cells_traversed_in_find_intersecting_intervals_mode_histogram)
     std::cerr << val << "\n";
 #ifdef COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW
   std::cerr << "COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW histogram\n";
-  for(auto i=0ull; i<m_histogram_cell_counts_since_last_cell_from_same_row.size(); ++i)
+  for (auto i=0ull; i<m_histogram_cell_counts_since_last_cell_from_same_row.size(); ++i)
     std::cerr << COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW_HISTOGRAM_BIN_SIZE*(i+1ull)
               << " " << m_histogram_cell_counts_since_last_cell_from_same_row[i] << "\n";
   m_histogram_cell_counts_since_last_cell_from_same_row.clear();
@@ -160,7 +160,7 @@ SingleCellTileDBIterator::~SingleCellTileDBIterator() {
 #endif //COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW_HISTOGRAM_BIN_SIZE
 #ifdef PROFILE_NUM_CELLS_TO_TRAVERSE_AT_EVERY_QUERY_INTERVAL
   //Final window
-  if(m_num_observed_cells_in_curr_window > 0u)
+  if (m_num_observed_cells_in_curr_window > 0u)
     std::cerr << m_observed_cells_in_curr_window[0].second << '\t'
               << INT64_MAX-1 << '\t' << m_num_observed_cells_in_curr_window << '\n';
 #endif //PROFILE_NUM_CELLS_TO_TRAVERSE_AT_EVERY_QUERY_INTERVAL
@@ -177,17 +177,17 @@ void SingleCellTileDBIterator::begin_new_query_column_interval(TileDB_CTX* tiled
   do {
     //This can happen iff in the previous iteration intersecting intervals were searched OR
     //full array scan is requested and this is the first time a read is being performed
-    if(m_in_find_intersecting_intervals_mode
+    if (m_in_find_intersecting_intervals_mode
         || (m_first_read_from_TileDB && (m_query_config->get_num_column_intervals() == 0u)))
       move_into_simple_traversal_mode();
     else {
       reset_for_next_query_interval();
       //If first read, do the read without worrying about m_query_column_interval_idx
-      if(!m_first_read_from_TileDB) {
+      if (!m_first_read_from_TileDB) {
         //Move to next interval
         ++m_query_column_interval_idx;
         //If no more query intervals remaining - exit
-        if(m_query_column_interval_idx >= m_query_config->get_num_column_intervals()) {
+        if (m_query_column_interval_idx >= m_query_config->get_num_column_intervals()) {
           m_done_reading_from_TileDB = true;
           return;
         }
@@ -199,14 +199,14 @@ void SingleCellTileDBIterator::begin_new_query_column_interval(TileDB_CTX* tiled
                                static_cast<int64_t>(m_query_config->get_num_rows_in_array()+m_smallest_row_idx_in_array-1), //inclusive bounds
                                0, INT64_MAX-1
                              };
-    if(m_query_config->get_num_column_intervals() > 0u) {
+    if (m_query_config->get_num_column_intervals() > 0u) {
       assert(m_query_column_interval_idx < m_query_config->get_num_column_intervals());
       query_range[2] = m_query_config->get_column_begin(m_query_column_interval_idx);
-      if(m_in_simple_traversal_mode)
+      if (m_in_simple_traversal_mode)
         query_range[3] = m_query_config->get_column_end(m_query_column_interval_idx);
     }
     auto status = -1;
-    if(m_tiledb_array == 0) {
+    if (m_tiledb_array == 0) {
       assert(array_path && attribute_names && tiledb_ctx);
       /* Initialize the array in READ mode. */
       status = tiledb_array_init(
@@ -217,39 +217,39 @@ void SingleCellTileDBIterator::begin_new_query_column_interval(TileDB_CTX* tiled
                  reinterpret_cast<const void*>(query_range),
                  &((*attribute_names)[0]),
                  attribute_names->size());
-      if(status != TILEDB_OK)
+      if (status != TILEDB_OK)
         throw GenomicsDBIteratorException(std::string("Error while initializing TileDB array object")
                                           + "\nTileDB error message : "+tiledb_errmsg);
       m_tiledb_array = m_owned_tiledb_array;
     } else {
       //TileDB_Array object is provided by caller and this is the first read, reset attributes to query
-      if(m_first_read_from_TileDB) {
+      if (m_first_read_from_TileDB) {
         assert(attribute_names);
         status = tiledb_array_reset_attributes(m_tiledb_array,
                                                &((*attribute_names)[0]),
                                                attribute_names->size());
-        if(status != TILEDB_OK)
+        if (status != TILEDB_OK)
           throw GenomicsDBIteratorException(std::string("Error while initializing attributes for the TileDB array object")
                                             + "\nTileDB error message : "+tiledb_errmsg);
       }
       status = tiledb_array_reset_subarray(m_tiledb_array, reinterpret_cast<const void*>(query_range));
-      if(status != TILEDB_OK)
+      if (status != TILEDB_OK)
         throw GenomicsDBIteratorException(std::string("Error in tiledb_array_reset_subarray()")
                                           + "\nTileDB error message : "+tiledb_errmsg);
     }
     read_from_TileDB(false);
     m_first_read_from_TileDB = false;
-    if(!m_done_reading_from_TileDB) {
+    if (!m_done_reading_from_TileDB) {
       //This is useful when a subset of rows is queried - skip rows not part of query
       advance_to_next_useful_cell(0u);
       //Dealing with new query interval begin
-      if(m_in_find_intersecting_intervals_mode) {
+      if (m_in_find_intersecting_intervals_mode) {
 #ifdef DO_PROFILING
         auto num_useless_cells_traversed =
           m_num_cells_traversed_stats[GenomicsDBIteratorStatsEnum::NUM_USELESS_CELLS_IN_FIND_INTERSECTING_INTERVALS_MODE];
 #endif
         //Array done or all initialized - exit loop
-        while(keep_advancing_in_find_intersecting_intervals_mode()) {
+        while (keep_advancing_in_find_intersecting_intervals_mode()) {
 #ifdef DO_PROFILING
           assert(m_num_markers_initialized < m_query_config->get_num_rows_in_array());
           m_num_cells_traversed_in_find_intersecting_intervals_mode_histogram[m_num_markers_initialized]
@@ -259,13 +259,13 @@ void SingleCellTileDBIterator::begin_new_query_column_interval(TileDB_CTX* tiled
             m_num_cells_traversed_stats[GenomicsDBIteratorStatsEnum::NUM_USELESS_CELLS_IN_FIND_INTERSECTING_INTERVALS_MODE];
 #endif
           handle_current_cell_in_find_intersecting_intervals_mode();
-          if(keep_advancing_in_find_intersecting_intervals_mode())
+          if (keep_advancing_in_find_intersecting_intervals_mode())
             advance_to_next_useful_cell(1u);
         }
 #ifdef DO_PROFILING
         auto num_live_list_entries = 0ull;
         auto num_free_list_entries = 0ull;
-        for(const auto& field : m_fields) {
+        for (const auto& field : m_fields) {
           num_free_list_entries += field.get_free_buffer_list_length();
           num_live_list_entries += field.get_live_buffer_list_length();
         }
@@ -276,9 +276,9 @@ void SingleCellTileDBIterator::begin_new_query_column_interval(TileDB_CTX* tiled
     }
     //If done reading current column interval, move to next query column interval, if any remaining OR
     //if in find intersecting intervals mode, switch to simple traversal in the next iteration
-  } while((m_done_reading_from_TileDB && m_PQ_live_cell_markers.empty()
-           && (m_query_column_interval_idx+1u) < m_query_config->get_num_column_intervals())
-          || m_in_find_intersecting_intervals_mode);
+  } while ((m_done_reading_from_TileDB && m_PQ_live_cell_markers.empty()
+            && (m_query_column_interval_idx+1u) < m_query_config->get_num_column_intervals())
+           || m_in_find_intersecting_intervals_mode);
 }
 
 void SingleCellTileDBIterator::move_into_simple_traversal_mode() {
@@ -288,7 +288,7 @@ void SingleCellTileDBIterator::move_into_simple_traversal_mode() {
   m_in_simple_traversal_mode = true;
   //Query all attributes
   m_query_attribute_idx_vec.resize(m_fields.size());
-  for(auto i=0u; i<m_fields.size(); ++i)
+  for (auto i=0u; i<m_fields.size(); ++i)
     m_query_attribute_idx_vec[i] = i;
 }
 
@@ -302,11 +302,11 @@ void SingleCellTileDBIterator::reset_for_next_query_interval() {
   m_live_cell_markers.reset();
   m_num_markers_initialized = 0u;
   //Move all buffers to free list - moving to the next query interval
-  for(auto& field : m_fields)
+  for (auto& field : m_fields)
     field.move_all_buffers_from_live_list_to_free_list();
   //Query all attributes
   m_query_attribute_idx_vec.resize(m_fields.size());
-  for(auto i=0u; i<m_fields.size(); ++i)
+  for (auto i=0u; i<m_fields.size(); ++i)
     m_query_attribute_idx_vec[i] = i;
 }
 
@@ -316,7 +316,7 @@ void SingleCellTileDBIterator::read_from_TileDB(const bool skip_cells) {
   //Zero out skip counts
   m_skip_counts.assign(m_skip_counts.size(), 0u);
   //Only set non-0 buffer sizes for attributes for which we wish to get more data
-  for(auto i=0ull; i<m_query_attribute_idx_vec.size(); ++i) {
+  for (auto i=0ull; i<m_query_attribute_idx_vec.size(); ++i) {
     auto query_idx = m_query_attribute_idx_vec[i];
     assert(static_cast<size_t>(query_idx) < m_fields.size());
     auto& genomicsdb_columnar_field = m_fields[query_idx];
@@ -330,7 +330,7 @@ void SingleCellTileDBIterator::read_from_TileDB(const bool skip_cells) {
     assert(buffer_idx < m_buffer_pointers.size());
     auto skip_count = skip_cells ? m_query_attribute_idx_num_cells_to_increment_vec[i] : 0ull;
     //For variable length field, first the offsets buffer
-    if(genomicsdb_columnar_field.is_variable_length_field()) {
+    if (genomicsdb_columnar_field.is_variable_length_field()) {
       m_buffer_pointers[buffer_idx] = reinterpret_cast<void*>(genomicsdb_buffer_ptr->get_offsets_pointer());
       m_buffer_sizes[buffer_idx] = genomicsdb_buffer_ptr->get_offsets_size_in_bytes();
       m_skip_counts[buffer_idx] = skip_count;
@@ -342,17 +342,17 @@ void SingleCellTileDBIterator::read_from_TileDB(const bool skip_cells) {
     m_skip_counts[buffer_idx] = skip_count;
   }
   auto status = tiledb_array_skip_and_read(m_tiledb_array, &(m_buffer_pointers[0]), &(m_buffer_sizes[0]), &(m_skip_counts[0u]));
-  if(status != TILEDB_OK)
+  if (status != TILEDB_OK)
     throw GenomicsDBIteratorException(std::string("Error while reading from TileDB array ")
                                       + "\nTileDB error message : "+tiledb_errmsg);
 #ifdef DEBUG
   auto num_done_fields = 0u;
   //tiledb_array_skip_and_read must have skipped all cells that needed to be skipped
-  for(auto val : m_skip_counts)
+  for (auto val : m_skip_counts)
     assert(val == 0u);
 #endif
   //Set number of live entries in each buffer
-  for(auto i=0ull; i<m_query_attribute_idx_vec.size(); ++i) {
+  for (auto i=0ull; i<m_query_attribute_idx_vec.size(); ++i) {
     auto query_idx = m_query_attribute_idx_vec[i];
     auto& genomicsdb_columnar_field = m_fields[query_idx];
     auto* genomicsdb_buffer_ptr = genomicsdb_columnar_field.get_live_buffer_list_tail_ptr();
@@ -363,7 +363,7 @@ void SingleCellTileDBIterator::read_from_TileDB(const bool skip_cells) {
     //For variable length field, first the offsets buffer
     auto filled_buffer_size = m_buffer_sizes[buffer_idx];
     auto num_live_entries = 0u;
-    if(genomicsdb_columnar_field.is_variable_length_field()) {
+    if (genomicsdb_columnar_field.is_variable_length_field()) {
       num_live_entries = filled_buffer_size/sizeof(size_t);
       genomicsdb_buffer_ptr->set_num_live_entries(num_live_entries);
       //Append size of the variable length field
@@ -377,7 +377,7 @@ void SingleCellTileDBIterator::read_from_TileDB(const bool skip_cells) {
     }
     //Marks data as valid/invalid
     genomicsdb_columnar_field.set_valid_vector_in_live_buffer_list_tail_ptr();
-    if(num_live_entries == 0u) {
+    if (num_live_entries == 0u) {
 #ifdef DEBUG
       ++num_done_fields;
 #endif
@@ -429,7 +429,7 @@ void SingleCellTileDBIterator::handle_current_cell_in_find_intersecting_interval
   m_live_cell_markers.set_column_interval(marker_idx, coords_column, END_field_value);
   m_PQ_live_cell_markers.push(marker_idx);
   //Track offsets for each field and keep the buffer alive
-  for(auto i=0u; i<m_fields.size(); ++i) {
+  for (auto i=0u; i<m_fields.size(); ++i) {
     auto& genomicsdb_columnar_field = m_fields[i];
     auto* genomicsdb_buffer_ptr = genomicsdb_columnar_field.get_live_buffer_list_tail_ptr();
     assert(genomicsdb_buffer_ptr);
@@ -442,32 +442,32 @@ void SingleCellTileDBIterator::handle_current_cell_in_find_intersecting_interval
 
 const SingleCellTileDBIterator& SingleCellTileDBIterator::operator++() {
   //Intervals intersecting the column begin still exist in PQ
-  if(!m_PQ_live_cell_markers.empty()) {
+  if (!m_PQ_live_cell_markers.empty()) {
     auto marker_idx = m_PQ_live_cell_markers.top();
     m_PQ_live_cell_markers.pop();
     //Decrease #live entries and move to free list if needed
-    for(auto i=0u; i<m_fields.size(); ++i) {
+    for (auto i=0u; i<m_fields.size(); ++i) {
       auto* buffer_ptr = m_live_cell_markers.get_buffer_pointer(marker_idx, i);
       buffer_ptr->decrement_num_live_entries(1u);
-      if(buffer_ptr->get_num_live_entries() == 0u)
+      if (buffer_ptr->get_num_live_entries() == 0u)
         m_fields[i].move_buffer_to_free_list(buffer_ptr);
     }
     m_at_new_query_column_interval = false;
-    if(!m_PQ_live_cell_markers.empty())
+    if (!m_PQ_live_cell_markers.empty())
       return *this;
     //Done processing PQ cells
     //Note that begin_new_query_column_interval() moves into simple traversal mode
     //immediately after processing cells that intersect with query column interval begin
     //If m_done_reading_from_TileDB, this means that no cells in the current query interval
     //were available in the simple traversal mode. Move to next column interval
-    if(m_done_reading_from_TileDB)
+    if (m_done_reading_from_TileDB)
       begin_new_query_column_interval();
   } else {
     assert(m_in_simple_traversal_mode);
     m_at_new_query_column_interval = false;
     auto increment_done = advance_to_next_useful_cell(1u);
     //TileDB couldn't provide > 1 cell, must move to next column interval
-    if(!increment_done)
+    if (!increment_done)
       begin_new_query_column_interval();
   }
   return *this;
@@ -478,9 +478,9 @@ bool SingleCellTileDBIterator::advance_to_next_useful_cell(const uint64_t min_nu
   auto increment_done = advance_coords_and_END_till_useful_cell_found(min_num_cells_to_increment,
                         num_cells_incremented);
   //Don't bother with rest of the fields since TileDB couldn't provide >= min_num_cells_to_increment
-  if(!increment_done)
+  if (!increment_done)
     return false;
-  if(num_cells_incremented > 0u) {
+  if (num_cells_incremented > 0u) {
 #ifdef DO_PROFILING
     increment_num_cells_traversed_stats(num_cells_incremented);
 #endif
@@ -503,7 +503,7 @@ bool SingleCellTileDBIterator::advance_coords_and_END_till_useful_cell_found(
   assert(m_END_query_idx < m_fields.size());
   const auto& END_columnar_field = m_fields[m_END_query_idx];
   auto num_cells_to_advance_in_next_iteration = min_num_cells_to_increment;
-  while(hitting_useless_cells && !m_done_reading_from_TileDB) {
+  while (hitting_useless_cells && !m_done_reading_from_TileDB) {
     //TODO: opportunity for vectorization
     //in simple mode, create bitvector Columnar[COORDS[1]] <= Columnar[END]
     //find first bit != 0, num_cells_to_advance == index of first bit
@@ -513,7 +513,7 @@ bool SingleCellTileDBIterator::advance_coords_and_END_till_useful_cell_found(
 #endif
     auto increment_done = advance_coords_and_END(num_cells_to_advance_in_next_iteration);
     //TileDB couldn't provide > num_cells_to_advance_in_next_iteration
-    if(!increment_done)
+    if (!increment_done)
       return false;
     num_cells_incremented += num_cells_to_advance_in_next_iteration;
     num_cells_to_advance_in_next_iteration = 1u; //single cell stepping
@@ -527,7 +527,7 @@ bool SingleCellTileDBIterator::advance_coords_and_END_till_useful_cell_found(
     //TileDB doesn't have a good way of requesting a subset of rows
     //Skip over rows that are not part of the query if coords are part of the queried attributes
     //in this round
-    if(m_query_config->get_num_rows_to_query() < m_query_config->get_num_rows_in_array()
+    if (m_query_config->get_num_rows_to_query() < m_query_config->get_num_rows_in_array()
         && !(m_query_config->is_queried_array_row_idx(coords[0])))
       hitting_useless_cells = true;
     else {
@@ -539,17 +539,17 @@ bool SingleCellTileDBIterator::advance_coords_and_END_till_useful_cell_found(
                                    END_columnar_field.get_curr_index_in_live_list_tail()
                                  )
                                ));
-      if(m_in_simple_traversal_mode) {
+      if (m_in_simple_traversal_mode) {
         //keep incrementing iterator if hitting duplicates at end in simple traversal mode
         hitting_useless_cells = is_duplicate_cell_at_end_position(coords_column, END_field_value);
 #if defined(DO_PROFILING) && defined(COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW)
         auto marker_idx = coords[0] - m_smallest_row_idx_in_array;
         auto histogram_bin_idx = (m_cell_counts_since_last_cell_from_same_row[marker_idx]/
                                   COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW_HISTOGRAM_BIN_SIZE);
-        if(histogram_bin_idx >= m_histogram_cell_counts_since_last_cell_from_same_row.size())
+        if (histogram_bin_idx >= m_histogram_cell_counts_since_last_cell_from_same_row.size())
           m_histogram_cell_counts_since_last_cell_from_same_row.resize(histogram_bin_idx+1ull, 0ull);
         ++(m_histogram_cell_counts_since_last_cell_from_same_row[histogram_bin_idx]);
-        for(auto i=0ull; i<m_cell_counts_since_last_cell_from_same_row.size(); ++i)
+        for (auto i=0ull; i<m_cell_counts_since_last_cell_from_same_row.size(); ++i)
           ++(m_cell_counts_since_last_cell_from_same_row[i]);
         m_cell_counts_since_last_cell_from_same_row[marker_idx] = 0ull;
 #endif
@@ -561,7 +561,7 @@ bool SingleCellTileDBIterator::advance_coords_and_END_till_useful_cell_found(
         assert(m_live_cell_markers.get_row_idx(marker_idx) == row_idx);
         //if the row is already initialized in the find intersecting intervals mode, can skip
         //this cell
-        if(m_live_cell_markers.is_initialized(marker_idx))
+        if (m_live_cell_markers.is_initialized(marker_idx))
           hitting_useless_cells = true;
         else {
           assert(m_query_column_interval_idx < m_query_config->get_num_column_intervals());
@@ -569,7 +569,7 @@ bool SingleCellTileDBIterator::advance_coords_and_END_till_useful_cell_found(
           //Interval that begins before the queried column interval begin and intersects it
           //This is a valid interval for the query and must be handled by
           //handle_current_cell_in_find_intersecting_intervals_mode
-          if(is_duplicate_cell_at_end_position_that_begins_before_query_interval(coords_column, END_field_value,
+          if (is_duplicate_cell_at_end_position_that_begins_before_query_interval(coords_column, END_field_value,
               query_interval_begin)) {
             //do not set initialized to true here, handle_current_cell_in_find_intersecting_intervals_mode will
             //do it
@@ -590,7 +590,7 @@ bool SingleCellTileDBIterator::advance_coords_and_END_till_useful_cell_found(
 //Advance iterator for coords and END fields
 bool SingleCellTileDBIterator::advance_coords_and_END(const uint64_t num_cells_to_advance) {
   auto curr_query_column_interval_idx = m_query_column_interval_idx;
-  if(num_cells_to_advance == 0u)
+  if (num_cells_to_advance == 0u)
     return true;
   //2 = coords and END
   m_query_attribute_idx_vec.resize(2u); //no heap operations here
@@ -601,12 +601,12 @@ bool SingleCellTileDBIterator::advance_coords_and_END(const uint64_t num_cells_t
   m_query_attribute_idx_num_cells_to_increment_vec[1u] = num_cells_to_advance;
   increment_iterator_within_live_buffer_list_tail_ptr_for_fields();
   //some fields have exhausted buffers, need to fetch from TileDB
-  while(!m_query_attribute_idx_vec.empty()) {
+  while (!m_query_attribute_idx_vec.empty()) {
     read_from_TileDB(false);
     assert(curr_query_column_interval_idx == m_query_column_interval_idx);
     //read_from_TileDB() might have determined that no more cells exist for the current query
     //interval
-    if(m_done_reading_from_TileDB)
+    if (m_done_reading_from_TileDB)
       return false;
     increment_iterator_within_live_buffer_list_tail_ptr_for_fields();
   }
@@ -620,7 +620,7 @@ void SingleCellTileDBIterator::advance_fields_other_than_coords_END(const uint64
   m_query_attribute_idx_vec.resize(m_fields.size()-2u);
   //END must be the first field
   assert(m_END_query_idx == 0u);
-  for(auto i=0u; i<m_query_attribute_idx_vec.size(); ++i)
+  for (auto i=0u; i<m_query_attribute_idx_vec.size(); ++i)
     m_query_attribute_idx_vec[i] = i+1u;  //END is the first field - ignore
   //-2 - ignore coords and END
   m_query_attribute_idx_num_cells_to_increment_vec.resize(m_fields.size()-2u);
@@ -629,7 +629,7 @@ void SingleCellTileDBIterator::advance_fields_other_than_coords_END(const uint64
     m_query_attribute_idx_num_cells_to_increment_vec.size(), num_cells_to_increment);
   increment_iterator_within_live_buffer_list_tail_ptr_for_fields();
   //some fields have exhausted buffers, need to fetch from TileDB
-  while(!m_query_attribute_idx_vec.empty()) {
+  while (!m_query_attribute_idx_vec.empty()) {
     read_from_TileDB(true);
     //TODO: either all fields are done reading or none are - is that right?
     //also, same column interval being queried
@@ -638,14 +638,14 @@ void SingleCellTileDBIterator::advance_fields_other_than_coords_END(const uint64
 #ifdef DEBUG
     //After the skip cells API is implemented, there shouldn't be any attributes
     //whose cells need to be skipped after a call to read_from_TileDB()
-    for(auto i=0u; i<m_query_attribute_idx_vec.size(); ++i)
+    for (auto i=0u; i<m_query_attribute_idx_vec.size(); ++i)
       assert(m_query_attribute_idx_num_cells_to_increment_vec[i] == 0u);
 #endif
     m_query_attribute_idx_vec.resize(0u); //no more attributes to query after skip
     //increment_iterator_within_live_buffer_list_tail_ptr_for_fields();
   }
 #ifdef DEBUG
-  for(auto i=0u; i<m_fields.size(); ++i)
+  for (auto i=0u; i<m_fields.size(); ++i)
     assert(m_fields[i].get_live_buffer_list_tail_ptr()
            && m_fields[i].get_live_buffer_list_tail_ptr()->get_num_unprocessed_entries());
 #endif
@@ -662,22 +662,22 @@ void SingleCellTileDBIterator::print(const int field_query_idx, std::ostream& fp
 
 void SingleCellTileDBIterator::increment_iterator_within_live_buffer_list_tail_ptr_for_fields() {
   auto next_iteration_num_query_attributes = 0u;
-  for(auto i=0u; i<m_query_attribute_idx_vec.size(); ++i) {
+  for (auto i=0u; i<m_query_attribute_idx_vec.size(); ++i) {
     assert(next_iteration_num_query_attributes <= i);
     assert(static_cast<size_t>(m_query_attribute_idx_vec[i]) < m_fields.size());
     auto& genomicsdb_columnar_field = m_fields[m_query_attribute_idx_vec[i]];
     auto* genomicsdb_buffer_ptr = genomicsdb_columnar_field.get_live_buffer_list_tail_ptr();
     //TODO: either all fields are done reading or none are - is that right?
-    if(genomicsdb_buffer_ptr) {
+    if (genomicsdb_buffer_ptr) {
       auto unprocessed_entries_delta = std::min(m_query_attribute_idx_num_cells_to_increment_vec[i],
                                        genomicsdb_buffer_ptr->get_num_unprocessed_entries());
       genomicsdb_columnar_field.advance_curr_index_in_live_list_tail(unprocessed_entries_delta);
       genomicsdb_buffer_ptr->decrement_num_live_entries(unprocessed_entries_delta);
       genomicsdb_buffer_ptr->decrement_num_unprocessed_entries(unprocessed_entries_delta);
-      if(genomicsdb_buffer_ptr->get_num_live_entries() == 0ull) //no more live entries, move buffer to free list
+      if (genomicsdb_buffer_ptr->get_num_live_entries() == 0ull) //no more live entries, move buffer to free list
         genomicsdb_columnar_field.move_buffer_to_free_list(genomicsdb_buffer_ptr);
       //buffer completely processed, add attribute to next round of fetch from TileDB
-      if(genomicsdb_buffer_ptr->get_num_unprocessed_entries() == 0ull) {
+      if (genomicsdb_buffer_ptr->get_num_unprocessed_entries() == 0ull) {
         m_query_attribute_idx_vec[next_iteration_num_query_attributes]
           = m_query_attribute_idx_vec[i];
         m_query_attribute_idx_num_cells_to_increment_vec[next_iteration_num_query_attributes]
@@ -710,7 +710,7 @@ void SingleCellTileDBIterator::print_csv(const int field_query_idx, std::ostream
 #ifdef DO_PROFILING
 void SingleCellTileDBIterator::increment_num_cells_traversed_stats(const uint64_t num_cells_incremented) {
   m_num_cells_traversed_stats[GenomicsDBIteratorStatsEnum::TOTAL_CELLS_TRAVERSED] += num_cells_incremented;
-  if(m_in_find_intersecting_intervals_mode)
+  if (m_in_find_intersecting_intervals_mode)
     m_num_cells_traversed_stats[GenomicsDBIteratorStatsEnum::NUM_CELLS_TRAVERSED_IN_FIND_INTERSECTING_INTERVALS_MODE]
     += num_cells_incremented;
   auto num_useless_cells = (num_cells_incremented - 1ull);
@@ -739,9 +739,9 @@ void SingleCellTileDBIterator::update_sliding_window_to_profile_num_cells_to_tra
   m_observed_cells_in_curr_window.emplace_back(curr_row_idx, curr_coords[1]);
   //no cells for this row were seen in the current window before this cell
   //Check if window is "complete"
-  if(num_observed_cells_in_curr_window_for_row_idx_before_increment == 0u) {
+  if (num_observed_cells_in_curr_window_for_row_idx_before_increment == 0u) {
     ++m_num_observed_row_idxs_in_curr_window;
-    if(m_num_observed_row_idxs_in_curr_window == m_query_config->get_num_rows_in_array())
+    if (m_num_observed_row_idxs_in_curr_window == m_query_config->get_num_rows_in_array())
       std::cerr << m_observed_cells_in_curr_window[0].second << '\t'
                 << curr_coords[1] << '\t' << m_num_observed_cells_in_curr_window << '\n';
     //Current sliding window is "complete" - move left edge of window
@@ -750,20 +750,20 @@ void SingleCellTileDBIterator::update_sliding_window_to_profile_num_cells_to_tra
     auto last_column = -1ll;
     //One row has no cells in window OR
     //Cells in the same column
-    while(m_num_observed_row_idxs_in_curr_window == m_query_config->get_num_rows_in_array()
-          || (window_left_idx < m_observed_cells_in_curr_window.size()
-              && last_column == m_observed_cells_in_curr_window[window_left_idx].second)) {
+    while (m_num_observed_row_idxs_in_curr_window == m_query_config->get_num_rows_in_array()
+           || (window_left_idx < m_observed_cells_in_curr_window.size()
+               && last_column == m_observed_cells_in_curr_window[window_left_idx].second)) {
       const auto& left_cell_pair = m_observed_cells_in_curr_window[window_left_idx];
       auto left_row_idx = left_cell_pair.first;
       --(m_row_idx_to_num_observed_cells_in_curr_window[left_row_idx]);
       //No cells for this row left in the window
-      if(m_row_idx_to_num_observed_cells_in_curr_window[left_row_idx] == 0u)
+      if (m_row_idx_to_num_observed_cells_in_curr_window[left_row_idx] == 0u)
         --m_num_observed_row_idxs_in_curr_window;
       ++window_left_idx;
       last_column = left_cell_pair.second;
     }
     //Delete cells from the left of the window
-    if(window_left_idx > 0u) {
+    if (window_left_idx > 0u) {
       m_observed_cells_in_curr_window.erase(m_observed_cells_in_curr_window.begin(),
                                             m_observed_cells_in_curr_window.begin()+window_left_idx);
       assert(window_left_idx <= m_num_observed_cells_in_curr_window);

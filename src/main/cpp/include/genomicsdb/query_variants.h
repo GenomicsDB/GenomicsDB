@@ -91,7 +91,7 @@ class GTProfileStats {
     m_stats_tmp_count_vector[stat_idx] = 0;
   }
   inline void update_all_from_tmp_counters() {
-    for(auto stat_idx=0u; stat_idx<GT_NUM_STATS; ++stat_idx) {
+    for (auto stat_idx=0u; stat_idx<GT_NUM_STATS; ++stat_idx) {
       assert(stat_idx < m_stats_tmp_count_vector.size());
       update_stat(stat_idx, m_stats_tmp_count_vector[stat_idx]);
       m_stats_tmp_count_vector[stat_idx] = 0;
@@ -140,7 +140,7 @@ class VariantQueryProcessorScanState {
     m_current_start_position = current_start_position;
   }
   ~VariantQueryProcessorScanState() {
-    if(m_iter)
+    if (m_iter)
       delete m_iter;
     m_iter = 0;
     invalidate();
@@ -152,7 +152,7 @@ class VariantQueryProcessorScanState {
     invalidate();
     m_done = false;
     m_num_calls_with_deletions = 0;
-    while(!m_end_pq.empty())
+    while (!m_end_pq.empty())
       m_end_pq.pop();
   }
   void invalidate() {
@@ -215,10 +215,10 @@ class VariantQueryProcessor {
   VariantQueryProcessor(const VariantArraySchema& array_schema,
                         const VidMapper& vid_mapper);
   ~VariantQueryProcessor() {
-    if(m_array_schema)
+    if (m_array_schema)
       delete m_array_schema;
     m_array_schema = 0;
-    if(m_vid_mapper)
+    if (m_vid_mapper)
       delete m_vid_mapper;
     m_vid_mapper = 0;
   }

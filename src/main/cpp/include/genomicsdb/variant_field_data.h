@@ -46,13 +46,13 @@ class VariantFieldTypeUtil {
   static size_t size(const int bcf_ht_type);
   static size_t size(const std::type_index& type_index) {
     auto iter = g_variant_field_type_index_to_bcf_ht_type.find(type_index);
-    if(iter == g_variant_field_type_index_to_bcf_ht_type.end())
+    if (iter == g_variant_field_type_index_to_bcf_ht_type.end())
       throw UnknownAttributeTypeException(std::string("Unhandled attribute type ")+type_index.name());
     return size((*iter).second);
   }
   static int get_tiledb_type_for_variant_field_type(const std::type_index& type_index) {
     auto iter = g_variant_field_type_index_to_tiledb_type.find(type_index);
-    if(iter == g_variant_field_type_index_to_tiledb_type.end())
+    if (iter == g_variant_field_type_index_to_tiledb_type.end())
       throw UnknownAttributeTypeException(std::string("No TileDB type found for attribute ")+type_index.name());
     return (*iter).second;
   }
@@ -66,7 +66,7 @@ class VariantFieldTypeUtil {
 
   static int get_bcf_ht_type_for_variant_field_type(const std::type_index& type_index) {
     auto iter = g_variant_field_type_index_to_bcf_ht_type.find(type_index);
-    if(iter == g_variant_field_type_index_to_bcf_ht_type.end())
+    if (iter == g_variant_field_type_index_to_bcf_ht_type.end())
       throw UnknownAttributeTypeException(std::string("Unhandled attribute type ")+type_index.name());
     return (*iter).second;
   }
@@ -167,7 +167,7 @@ class VariantFieldData : public VariantFieldBase {
                                   const bool is_length_in_buffer, unsigned num_elements) {
     auto base_ptr = buffer + offset; //const char*
     auto ptr = reinterpret_cast<const DataType*>(base_ptr); //const DataType* ptr
-    if(is_length_in_buffer) {   //length specified in buffer
+    if (is_length_in_buffer) {  //length specified in buffer
       ptr = reinterpret_cast<const DataType*>(base_ptr + sizeof(int));
       offset += sizeof(int);
     }
@@ -238,7 +238,7 @@ class VariantFieldData<std::string> : public VariantFieldBase {
                                   const bool is_length_in_buffer, unsigned num_elements) {
     auto base_ptr = buffer + offset; //const char* pointer
     auto ptr = base_ptr;      //const char* pointer
-    if(is_length_in_buffer) {   //length specified in buffer
+    if (is_length_in_buffer) {  //length specified in buffer
       auto num_elements_ptr = reinterpret_cast<const int*>(ptr);
       num_elements = *num_elements_ptr;
       ptr = static_cast<const char*>(base_ptr + sizeof(int));
@@ -247,14 +247,14 @@ class VariantFieldData<std::string> : public VariantFieldBase {
     m_data.resize(num_elements);
     memcpy_s(&(m_data[0]), num_elements*sizeof(char), ptr, num_elements*sizeof(char));
     bool is_missing_flag = true;
-    for(auto val : m_data)
-      if(!is_tiledb_missing_value<char>(val)) {
+    for (auto val : m_data)
+      if (!is_tiledb_missing_value<char>(val)) {
         is_missing_flag = false;
         break;
       }
     //Whole field is missing, clear and invalidate
     //Note that 0-length fields are invalidated based on the logic in this function
-    if(is_missing_flag) {
+    if (is_missing_flag) {
       set_valid(false);
       m_data.clear();
     }
@@ -312,7 +312,7 @@ class VariantFieldData<std::string> : public VariantFieldBase {
     auto src = dynamic_cast<const VariantFieldData<std::string>*>(base_src);
     assert(src);
     m_data.resize(src->m_data.size());
-    if(m_data.size())
+    if (m_data.size())
       memcpy_s(&(m_data[0]), m_data.size()*sizeof(char), &(src->m_data[0]), m_data.size()*sizeof(char));
   }
   /* Return address of the offset-th element */
@@ -336,7 +336,7 @@ class VariantFieldPrimitiveVectorDataBase : public VariantFieldBase {
                                   const bool is_length_in_buffer, unsigned num_elements) {
     auto base_ptr = buffer + offset; //const char*
     auto ptr = base_ptr;
-    if(is_length_in_buffer) {   //length specified in buffer
+    if (is_length_in_buffer) {  //length specified in buffer
       auto num_elements_ptr = reinterpret_cast<const int*>(base_ptr);
       num_elements = *num_elements_ptr;
       ptr = base_ptr + sizeof(int);
@@ -352,7 +352,7 @@ class VariantFieldPrimitiveVectorDataBase : public VariantFieldBase {
     uint64_t add_size = (m_is_variable_length_field ? sizeof(int) : 0u) + data_length;
     RESIZE_BINARY_SERIALIZATION_BUFFER_IF_NEEDED(buffer, offset, add_size);
     //Num elements
-    if(m_is_variable_length_field) {
+    if (m_is_variable_length_field) {
       *(reinterpret_cast<int*>(&(buffer[offset]))) = length();
       offset += sizeof(int);
     }
@@ -388,14 +388,14 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
     unsigned data_size = num_elements*sizeof(DataType);
     memcpy_s(&(m_data[0]), data_size, buffer, data_size);
     bool is_missing_flag = true;
-    for(auto val : m_data)
-      if(!is_tiledb_missing_value<DataType>(val)) {
+    for (auto val : m_data)
+      if (!is_tiledb_missing_value<DataType>(val)) {
         is_missing_flag = false;
         break;
       }
     //Whole field is missing, clear and invalidate
     //Note that 0-length fields are invalidated based on the logic in this function
-    if(is_missing_flag) {
+    if (is_missing_flag) {
       set_valid(false);
       m_data.clear();
     }
@@ -409,8 +409,8 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
   void print(std::ostream& fptr) const {
     fptr << "[ ";
     auto first_elem = true;
-    for(auto val : m_data) {
-      if(first_elem) {
+    for (auto val : m_data) {
+      if (first_elem) {
         fptr << static_cast<PrintType>(val);
         first_elem = false;
       } else
@@ -422,14 +422,14 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
     fptr << "[ ";
     auto first_elem = true;
     auto is_phase_element = false;
-    for(auto val : m_data) {
-      if(first_elem) {
+    for (auto val : m_data) {
+      if (first_elem) {
         fptr << static_cast<PrintType>(val);
         first_elem = false;
       } else {
         fptr << ",";
-        if(is_phase_element) {
-          if(val)
+        if (is_phase_element) {
+          if (val)
             fptr << "|";
           else
             fptr << "\\";
@@ -442,12 +442,12 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
   }
 
   void print_csv(std::ostream& fptr) const {
-    if(m_is_variable_length_field)
+    if (m_is_variable_length_field)
       fptr << m_data.size() << ",";
     //Print blanks for invalid cells
     auto first_elem = true;
-    for(auto val : m_data) {
-      if(first_elem) {
+    for (auto val : m_data) {
+      if (first_elem) {
         fptr << static_cast<PrintType>(val);
         first_elem = false;
       } else
@@ -456,10 +456,10 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
   }
   void print_Cotton_JSON(std::ostream& fptr) const {
     //Variable length field or #elements > 1, print JSON list
-    if(m_is_variable_length_field || m_data.size() > 1u)
+    if (m_is_variable_length_field || m_data.size() > 1u)
       print(fptr);
     else      //single element field
-      if(m_data.size() > 0u)
+      if (m_data.size() > 0u)
         fptr << m_data[0];
       else
         fptr << "null";
@@ -481,7 +481,7 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
     auto src = dynamic_cast<const VariantFieldPrimitiveVectorData<DataType, PrintType>*>(base_src);
     assert(src);
     m_data.resize(src->m_data.size());
-    if(m_data.size())
+    if (m_data.size())
       memcpy_s(&(m_data[0]), m_data.size()*sizeof(DataType), &(src->m_data[0]), m_data.size()*sizeof(DataType));
   }
   void resize(unsigned new_size) {
@@ -510,7 +510,7 @@ class VariantFieldALTData : public VariantFieldBase {
                                   const bool is_length_in_buffer, unsigned num_elements) {
     auto base_ptr = buffer + offset; //const char*
     auto ptr = base_ptr; //const char* pointer
-    if(is_length_in_buffer) {   //length specified in buffer
+    if (is_length_in_buffer) {  //length specified in buffer
       auto num_elements_ptr = reinterpret_cast<const int*>(base_ptr);
       num_elements = *num_elements_ptr;
       ptr = static_cast<const char*>(base_ptr + sizeof(int));
@@ -523,7 +523,7 @@ class VariantFieldALTData : public VariantFieldBase {
     char* saveptr = 0;
     char* argptr = tmp;
     m_data.clear();
-    while(auto curr_token = strtok_r(argptr, TILEDB_ALT_ALLELE_SEPARATOR, &saveptr)) {
+    while (auto curr_token = strtok_r(argptr, TILEDB_ALT_ALLELE_SEPARATOR, &saveptr)) {
       m_data.push_back(curr_token);
       argptr = 0;
     }
@@ -539,9 +539,9 @@ class VariantFieldALTData : public VariantFieldBase {
   virtual void print(std::ostream& fptr) const {
     fptr << "[ ";
     auto first_elem = true;
-    for(auto& val : m_data) {
+    for (auto& val : m_data) {
       auto& ptr = IS_NON_REF_ALLELE(val) ? g_vcf_NON_REF : val;
-      if(first_elem) {
+      if (first_elem) {
         fptr << "\"" << ptr << "\"";
         first_elem = false;
       } else
@@ -551,8 +551,8 @@ class VariantFieldALTData : public VariantFieldBase {
   }
   virtual void print_csv(std::ostream& fptr) const {
     auto first_elem = true;
-    for(auto& val : m_data) {
-      if(first_elem) {
+    for (auto& val : m_data) {
+      if (first_elem) {
         fptr << val;
         first_elem = false;
       } else
@@ -572,9 +572,9 @@ class VariantFieldALTData : public VariantFieldBase {
     //location at which ALT string begins
     auto str_begin_offset = offset;
     bool first_elem = true;
-    for(auto& val : m_data) {
+    for (auto& val : m_data) {
       auto str_size = val.length();
-      if(first_elem) {
+      if (first_elem) {
         add_size = str_size;
         RESIZE_BINARY_SERIALIZATION_BUFFER_IF_NEEDED(buffer, offset, add_size);
         first_elem = false;
@@ -593,7 +593,7 @@ class VariantFieldALTData : public VariantFieldBase {
   virtual std::type_index get_C_pointers(unsigned& size, void** ptr, bool& allocated) {
     size = m_data.size();
     char** data = new char*[size];
-    for(auto i=0u; i<size; ++i)
+    for (auto i=0u; i<size; ++i)
       data[i] = const_cast<char*>(m_data[i].c_str());
     *(reinterpret_cast<char***>(ptr)) = data;
     allocated = true;
@@ -616,7 +616,7 @@ class VariantFieldALTData : public VariantFieldBase {
     auto src = dynamic_cast<const VariantFieldALTData*>(base_src);
     assert(src);
     m_data.resize(src->m_data.size());
-    for(auto i=0u; i<m_data.size(); ++i) {
+    for (auto i=0u; i<m_data.size(); ++i) {
       auto& curr_dst = m_data[i];
       auto& curr_src = src->m_data[i];
       curr_dst.resize(curr_src.size());

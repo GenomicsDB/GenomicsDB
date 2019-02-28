@@ -28,15 +28,15 @@ void Histogram::clear() {
 
 void Histogram::print(std::ostream& fptr) const {
   fptr << "Histogram: [\n";
-  for(auto b=this->begin(), e = this->end(); b!=e; ++b) {
-    if((*b) != 0)
+  for (auto b=this->begin(), e = this->end(); b!=e; ++b) {
+    if ((*b) != 0)
       fptr << b.get_lo() <<","<<b.get_hi()<<","<< *b << "\n";
   }
   fptr << "]\n";
 }
 
 void Histogram::add_value(uint64_t value) {
-  if(value < m_lo || value > m_hi)
+  if (value < m_lo || value > m_hi)
     throw HistogramException("Value "+std::to_string(value)+" is outsize the range of histogram ["+std::to_string(m_lo)
                              +","+std::to_string(m_hi)+"]");
   unsigned bin_idx = get_bin_idx_for_value(value);
@@ -45,19 +45,19 @@ void Histogram::add_value(uint64_t value) {
 }
 
 void Histogram::add_interval(uint64_t lo, uint64_t hi) {
-  if(lo == hi) {
+  if (lo == hi) {
     add_value(lo);
     return;
   }
-  if(lo < m_lo || lo > m_hi)
+  if (lo < m_lo || lo > m_hi)
     throw HistogramException("Value "+std::to_string(lo)+" is outsize the range of histogram ["+std::to_string(m_lo)
                              +","+std::to_string(m_hi)+"]");
-  if(hi < m_lo || hi > m_hi)
+  if (hi < m_lo || hi > m_hi)
     throw HistogramException("Value "+std::to_string(hi)+" is outsize the range of histogram ["+std::to_string(m_lo)
                              +","+std::to_string(m_hi)+"]");
   unsigned lo_bin_idx = get_bin_idx_for_value(lo);
   unsigned hi_bin_idx = get_bin_idx_for_value(hi);
-  for(auto i=lo_bin_idx; i<=hi_bin_idx; ++i) {
+  for (auto i=lo_bin_idx; i<=hi_bin_idx; ++i) {
     ++(m_histogram_bins[i]);
     ++m_total;
   }
@@ -67,7 +67,7 @@ uint64_t Histogram::serialize(uint8_t*& data, uint64_t curr_offset, bool realloc
   uint64_t vec_size = m_histogram_bins.size()*sizeof(uint64_t);
   uint64_t to_add = 4*sizeof(uint64_t) + vec_size;
   auto new_size = curr_offset + to_add;
-  if(realloc_if_needed)
+  if (realloc_if_needed)
     data = (uint8_t*)realloc(data, new_size);
   auto idx = curr_offset;
   uint64_t num_bins = m_histogram_bins.size();
@@ -103,7 +103,7 @@ uint64_t Histogram::deserialize(const uint8_t* data, uint64_t offset) {
 }
 
 void Histogram::reset_counters() {
-  for(auto i=0u; i<m_histogram_bins.size(); ++i)
+  for (auto i=0u; i<m_histogram_bins.size(); ++i)
     m_histogram_bins[i] = 0ull;
   m_total = 0ull;
 }
@@ -114,15 +114,15 @@ UniformHistogram::UniformHistogram(uint64_t lo, uint64_t hi, unsigned num_interv
   m_hi = hi;
   m_size_of_bin = (hi - lo + 1 + (num_intervals-1))/num_intervals;      //compute ceil
   m_histogram_bins.resize(num_intervals);
-  for(auto i=0u; i<num_intervals; ++i)
+  for (auto i=0u; i<num_intervals; ++i)
     m_histogram_bins[i] = 0;
 }
 
 void UniformHistogram::sum_up_histogram(const UniformHistogram& other) {
   Histogram::iterator curr = begin();
-  for(auto b=other.begin(),e=other.end(); b!=e; ++b) {
+  for (auto b=other.begin(),e=other.end(); b!=e; ++b) {
     assert(curr != end());
-    if(curr.get_lo() != b.get_lo() || curr.get_hi() != b.get_hi())
+    if (curr.get_lo() != b.get_lo() || curr.get_hi() != b.get_hi())
       throw HistogramException("To sum up UniformHistogram objects, bin ranges must match");
     auto value = *b;
     m_histogram_bins[curr.get_bin_idx()] += value;
@@ -134,7 +134,7 @@ void UniformHistogram::sum_up_histogram(const UniformHistogram& other) {
 uint64_t UniformHistogram::serialize(uint8_t*& data, uint64_t curr_offset, bool realloc_if_needed) const {
   auto idx = Histogram::serialize(data, curr_offset, realloc_if_needed);
   auto new_size = idx + sizeof(uint64_t);
-  if(realloc_if_needed)
+  if (realloc_if_needed)
     data = (uint8_t*)realloc(data, new_size);
   memcpy_s(&(data[idx]), sizeof(uint64_t), &m_size_of_bin, sizeof(uint64_t));
   idx += sizeof(uint64_t);

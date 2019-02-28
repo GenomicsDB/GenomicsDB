@@ -29,7 +29,7 @@
 #endif
 
 int main(int argc, char** argv) {
-  if(argc <= 1) {
+  if (argc <= 1) {
     std::cerr << "Needs 1 arg <json_config_file>\n";
     exit(-1);
   }

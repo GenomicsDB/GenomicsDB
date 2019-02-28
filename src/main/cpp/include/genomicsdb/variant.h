@@ -319,7 +319,7 @@ class Variant {
                          uint64_t call_idx_in_variant)
       : m_iter_position(x), m_end(end), m_call_idx_in_variant(call_idx_in_variant) {
       //If iter points to invalid Call, move forward
-      if(m_iter_position != m_end && !((*m_iter_position).is_valid()))
+      if (m_iter_position != m_end && !((*m_iter_position).is_valid()))
         operator++();
     }
     bool operator!=(const ValidVariantCallIter& other) const {
@@ -332,7 +332,7 @@ class Variant {
       ++m_iter_position;
       ++m_call_idx_in_variant;
       //Increment till end or next valid record
-      for(; m_iter_position != m_end && !((*m_iter_position).is_valid()); ++m_iter_position,++m_call_idx_in_variant);
+      for (; m_iter_position != m_end && !((*m_iter_position).is_valid()); ++m_iter_position,++m_call_idx_in_variant);
       return *this;
     }
     uint64_t get_call_idx_in_variant() const {
@@ -413,7 +413,7 @@ class Variant {
    */
   void resize(uint64_t num_calls, unsigned num_query_call_fields) {
     m_calls.resize(num_calls);
-    for(uint64_t i=0ull; i<num_calls; ++i)
+    for (uint64_t i=0ull; i<num_calls; ++i)
       m_calls[i].resize(num_query_call_fields);
   }
   /**
@@ -673,15 +673,15 @@ class GA4GHPagingInfo {
   inline bool handled_previously(const uint64_t row_idx, const uint64_t column_idx) {
     //Column major order storage
     //hence, if m_last_column_idx is less than column_idx, not handled
-    if(column_idx > m_last_column_idx)
+    if (column_idx > m_last_column_idx)
       return false;
-    else if(column_idx < m_last_column_idx)     //if m_last_column_idx is greater than column_idx, handled
+    else if (column_idx < m_last_column_idx)    //if m_last_column_idx is greater than column_idx, handled
       return true;
     else {  //m_last_column_idx == column_idx
       return false; //need to check all cells with the same column_idx, because of how GA4GH variants are constructed
 #if 0
       //sorted by rows
-      if(row_idx > m_last_row_idx)
+      if (row_idx > m_last_row_idx)
         return false;
       else
         return true;
@@ -779,7 +779,7 @@ inline void assert_not_null<true>(const void* ptr) {
 template<class VariantFieldTy, bool do_assert>
 VariantFieldTy* get_known_field_if_queried(VariantCall& curr_call, const VariantQueryConfig& query_config,
     unsigned known_field_enum) {
-  if(query_config.is_defined_query_idx_for_known_field_enum(known_field_enum)) {
+  if (query_config.is_defined_query_idx_for_known_field_enum(known_field_enum)) {
     auto* field_ptr = curr_call.get_field<VariantFieldTy>
                       (query_config.get_query_idx_for_known_field_enum(known_field_enum));
     assert_not_null<do_assert>(static_cast<void*>(field_ptr));

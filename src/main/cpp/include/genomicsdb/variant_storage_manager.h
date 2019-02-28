@@ -51,7 +51,7 @@ class VariantArrayCellIterator {
   VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const VariantArraySchema& variant_array_schema,
                            const std::string& array_path, const int64_t* range, const std::vector<int>& attribute_ids, const size_t buffer_size);
   ~VariantArrayCellIterator() {
-    if(m_tiledb_array_iterator)
+    if (m_tiledb_array_iterator)
       tiledb_array_iterator_finalize(m_tiledb_array_iterator);
     m_tiledb_array_iterator = 0;
 #ifdef DO_PROFILING
@@ -71,11 +71,11 @@ class VariantArrayCellIterator {
     m_tiledb_timer.start();
 #endif
     auto status = tiledb_array_iterator_next(m_tiledb_array_iterator);
-    if(status != TILEDB_OK)
+    if (status != TILEDB_OK)
       throw VariantStorageManagerException(std::string("VariantArrayCellIterator increment failed")
                                            + "\nTileDB error message : "+tiledb_errmsg);
 #ifdef DEBUG
-    if(!end()) {
+    if (!end()) {
       ++m_num_cells_iterated_over;
       //Co-ordinates
       const uint8_t* field_ptr = 0;
@@ -98,8 +98,8 @@ class VariantArrayCellIterator {
   //Set new interval to query
   void reset_subarray(const int64_t* coords) {
     assert(m_tiledb_array_iterator);
-    if(tiledb_array_iterator_reset_subarray(m_tiledb_array_iterator,
-                                            reinterpret_cast<const void*>(coords)) != TILEDB_OK)
+    if (tiledb_array_iterator_reset_subarray(m_tiledb_array_iterator,
+        reinterpret_cast<const void*>(coords)) != TILEDB_OK)
       throw VariantStorageManagerException("Error resetting TileDB iterator subarray");
 #ifdef DEBUG
     m_last_row = -1;

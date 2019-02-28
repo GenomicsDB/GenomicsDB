@@ -63,7 +63,7 @@ std::unordered_map<std::type_index, int> {
 
 
 size_t VariantFieldTypeUtil::size(const int bcf_ht_type) {
-  switch(bcf_ht_type) {
+  switch (bcf_ht_type) {
   case BCF_HT_INT:
     return sizeof(int);
   case BCF_HT_INT64:

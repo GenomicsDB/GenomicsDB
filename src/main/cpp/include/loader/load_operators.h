@@ -127,12 +127,12 @@ class LoaderArrayWriter : public LoaderOperatorBase {
   LoaderArrayWriter& operator=(const LoaderArrayWriter& other) = delete;
   LoaderArrayWriter(LoaderArrayWriter&& other) = delete;
   virtual ~LoaderArrayWriter() {
-    if(m_schema)
+    if (m_schema)
       delete m_schema;
-    if(m_storage_manager)
+    if (m_storage_manager)
       delete m_storage_manager;
 #ifdef DUPLICATE_CELL_AT_END
-    for(auto ptr : m_cell_copies)
+    for (auto ptr : m_cell_copies)
       free(ptr);
     m_cell_copies.clear();
 #endif
@@ -180,13 +180,13 @@ class LoaderCombinedGVCFOperator : public LoaderOperatorBase {
   LoaderCombinedGVCFOperator(LoaderCombinedGVCFOperator&& other) = delete;
   virtual ~LoaderCombinedGVCFOperator() {
     clear();
-    if(m_schema)
+    if (m_schema)
       delete m_schema;
-    if(m_query_processor)
+    if (m_query_processor)
       delete m_query_processor;
-    if(m_operator)
+    if (m_operator)
       delete m_operator;
-    if(m_cell)
+    if (m_cell)
       delete m_cell;
     delete m_vcf_adapter;
   }
@@ -195,11 +195,11 @@ class LoaderCombinedGVCFOperator : public LoaderOperatorBase {
     return m_vcf_adapter->overflow();
   }
   virtual void flush_output() {
-    if(m_offload_vcf_output_processing)
+    if (m_offload_vcf_output_processing)
       m_buffered_vcf_adapter->do_output();
   }
   virtual void post_operate_sequential() {
-    if(m_offload_vcf_output_processing)
+    if (m_offload_vcf_output_processing)
       m_buffered_vcf_adapter->advance_write_idx();
   }
   virtual void finish(const int64_t column_interval_end);

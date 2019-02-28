@@ -346,14 +346,14 @@ class GenomicsDBColumnarField {
   template<typename T>
   static bool check_tiledb_valid_element(const uint8_t* ptr, const size_t num_elements) {
     auto data = reinterpret_cast<const T*>(ptr);
-    for(auto i=0ull; i<num_elements; ++i)
-      if(!is_tiledb_missing_value<T>(data[i]))
+    for (auto i=0ull; i<num_elements; ++i)
+      if (!is_tiledb_missing_value<T>(data[i]))
         return true;
     return false;
   }
   //Buffer pointer handling
   GenomicsDBBuffer* get_or_allocate_free_buffer() {
-    if(m_free_buffer_list_head_ptr == 0)
+    if (m_free_buffer_list_head_ptr == 0)
       add_new_buffer();
     return m_free_buffer_list_head_ptr;
   }
@@ -394,7 +394,7 @@ class GenomicsDBColumnarField {
   inline const uint8_t* get_pointer_to_data_in_buffer_at_index(const GenomicsDBBuffer* buffer_ptr,
       const size_t index) const {
     assert(buffer_ptr);
-    if(m_length_descriptor == BCF_VL_FIXED)
+    if (m_length_descriptor == BCF_VL_FIXED)
       return buffer_ptr->get_buffer_pointer() + (m_fixed_length_field_size*index);
     else
       return buffer_ptr->get_buffer_pointer() + buffer_ptr->get_offset(index);
@@ -402,7 +402,7 @@ class GenomicsDBColumnarField {
   inline uint8_t* get_pointer_to_data_in_buffer_at_index(GenomicsDBBuffer* buffer_ptr,
       const size_t index) {
     assert(buffer_ptr);
-    if(m_length_descriptor == BCF_VL_FIXED)
+    if (m_length_descriptor == BCF_VL_FIXED)
       return buffer_ptr->get_buffer_pointer() + (m_fixed_length_field_size*index);
     else
       return buffer_ptr->get_buffer_pointer() + buffer_ptr->get_offset(index);
@@ -411,7 +411,7 @@ class GenomicsDBColumnarField {
   inline size_t get_size_of_data_in_buffer_at_index(const GenomicsDBBuffer* buffer_ptr,
       const size_t index) const {
     assert(buffer_ptr);
-    if(m_length_descriptor == BCF_VL_FIXED)
+    if (m_length_descriptor == BCF_VL_FIXED)
       return m_fixed_length_field_size;
     else
       return buffer_ptr->get_size_of_variable_length_field(index);
@@ -454,7 +454,7 @@ class GenomicsDBColumnarField {
   void assign_print_function_pointers(const int bcf_ht_type);
   void add_new_buffer() {
     auto buffer_ptr = create_new_buffer();
-    if(m_free_buffer_list_head_ptr) {
+    if (m_free_buffer_list_head_ptr) {
       assert(m_free_buffer_list_head_ptr->get_previous_buffer() == 0);
       m_free_buffer_list_head_ptr->set_previous_buffer(buffer_ptr);
       buffer_ptr->set_next_buffer(m_free_buffer_list_head_ptr);

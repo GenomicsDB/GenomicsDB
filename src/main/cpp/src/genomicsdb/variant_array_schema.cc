@@ -45,7 +45,7 @@ VariantArraySchema::VariantArraySchema(const std::string& array_name,
                   "Last element of types and compression vectors must specify type and compression of co-ordinates");
   VERIFY_OR_THROW(dim_names.size() == dim_domains.size());
   m_attributes_vector.resize(attribute_names.size());
-  for(auto i=0u; i<attribute_names.size(); ++i) {
+  for (auto i=0u; i<attribute_names.size(); ++i) {
     m_attribute_name_to_idx[attribute_names[i]] = i;
     auto& curr_elem = m_attributes_vector[i];
     curr_elem.m_idx = i;

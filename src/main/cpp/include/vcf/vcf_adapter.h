@@ -69,7 +69,7 @@ class ReferenceGenomeInfo {
   }
   ~ReferenceGenomeInfo() {
     clear();
-    if(m_reference_faidx)
+    if (m_reference_faidx)
       fai_destroy(m_reference_faidx);
   }
   void initialize(const std::string& reference_genome);
@@ -169,11 +169,11 @@ class VCFSerializedBufferAdapter: public VCFAdapter {
     m_do_output = do_output;
   }
   ~VCFSerializedBufferAdapter() {
-    if(m_hts_string.s && m_hts_string.m > 0)
+    if (m_hts_string.s && m_hts_string.m > 0)
       free(m_hts_string.s);
     m_hts_string.s = 0;
     m_hts_string.m = 0;
-    if(m_write_fptr && m_write_fptr != stdout && m_write_fptr != stderr)
+    if (m_write_fptr && m_write_fptr != stdout && m_write_fptr != stderr)
       fclose(m_write_fptr);
     m_write_fptr = 0;
   }

@@ -56,10 +56,10 @@ class VCFReaderBase : public virtual GenomicsDBImportReaderBase {
     m_line = bcf_init();
   }
   ~VCFReaderBase() {
-    if(m_hdr)
+    if (m_hdr)
       bcf_hdr_destroy(m_hdr);
     m_hdr = 0;
-    if(m_line)
+    if (m_line)
       bcf_destroy(m_line);
     m_line = 0;
   }
@@ -135,7 +135,7 @@ class VCFColumnPartition : public File2TileDBBinaryColumnPartitionBase {
    public:
     VCFGetBufferWrapper(const size_t num_bytes=4096u) {
       m_buffer = (uint8_t*)malloc(num_bytes);
-      if(m_buffer == 0)
+      if (m_buffer == 0)
         throw VCF2BinaryException("Malloc failure");
       m_capacity = num_bytes;
       m_num_values = 0;
@@ -147,7 +147,7 @@ class VCFColumnPartition : public File2TileDBBinaryColumnPartitionBase {
     VCFGetBufferWrapper(VCFGetBufferWrapper&& other);
     //Destructor
     ~VCFGetBufferWrapper() {
-      if(m_buffer && m_capacity)
+      if (m_buffer && m_capacity)
         free(m_buffer);
       m_buffer = 0;
       m_capacity = 0u;
@@ -171,7 +171,7 @@ class VCFColumnPartition : public File2TileDBBinaryColumnPartitionBase {
     //Add 1 buffer for END field
     m_vcf_get_buffer_vec.emplace_back(prefetch_fields ? num_INFO_fields+1u : 1u);
     //if prefetch is enabled, allocate buffer per field
-    if(prefetch_fields)
+    if (prefetch_fields)
       m_vcf_get_buffer_vec.emplace_back(num_FORMAT_fields);
     m_split_output_fptr = 0;
   }

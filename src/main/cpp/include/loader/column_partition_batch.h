@@ -40,7 +40,7 @@ class ColumnPartitionFileBatch : public CircularBufferController {
    */
   inline int64_t get_offset_for_local_callset_idx(int to_process_local_callset_idx, size_t max_size_per_order) const {
     assert(to_process_local_callset_idx < m_num_callsets);
-    if(m_num_callsets == m_num_orders)
+    if (m_num_callsets == m_num_orders)
       return m_buffer_offset + to_process_local_callset_idx*max_size_per_order;
     else {
       assert(m_num_orders == 1);
@@ -62,7 +62,7 @@ class ColumnPartitionFileBatch : public CircularBufferController {
   }
   //Only advance if there is really something to advance
   void advance_read_idx() {
-    if(get_num_entries_with_valid_data())
+    if (get_num_entries_with_valid_data())
       CircularBufferController::advance_read_idx();
   }
   int64_t get_num_orders() const {
@@ -88,7 +88,7 @@ class ColumnPartitionBatch {
     m_idx = column_partition_idx;
     m_max_size_per_order = max_size_per_order;
     m_file_batches.resize(num_callsets_in_file.size(), ColumnPartitionFileBatch(num_entries_in_circular_buffer));
-    for(auto i=0ull; i<num_callsets_in_file.size(); ++i)
+    for (auto i=0ull; i<num_callsets_in_file.size(); ++i)
       set_num_callsets_in_file(i, num_callsets_in_file[i], num_orders_in_file[i]);
     //In the global buffer, data for the current partition begins here
     m_partition_begin_offset = m_total_num_orders*m_max_size_per_order*m_idx;
@@ -101,7 +101,7 @@ class ColumnPartitionBatch {
   bool activate_file(int64_t file_idx) {
     assert(static_cast<size_t>(file_idx) < m_file_batches.size());
     auto& file_batch = m_file_batches[file_idx];
-    if(!file_batch.m_fetch && !file_batch.m_completed) {
+    if (!file_batch.m_fetch && !file_batch.m_completed) {
       //set fetch
       file_batch.m_fetch = true;
       //reserve entry in circular buffer
@@ -114,7 +114,7 @@ class ColumnPartitionBatch {
    * Just advance read idx of members
    * */
   void advance_read_idxs() {
-    for(auto& file_batch : m_file_batches)
+    for (auto& file_batch : m_file_batches)
       file_batch.advance_read_idx();
   }
   /*
@@ -123,8 +123,8 @@ class ColumnPartitionBatch {
    */
   void update_buffer_offsets(bool force_update=false) {
     auto offset = m_partition_begin_offset;
-    for(auto& file_batch : m_file_batches) {
-      if(force_update || (file_batch.m_fetch && !file_batch.m_completed))
+    for (auto& file_batch : m_file_batches) {
+      if (force_update || (file_batch.m_fetch && !file_batch.m_completed))
         file_batch.update_buffer_offset(offset, m_max_size_per_order);
     }
   }
@@ -133,15 +133,15 @@ class ColumnPartitionBatch {
    */
   void update_num_completed_files() {
     m_num_completed = 0;
-    for(const auto& file_batch : m_file_batches)
-      if(file_batch.m_completed)
+    for (const auto& file_batch : m_file_batches)
+      if (file_batch.m_completed)
         ++m_num_completed;
   }
   /*
    * Check whether this partition is complete
    */
   inline bool is_completed(bool recompute=true) {
-    if(recompute)
+    if (recompute)
       update_num_completed_files();
     return m_num_completed == static_cast<int64_t>(m_file_batches.size());
   }
@@ -186,16 +186,16 @@ class ColumnPartitionBatch {
    */
   int64_t activate_partition_batch(const size_t per_partition_size, int64_t offset, const std::vector<int64_t>& file_idx_vec) {
     auto num_callsets = 0ll;
-    for(auto file_idx : file_idx_vec) {
+    for (auto file_idx : file_idx_vec) {
       assert(file_idx < m_file_batches.size());
       auto& curr_file_batch = m_file_batches[file_idx];
-      if(curr_file_batch.m_completed) //already done
+      if (curr_file_batch.m_completed) //already done
         continue;
       curr_file_batch.m_fetch = true;
       num_callsets += curr_file_batch.m_num_callsets;
     }
     m_max_size_per_order = per_partition_size/num_callsets;
-    for(auto file_idx : file_idx_vec) {
+    for (auto file_idx : file_idx_vec) {
       auto& curr_file_batch = m_file_batches[file_idx];
       curr_file_batch.m_buffer_offset = offset;
       offset = (curr_file_batch.m_fetch) ? offset + curr_file_batch.m_num_callsets*m_max_size_per_order : offset;

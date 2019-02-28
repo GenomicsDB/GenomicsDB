@@ -319,12 +319,12 @@ class StringConversionException : public std::exception {
 //Template specializations
 template<>
 inline int from_string_to_tiledb(const char* str) {
-  if(str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
+  if (str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
     return get_tiledb_null_value<int>();
   else {
     char* endptr = 0;
     auto val = strtoll(str, &endptr, 0);
-    if(endptr == str)
+    if (endptr == str)
       throw StringConversionException(std::string("Cannot convert string ")+str+" to integer");
     return val;
   }
@@ -332,12 +332,12 @@ inline int from_string_to_tiledb(const char* str) {
 
 template<>
 inline unsigned from_string_to_tiledb(const char* str) {
-  if(str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
+  if (str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
     return get_tiledb_null_value<unsigned>();
   else {
     char* endptr = 0;
     auto val = strtoull(str, &endptr, 0);
-    if(endptr == str)
+    if (endptr == str)
       throw StringConversionException(std::string("Cannot convert string ")+str+" to unsigned");
     return val;
   }
@@ -345,12 +345,12 @@ inline unsigned from_string_to_tiledb(const char* str) {
 
 template<>
 inline int64_t from_string_to_tiledb(const char* str) {
-  if(str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
+  if (str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
     return get_tiledb_null_value<int64_t>();
   else {
     char* endptr = 0;
     auto val = strtoll(str, &endptr, 0);
-    if(endptr == str)
+    if (endptr == str)
       throw StringConversionException(std::string("Cannot convert string ")+str+" to int64_t");
     return val;
   }
@@ -358,12 +358,12 @@ inline int64_t from_string_to_tiledb(const char* str) {
 
 template<>
 inline uint64_t from_string_to_tiledb(const char* str) {
-  if(str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
+  if (str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
     return get_tiledb_null_value<uint64_t>();
   else {
     char* endptr = 0;
     auto val = strtoull(str, &endptr, 0);
-    if(endptr == str)
+    if (endptr == str)
       throw StringConversionException(std::string("Cannot convert string ")+str+" to uint64_t");
     return val;
   }
@@ -371,12 +371,12 @@ inline uint64_t from_string_to_tiledb(const char* str) {
 
 template<>
 inline float from_string_to_tiledb(const char* str) {
-  if(str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
+  if (str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
     return get_tiledb_null_value<float>();
   else {
     char* endptr = 0;
     auto val = strtof(str, &endptr);
-    if(endptr == str)
+    if (endptr == str)
       throw StringConversionException(std::string("Cannot convert string ")+str+" to float");
     return val;
   }
@@ -384,12 +384,12 @@ inline float from_string_to_tiledb(const char* str) {
 
 template<>
 inline double from_string_to_tiledb(const char* str) {
-  if(str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
+  if (str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
     return get_tiledb_null_value<double>();
   else {
     char* endptr = 0;
     auto val = strtod(str, &endptr);
-    if(endptr == str)
+    if (endptr == str)
       throw StringConversionException(std::string("Cannot convert string ")+str+" to double");
     return val;
   }
@@ -397,7 +397,7 @@ inline double from_string_to_tiledb(const char* str) {
 
 template<>
 inline std::string from_string_to_tiledb(const char* str) {
-  if(str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
+  if (str == 0 || str[0] == '\0' || str[0] == LEGACY_CSV_NULL_CHAR)
     return "";
   else
     return std::string(str);

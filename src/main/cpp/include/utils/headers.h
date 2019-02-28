@@ -74,7 +74,7 @@ class CircularBufferController {
     m_curr_write_idx = (m_curr_write_idx+1u)%m_num_entries;
     assert(m_num_entries_with_valid_data < m_num_entries);
     ++m_num_entries_with_valid_data;
-    if(unreserve) {
+    if (unreserve) {
       assert(m_num_reserved_entries > 0u);
       --m_num_reserved_entries;
     }

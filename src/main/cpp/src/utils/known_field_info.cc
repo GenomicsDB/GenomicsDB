@@ -121,7 +121,7 @@ unsigned KnownFieldInfo::get_num_elements_for_known_field_enum(unsigned known_fi
 }
 
 unsigned KnownFieldInfo::get_number_of_genotypes(const unsigned num_ALT_alleles, const unsigned ploidy) {
-  switch(ploidy) {
+  switch (ploidy) {
   case 1u:
     return num_ALT_alleles+1u;
   case 2u:
@@ -135,7 +135,7 @@ unsigned KnownFieldInfo::get_number_of_genotypes(const unsigned num_ALT_alleles,
 
 unsigned KnownFieldInfo::get_num_elements_given_length_descriptor(unsigned length_descriptor,
     unsigned num_ALT_alleles, unsigned ploidy, unsigned num_elements) {
-  switch(length_descriptor) {
+  switch (length_descriptor) {
   case BCF_VL_A:
     return num_ALT_alleles;
   case BCF_VL_R:
@@ -162,7 +162,7 @@ int KnownFieldInfo::get_VCF_field_combine_operation_for_known_field_enum(unsigne
 
 bool KnownFieldInfo::get_known_field_enum_for_name(const std::string& field_name, unsigned& known_field_enum) {
   auto iter = g_known_variant_field_name_to_enum.find(field_name);
-  if(iter == g_known_variant_field_name_to_enum.end())
+  if (iter == g_known_variant_field_name_to_enum.end())
     return false;
   known_field_enum = (*iter).second;
   return true;
@@ -177,7 +177,7 @@ std::string KnownFieldInfo::get_known_field_name_for_enum(unsigned known_field_e
 unsigned KnownFieldInfo::get_num_elements_for_known_field_enum(unsigned num_ALT_alleles, unsigned ploidy) const {
   unsigned length = 0u;
   unsigned num_alleles = num_ALT_alleles + 1u;
-  switch(m_length_descriptor) {
+  switch (m_length_descriptor) {
   case BCF_VL_FIXED:
     length = m_num_elements;
     break;
@@ -206,20 +206,20 @@ unsigned KnownFieldInfo::get_num_elements_for_known_field_enum(unsigned num_ALT_
 
 //KnownFieldInitializer constructor
 KnownFieldInitializer::KnownFieldInitializer() {
-  for(auto i=0u; i<g_known_variant_field_names.size(); ++i)
+  for (auto i=0u; i<g_known_variant_field_names.size(); ++i)
     g_known_variant_field_name_to_enum[g_known_variant_field_names[i]] = i;
   //Mapping from known_field enum
   g_known_field_enum_to_info.resize(GVCF_NUM_KNOWN_FIELDS);
   //set length descriptors and creator objects for special attributes
-  for(auto i=0u; i<g_known_field_enum_to_info.size(); ++i)
+  for (auto i=0u; i<g_known_field_enum_to_info.size(); ++i)
     initialize_length_descriptor(i);
   //set INFO combine operation
-  for(auto i=0u; i<g_known_field_enum_to_info.size(); ++i)
+  for (auto i=0u; i<g_known_field_enum_to_info.size(); ++i)
     initialize_INFO_combine_operation(i);
 }
 
 void KnownFieldInitializer::initialize_length_descriptor(unsigned idx) const {
-  switch(idx) {
+  switch (idx) {
   case GVCF_REF_IDX:
     g_known_field_enum_to_info[idx].m_length_descriptor = BCF_VL_VAR;
     break;
@@ -263,7 +263,7 @@ void KnownFieldInitializer::initialize_length_descriptor(unsigned idx) const {
 }
 
 void KnownFieldInitializer::initialize_INFO_combine_operation(unsigned idx) const {
-  switch(idx) {
+  switch (idx) {
   case GVCF_BASEQRANKSUM_IDX:
   case GVCF_CLIPPINGRANKSUM_IDX:
   case GVCF_MQRANKSUM_IDX:
@@ -287,10 +287,10 @@ void KnownFieldInitializer::initialize_INFO_combine_operation(unsigned idx) cons
 
 bool VariantUtils::contains_deletion(const std::string& REF, const std::vector<std::string>& ALT_vec) {
   auto REF_length = REF.length();
-  if(REF_length <= 1u)
+  if (REF_length <= 1u)
     return false;
-  for(auto& alt_allele : ALT_vec)
-    if(!(is_symbolic_allele(alt_allele)) && alt_allele.length() < REF_length)
+  for (auto& alt_allele : ALT_vec)
+    if (!(is_symbolic_allele(alt_allele)) && alt_allele.length() < REF_length)
       return true;
   return false;
 }

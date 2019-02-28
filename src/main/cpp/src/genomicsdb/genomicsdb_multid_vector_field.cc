@@ -37,7 +37,7 @@ int64_t str_to_element(const char* str, const size_t element_begin_idx,
   //Optimization - no heap operations if small enough
   const size_t array_size = 64u;
   char array[array_size];
-  if(current_element_length+1u < array_size) { //+1 for NULL char
+  if (current_element_length+1u < array_size) { //+1 for NULL char
     memcpy_s(array, current_element_length, str+element_begin_idx, current_element_length);
     array[current_element_length] = '\0';
     return strtoll(array, &endptr, 0);
@@ -59,7 +59,7 @@ int str_to_element(const char* str, const size_t element_begin_idx,
 template<>
 float str_to_element(const char* str, const size_t element_begin_idx,
                      const size_t current_element_length) {
-  if(current_element_length == 0u
+  if (current_element_length == 0u
       || (current_element_length == 3u && strncasecmp(str+element_begin_idx, "NaN", 3u) == 0))
     return get_bcf_missing_value<float>();
   char* endptr = 0;
@@ -67,7 +67,7 @@ float str_to_element(const char* str, const size_t element_begin_idx,
   //Optimization - no heap operations if small enough
   const size_t array_size = 32u;
   char array[array_size];
-  if(current_element_length+1u < array_size) { //+1 for NULL char
+  if (current_element_length+1u < array_size) { //+1 for NULL char
     memcpy_s(array, current_element_length, str+element_begin_idx, current_element_length);
     array[current_element_length] = '\0';
     return strtof(array, &endptr);
@@ -80,15 +80,15 @@ float str_to_element(const char* str, const size_t element_begin_idx,
 template<class T>
 void cast_join_and_print(std::ostream& fptr, const uint8_t* ptr, const size_t idx,
                          const size_t num_elements, const char sep) {
-  if(num_elements) {
+  if (num_elements) {
     auto data_ptr = reinterpret_cast<const T*>(ptr);
     auto val = data_ptr[idx];
-    if(!is_bcf_missing_value<T>(val))
+    if (!is_bcf_missing_value<T>(val))
       fptr << val;
-    for(auto i=idx+1ull; i<num_elements; ++i) {
+    for (auto i=idx+1ull; i<num_elements; ++i) {
       fptr << sep;
       auto val = data_ptr[i];
-      if(!is_bcf_missing_value<T>(val))
+      if (!is_bcf_missing_value<T>(val))
         fptr << val;
     }
   }
@@ -101,7 +101,7 @@ void GenomicsDBMultiDVectorIdx::advance_to_index_in_next_dimension(const size_t 
   //the innermost dimension is simply a vector of elements - the size, #elements and offsets are NOT stored on disk,
   //Since the innermost dimension is simply a raw vector, hence the +2u check for dimensions which store
   //size, #elements, offsets on disk
-  if(m_current_dim_idx+2u < length_descriptor.get_num_dimensions()) {
+  if (m_current_dim_idx+2u < length_descriptor.get_num_dimensions()) {
     auto size_of_data_at_current_index = *(reinterpret_cast<const uint64_t*>(m_ro_field_ptr));
     auto num_entries_and_offsets_ptr = reinterpret_cast<const uint64_t*>(m_ro_field_ptr
                                        + sizeof(uint64_t) //the size_at_current_ptr in the previous statement
@@ -151,7 +151,7 @@ void GenomicsDBMultiDVectorIdx::set_index_in_current_dimension(const uint64_t id
   //Since the innermost dimension is simply a raw vector, hence the +2u check for dimensions which store
   //size, #elements, offsets on disk
   auto update_offset = 0ull;
-  if(m_current_dim_idx+1u < m_field_info_ptr->m_length_descriptor.get_num_dimensions())
+  if (m_current_dim_idx+1u < m_field_info_ptr->m_length_descriptor.get_num_dimensions())
     update_offset = add_to_ptr
                     ?  (m_offsets_ptr[idx] - m_offsets_ptr[m_current_index_in_current_dimension])
                     :  (m_offsets_ptr[m_current_index_in_current_dimension] - m_offsets_ptr[idx]);
@@ -199,7 +199,7 @@ bool GenomicsDBMultiDVectorFieldParseDivideUpAndStoreOperator::parse_and_store_t
   auto offset_written_to = write_offset - sizeof(int);
   auto ptr = reinterpret_cast<int*>(&(buffer[offset_written_to]));
   assert(tuple_element_idx < m_tuple_indexes_to_divide_bitset.size());
-  if(m_tuple_indexes_to_divide_bitset[tuple_element_idx]) {
+  if (m_tuple_indexes_to_divide_bitset[tuple_element_idx]) {
     auto val = *ptr;
     *ptr = (val/m_divisor + ((m_curr_idx < val%m_divisor) ? 1 : 0));
   }
@@ -214,7 +214,7 @@ bool GenomicsDBMultiDVectorFieldParseDivideUpAndStoreOperator::parse_and_store_t
   auto offset_written_to = write_offset - sizeof(int);
   auto ptr = reinterpret_cast<float*>(&(buffer[offset_written_to]));
   assert(tuple_element_idx < m_tuple_indexes_to_divide_bitset.size());
-  if(m_tuple_indexes_to_divide_bitset[tuple_element_idx]) {
+  if (m_tuple_indexes_to_divide_bitset[tuple_element_idx]) {
     auto val = *ptr;
     *ptr = (val/m_divisor);
   }
@@ -225,7 +225,7 @@ template<class ElementType>
 void fill_with_bcf_missing_values(std::vector<uint8_t>& buffer,
                                   uint64_t& write_offset,
                                   const uint64_t curr_num, const uint64_t n) {
-  for(auto i=curr_num; i<n; ++i)
+  for (auto i=curr_num; i<n; ++i)
     File2TileDBBinaryBase::tiledb_buffer_resize_if_needed_and_print<ElementType>(
       buffer, reinterpret_cast<int64_t&>(write_offset), get_bcf_missing_value<ElementType>());
 }
@@ -242,9 +242,9 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(
   const GenomicsDBMultiDVectorFieldParseAndStoreOperator& op) {
   auto& length_descriptor = field_info.m_length_descriptor;
   auto num_elements_in_tuple = field_info.get_genomicsdb_type().get_num_elements_in_tuple();
-  if(num_elements_in_tuple > buffer_vec.size())
+  if (num_elements_in_tuple > buffer_vec.size())
     buffer_vec.resize(num_elements_in_tuple);
-  for(auto& buffer : buffer_vec)
+  for (auto& buffer : buffer_vec)
     buffer.resize(4096u); //4KiB
   auto r_idx = 0ull; //read idx
   //#bytes for curr data in dim i
@@ -265,8 +265,8 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(
                                   );
   //The first dimension begins writing at offset 0
   //A 64-bit uint64_t is allocated for each dimension's size
-  for(auto tuple_element_idx=0u; tuple_element_idx<num_elements_in_tuple; ++tuple_element_idx)
-    for(auto i=0ull; i<dim_write_begin_offsets_vec[tuple_element_idx].size(); ++i)
+  for (auto tuple_element_idx=0u; tuple_element_idx<num_elements_in_tuple; ++tuple_element_idx)
+    for (auto i=0ull; i<dim_write_begin_offsets_vec[tuple_element_idx].size(); ++i)
       dim_write_begin_offsets_vec[tuple_element_idx][i] = i*sizeof(uint64_t);
   //Points to the begin of the current element - length
   auto current_element_begin_read_idx = 0ull; //r stands for read
@@ -280,14 +280,14 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(
   //Whether there is at least one valid element in the tuple
   auto curr_tuple_contains_one_valid_element = false;
   //TODO: can be vectorized, probably not worth it since only used in loading
-  while(r_idx <= str_length) {
+  while (r_idx <= str_length) {
     auto sep_dim_idx = 0;
     auto found_delim = false;
-    if(r_idx < str_length) {
+    if (r_idx < str_length) {
       //is this a delimiter char?
-      for(sep_dim_idx=static_cast<int>(length_descriptor.get_num_dimensions()-1u);
-          sep_dim_idx>=0; --sep_dim_idx) {
-        if(str[r_idx] == length_descriptor.get_vcf_delimiter(sep_dim_idx)) {
+      for (sep_dim_idx=static_cast<int>(length_descriptor.get_num_dimensions()-1u);
+           sep_dim_idx>=0; --sep_dim_idx) {
+        if (str[r_idx] == length_descriptor.get_vcf_delimiter(sep_dim_idx)) {
           found_delim = true;
           break;
         }
@@ -296,10 +296,10 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(
       found_delim = true;
       sep_dim_idx = -1; //flush out offsets for outermost dimension (dim_idx 0)
     }
-    if(found_delim) {
+    if (found_delim) {
       //Write out element
       auto is_valid_element = false;
-      switch(field_info.get_genomicsdb_type().get_tuple_element_bcf_ht_type(curr_element_idx_in_tuple_parsed)) {
+      switch (field_info.get_genomicsdb_type().get_tuple_element_bcf_ht_type(curr_element_idx_in_tuple_parsed)) {
       case BCF_HT_INT:
         is_valid_element = op.parse_and_store_tuple_element_int(buffer_vec[curr_element_idx_in_tuple_parsed],
                            dim_write_begin_offsets_vec[curr_element_idx_in_tuple_parsed].back(),
@@ -324,12 +324,12 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(
       curr_tuple_contains_one_valid_element = curr_tuple_contains_one_valid_element
                                               || is_valid_element;
       //Delimiter not of the innermost dimension
-      if(sep_dim_idx+1u < length_descriptor.get_num_dimensions()) {
+      if (sep_dim_idx+1u < length_descriptor.get_num_dimensions()) {
         //For each element of the tuple
-        for(auto tuple_element_idx=0u; tuple_element_idx<num_elements_in_tuple; ++tuple_element_idx) {
+        for (auto tuple_element_idx=0u; tuple_element_idx<num_elements_in_tuple; ++tuple_element_idx) {
           //Fill out other tuple elements with bcf_missing_values to make equi-length
           auto tuple_element_size = 0ull;
-          switch(field_info.get_genomicsdb_type().get_tuple_element_bcf_ht_type(tuple_element_idx)) {
+          switch (field_info.get_genomicsdb_type().get_tuple_element_bcf_ht_type(tuple_element_idx)) {
           case BCF_HT_INT:
             fill_with_bcf_missing_values<int>(buffer_vec[tuple_element_idx],
                                               dim_write_begin_offsets_vec[tuple_element_idx].back(),
@@ -358,13 +358,13 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(
           auto& dim_offsets = dim_offsets_vec[tuple_element_idx];
           auto& dim_write_begin_offsets = dim_write_begin_offsets_vec[tuple_element_idx];
           //Ignore innermost dimension - hence -2u instead of -1u
-          for(auto i=static_cast<int>(length_descriptor.get_num_dimensions()-2u);
-              i>=std::max<int>(sep_dim_idx,0); --i) { //sep_dim_idx can be -1, used to flush out offsets at string (str) end
+          for (auto i=static_cast<int>(length_descriptor.get_num_dimensions()-2u);
+               i>=std::max<int>(sep_dim_idx,0); --i) { //sep_dim_idx can be -1, used to flush out offsets at string (str) end
             dim_sizes[i] += last_dim_size;
             dim_offsets[i].push_back(dim_offsets[i].back()+last_dim_size);
             //Outer dim delimiter found - write out curr dim size and offsets
             //If sep_dim_idx == -1, flushes out the outermost dim
-            if(i > sep_dim_idx) {
+            if (i > sep_dim_idx) {
               int64_t write_offset = dim_write_begin_offsets[i];
               //write the dim size at dim_write_begin_offsets
               File2TileDBBinaryBase::tiledb_buffer_resize_if_needed_and_print<uint64_t>(
@@ -385,7 +385,7 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(
                                           +dim_sizes[i]      //data bytes
                                           +sizeof(uint64_t); //#elements
               auto offsets_size = dim_offsets[i].size()*sizeof(uint64_t);
-              if(offsets_start_offset+offsets_size >= buffer.size())
+              if (offsets_start_offset+offsets_size >= buffer.size())
                 buffer.resize(2*(offsets_start_offset+offsets_size+1u));
               memcpy_s(&(buffer[offsets_start_offset]), offsets_size, &(dim_offsets[i][0u]), offsets_size);
               //Update last_dim_size
@@ -396,7 +396,7 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(
                               );
             }
           }
-          if(sep_dim_idx == -1)
+          if (sep_dim_idx == -1)
             total_size_of_multi_d_data_vec[tuple_element_idx] = last_dim_size;
           //sep_dim_idx can be -1
           //The outermost dimension whose delimiter was hit
@@ -407,7 +407,7 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(
             + dim_sizes[outermost_delim_dim_idx];       //current size of outermost_delim_dim_idx
           //Update dim_write_begin_offsets for dimensions which 'completed' i.e. wrote out all the data
           //for one idx value for the dimension
-          for(unsigned i=outermost_delim_dim_idx+1u,j=0ul; i<length_descriptor.get_num_dimensions(); ++i,++j) {
+          for (unsigned i=outermost_delim_dim_idx+1u,j=0ul; i<length_descriptor.get_num_dimensions(); ++i,++j) {
             dim_write_begin_offsets[i] = new_write_begin_offset + j*sizeof(uint64_t); //64-bit uint64_t for sizes
             //Reset dim sizes
             dim_sizes[i] = 0u;
@@ -436,8 +436,8 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(const
   auto total_size_of_multi_d_data_vec = std::move(GenomicsDBMultiDVectorField::parse_and_store_numeric(
                                           m_rw_field_data, *m_field_info_ptr,
                                           str, str_length));
-  for(auto tuple_element_idx=0u; tuple_element_idx<total_size_of_multi_d_data_vec.size();
-      ++tuple_element_idx)
+  for (auto tuple_element_idx=0u; tuple_element_idx<total_size_of_multi_d_data_vec.size();
+       ++tuple_element_idx)
     m_rw_field_data[tuple_element_idx].resize(total_size_of_multi_d_data_vec[tuple_element_idx]);
   return total_size_of_multi_d_data_vec;
 }
@@ -447,12 +447,12 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(const
 //We can model this as a stack
 void GenomicsDBMultiDVectorField::run_operation(GenomicsDBMultiDVectorFieldOperator& multid_vector_field_operator,
     const std::vector<const uint8_t*>& data_ptr_vec) const {
-  if(m_field_info_ptr->get_genomicsdb_type().get_num_elements_in_tuple() != data_ptr_vec.size())
+  if (m_field_info_ptr->get_genomicsdb_type().get_num_elements_in_tuple() != data_ptr_vec.size())
     throw GenomicsDBMultiDVectorFieldOperatorException("Data ptr vec and genomicsdb_type do not have the same number of elements");
   auto& length_descriptor = m_field_info_ptr->m_length_descriptor;
   //Stack replacing the recursive function
   std::vector<std::vector<GenomicsDBMultiDVectorIdx>> idx_stack_vec;
-  for(auto i=0u; i<data_ptr_vec.size(); ++i)
+  for (auto i=0u; i<data_ptr_vec.size(); ++i)
     idx_stack_vec.emplace_back(std::vector<GenomicsDBMultiDVectorIdx>(
                                  1u, GenomicsDBMultiDVectorIdx(data_ptr_vec[i], m_field_info_ptr, 0u)));
   //current index vector e.g. A[5][0][3] will have 5,0,3
@@ -465,7 +465,7 @@ void GenomicsDBMultiDVectorField::run_operation(GenomicsDBMultiDVectorFieldOpera
   //Vector to hold pointers and sizes for calling the operator
   std::vector<const uint8_t*> op_ptr_vec(data_ptr_vec.size(), 0);
   std::vector<size_t> op_size_vec(data_ptr_vec.size(), 0u);
-  while(!idx_stack_vec[0].empty()) {
+  while (!idx_stack_vec[0].empty()) {
     auto& top_idx = idx_stack_vec[0].back();
     auto curr_dim_idx_in_curr_index_vector = top_idx.get_current_dim_index();
     assert(static_cast<size_t>(curr_dim_idx_in_curr_index_vector) < curr_index_vector.size());
@@ -476,11 +476,11 @@ void GenomicsDBMultiDVectorField::run_operation(GenomicsDBMultiDVectorFieldOpera
     //first followed by [top+1]
     auto is_top_idx_valid = (top_idx.get_current_index_in_current_dimension()
                              < top_idx.get_num_entries_in_current_dimension());
-    if(is_top_idx_valid) {
+    if (is_top_idx_valid) {
       //First index in the next dimension is added to the top of the stack
       //Why +2u? dimension N-2 corresponds to a pointer to a contiguous segment of values
-      if(top_idx.get_current_dim_index()+2u < length_descriptor.get_num_dimensions()) {
-        for(auto i=0u; i<data_ptr_vec.size(); ++i) {
+      if (top_idx.get_current_dim_index()+2u < length_descriptor.get_num_dimensions()) {
+        for (auto i=0u; i<data_ptr_vec.size(); ++i) {
           auto& curr_tuple_element_top_idx = idx_stack_vec[i].back();
           auto copy_idx = curr_tuple_element_top_idx; //copy
           assert(copy_idx.get_current_index_in_current_dimension()
@@ -495,7 +495,7 @@ void GenomicsDBMultiDVectorField::run_operation(GenomicsDBMultiDVectorFieldOpera
           idx_stack_vec[i].emplace_back(copy_idx);
         }
       } else {
-        for(auto i=0u; i<data_ptr_vec.size(); ++i) {
+        for (auto i=0u; i<data_ptr_vec.size(); ++i) {
           auto& curr_tuple_element_top_idx = idx_stack_vec[i].back();
           assert(curr_tuple_element_top_idx.get_current_dim_index()+2u
                  >= length_descriptor.get_num_dimensions());
@@ -508,12 +508,12 @@ void GenomicsDBMultiDVectorField::run_operation(GenomicsDBMultiDVectorFieldOpera
         //reset outermost_dim_idx_changed_since_last_call_to_operate
         outermost_dim_idx_changed_since_last_call_to_operate = length_descriptor.get_num_dimensions()-2u;
         //Cannot move this to outside the if-else block because idx_stack memory can be reallocated (if block)
-        for(auto i=0u; i<data_ptr_vec.size(); ++i)
+        for (auto i=0u; i<data_ptr_vec.size(); ++i)
           idx_stack_vec[i].back().advance_index_in_current_dimension();
       }
       //DO NOT USE top_idx in this if block after this - emplace_back() might have reallocated the vector
     } else {
-      for(auto i=0u; i<idx_stack_vec.size(); ++i)
+      for (auto i=0u; i<idx_stack_vec.size(); ++i)
         idx_stack_vec[i].pop_back();
       --outermost_dim_idx_changed_since_last_call_to_operate;
     }
@@ -537,7 +537,7 @@ void GenomicsDBMultiDVectorFieldVCFPrinter::operate(const std::vector<const uint
   assert(idx_vector.size() == length_descriptor.get_num_dimensions()-1u);
   auto sep = length_descriptor.get_vcf_delimiter(length_descriptor.get_num_dimensions()-1u);
   //Print outer dimension separator
-  if(!m_first_call) {
+  if (!m_first_call) {
     assert(static_cast<size_t>(outermost_dim_idx_changed_since_last_call_to_operate)
            < length_descriptor.get_num_dimensions());
     (*m_fptr) << length_descriptor.get_vcf_delimiter(outermost_dim_idx_changed_since_last_call_to_operate);
@@ -545,16 +545,16 @@ void GenomicsDBMultiDVectorFieldVCFPrinter::operate(const std::vector<const uint
   auto num_elements = size_of_data_vec[0]
                       /(m_field_info_ptr->get_genomicsdb_type().get_tuple_element_size(0u));
 #ifdef DEBUG
-  for(auto i=0u; i<m_field_info_ptr->get_genomicsdb_type().get_num_elements_in_tuple(); ++i)
+  for (auto i=0u; i<m_field_info_ptr->get_genomicsdb_type().get_num_elements_in_tuple(); ++i)
     assert(num_elements == (size_of_data_vec[i]
                             /(m_field_info_ptr->get_genomicsdb_type().get_tuple_element_size(i))));
 #endif
   auto first_element = true;
-  for(auto j=0ull; j<num_elements; ++j) {
-    for(auto i=0u; i<m_field_info_ptr->get_genomicsdb_type().get_num_elements_in_tuple(); ++i) {
-      if(!first_element)
+  for (auto j=0ull; j<num_elements; ++j) {
+    for (auto i=0u; i<m_field_info_ptr->get_genomicsdb_type().get_num_elements_in_tuple(); ++i) {
+      if (!first_element)
         (*m_fptr) << sep;
-      switch(m_field_info_ptr->get_genomicsdb_type().get_tuple_element_bcf_ht_type(i)) {
+      switch (m_field_info_ptr->get_genomicsdb_type().get_tuple_element_bcf_ht_type(i)) {
 #define CASE_STATEMENTS(T) \
         { \
           cast_join_and_print<T>(*m_fptr, ptr_vec[i], j, 1u, sep); \

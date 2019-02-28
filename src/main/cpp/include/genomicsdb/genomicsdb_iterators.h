@@ -54,7 +54,7 @@ class GenomicsDBLiveCellMarker {
     m_row.resize(num_markers);
     m_begin.resize(num_markers);
     m_end.resize(num_markers);
-    for(auto i=0ull; i<num_markers; ++i) {
+    for (auto i=0ull; i<num_markers; ++i) {
       m_buffer_ptr_vec.emplace_back(num_fields, static_cast<GenomicsDBBuffer*>(0));
       m_indexes.emplace_back(num_fields);
     }
@@ -266,7 +266,7 @@ class SingleCellTileDBIterator {
     auto& genomicsdb_columnar_field = m_fields[field_query_idx];
     //No more markers for intervals intersecting query interval begin
     //get data from live list tail
-    if(m_PQ_live_cell_markers.empty()) {
+    if (m_PQ_live_cell_markers.empty()) {
       index = genomicsdb_columnar_field.get_curr_index_in_live_list_tail();
       return genomicsdb_columnar_field.get_live_buffer_list_tail_ptr();
     } else {

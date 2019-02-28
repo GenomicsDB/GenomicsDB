@@ -314,12 +314,12 @@ class VariantOperations {
 
   //Combination operation
   static inline uint64_t nCr(const int64_t n, const int64_t r) {
-    if(n < 0 || r < 0 || n < r)
+    if (n < 0 || r < 0 || n < r)
       return 0u;
     //Not the fastest method - if this is a bottleneck, implement faster algorithm
     auto begin_idx = 0ull;
     auto end_idx = 0ull;
-    if(r > n-r) {
+    if (r > n-r) {
       begin_idx = r+1u;
       end_idx = n-r;
     } else {
@@ -327,10 +327,10 @@ class VariantOperations {
       end_idx = r;
     }
     auto numerator = 1ull;
-    for(auto i=begin_idx; i<=static_cast<uint64_t>(n); ++i)
+    for (auto i=begin_idx; i<=static_cast<uint64_t>(n); ++i)
       numerator *= i;
     auto denominator = 1ull;
-    for(auto i=1ull; i<=end_idx; ++i)
+    for (auto i=1ull; i<=end_idx; ++i)
       denominator *= i;
     return numerator/denominator;
   }
@@ -431,11 +431,11 @@ class MaxAllelesCountOperator : public SingleVariantOperatorBase {
   }
   ~MaxAllelesCountOperator() {
     std::cerr << "TOTAL "<<m_total_lines<<"\n";
-    while(!m_top_alleles_pq.empty()) {
+    while (!m_top_alleles_pq.empty()) {
       auto& top_value = m_top_alleles_pq.top();
       std::cerr << top_value.m_column << "," << top_value.m_merged_reference_allele
                 << "," << top_value.size();
-      for(const auto& alt_allele : top_value.m_merged_alt_alleles)
+      for (const auto& alt_allele : top_value.m_merged_alt_alleles)
         std::cerr << "," << alt_allele;
       std::cerr << "\n";
       m_top_alleles_pq.pop();
@@ -444,8 +444,8 @@ class MaxAllelesCountOperator : public SingleVariantOperatorBase {
   virtual void operate(Variant& variant, const VariantQueryConfig& query_config) {
     SingleVariantOperatorBase::operate(variant, query_config);
     ++m_total_lines;
-    if(m_curr_count < m_top_count || m_merged_alt_alleles.size() > m_top_alleles_pq.top().size()) {
-      if(m_curr_count < m_top_count)
+    if (m_curr_count < m_top_count || m_merged_alt_alleles.size() > m_top_alleles_pq.top().size()) {
+      if (m_curr_count < m_top_count)
         ++m_curr_count;
       else
         m_top_alleles_pq.pop();

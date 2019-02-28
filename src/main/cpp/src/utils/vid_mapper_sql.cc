@@ -102,7 +102,7 @@ int SQLBasedVidMapper::load_contig_info() {
   }
 
   dbi_result_free(result);
-  return(GENOMICSDB_VID_MAPPER_SUCCESS);
+  return (GENOMICSDB_VID_MAPPER_SUCCESS);
 }
 
 int SQLBasedVidMapper::load_callset_info() {
@@ -136,7 +136,7 @@ int SQLBasedVidMapper::load_callset_info() {
   }
 
   dbi_result_free(result);
-  return(GENOMICSDB_VID_MAPPER_SUCCESS);
+  return (GENOMICSDB_VID_MAPPER_SUCCESS);
 }
 
 int SQLBasedVidMapper::load_field_info() {
@@ -278,14 +278,14 @@ int SQLBasedVidMapper::load_field_info() {
   }
 
   dbi_result_free(result);
-  return(GENOMICSDB_VID_MAPPER_SUCCESS);
+  return (GENOMICSDB_VID_MAPPER_SUCCESS);
 }
 
 int SQLBasedVidMapper::load_mapping_data_from_db() {
   load_contig_info();
   load_callset_info();
   load_field_info();
-  return(GENOMICSDB_VID_MAPPER_SUCCESS);
+  return (GENOMICSDB_VID_MAPPER_SUCCESS);
 }
 
 SQLBasedVidMapperException::~SQLBasedVidMapperException() {}

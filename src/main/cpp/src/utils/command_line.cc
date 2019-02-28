@@ -49,7 +49,7 @@ void parse_command_line(int argc, char** argv, CommandLineOpts& cl) {
   int c = 0;
   char* val;
   while ((c = getopt_long(argc, argv, "A:f:N:o:p:e:P:Sw:T:",loptions,NULL)) >= 0) {
-    switch(c) {
+    switch (c) {
     case 'w':
       cl.m_workspace = optarg;
       break;

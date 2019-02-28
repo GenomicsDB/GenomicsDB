@@ -153,7 +153,7 @@ class KnownFieldInfo {
    * Return ploidy given length descriptor and the number of elements in the cell for the GT field
    */
   static inline unsigned get_ploidy(const unsigned length_descriptor, const unsigned num_elements) {
-    switch(length_descriptor) {
+    switch (length_descriptor) {
     case BCF_VL_P:
       return num_elements;
     case BCF_VL_Phased_Ploidy:

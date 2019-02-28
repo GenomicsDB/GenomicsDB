@@ -287,12 +287,12 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
   //Delete move constructor
   VCF2TileDBLoader(VCF2TileDBLoader&& other) = delete;
   ~VCF2TileDBLoader() {
-    for(auto op : m_operators)
-      if(op)
+    for (auto op : m_operators)
+      if (op)
         delete op;
     clear();
 #ifdef HTSDIR
-    if(m_converter)
+    if (m_converter)
       delete m_converter;
     m_converter = 0;
 #endif

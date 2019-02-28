@@ -211,7 +211,7 @@ class GenomicsDBMultiDVectorIdx {
     //the innermost dimension is simply a vector of elements - the size, #elements and offsets are NOT stored on disk,
     //Since the innermost dimension is simply a raw vector, hence the +2u check for dimensions which store
     //size, #elements, offsets on disk
-    if(m_current_dim_idx+1u < m_field_info_ptr->m_length_descriptor.get_num_dimensions()) {
+    if (m_current_dim_idx+1u < m_field_info_ptr->m_length_descriptor.get_num_dimensions()) {
       assert(m_current_index_in_current_dimension < m_num_entries_in_current_dim);
       return m_offsets_ptr[m_current_index_in_current_dimension+1u]
              - m_offsets_ptr[m_current_index_in_current_dimension];

@@ -57,10 +57,10 @@ class RemapDataGoldGtIdxToTestGtIdx : public RemappedDataWrapperBase {
     m_haploid_gold_genotype_idx_to_test_idx.resize(num_alleles);
     auto num_diploid_gts = (num_alleles*(num_alleles+1))/2;
     m_diploid_gold_genotype_idx_to_test_idx.resize(num_diploid_gts);
-    for(auto i=0u; i<num_alleles; ++i) {
+    for (auto i=0u; i<num_alleles; ++i) {
       auto lut_test_allele_idx_i = lut.get_input_idx_for_merged(0, i);
       m_haploid_gold_genotype_idx_to_test_idx[i] = lut_test_allele_idx_i;
-      for(auto j=i; j<num_alleles; ++j) {
+      for (auto j=i; j<num_alleles; ++j) {
         auto lut_test_allele_idx_j = lut.get_input_idx_for_merged(0, j);
         m_diploid_gold_genotype_idx_to_test_idx[bcf_alleles2gt(i, j)] = bcf_alleles2gt(lut_test_allele_idx_i, lut_test_allele_idx_j);
       }
@@ -71,15 +71,15 @@ class RemapDataGoldGtIdxToTestGtIdx : public RemappedDataWrapperBase {
   }
   void add_mapping(const uint64_t gold_gt_idx, const uint64_t input_gt_idx) {
     assert(gold_gt_idx != static_cast<uint64_t>(lut_missing_value));
-    if(gold_gt_idx >= m_general_gold_genotype_idx_to_test_idx.size())
+    if (gold_gt_idx >= m_general_gold_genotype_idx_to_test_idx.size())
       m_general_gold_genotype_idx_to_test_idx.resize(gold_gt_idx+1u, lut_missing_value);
     m_general_gold_genotype_idx_to_test_idx[gold_gt_idx] = input_gt_idx;
   }
   uint64_t get_mapping(const uint64_t gold_gt_idx, const unsigned ploidy) const {
-    if(gold_gt_idx == static_cast<uint64_t>(lut_missing_value))
+    if (gold_gt_idx == static_cast<uint64_t>(lut_missing_value))
       return lut_missing_value;
     auto* vec_ptr = &m_haploid_gold_genotype_idx_to_test_idx;
-    switch(ploidy) {
+    switch (ploidy) {
     case 1u:
       vec_ptr = &m_haploid_gold_genotype_idx_to_test_idx;
       break;

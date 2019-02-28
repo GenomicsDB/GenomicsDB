@@ -102,7 +102,7 @@ class GenomicsDBImporter {
     const unsigned partition_idx,
     const uint8_t* data,
     const size_t num_bytes) {
-    if(!m_is_loader_setup)
+    if (!m_is_loader_setup)
       throw GenomicsDBImporterException(
         "Cannot write data to buffer stream in the GenomicsDBImporter without calling setup_loader() first");
     assert(m_loader_ptr);

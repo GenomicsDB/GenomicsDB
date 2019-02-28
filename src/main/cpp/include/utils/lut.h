@@ -69,9 +69,9 @@ class LUTBase {
    * @brief: clear all mappings
    */
   inline void reset_luts() {
-    for(auto& vec : m_inputs_2_merged_lut)
+    for (auto& vec : m_inputs_2_merged_lut)
       reset_vector(vec);
-    for(auto& vec : m_merged_2_inputs_lut)
+    for (auto& vec : m_merged_2_inputs_lut)
       reset_vector(vec);
   }
 
@@ -329,7 +329,7 @@ class MergedAllelesIdxLUT
     m_max_num_alleles = m_DEFAULT_INIT_NUM_ALLELES;
   }
   inline void resize_luts_if_needed(int64_t numMergedAlleles) {
-    if(numMergedAlleles > m_max_num_alleles) {
+    if (numMergedAlleles > m_max_num_alleles) {
       LUTBase<inputs_2_merged_LUT_is_input_ordered, merged_2_inputs_LUT_is_input_ordered>::resize_luts_if_needed(
         LUTBase<inputs_2_merged_LUT_is_input_ordered, merged_2_inputs_LUT_is_input_ordered>::m_num_input_vcfs, numMergedAlleles);
       m_max_num_alleles = numMergedAlleles;
@@ -359,7 +359,7 @@ class QueryIdxToKnownVariantFieldsEnumLUT : public LUTBase<true, true> {
   }
   inline void resize_luts_if_needed(int64_t numQueriedAttributes, int64_t numKnownVariantFields) {
     int64_t maxValue = std::max(numKnownVariantFields, numQueriedAttributes);
-    if(maxValue > m_LUT_size) {
+    if (maxValue > m_LUT_size) {
       LUTBase<true, true>::resize_luts_if_needed(1u, maxValue);
       m_LUT_size = maxValue;
     }
@@ -389,7 +389,7 @@ class SchemaIdxToKnownVariantFieldsEnumLUT : public LUTBase<true, true> {
   }
   inline void resize_luts_if_needed(int64_t numSchemaAttributes, int64_t numKnownVariantFields) {
     int64_t maxValue = std::max(numKnownVariantFields, numSchemaAttributes);
-    if(maxValue > m_LUT_size) {
+    if (maxValue > m_LUT_size) {
       LUTBase<true, true>::resize_luts_if_needed(1u, maxValue);
       m_LUT_size = maxValue;
     }
@@ -419,7 +419,7 @@ class QueryIdxToVCFHeaderFieldIdxLUT : public LUTBase<true, true> {
   }
   inline void resize_luts_if_needed(int numQueryAttributes, int numHeaderFields) {
     int64_t maxValue = std::max(numHeaderFields, numQueryAttributes);
-    if(maxValue > m_LUT_size) {
+    if (maxValue > m_LUT_size) {
       LUTBase<true, true>::resize_luts_if_needed(1u, maxValue);
       m_LUT_size = maxValue;
     }

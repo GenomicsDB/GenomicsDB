@@ -45,7 +45,7 @@ void build_gold_gt_idx_to_test_gt_idx(const std::vector<DataType>& input_data,
                                       std::vector<int>& input_call_allele_idx_vec
                                      ) {
   auto& remapper = dynamic_cast<RemapDataGoldGtIdxToTestGtIdx&>(remapped_data);
-  if(curr_genotype_combination_contains_missing_allele_for_input)
+  if (curr_genotype_combination_contains_missing_allele_for_input)
     remapper.add_mapping(remapped_gt_idx, lut_missing_value);
   else {
     auto input_gt_idx = VariantOperations::get_genotype_index(input_call_allele_idx_vec, false);
@@ -72,26 +72,26 @@ VCFDiffFile::VCFDiffFile(const std::string& filename, const std::string& regions
   m_hdr = bcf_hdr_read(fptr);
   bcf_close(fptr);
   //Contigs
-  for(auto i=0; i<m_hdr->n[BCF_DT_CTG]; ++i)
-    if(m_contigs.find(bcf_hdr_id2name(m_hdr, i)) == m_contigs.end())
+  for (auto i=0; i<m_hdr->n[BCF_DT_CTG]; ++i)
+    if (m_contigs.find(bcf_hdr_id2name(m_hdr, i)) == m_contigs.end())
       m_contigs.insert(bcf_hdr_id2name(m_hdr, i));
   m_contigs_lut.resize_luts_if_needed(1u, m_contigs.size());
   //Fields
   m_field_idx_to_known_field_enum.resize_luts_if_needed(m_hdr->n[BCF_DT_ID], GVCF_NUM_KNOWN_FIELDS);
-  for(auto i=0; i<m_hdr->n[BCF_DT_ID]; ++i) {
-    if(m_fields.find(bcf_hdr_int2id(m_hdr, BCF_DT_ID, i)) == m_fields.end()) {
+  for (auto i=0; i<m_hdr->n[BCF_DT_ID]; ++i) {
+    if (m_fields.find(bcf_hdr_int2id(m_hdr, BCF_DT_ID, i)) == m_fields.end()) {
       std::string field_name = std::move(std::string(bcf_hdr_int2id(m_hdr, BCF_DT_ID, i)));
       m_fields.insert(field_name);
       unsigned known_field_enum = 0;
       auto status = KnownFieldInfo::get_known_field_enum_for_name(field_name, known_field_enum);
-      if(status)
+      if (status)
         m_field_idx_to_known_field_enum.add_schema_idx_known_field_mapping(i, known_field_enum);
     }
   }
   m_fields_lut.resize_luts_if_needed(1u, m_fields.size());
   //Samples
-  for(auto i=0; i<bcf_hdr_nsamples(m_hdr); ++i)
-    if(m_samples.find(bcf_hdr_int2id(m_hdr, BCF_DT_SAMPLE, i)) == m_samples.end())
+  for (auto i=0; i<bcf_hdr_nsamples(m_hdr); ++i)
+    if (m_samples.find(bcf_hdr_int2id(m_hdr, BCF_DT_SAMPLE, i)) == m_samples.end())
       m_samples.insert(bcf_hdr_int2id(m_hdr, BCF_DT_SAMPLE, i));
   m_samples_lut.resize_luts_if_needed(1u, m_samples.size());
   m_gold_ploidy.resize(m_samples.size(), 0u);
@@ -101,10 +101,10 @@ VCFDiffFile::~VCFDiffFile() {
   m_filename.clear();
   m_regions.clear();
   m_line = 0;   //line is managed by reader
-  if(m_reader)
+  if (m_reader)
     bcf_sr_destroy(m_reader);
   m_reader = 0;
-  if(m_hdr)
+  if (m_hdr)
     bcf_hdr_destroy(m_hdr);
   m_hdr = 0;
   m_contigs.clear();
@@ -115,7 +115,7 @@ VCFDiffFile::~VCFDiffFile() {
   m_samples_lut.clear();
   m_fields_in_gold_line.clear();
   m_fields_in_test_line.clear();
-  if(m_tmp_hts_string.m && m_tmp_hts_string.s)
+  if (m_tmp_hts_string.m && m_tmp_hts_string.s)
     free(m_tmp_hts_string.s);
   m_tmp_hts_string.s = 0;
   m_tmp_hts_string.m = 0;
@@ -129,7 +129,7 @@ void VCFDiffFile::setup_lut(const std::set<std::string>& gold_set, const std::se
   auto iter = std::set_intersection(gold_set.begin(), gold_set.end(), test_set.begin(), test_set.end(),
                                     common_elements.begin());
   common_elements.resize(iter - common_elements.begin());
-  for(const auto& x : common_elements) {
+  for (const auto& x : common_elements) {
     auto idx = bcf_hdr_id2int(m_hdr, bcf_dt_type, x.c_str());
     VERIFY_OR_THROW(idx >= 0);
     auto gold_idx = bcf_hdr_id2int(gold.m_hdr, bcf_dt_type, x.c_str());
@@ -139,11 +139,11 @@ void VCFDiffFile::setup_lut(const std::set<std::string>& gold_set, const std::se
 }
 
 void VCFDiffFile::setup_luts(const VCFDiffFile& gold, const bool use_callsets_file_for_samples) {
-  if(!use_callsets_file_for_samples && gold.m_samples != m_samples)
+  if (!use_callsets_file_for_samples && gold.m_samples != m_samples)
     throw VCFDiffException("ERROR: Sample names in the 2 file headers are different - cannot perform any further comparisons");
   setup_lut(gold.m_contigs, m_contigs, BCF_DT_CTG, m_contigs_lut, gold);
   setup_lut(gold.m_fields, m_fields, BCF_DT_ID, m_fields_lut, gold);
-  if(!use_callsets_file_for_samples)
+  if (!use_callsets_file_for_samples)
     setup_lut(gold.m_samples, m_samples, BCF_DT_SAMPLE, m_samples_lut, gold);
   m_fields_in_gold_line.resize(std::max(gold.m_fields.size(), m_fields.size()));
   m_fields_in_test_line.resize(std::max(gold.m_fields.size(), m_fields.size()));
@@ -152,11 +152,11 @@ void VCFDiffFile::setup_luts(const VCFDiffFile& gold, const bool use_callsets_fi
 
 void VCFDiffFile::set_regions_and_open_file() {
   bcf_sr_set_regions(m_reader, m_regions.c_str(), 0);
-  if(bcf_sr_add_reader(m_reader, m_filename.c_str()) != 1)
+  if (bcf_sr_add_reader(m_reader, m_filename.c_str()) != 1)
     throw VCFDiffException(std::string("Could not open file ")+m_filename+" or its index doesn't exist - VCF/BCF files must be block compressed and indexed");
   auto next_line_exists = bcf_sr_next_line(m_reader);
   m_line = next_line_exists ? bcf_sr_get_line(m_reader, 0) : 0;
-  if(m_line)
+  if (m_line)
     ++m_num_lines_read;
 }
 
@@ -164,7 +164,7 @@ void VCFDiffFile::read_and_advance() {
   assert(m_line);
   auto next_line_exists = bcf_sr_next_line(m_reader);
   m_line = next_line_exists ? bcf_sr_get_line(m_reader, 0) : 0;
-  if(m_line)
+  if (m_line)
     ++m_num_lines_read;
 }
 
@@ -174,7 +174,7 @@ void VCFDiffFile::seek_and_read(const int rid, const int pos) {
   bcf_sr_seek(m_reader, contig, pos);
   auto next_line_exists = bcf_sr_next_line(m_reader);
   m_line = next_line_exists ? bcf_sr_get_line(m_reader, 0) : 0;
-  if(m_line)
+  if (m_line)
     ++m_num_lines_read;
 }
 
@@ -185,7 +185,7 @@ void VCFDiffFile::print_line(std::ostream& fptr) {
 }
 
 inline int GET_NUM_FIELDS(const bcf1_t* line, const int bcf_field_type) {
-  if(bcf_field_type == BCF_HL_INFO)
+  if (bcf_field_type == BCF_HL_INFO)
     return line->n_info;
   else {
     assert(bcf_field_type == BCF_HL_FMT);
@@ -195,7 +195,7 @@ inline int GET_NUM_FIELDS(const bcf1_t* line, const int bcf_field_type) {
 
 inline int GET_FIELD_IDX(const bcf1_t* line, const int bcf_field_type, const int idx) {
   assert(idx >= 0);
-  if(bcf_field_type == BCF_HL_INFO) {
+  if (bcf_field_type == BCF_HL_INFO) {
     assert(idx < line->n_info);
     return line->d.info[idx].key;
   } else {
@@ -207,7 +207,7 @@ inline int GET_FIELD_IDX(const bcf1_t* line, const int bcf_field_type, const int
 
 inline int GET_FIELD_BT_TYPE(const bcf1_t* line, const int bcf_field_type, const int idx) {
   assert(idx >= 0);
-  if(bcf_field_type == BCF_HL_INFO) {
+  if (bcf_field_type == BCF_HL_INFO) {
     assert(idx < line->n_info);
     return line->d.info[idx].type;
   } else {
@@ -220,7 +220,7 @@ inline int GET_FIELD_BT_TYPE(const bcf1_t* line, const int bcf_field_type, const
 inline const char* GET_FIELD_NAME(const bcf_hdr_t* hdr, const bcf1_t* line, const int bcf_field_type, const int idx) {
   assert(idx >= 0);
   int hdr_field_idx = -1;
-  if(bcf_field_type == BCF_HL_INFO) {
+  if (bcf_field_type == BCF_HL_INFO) {
     assert(idx < line->n_info);
     hdr_field_idx = line->d.info[idx].key;
   } else {
@@ -234,7 +234,7 @@ inline const char* GET_FIELD_NAME(const bcf_hdr_t* hdr, const bcf1_t* line, cons
 
 inline int GET_NUM_ELEMENTS(const bcf1_t* line, const int bcf_field_type, const int idx) {
   assert(idx >= 0);
-  if(bcf_field_type == BCF_HL_INFO) {
+  if (bcf_field_type == BCF_HL_INFO) {
     assert(idx < line->n_info);
     return line->d.info[idx].len;
   } else {
@@ -247,7 +247,7 @@ inline int GET_NUM_ELEMENTS(const bcf1_t* line, const int bcf_field_type, const 
 template<class T>
 inline T GET_DATA_PTR(const bcf1_t* line, const int bcf_field_type, const int idx, const int sample_idx, const int num_elements_per_sample) {
   assert(idx >= 0);
-  if(bcf_field_type == BCF_HL_INFO) {
+  if (bcf_field_type == BCF_HL_INFO) {
     assert(idx < line->n_info);
     return reinterpret_cast<T>(line->d.info[idx].vptr);
   } else {
@@ -261,39 +261,39 @@ bool bcf_is_empty_field(const bcf_hdr_t* hdr, const bcf1_t* line, const int bcf_
   assert(idx >= 0);
   auto num_elements_per_sample = GET_NUM_ELEMENTS(line, bcf_field_type, idx);
   auto total_num_elements = (bcf_field_type == BCF_HL_FMT) ? num_elements_per_sample*bcf_hdr_nsamples(hdr) : num_elements_per_sample;
-  switch(GET_FIELD_BT_TYPE(line, bcf_field_type, idx)) {
+  switch (GET_FIELD_BT_TYPE(line, bcf_field_type, idx)) {
   case BCF_BT_INT8: {
     auto ptr = GET_DATA_PTR<const int8_t*>(line, bcf_field_type, idx, 0, num_elements_per_sample);
-    for(auto i=0; i<total_num_elements; ++i)
-      if(is_bcf_valid_value<int8_t>(ptr[i]))
+    for (auto i=0; i<total_num_elements; ++i)
+      if (is_bcf_valid_value<int8_t>(ptr[i]))
         return false;
     break;
   }
   case BCF_BT_INT16: {
     auto ptr = GET_DATA_PTR<const int16_t*>(line, bcf_field_type, idx, 0, num_elements_per_sample);
-    for(auto i=0; i<total_num_elements; ++i)
-      if(is_bcf_valid_value<int16_t>(ptr[i]))
+    for (auto i=0; i<total_num_elements; ++i)
+      if (is_bcf_valid_value<int16_t>(ptr[i]))
         return false;
     break;
   }
   case BCF_BT_INT32: {
     auto ptr = GET_DATA_PTR<const int32_t*>(line, bcf_field_type, idx, 0, num_elements_per_sample);
-    for(auto i=0; i<total_num_elements; ++i)
-      if(is_bcf_valid_value<int32_t>(ptr[i]))
+    for (auto i=0; i<total_num_elements; ++i)
+      if (is_bcf_valid_value<int32_t>(ptr[i]))
         return false;
     break;
   }
   case BCF_BT_FLOAT: {
     auto ptr = GET_DATA_PTR<const float*>(line, bcf_field_type, idx, 0, num_elements_per_sample);
-    for(auto i=0; i<total_num_elements; ++i)
-      if(is_bcf_valid_value<float>(ptr[i]))
+    for (auto i=0; i<total_num_elements; ++i)
+      if (is_bcf_valid_value<float>(ptr[i]))
         return false;
     break;
   }
   case BCF_BT_CHAR: {
     auto ptr = GET_DATA_PTR<const char*>(line, bcf_field_type, idx, 0, num_elements_per_sample);
-    for(auto i=0; i<total_num_elements; ++i)
-      if(is_bcf_valid_value<char>(ptr[i]))
+    for (auto i=0; i<total_num_elements; ++i)
+      if (is_bcf_valid_value<char>(ptr[i]))
         return false;
     break;
   }
@@ -323,7 +323,7 @@ inline bool compare_unequal(const T1 a, const T2 b, const bool is_GT_field) {
 //Specialization for float - values should be close
 template<>
 inline bool compare_unequal(const float a, const float b, const bool is_GT_field) {
-  if((is_bcf_missing_value<float>(a) && is_bcf_missing_value<float>(b)) ||
+  if ((is_bcf_missing_value<float>(a) && is_bcf_missing_value<float>(b)) ||
       (is_bcf_vector_end_value<float>(a) && is_bcf_vector_end_value<float>(b)))
     return false;
   float diff = fabsf(a-b);
@@ -346,23 +346,23 @@ bool VCFDiffFile::compare_unequal_vector(const bcf_hdr_t* gold_hdr, const bcf1_t
   auto known_field_enum = m_field_idx_to_known_field_enum.get_known_field_enum_for_schema_idx(test_field_idx);
   auto is_GT_field = known_field_enum == GVCF_GT_IDX;
   auto length_descriptor = BCF_VL_FIXED;
-  if(m_field_idx_to_known_field_enum.is_defined_value(known_field_enum))
+  if (m_field_idx_to_known_field_enum.is_defined_value(known_field_enum))
     length_descriptor = KnownFieldInfo::get_length_descriptor_for_known_field_enum(known_field_enum);
   else {
     auto gold_length_descriptor = bcf_hdr_id2length(gold_hdr, bcf_field_type, gold_field_idx);
     auto test_length_descriptor = bcf_hdr_id2length(m_hdr, bcf_field_type, test_field_idx);
-    if(gold_length_descriptor != test_length_descriptor)
+    if (gold_length_descriptor != test_length_descriptor)
       return true;
     length_descriptor = gold_length_descriptor;
   }
   //Vector lengths must be identical for these types of fields
   //Also, if the alleles don't match, don't bother checking further
-  if((length_descriptor == BCF_VL_G || length_descriptor == BCF_VL_R || length_descriptor == BCF_VL_A)
+  if ((length_descriptor == BCF_VL_G || length_descriptor == BCF_VL_R || length_descriptor == BCF_VL_A)
       && (num_test_elements != num_gold_elements || m_diff_alleles_flag))
     return true;
-  for(auto j=0; j<num_samples; ++j) {
+  for (auto j=0; j<num_samples; ++j) {
     //genotype idx mapping - general ploidy
-    if(length_descriptor == BCF_VL_G && m_gold_ploidy[j] > 2u) {
+    if (length_descriptor == BCF_VL_G && m_gold_ploidy[j] > 2u) {
       std::vector<int> tmp_vector; //not really used for anything
       m_gold_genotype_idx_to_test_idx.clear_general_mapping_vector();
       VariantOperations::remap_data_based_on_genotype_general<int>(tmp_vector,
@@ -382,9 +382,9 @@ bool VCFDiffFile::compare_unequal_vector(const bcf_hdr_t* gold_hdr, const bcf1_t
             || (bcf_hdr_nsamples(m_hdr) == 0))); //sites-only query
     auto gold_ptr = GET_DATA_PTR<const T1*>(gold_line, bcf_field_type, gold_line_field_pos_idx, j, num_gold_elements);
     auto test_ptr = GET_DATA_PTR<const T2*>(m_line, bcf_field_type, test_line_field_pos_idx, lut_test_sample_idx, num_test_elements);
-    for(auto k=0; k<min_num_per_sample; ++k) {
+    for (auto k=0; k<min_num_per_sample; ++k) {
       auto test_vector_idx = k;
-      switch(length_descriptor) {
+      switch (length_descriptor) {
       case BCF_VL_A:
         test_vector_idx = m_alleles_lut.get_input_idx_for_merged(0, k+1) - 1;   //ALT only
         break;
@@ -399,16 +399,16 @@ bool VCFDiffFile::compare_unequal_vector(const bcf_hdr_t* gold_hdr, const bcf1_t
         break;        //test_vector_idx = k
       }
       assert(!CombineAllelesLUT::is_missing_value(test_vector_idx) && test_vector_idx < min_num_per_sample);
-      if(compare_unequal<T1, T2>(gold_ptr[k], test_ptr[test_vector_idx], is_GT_field))
+      if (compare_unequal<T1, T2>(gold_ptr[k], test_ptr[test_vector_idx], is_GT_field))
         return true;    //unequal
     }
-    if(num_test_elements > num_gold_elements) {
-      for(auto k=min_num_per_sample; k<max_num_per_sample; ++k)
-        if(is_bcf_valid_value<T2>(test_ptr[k]) && !(is_GT_field && test_ptr[k] == bcf_gt_missing))
+    if (num_test_elements > num_gold_elements) {
+      for (auto k=min_num_per_sample; k<max_num_per_sample; ++k)
+        if (is_bcf_valid_value<T2>(test_ptr[k]) && !(is_GT_field && test_ptr[k] == bcf_gt_missing))
           return true;  //extra elements
     } else {
-      for(auto k=min_num_per_sample; k<max_num_per_sample; ++k)
-        if(is_bcf_valid_value<T1>(gold_ptr[k]) && !(is_GT_field && gold_ptr[k] == bcf_gt_missing) )
+      for (auto k=min_num_per_sample; k<max_num_per_sample; ++k)
+        if (is_bcf_valid_value<T1>(gold_ptr[k]) && !(is_GT_field && gold_ptr[k] == bcf_gt_missing) )
           return true;  //extra elements
     }
   }
@@ -418,29 +418,29 @@ bool VCFDiffFile::compare_unequal_vector(const bcf_hdr_t* gold_hdr, const bcf1_t
 bool VCFDiffFile::compare_unequal_fields(const bcf_hdr_t* gold_hdr, const bcf1_t* gold_line, const int bcf_field_type, std::string& error_message) {
   reset_field_to_line_idx_mapping();
   auto diff_fields = false;
-  for(auto i=0; i<GET_NUM_FIELDS(gold_line, bcf_field_type); ++i) {
+  for (auto i=0; i<GET_NUM_FIELDS(gold_line, bcf_field_type); ++i) {
     auto field_idx = GET_FIELD_IDX(gold_line, bcf_field_type, i);
     assert(field_idx >= 0 && static_cast<size_t>(field_idx) < m_fields_in_gold_line.size());
     m_fields_in_gold_line[field_idx] = i;
   }
-  for(auto i=0; i<GET_NUM_FIELDS(m_line, bcf_field_type); ++i) {
+  for (auto i=0; i<GET_NUM_FIELDS(m_line, bcf_field_type); ++i) {
     auto field_idx = GET_FIELD_IDX(m_line, bcf_field_type, i);
     assert(field_idx >= 0 && static_cast<size_t>(field_idx) < m_fields_in_test_line.size());
     m_fields_in_test_line[field_idx] = i;
   }
-  for(auto i=0; i<GET_NUM_FIELDS(gold_line, bcf_field_type); ++i) {
+  for (auto i=0; i<GET_NUM_FIELDS(gold_line, bcf_field_type); ++i) {
     auto gold_field_idx = GET_FIELD_IDX(gold_line, bcf_field_type, i);
     auto lut_test_field_idx = m_fields_lut.get_test_idx_for_gold(0, gold_field_idx);
     //Skip comparing END values as the big outer loop handles that
-    if(!GoldLUT::is_missing_value(lut_test_field_idx)) {
+    if (!GoldLUT::is_missing_value(lut_test_field_idx)) {
       auto known_field_enum = m_field_idx_to_known_field_enum.get_known_field_enum_for_schema_idx(lut_test_field_idx);
-      if(m_field_idx_to_known_field_enum.is_defined_value(known_field_enum) && known_field_enum == GVCF_END_IDX)
+      if (m_field_idx_to_known_field_enum.is_defined_value(known_field_enum) && known_field_enum == GVCF_END_IDX)
         continue;
     }
     assert(GoldLUT::is_missing_value(lut_test_field_idx) || static_cast<size_t>(lut_test_field_idx) < m_fields_in_test_line.size());
     //Missing field in test
-    if(GoldLUT::is_missing_value(lut_test_field_idx) || m_fields_in_test_line[lut_test_field_idx] < 0) {
-      if(!bcf_is_empty_field(gold_hdr, gold_line, bcf_field_type, i)) {
+    if (GoldLUT::is_missing_value(lut_test_field_idx) || m_fields_in_test_line[lut_test_field_idx] < 0) {
+      if (!bcf_is_empty_field(gold_hdr, gold_line, bcf_field_type, i)) {
         diff_fields = true;
         error_message +=  (std::string("ERROR: ") + (bcf_field_type == BCF_HL_INFO ? "INFO" : "FORMAT")
                            + " field " + bcf_hdr_int2id(gold_hdr, BCF_DT_ID, gold_field_idx) + " missing in test line\n");
@@ -448,20 +448,20 @@ bool VCFDiffFile::compare_unequal_fields(const bcf_hdr_t* gold_hdr, const bcf1_t
     } else {
       auto test_line_field_pos_idx = m_fields_in_test_line[lut_test_field_idx];
       //Fields are of different type
-      if(bcf_hdr_id2type(gold_hdr, bcf_field_type, gold_field_idx) != bcf_hdr_id2type(m_hdr, bcf_field_type, lut_test_field_idx)) {
+      if (bcf_hdr_id2type(gold_hdr, bcf_field_type, gold_field_idx) != bcf_hdr_id2type(m_hdr, bcf_field_type, lut_test_field_idx)) {
         diff_fields = true;
         error_message += (std::string("ERROR: ") + (bcf_field_type == BCF_HL_INFO ? "INFO" : "FORMAT")
                           + " field " + bcf_hdr_int2id(gold_hdr, BCF_DT_ID, gold_field_idx) + " type is different in gold and test\n");
         continue;
       }
       //Boolean field, both lines have the field - nothing to do
-      if(bcf_hdr_id2type(gold_hdr, bcf_field_type, gold_field_idx) == BCF_HT_FLAG)
+      if (bcf_hdr_id2type(gold_hdr, bcf_field_type, gold_field_idx) == BCF_HT_FLAG)
         continue;
       //Big switch
       auto field_bt_type_combo = GET_FIELD_BT_TYPE(gold_line, bcf_field_type, i)  << 8 |
                                  GET_FIELD_BT_TYPE(m_line, bcf_field_type, test_line_field_pos_idx);
       auto field_vector_diff = false;
-      switch(field_bt_type_combo) {
+      switch (field_bt_type_combo) {
       case BCF_BT_INT8 << 8 | BCF_BT_INT8:
         field_vector_diff = compare_unequal_vector<int8_t, int8_t>(gold_hdr, gold_line, bcf_field_type, i, test_line_field_pos_idx);
         break;
@@ -500,22 +500,22 @@ bool VCFDiffFile::compare_unequal_fields(const bcf_hdr_t* gold_hdr, const bcf1_t
         break;
       }
       diff_fields = diff_fields || field_vector_diff;
-      if(field_vector_diff)
+      if (field_vector_diff)
         error_message += (std::string("ERROR: Gold and test differ in the ")+(bcf_field_type == BCF_HL_INFO ? "INFO" : "FORMAT")
                           +" field "+bcf_hdr_int2id(gold_hdr, BCF_DT_ID, gold_field_idx)+"\n");
     }
   }
-  for(auto i=0; i<GET_NUM_FIELDS(m_line, bcf_field_type); ++i) {
+  for (auto i=0; i<GET_NUM_FIELDS(m_line, bcf_field_type); ++i) {
     auto test_field_idx = GET_FIELD_IDX(m_line, bcf_field_type, i);
     //Skip comparing END values as the big outer loop handles that
     auto known_field_enum = m_field_idx_to_known_field_enum.get_known_field_enum_for_schema_idx(test_field_idx);
-    if(m_field_idx_to_known_field_enum.is_defined_value(known_field_enum) && known_field_enum == GVCF_END_IDX)
+    if (m_field_idx_to_known_field_enum.is_defined_value(known_field_enum) && known_field_enum == GVCF_END_IDX)
       continue;
     auto lut_gold_field_idx = m_fields_lut.get_gold_idx_for_test(0, test_field_idx);
     assert(GoldLUT::is_missing_value(lut_gold_field_idx) || static_cast<size_t>(lut_gold_field_idx) < m_fields_in_gold_line.size());
     //Missing field in gold
-    if(GoldLUT::is_missing_value(lut_gold_field_idx) || m_fields_in_gold_line[lut_gold_field_idx] < 0) {
-      if(!bcf_is_empty_field(m_hdr, m_line, bcf_field_type, i)) {
+    if (GoldLUT::is_missing_value(lut_gold_field_idx) || m_fields_in_gold_line[lut_gold_field_idx] < 0) {
+      if (!bcf_is_empty_field(m_hdr, m_line, bcf_field_type, i)) {
         diff_fields = true;
         error_message += (std::string("ERROR: ") + (bcf_field_type == BCF_HL_INFO ? "INFO" : "FORMAT")
                           + " field " + bcf_hdr_int2id(m_hdr, BCF_DT_ID, test_field_idx) + " added in test line\n");
@@ -529,12 +529,12 @@ std::unordered_set<std::string> get_ID_set(const bcf1_t* line) {
   std::unordered_set<std::string> id_set;
   auto curr_ID_value = std::string(line->d.id);
   auto last_begin_value = 0u;
-  for(auto i=0u; i<curr_ID_value.length(); ++i)
-    if(curr_ID_value[i] == ';' || curr_ID_value[i] == ',') { //GATK doesn't follow VCF spec for IDs, concatenates ID list with a comma
+  for (auto i=0u; i<curr_ID_value.length(); ++i)
+    if (curr_ID_value[i] == ';' || curr_ID_value[i] == ',') { //GATK doesn't follow VCF spec for IDs, concatenates ID list with a comma
       id_set.insert(curr_ID_value.substr(last_begin_value, i-last_begin_value));
       last_begin_value = i+1u;
     }
-  if(curr_ID_value.length() > last_begin_value)
+  if (curr_ID_value.length() > last_begin_value)
     id_set.insert(curr_ID_value.substr(last_begin_value, curr_ID_value.length()-last_begin_value));
   return id_set;
 }
@@ -544,10 +544,10 @@ void VCFDiffFile::get_ploidy(const uint64_t num_samples, const bcf_fmt_t& GT_fmt
   auto GT_ptr = reinterpret_cast<const DataType*>(GT_fmt_t.p);
   auto k = 0ull;
   auto max_num_per_sample = GT_fmt_t.n;
-  for(auto i=0ull; i<num_samples; ++i,k+=max_num_per_sample) {
+  for (auto i=0ull; i<num_samples; ++i,k+=max_num_per_sample) {
     m_gold_ploidy[i] = max_num_per_sample; //default initialize to max value
-    for(auto j=0; j<max_num_per_sample; ++j)
-      if(!is_bcf_valid_value<DataType>(GT_ptr[k+j])) {
+    for (auto j=0; j<max_num_per_sample; ++j)
+      if (!is_bcf_valid_value<DataType>(GT_ptr[k+j])) {
         m_gold_ploidy[i] = j; //for example, if 1 sample is haploid
         break;
       }
@@ -555,7 +555,7 @@ void VCFDiffFile::get_ploidy(const uint64_t num_samples, const bcf_fmt_t& GT_fmt
 }
 
 void VCFDiffFile::get_ploidy_wrapper(const bcf_hdr_t* hdr, const bcf1_t* line) {
-  if(line->n_fmt == 0) {
+  if (line->n_fmt == 0) {
     m_gold_ploidy.assign(m_gold_ploidy.size(), 0);
     return;
   }
@@ -564,7 +564,7 @@ void VCFDiffFile::get_ploidy_wrapper(const bcf_hdr_t* hdr, const bcf1_t* line) {
   auto& GT_fmt_t = line->d.fmt[0];
   assert(strcmp(bcf_hdr_int2id(hdr, BCF_DT_ID, GT_fmt_t.id), "GT") == 0);
   auto num_samples = bcf_hdr_nsamples(hdr);
-  switch(GT_fmt_t.type) {
+  switch (GT_fmt_t.type) {
   case BCF_BT_INT8:
     get_ploidy<int8_t>(num_samples, GT_fmt_t);
     break;
@@ -591,11 +591,11 @@ void VCFDiffFile::compare_line(const bcf_hdr_t* gold_hdr, bcf1_t* gold_line) {
     auto gold_ID_set = std::move(get_ID_set(gold_line));
     auto test_ID_set = std::move(get_ID_set(m_line));
     auto diff_ID_flag = false;
-    if(gold_ID_set.size() != test_ID_set.size())
+    if (gold_ID_set.size() != test_ID_set.size())
       diff_ID_flag = true;
     else {
-      for(const auto& val : gold_ID_set)
-        if(test_ID_set.find(val) == test_ID_set.end()) {
+      for (const auto& val : gold_ID_set)
+        if (test_ID_set.find(val) == test_ID_set.end()) {
           diff_ID_flag = true;
           break;
         }
@@ -608,17 +608,17 @@ void VCFDiffFile::compare_line(const bcf_hdr_t* gold_hdr, bcf1_t* gold_line) {
   //compare REF allele
   m_diff_alleles_flag = (m_line->n_allele != gold_line->n_allele)
                         || (m_line->pos == gold_line->pos && strcmp(m_line->d.allele[0], gold_line->d.allele[0]) != 0);
-  if(!m_diff_alleles_flag) {
+  if (!m_diff_alleles_flag) {
     m_alleles_lut.resize_luts_if_needed(1, m_line->n_allele);
     std::unordered_map<std::string, int> allele_to_gold_idx;
     //Ignore REF
-    for(auto i=1; i<gold_line->n_allele; ++i)
+    for (auto i=1; i<gold_line->n_allele; ++i)
       allele_to_gold_idx[gold_line->d.allele[i]] = i;
     m_alleles_lut.add_input_merged_idx_pair(0, 0, 0);   //REF mapping
     //Ignore REF
-    for(auto i=1; i<m_line->n_allele; ++i) {
+    for (auto i=1; i<m_line->n_allele; ++i) {
       auto iter = allele_to_gold_idx.find(m_line->d.allele[i]);
-      if(iter == allele_to_gold_idx.end()) {
+      if (iter == allele_to_gold_idx.end()) {
         m_diff_alleles_flag = true;
         break;
       }
@@ -634,15 +634,15 @@ void VCFDiffFile::compare_line(const bcf_hdr_t* gold_hdr, bcf1_t* gold_line) {
   diff_line_flag = diff_QUAL_flag || diff_line_flag;
   //FILTER
   auto diff_FILTER_flag = (m_line->d.n_flt != gold_line->d.n_flt);
-  if(!diff_FILTER_flag) {
+  if (!diff_FILTER_flag) {
     reset_field_to_line_idx_mapping();
-    for(auto i=0; i<gold_line->d.n_flt; ++i)
+    for (auto i=0; i<gold_line->d.n_flt; ++i)
       m_fields_in_gold_line[gold_line->d.flt[i]] = i;
-    for(auto i=0; i<m_line->d.n_flt; ++i) {
+    for (auto i=0; i<m_line->d.n_flt; ++i) {
       auto lut_gold_flt_idx = m_fields_lut.get_gold_idx_for_test(0, m_line->d.flt[i]);
       assert(GoldLUT::is_missing_value(lut_gold_flt_idx) ||
              static_cast<size_t>(lut_gold_flt_idx) < m_fields_in_gold_line.size());
-      if(GoldLUT::is_missing_value(lut_gold_flt_idx) || m_fields_in_gold_line[lut_gold_flt_idx] < 0) {
+      if (GoldLUT::is_missing_value(lut_gold_flt_idx) || m_fields_in_gold_line[lut_gold_flt_idx] < 0) {
         diff_FILTER_flag = true;
         break;
       }
@@ -660,7 +660,7 @@ void VCFDiffFile::compare_line(const bcf_hdr_t* gold_hdr, bcf1_t* gold_line) {
   //FORMAT fields
   auto diff_FORMAT_fields = compare_unequal_fields(gold_hdr, gold_line, BCF_HL_FMT, error_message);
   diff_line_flag = diff_FORMAT_fields || diff_line_flag;
-  if(diff_line_flag) {
+  if (diff_line_flag) {
     std::cerr << "=====================================================================\n";
     m_tmp_hts_string.l = 0;
     vcf_format(gold_hdr, gold_line, &m_tmp_hts_string);
@@ -674,14 +674,14 @@ void VCFDiffFile::compare_line(const bcf_hdr_t* gold_hdr, bcf1_t* gold_line) {
 std::string VCFDiffFile::create_region(const std::string& regions,
                                        const std::unordered_map<std::string, std::pair<int64_t, int64_t>>& regions_contig_to_interval, const std::string& contig) {
   auto quoted_contig = '"' + contig + '"';
-  if(regions.length()) {
+  if (regions.length()) {
     auto iter = regions_contig_to_interval.find(contig);
-    if(iter == regions_contig_to_interval.end())
+    if (iter == regions_contig_to_interval.end())
       return "";
     auto pair = (*iter).second;
-    if(pair.first == 1ll && pair.second == INT64_MAX)
+    if (pair.first == 1ll && pair.second == INT64_MAX)
       return (quoted_contig + ",");    //full contig
-    if(pair.second == INT64_MAX) {
+    if (pair.second == INT64_MAX) {
       auto contig_idx = bcf_hdr_name2id(m_hdr, contig.c_str());
       VERIFY_OR_THROW(contig_idx >= 0);
       auto contig_length = bcf_hdr_id2contig_length(m_hdr, contig_idx);
@@ -709,30 +709,30 @@ void set_regions(VCFDiffFile& gold, VCFDiffFile& test, const std::string& region
   std::sort(common_contigs.begin(), common_contigs.end());
   //Regions set - parse regions string
   std::unordered_map<std::string, std::pair<int64_t, int64_t>> regions_contig_to_interval;
-  if(regions.length()) {
+  if (regions.length()) {
     std::set<std::string> regions_contig_set;
     //regions of the form 'chr'|'chr:pos'|'chr:from-to'|'chr:from-[,...]
     //Same format as bcftools
     std::istringstream f1(regions);
     std::string contig_region;
-    while(std::getline(f1, contig_region, ',')) {
+    while (std::getline(f1, contig_region, ',')) {
       std::string contig;
       int64_t begin = 1;
       int64_t end = INT64_MAX;
       std::istringstream f2(contig_region);
       std::string tmp_s;
       auto idx = 0u;
-      while(std::getline(f2, tmp_s, ':')) {
-        if(idx == 0u)
+      while (std::getline(f2, tmp_s, ':')) {
+        if (idx == 0u)
           contig = tmp_s;
         else {
           std::istringstream f3(tmp_s);
           std::string boundaries;
           auto idx2 = 0u;
-          while(std::getline(f3, boundaries, '-')) {
-            if(idx2 == 0u) {
+          while (std::getline(f3, boundaries, '-')) {
+            if (idx2 == 0u) {
               begin = strtoll(boundaries.c_str(), 0, 10);
-              if(tmp_s.find("-") == std::string::npos)      //"-" not found
+              if (tmp_s.find("-") == std::string::npos)     //"-" not found
                 end = begin;
             } else
               end = strtoll(boundaries.c_str(), 0, 10);
@@ -741,7 +741,7 @@ void set_regions(VCFDiffFile& gold, VCFDiffFile& test, const std::string& region
         }
         ++idx;
       }
-      if(regions_contig_set.find(contig) == regions_contig_set.end()) {
+      if (regions_contig_set.find(contig) == regions_contig_set.end()) {
         regions_contig_set.insert(contig);
         regions_contig_to_interval[contig] = std::pair<int64_t, int64_t>(begin, end);
       }
@@ -763,11 +763,11 @@ void set_regions(VCFDiffFile& gold, VCFDiffFile& test, const std::string& region
     only_gold.resize(iter - only_gold.begin());
   }
   gold.m_regions="";
-  for(auto& x : common_contigs)
+  for (auto& x : common_contigs)
     gold.m_regions += (gold.create_region(regions, regions_contig_to_interval, x));
-  for(auto& x : only_gold)
+  for (auto& x : only_gold)
     gold.m_regions += (gold.create_region(regions, regions_contig_to_interval, x));
-  if(gold.m_regions.length())
+  if (gold.m_regions.length())
     gold.m_regions.pop_back();  //remove trailing ,
   //Contigs only in test
   std::vector<std::string> only_test(test_contigs.size());
@@ -777,11 +777,11 @@ void set_regions(VCFDiffFile& gold, VCFDiffFile& test, const std::string& region
     only_test.resize(iter - only_test.begin());
   }
   test.m_regions="";
-  for(auto& x : common_contigs)
+  for (auto& x : common_contigs)
     test.m_regions += (test.create_region(regions, regions_contig_to_interval, x));
-  for(auto& x : only_test)
+  for (auto& x : only_test)
     test.m_regions += (test.create_region(regions, regions_contig_to_interval, x));
-  if(test.m_regions.length())
+  if (test.m_regions.length())
     test.m_regions.pop_back();  //remove trailing ,
   gold.set_regions_and_open_file();
   test.set_regions_and_open_file();
@@ -797,14 +797,14 @@ void construct_regions_for_partitions(const std::string& loader_json_filename, V
   std::string str((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
   rapidjson::Document json;
   json.Parse(str.c_str());
-  if(json.HasParseError())
+  if (json.HasParseError())
     throw VCFDiffException(std::string("Syntax error in JSON file ")+loader_json_filename);
   VERIFY_OR_THROW(json.HasMember("vid_mapping_file") && json["vid_mapping_file"].IsString());
   VERIFY_OR_THROW(json.HasMember("column_partitions"));
   vid_mapper = static_cast<VidMapper*>(new FileBasedVidMapper(json["vid_mapping_file"].GetString()));
   vid_mapper->read_callsets_info(json, rank);
   //Limit #callsets
-  if(json.HasMember("limit_callset_row_idx") && json["limit_callset_row_idx"].IsInt64())
+  if (json.HasMember("limit_callset_row_idx") && json["limit_callset_row_idx"].IsInt64())
     g_num_callsets = json["limit_callset_row_idx"].GetInt64() + 1;
   else
     g_num_callsets = vid_mapper->get_num_callsets();
@@ -814,24 +814,24 @@ void construct_regions_for_partitions(const std::string& loader_json_filename, V
   //Find all contig regions in the current partition
   auto current_position = column_interval.first;
   std::string contig_name;
-  while(current_position <= column_interval.second) {
+  while (current_position <= column_interval.second) {
     int64_t contig_position = -1ll;
     auto status = vid_mapper->get_contig_location(current_position, contig_name, contig_position);
-    if(status) {
+    if (status) {
       regions += contig_name;
       regions += (":" + std::to_string(contig_position+1)+"-");    //regions string is 1-based
       ContigInfo info;
       VERIFY_OR_THROW(vid_mapper->get_contig_info(contig_name, info));
       //partition ends here
-      if(info.m_tiledb_column_offset + info.m_length > column_interval.second)
+      if (info.m_tiledb_column_offset + info.m_length > column_interval.second)
         regions += std::to_string(column_interval.second - info.m_tiledb_column_offset + 1); //regions string is 1-based
       regions += ",";
     }
     status = vid_mapper->get_next_contig_location(current_position, contig_name, current_position);
-    if(!status) //no more contigs found
+    if (!status) //no more contigs found
       break;
   }
-  if(regions.length())   //delete last comma
+  if (regions.length())  //delete last comma
     regions.pop_back();
 }
 
@@ -846,7 +846,7 @@ void setup_samples_lut(const std::string& test_to_gold_callset_map_file, VCFDiff
   std::string str((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
   rapidjson::Document json;
   json.Parse(str.c_str());
-  if(json.HasParseError())
+  if (json.HasParseError())
     throw VCFDiffException(std::string("Syntax error in JSON file ")+test_to_gold_callset_map_file);
   VERIFY_OR_THROW(json.HasMember("test_to_gold_callset_map") && json["test_to_gold_callset_map"].IsObject());
   const auto& callset_map = json["test_to_gold_callset_map"];
@@ -855,22 +855,22 @@ void setup_samples_lut(const std::string& test_to_gold_callset_map_file, VCFDiff
   //+std::to_string(vid_mapper->get_num_callsets())+" samples while mapping file has "+std::to_string(callset_map.MemberCount())+
   //" - cannot perform any further comparisons");
   //Everyone should have the same number of samples
-  if(g_num_callsets != bcf_hdr_nsamples(gold.m_hdr))
+  if (g_num_callsets != bcf_hdr_nsamples(gold.m_hdr))
     throw VCFDiffException("ERROR: Mismatch in the #samples in the gold VCF and the callsets JSON file. Gold has "+
                            std::to_string(bcf_hdr_nsamples(gold.m_hdr))+" samples while callsets JSON has "+std::to_string(g_num_callsets)+
                            " - cannot perform any further comparisons");
-  if(g_num_callsets != bcf_hdr_nsamples(test.m_hdr))
+  if (g_num_callsets != bcf_hdr_nsamples(test.m_hdr))
     throw VCFDiffException("ERROR: Mismatch in the #samples in the test VCF and the callsets JSON file. Test has "+
                            std::to_string(bcf_hdr_nsamples(test.m_hdr))+" samples while callsets JSON has "+std::to_string(g_num_callsets)+
                            " - cannot perform any further comparisons");
   auto num_samples_found = 0u;
-  for(auto b=callset_map.MemberBegin(), e=callset_map.MemberEnd(); b!=e; ++b) {
+  for (auto b=callset_map.MemberBegin(), e=callset_map.MemberEnd(); b!=e; ++b) {
     VERIFY_OR_THROW((*b).value.IsString());
     auto test_sample_name = (*b).name.GetString();
     auto gold_sample_name = (*b).value.GetString();
     auto gold_sample_idx = bcf_hdr_id2int(gold.m_hdr, BCF_DT_SAMPLE, gold_sample_name);
     auto test_sample_idx = bcf_hdr_id2int(test.m_hdr, BCF_DT_SAMPLE, test_sample_name);
-    if(gold_sample_idx >= 0 && test_sample_idx >= 0) {
+    if (gold_sample_idx >= 0 && test_sample_idx >= 0) {
       test.m_samples_lut.add_input_merged_idx_pair(0, test_sample_idx, gold_sample_idx);
       ++num_samples_found;
     }
@@ -900,8 +900,8 @@ int main(int argc, char** argv) {
   std::string regions = "";
   std::string loader_json_filename = "";
   std::string test_to_gold_callset_map_file = "";
-  while((c=getopt_long(argc, argv, "t:r:l:p:", long_options, NULL)) >= 0) {
-    switch(c) {
+  while ((c=getopt_long(argc, argv, "t:r:l:p:", long_options, NULL)) >= 0) {
+    switch (c) {
     case 't':
       g_threshold = strtod(optarg, 0);
       break;
@@ -922,7 +922,7 @@ int main(int argc, char** argv) {
       break;
     }
   }
-  if(optind+2 > argc) {
+  if (optind+2 > argc) {
     std::cerr << "Needs 2 VCF files as input <gold> <test>\n";
     exit(-1);
   }
@@ -934,10 +934,10 @@ int main(int argc, char** argv) {
   //Loader input json - compare partitions created by vcf2tiledb
   VidMapper* vid_mapper = 0;
   JSONConfigBase json_config_base;
-  if(use_loader_json_file) {
+  if (use_loader_json_file) {
     construct_regions_for_partitions(loader_json_filename, vid_mapper, json_config_base, my_world_mpi_rank,
                                      gold, test, regions);
-    if(test_to_gold_callset_map_file.length())
+    if (test_to_gold_callset_map_file.length())
       setup_samples_lut(test_to_gold_callset_map_file, gold, test, vid_mapper);
   }
   //Regions
@@ -947,26 +947,26 @@ int main(int argc, char** argv) {
   int curr_gold_contig_idx_in_vid = -1;
   ContigInfo info;
   auto both_must_have_valid_lines = false;
-  while(have_data) {
+  while (have_data) {
     auto lut_gold_contig_idx = test.m_contigs_lut.get_gold_idx_for_test(0, test.m_line->rid);
     auto lut_test_contig_idx = test.m_contigs_lut.get_test_idx_for_gold(0, gold.m_line->rid);
     both_must_have_valid_lines = false;
     //Different contig
-    while(have_data && gold.m_line->rid != lut_gold_contig_idx) {
+    while (have_data && gold.m_line->rid != lut_gold_contig_idx) {
       //Gold has reached a contig not in test
-      if(GoldLUT::is_missing_value(lut_test_contig_idx)) {
+      if (GoldLUT::is_missing_value(lut_test_contig_idx)) {
         std::cerr << "ERROR: Gold vcf has extra line(s) - printing the first extra line\n";
         gold.print_line();
         break;    //because common contigs are handled first
       }
       //test has reached a contig not in gold
-      if(GoldLUT::is_missing_value(lut_gold_contig_idx)) {
+      if (GoldLUT::is_missing_value(lut_gold_contig_idx)) {
         std::cerr << "ERROR: Test vcf has extra line(s) - printing the first extra line\n";
         test.print_line();
         break;    //because common contigs are handled first
       }
       //Both have entries in common_contigs, gold is at "lower" contig
-      if(std::string(bcf_hdr_id2name(gold.m_hdr, gold.m_line->rid)) < std::string(bcf_hdr_id2name(gold.m_hdr, lut_gold_contig_idx))) {
+      if (std::string(bcf_hdr_id2name(gold.m_hdr, gold.m_line->rid)) < std::string(bcf_hdr_id2name(gold.m_hdr, lut_gold_contig_idx))) {
         std::cerr << "ERROR: Gold vcf has extra line(s) - printing the first extra line\n";
         gold.print_line();
         gold.seek_and_read(lut_gold_contig_idx, test.m_line->pos);  //gold seeks to test's position
@@ -980,7 +980,7 @@ int main(int argc, char** argv) {
       have_data = test.m_line && gold.m_line;
     }
     //Same contig now
-    if(have_data && gold.m_line->rid == lut_gold_contig_idx) {
+    if (have_data && gold.m_line->rid == lut_gold_contig_idx) {
       auto do_compare = true;
       //Set END points
       gold.m_line->m_end_point = -1;
@@ -1000,30 +1000,30 @@ int main(int argc, char** argv) {
                                || (test.m_line->pos <= gold.m_line->pos && test.m_line->m_end_point >= gold.m_line->pos) );
       auto full_overlap = (gold.m_line->pos == test.m_line->pos && gold.m_line->m_end_point == test.m_line->m_end_point);
       //Different positions
-      if(!full_overlap) {
+      if (!full_overlap) {
         do_compare = false;
         auto before_begin = false;
         auto after_end = false;
         //Check if variant is before or after the specified interval
-        if(vid_mapper) {
-          if(curr_gold_contig_idx_in_vid != gold.m_line->rid) {
+        if (vid_mapper) {
+          if (curr_gold_contig_idx_in_vid != gold.m_line->rid) {
             auto status = vid_mapper->get_contig_info(bcf_hdr_id2name(gold.m_hdr, gold.m_line->rid), info);
             curr_gold_contig_idx_in_vid = status ? gold.m_line->rid : -1;
           }
-          if(curr_gold_contig_idx_in_vid == gold.m_line->rid) {
+          if (curr_gold_contig_idx_in_vid == gold.m_line->rid) {
             //Variant starts before column partition
-            if((info.m_tiledb_column_offset + static_cast<int64_t>(gold.m_line->pos)) <
+            if ((info.m_tiledb_column_offset + static_cast<int64_t>(gold.m_line->pos)) <
                 json_config_base.get_column_partition(my_world_mpi_rank).first)
               before_begin = true;
             //Variant past the column interval
-            if((info.m_tiledb_column_offset + static_cast<int64_t>(gold.m_line->m_end_point)) >
+            if ((info.m_tiledb_column_offset + static_cast<int64_t>(gold.m_line->m_end_point)) >
                 json_config_base.get_column_partition(my_world_mpi_rank).second)
               after_end = true;
           }
         }
         //Overlap and if this is a NON_REF interval, print warning and do comparison
-        if(gold_is_NON_REF_block && test_is_NON_REF_block && partial_overlap) {
-          if(!before_begin && !after_end) {
+        if (gold_is_NON_REF_block && test_is_NON_REF_block && partial_overlap) {
+          if (!before_begin && !after_end) {
             std::cout << "WARNING: Gold and test REF blocks overlap, but do not match exactly at position "<<
                       bcf_hdr_id2name(test.m_hdr, test.m_line->rid) << ","<< (std::min(test.m_line->pos, gold.m_line->pos)+1)<<"\n";
             gold.print_line(std::cout);
@@ -1031,29 +1031,29 @@ int main(int argc, char** argv) {
           }
           do_compare = true;
         } else {
-          if(!before_begin) {
+          if (!before_begin) {
             std::cerr << "ERROR: Lines with different positions found - resetting file ptr to next match position\n";
             gold.print_line();
             test.print_line();
           }
           //No overlap
-          if(!partial_overlap) {
-            if(test.m_line->pos > gold.m_line->pos)
+          if (!partial_overlap) {
+            if (test.m_line->pos > gold.m_line->pos)
               gold.seek_and_read(gold.m_line->rid, test.m_line->pos);
             else
               test.seek_and_read(test.m_line->rid, gold.m_line->pos);
           } else {      //partial overlap
-            if(test.m_line->m_end_point > gold.m_line->m_end_point) {
+            if (test.m_line->m_end_point > gold.m_line->m_end_point) {
               //test contains deletion and gold contains spanning deletion, advance test
-              if(test.m_line->rlen > 1 && (test.m_line->d.var_type|VCF_INDEL)
+              if (test.m_line->rlen > 1 && (test.m_line->d.var_type|VCF_INDEL)
                   && (gold.m_line->d.var_type|VCF_SPANNING_DELETION) && test.m_line->pos <= gold.m_line->pos) {
                 test.read_and_advance();
                 both_must_have_valid_lines = before_begin;      //if !before_begin, then error message is already printed
               } else
                 gold.read_and_advance();
-            } else if(gold.m_line->m_end_point > test.m_line->m_end_point) {
+            } else if (gold.m_line->m_end_point > test.m_line->m_end_point) {
               //gold contains deletion and test contains spanning deletion, advance gold
-              if(gold.m_line->rlen > 1 && (gold.m_line->d.var_type|VCF_INDEL)
+              if (gold.m_line->rlen > 1 && (gold.m_line->d.var_type|VCF_INDEL)
                   && (test.m_line->d.var_type|VCF_SPANNING_DELETION) && gold.m_line->pos <= test.m_line->pos) {
                 gold.read_and_advance();
                 both_must_have_valid_lines = before_begin;      //if !before_begin, then error message is already printed
@@ -1067,17 +1067,17 @@ int main(int argc, char** argv) {
           }
         }
       }
-      if(do_compare) {
+      if (do_compare) {
         test.compare_line(gold.m_hdr, gold.m_line);
-        if(full_overlap) {
+        if (full_overlap) {
           gold.read_and_advance();
           test.read_and_advance();
           both_must_have_valid_lines = true;
         } else { //must be partial_overlap
           assert(partial_overlap);
-          if(test.m_line->m_end_point > gold.m_line->m_end_point)
+          if (test.m_line->m_end_point > gold.m_line->m_end_point)
             gold.read_and_advance();
-          else if(gold.m_line->m_end_point > test.m_line->m_end_point)
+          else if (gold.m_line->m_end_point > test.m_line->m_end_point)
             test.read_and_advance();
           else {    //equal end points - advance both
             gold.read_and_advance();
@@ -1092,17 +1092,17 @@ int main(int argc, char** argv) {
   }
   have_data = test.m_line && gold.m_line;
   //Print error for the case where one of them has run out of lines, but the other has lines
-  if(!have_data) {
-    for(auto i=0u; i<2u; ++i) {
+  if (!have_data) {
+    for (auto i=0u; i<2u; ++i) {
       auto& diff_ref = (i == 0u) ? gold : test;
       auto name = (i == 0u) ? "Gold" : "Test";
-      if(diff_ref.m_line) {
-        if(both_must_have_valid_lines) {
+      if (diff_ref.m_line) {
+        if (both_must_have_valid_lines) {
           std::cerr << "ERROR: "<< name << " vcf has extra line(s) - printing the first extra line\n";
           diff_ref.print_line();
         } else {
           diff_ref.read_and_advance();
-          if(diff_ref.m_line) {
+          if (diff_ref.m_line) {
             std::cerr << "ERROR: "<< name << " vcf has extra line(s) - printing the first extra line\n";
             diff_ref.print_line();
           }
@@ -1110,7 +1110,7 @@ int main(int argc, char** argv) {
       }
     }
   }
-  if(vid_mapper)
+  if (vid_mapper)
     delete vid_mapper;
   MPI_Finalize();
 #else //ifdef HTSDIR

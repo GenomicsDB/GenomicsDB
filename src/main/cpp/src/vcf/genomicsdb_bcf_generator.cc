@@ -42,22 +42,22 @@ GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_
   GenomicsDBImportConfig loader_config;
   //Parse loader JSON file
   //If the loader JSON is not specified, vid_mapping_file and callset_mapping_file must be specified in the query JSON
-  if(!(loader_config_file.empty())) {
+  if (!(loader_config_file.empty())) {
     loader_config.read_from_file(loader_config_file, my_rank);
     m_query_config.update_from_loader(loader_config, my_rank);
   }
   //Parse query JSON file - ensures that vid, callset may be obtained from loader (if exists)
   m_query_config.read_from_file(query_config_file, my_rank);
-  if(!(loader_config_file.empty()))
+  if (!(loader_config_file.empty()))
     m_query_config.subset_query_column_ranges_based_on_partition(loader_config, my_rank);
   m_query_config.set_vcf_output_format(output_format);
   m_vcf_adapter.initialize(m_query_config);
   auto& vid_mapper = m_query_config.get_vid_mapper();
   //Specified chromosome and start end
-  if(chr && strlen(chr) > 0u) {
+  if (chr && strlen(chr) > 0u) {
     ContigInfo contig_info;
     auto found_contig = vid_mapper.get_contig_info(chr, contig_info);
-    if(!found_contig)
+    if (!found_contig)
       throw GenomicsDBJNIException(std::string("Could not find TileDB column interval for contig: ")+chr);
     int64_t column_begin = contig_info.m_tiledb_column_offset + static_cast<int64_t>(start) - 1; //since VCF positions are 1 based
     int64_t column_end = contig_info.m_tiledb_column_offset + static_cast<int64_t>(end) - 1; //since VCF positions are 1 based
@@ -74,7 +74,7 @@ GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_
   m_combined_bcf_operator = new BroadCombinedGVCFOperator(m_vcf_adapter, vid_mapper, m_query_config,
       m_query_config.get_max_diploid_alt_alleles_that_can_be_genotyped(), use_missing_values_only_not_vector_end);
   m_query_column_interval_idx = 0u;
-  if(produce_header_only)
+  if (produce_header_only)
     m_scan_state.set_done(true);
   else {
     m_query_processor->scan_and_operate(m_query_processor->get_array_descriptor(), m_query_config, *m_combined_bcf_operator, m_query_column_interval_idx,
@@ -87,18 +87,18 @@ GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_
 
 GenomicsDBBCFGenerator::~GenomicsDBBCFGenerator() {
   //Delete iterator before storage manager is deleted
-  if(m_scan_state.get_iterator()) {
+  if (m_scan_state.get_iterator()) {
     delete m_scan_state.get_iterator();
     m_scan_state.set_iterator(0);
   }
   m_buffers.clear();
-  if(m_combined_bcf_operator)
+  if (m_combined_bcf_operator)
     delete m_combined_bcf_operator;
   m_combined_bcf_operator = 0;
-  if(m_query_processor)
+  if (m_query_processor)
     delete m_query_processor;
   m_query_processor = 0;
-  if(m_storage_manager)
+  if (m_storage_manager)
     delete m_storage_manager;
   m_storage_manager = 0;
 #ifdef DO_PROFILING
@@ -107,13 +107,13 @@ GenomicsDBBCFGenerator::~GenomicsDBBCFGenerator() {
 }
 
 void GenomicsDBBCFGenerator::produce_next_batch() {
-  if(m_done)
+  if (m_done)
     return;
   auto num_bytes_produced = 0ull;
-  while(num_bytes_produced == 0u) {
-    if(m_scan_state.end()) {
+  while (num_bytes_produced == 0u) {
+    if (m_scan_state.end()) {
       ++m_query_column_interval_idx;
-      if(m_produce_header_only ||
+      if (m_produce_header_only ||
           m_query_column_interval_idx >= m_query_config.get_num_column_intervals()) {
         reset_read_buffer();
         m_done = true;
@@ -134,21 +134,21 @@ size_t GenomicsDBBCFGenerator::read_and_advance(uint8_t* dst, size_t offset, siz
   m_timer.start();
 #endif
   auto total_bytes_advanced = 0ull;
-  if(n == SIZE_MAX)
+  if (n == SIZE_MAX)
     produce_next_batch();
   else
-    while(total_bytes_advanced < n && m_buffer_control.get_num_entries_with_valid_data() > 0u) {
+    while (total_bytes_advanced < n && m_buffer_control.get_num_entries_with_valid_data() > 0u) {
       auto& curr_buffer = m_buffers[m_buffer_control.get_read_idx()];
       //Minimum of space left in buffer and #bytes to fetch
       auto num_bytes_in_curr_buffer = std::min<size_t>(n-total_bytes_advanced, curr_buffer.get_num_remaining_bytes());
-      if(dst)
+      if (dst)
         memcpy_s(dst+offset+total_bytes_advanced, num_bytes_in_curr_buffer,
                  &(curr_buffer.m_buffer[curr_buffer.m_next_read_idx]), num_bytes_in_curr_buffer);
       //Advance marker
       curr_buffer.m_next_read_idx += num_bytes_in_curr_buffer;
       total_bytes_advanced += num_bytes_in_curr_buffer;
       //Reached end of buffer
-      if(curr_buffer.m_next_read_idx >= curr_buffer.m_num_valid_bytes)
+      if (curr_buffer.m_next_read_idx >= curr_buffer.m_num_valid_bytes)
         produce_next_batch();
     }
 #ifdef DO_PROFILING
