@@ -462,7 +462,6 @@ int main(int argc, char *argv[]) {
   std::string json_config_file = "";
   std::string loader_json_config_file = "";
   bool skip_query_on_root = false;
-  auto print_version_only = false;
   unsigned command_idx = COMMAND_RANGE_QUERY;
   size_t segment_size = 10u*1024u*1024u; //in bytes = 10MB
   auto segment_size_set_in_command_line = false;
@@ -520,19 +519,19 @@ int main(int argc, char *argv[]) {
       break;
     case ARGS_IDX_VERSION:
       std::cout << GENOMICSDB_VERSION <<"\n";
-      print_version_only = true;
       return 0;
     case 'h':
       print_usage();
       return 0;
     default:
       std::cerr << "Unknown command line argument\n";
+      print_usage();
       return -1;
     }
   }
 
   if (json_config_file.empty()) {
-    std::cerr << "Query JSON file (-j) is a mandatory argument - unspecified\n.";
+    std::cerr << "Query JSON file (-j) is a mandatory argument - unspecified\n";
     print_usage();
     return -1;
   }
@@ -565,7 +564,8 @@ int main(int argc, char *argv[]) {
     workspace = query_config.get_workspace(my_world_mpi_rank);
     array_name = query_config.get_array_name(my_world_mpi_rank);
     if (workspace.empty() || array_name.empty()) {
-      std::cerr << "Missing workspace(-w) or array name (-A)\n";
+      std::cerr << "Missing workspace or array name\n";
+      print_usage();
       return -1;
     }
 #ifdef USE_GPERFTOOLS

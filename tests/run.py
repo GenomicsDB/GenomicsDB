@@ -216,6 +216,9 @@ def tool_sanity_checks(exe_path):
     run_cmd(gt_mpi_gather_path + ' --version', True);
     run_cmd(gt_mpi_gather_path + ' --gibberish', False);
     run_cmd(gt_mpi_gather_path + ' -j non-existent-query-json', False);
+    run_cmd(gt_mpi_gather_path + ' -j inputs/dummy/non_existent_callset.json', False);
+    run_cmd(gt_mpi_gather_path + ' -j inputs/dummy/non_existent_vidmap.json', False);
+    run_cmd(gt_mpi_gather_path + ' -j inputs/dummy/non_existent_workspace_array.json', False);
 
 def main():
     if(len(sys.argv) < 3):
