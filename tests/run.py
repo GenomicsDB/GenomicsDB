@@ -2,6 +2,7 @@
 
 #The MIT License (MIT)
 #Copyright (c) 2016-2017 Intel Corporation
+#Copyright (c) 2019 Omics Data Automation, Inc.
 
 #Permission is hereby granted, free of charge, to any person obtaining a copy of 
 #this software and associated documentation files (the "Software"), to deal in 
@@ -193,12 +194,36 @@ def test_pre_1_0_0_query_compatibility(tmpdir):
         cleanup_and_exit(tmpdir, -1)
     sys.stdout.write("Successful\n")
 
+def run_cmd(cmd, expected_to_pass):
+    pid = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
+    stdout_string, stderr_string = pid.communicate()
+    if(expected_to_pass and pid.returncode != 0):
+        sys.stderr.write('Sanity check : '+cmd+' failed\n');
+        sys.stderr.write(stdout_string)
+        sys.stderr.write(stderr_string)
+        sys.exit(-1);
+
+def tool_sanity_checks(exe_path):
+    gt_mpi_gather_path = exe_path+os.path.sep+'gt_mpi_gather';
+    try:
+        st = os.stat(exe_path)
+    except os.error:
+        sys.stderr.write("Could not find " + gt_mpi_gather_path);
+        sys.exit(-1);
+    run_cmd(gt_mpi_gather_path, False);
+    run_cmd(gt_mpi_gather_path + ' --help', True);
+    run_cmd(gt_mpi_gather_path + ' --h', True);
+    run_cmd(gt_mpi_gather_path + ' --version', True);
+    run_cmd(gt_mpi_gather_path + ' --gibberish', False);
+    run_cmd(gt_mpi_gather_path + ' -j non-existent-query-json', False);
+
 def main():
     if(len(sys.argv) < 3):
         sys.stderr.write('Needs 2 arguments <build_dir> <install_dir>\n');
         sys.exit(-1);
     gcda_prefix_dir = sys.argv[1];
     exe_path = sys.argv[2]+os.path.sep+'bin';
+    tool_sanity_checks(exe_path);
     #Switch to tests directory
     parent_dir=os.path.dirname(os.path.realpath(__file__))
     os.chdir(parent_dir)
