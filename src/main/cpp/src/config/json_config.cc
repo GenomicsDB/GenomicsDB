@@ -465,6 +465,10 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
       m_attributes[i] = std::move(std::string(q2.GetString()));
     }
   }
+  if (m_json.HasMember("query_filter")) {
+    VERIFY_OR_THROW(m_json["query_filter"].IsString());
+    m_query_filter = m_json["query_filter"].GetString();
+  }
   if (m_json.HasMember("segment_size")) {
     VERIFY_OR_THROW(m_json["segment_size"].IsInt64());
     m_segment_size = m_json["segment_size"].GetInt64();

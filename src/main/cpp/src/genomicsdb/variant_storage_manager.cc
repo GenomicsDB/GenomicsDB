@@ -58,8 +58,10 @@ std::vector<const char*> VariantStorageManager::m_metadata_attributes = std::vec
 #define GET_ALIGNED_BUFFER_SIZE(buffer_size, field_size) ((((buffer_size)+(field_size)-1u)/(field_size))*(field_size))
 
 //VariantArrayCellIterator functions
-VariantArrayCellIterator::VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const VariantArraySchema& variant_array_schema,
-    const std::string& array_path, const int64_t* range, const std::vector<int>& attribute_ids, const size_t buffer_size)
+VariantArrayCellIterator::VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const VariantArraySchema& variant_array_schema, 
+						   const std::string& array_path, const int64_t* range,
+						   const std::vector<int>& attribute_ids,
+						   const size_t buffer_size, const std::string& query_filter)
   : m_num_queried_attributes(attribute_ids.size()), m_tiledb_ctx(tiledb_ctx),
     m_variant_array_schema(&variant_array_schema), m_cell(variant_array_schema, attribute_ids)
 #ifdef DO_PROFILING
@@ -105,6 +107,9 @@ VariantArrayCellIterator::VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const
   if (status != TILEDB_OK)
     throw VariantStorageManagerException(std::string("Error while initializing TileDB iterator")
                                          +"\nTileDB error message : "+tiledb_errmsg);
+  if (query_filter.size() > 0) {
+    status = tiledb_array_iterator_apply_filter(m_tiledb_array_iterator, query_filter.c_str());
+  }
 #ifdef DEBUG
   m_last_row = -1;
   m_last_column = -1;
@@ -461,7 +466,7 @@ VariantStorageManager::VariantStorageManager(const std::string& workspace, const
   }
 }
 
-int VariantStorageManager::open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode) {
+int VariantStorageManager::open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode, const std::string& query_filter) {
   auto mode_iter = VariantStorageManager::m_mode_string_to_int.find(mode);
   VERIFY_OR_THROW(mode_iter != VariantStorageManager::m_mode_string_to_int.end() && "Unknown mode of opening an array");
   auto mode_int = (*mode_iter).second;
@@ -474,6 +479,9 @@ int VariantStorageManager::open_array(const std::string& array_name, const VidMa
                     (m_workspace+'/'+array_name).c_str(),
                     mode_int, NULL,
                     0, 0);
+    if (status == TILEDB_OK && mode_int == TILEDB_ARRAY_READ && query_filter.size() != 0) {
+      status = tiledb_array_apply_filter(tiledb_array, query_filter.c_str());
+    }
     if (status == TILEDB_OK) {
       auto idx = m_open_arrays_info_vector.size();
       //Schema

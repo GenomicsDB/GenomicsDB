@@ -563,11 +563,7 @@ int main(int argc, char *argv[]) {
     vcf_adapter.initialize(query_config);
     workspace = query_config.get_workspace(my_world_mpi_rank);
     array_name = query_config.get_array_name(my_world_mpi_rank);
-    if (workspace.empty() || array_name.empty()) {
-      std::cerr << "Missing workspace or array name\n";
-      print_usage();
-      return -1;
-    }
+    assert(!workspace.empty() && !array_name.empty());
 #ifdef USE_GPERFTOOLS
     ProfilerStart("gprofile.log");
 #endif

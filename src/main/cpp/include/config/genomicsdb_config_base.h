@@ -173,6 +173,8 @@ class GenomicsDBConfigBase {
   //Lower and upper bounds of callset row idx to import in this invocation
   int64_t m_lb_callset_row_idx;
   int64_t m_ub_callset_row_idx;
+  //Filter Expression for reading arrays
+  std::string m_query_filter;
   //TileDB segment size
   size_t m_segment_size;
   //VCF output parameters
