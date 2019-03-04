@@ -891,6 +891,37 @@ def main():
                         } }
                     ]
             },
+	    { "name" : "t6_7_8_asa", 'golden_output' : 'golden_outputs/t6_7_8_asa.vcf',
+                'callset_mapping_file': 'inputs/callsets/t6_7_8_asa.json',
+                'vid_mapping_file': 'inputs/vid_all_asa.json',
+                'size_per_column_partition': 3000,
+                "query_params": [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }],
+                      "force_override": True,
+                      'segment_size': 100,
+                      "attributes": asa_vcf_attributes,
+                        "golden_output": {
+                        "vcf"      : "golden_outputs/t6_7_8_asa.vcf",
+                        } },
+		    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 8029500,
+                            "high": 1000000000
+                        }]
+                    }],
+                      "force_override": True,
+                      'segment_size': 100,
+                      "attributes": asa_vcf_attributes,
+                        "golden_output": {
+                        "vcf"      : "golden_outputs/t6_7_8_asa_vcf_at_8029500",
+                        } },
+                    ]
+            },
     ];
     for test_params_dict in loader_tests:
         test_name = test_params_dict['name']
