@@ -834,6 +834,7 @@ void BroadCombinedGVCFOperator::handle_deletions(Variant& variant, const Variant
   auto GT_length_descriptor = m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_GT_IDX)
                               ? m_query_config->get_length_descriptor_for_query_attribute_idx(m_GT_query_idx)
                               : FieldLengthDescriptor();
+  m_remapped_variant.resize(variant.get_num_calls(),  variant.get_call(0).get_num_fields());
   for (auto iter=variant.begin(), e=variant.end(); iter != e; ++iter) {
     auto& curr_call = *iter;
     auto curr_call_idx_in_variant = iter.get_call_idx_in_variant();
@@ -913,6 +914,7 @@ void BroadCombinedGVCFOperator::handle_deletions(Variant& variant, const Variant
           if (length_descriptor.get_num_dimensions() > 1u) {
             auto& remapped_field =
               m_remapped_variant.get_call(curr_call_idx_in_variant).get_field(query_field_idx);
+	    copy_field(remapped_field, curr_call.get_field(query_field_idx));
             remap_allele_specific_annotations(curr_field,
                                               remapped_field,
                                               curr_call_idx_in_variant,
