@@ -5,8 +5,7 @@
 //The following function returns wall-clock time and not CPU time
 //Any profiling on Mac is pointless for CPU time
 #ifdef __MACH__
-int clock_gettime(clock_id_t clk_id, struct timespec *tp)
-{
+int clock_gettime(clock_id_t clk_id, struct timespec *tp) {
   clock_serv_t cclock;
   mach_timespec_t mts;
   host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);

@@ -72,13 +72,13 @@ enum {
  * also identify the workspace and db_array.
  */
 class SQLVidMapperRequest {
-  public:
-    std::string host_name;
-    std::string user_name;
-    std::string pass_word;
-    std::string db_name;
-    std::string work_space;
-    std::string array_name;
+ public:
+  std::string host_name;
+  std::string user_name;
+  std::string pass_word;
+  std::string db_name;
+  std::string work_space;
+  std::string array_name;
 };
 
 /**
@@ -86,88 +86,96 @@ class SQLVidMapperRequest {
  * may also be used to modify DB info.
  */
 class SQLBasedVidMapper : public VidMapper {
-  public:
-    SQLBasedVidMapper(const SQLVidMapperRequest&);
+ public:
+  SQLBasedVidMapper(const SQLVidMapperRequest&);
 
-    /* following two declarations disable copy semantics since not needed */
-    SQLBasedVidMapper(const SQLBasedVidMapper&) = delete;
+  /* following two declarations disable copy semantics since not needed */
+  SQLBasedVidMapper(const SQLBasedVidMapper&) = delete;
 
-    void operator=(const SQLBasedVidMapper&) = delete;
+  void operator=(const SQLBasedVidMapper&) = delete;
 
-    /* following two declarations disable move semantics since not needed */
-    SQLBasedVidMapper(SQLBasedVidMapper&&) = delete;
+  /* following two declarations disable move semantics since not needed */
+  SQLBasedVidMapper(SQLBasedVidMapper&&) = delete;
 
-    SQLBasedVidMapper&& operator=(SQLBasedVidMapper&&) = delete;
+  SQLBasedVidMapper&& operator=(SQLBasedVidMapper&&) = delete;
 
-    /* public method to load all mapping data from DB */
-    int load_mapping_data_from_db();
+  /* public method to load all mapping data from DB */
+  int load_mapping_data_from_db();
 
-    /* following three methods return contig mappings */
-    std::vector<ContigInfo>& get_contigs() { return(m_contig_idx_to_info); }
+  /* following three methods return contig mappings */
+  std::vector<ContigInfo>& get_contigs() {
+    return (m_contig_idx_to_info);
+  }
 
-    std::vector<std::pair<int64_t, int>>& get_contig_begin_offsets() {
-      return(m_contig_begin_2_idx);
-    }
+  std::vector<std::pair<int64_t, int>>& get_contig_begin_offsets() {
+    return (m_contig_begin_2_idx);
+  }
 
-    std::vector<std::pair<int64_t, int>>& get_contig_end_offsets() {
-      return(m_contig_end_2_idx);
-    }
+  std::vector<std::pair<int64_t, int>>& get_contig_end_offsets() {
+    return (m_contig_end_2_idx);
+  }
 
-    /* following two methods return callset mappings */
-    std::vector<CallSetInfo>& get_callsets() { return(m_row_idx_to_info); }
+  /* following two methods return callset mappings */
+  std::vector<CallSetInfo>& get_callsets() {
+    return (m_row_idx_to_info);
+  }
 
-    std::unordered_map<std::string, int64_t>& get_callset_name_to_idx_map() {
-      return(m_callset_name_to_row_idx);
-    }
+  std::unordered_map<std::string, int64_t>& get_callset_name_to_idx_map() {
+    return (m_callset_name_to_row_idx);
+  }
 
-    /* following two methods return field mappings */
-    std::vector<FieldInfo>& get_fields() { return(m_field_idx_to_info); }
+  /* following two methods return field mappings */
+  std::vector<FieldInfo>& get_fields() {
+    return (m_field_idx_to_info);
+  }
 
-    std::unordered_map<std::string, int>& get_field_name_to_idx_map() {
-      return(m_field_name_to_idx);
-    }
+  std::unordered_map<std::string, int>& get_field_name_to_idx_map() {
+    return (m_field_name_to_idx);
+  }
 
-    ~SQLBasedVidMapper();
-  protected:
-    dbi_conn m_conn;
-    dbi_inst m_instance;
-    std::string m_work_space;
-    std::string m_array_name;
+  ~SQLBasedVidMapper();
+ protected:
+  dbi_conn m_conn;
+  dbi_inst m_instance;
+  std::string m_work_space;
+  std::string m_array_name;
 
-    /* method to retrieve contig info from DB and load into VID mapper */
-    int load_contig_info();
+  /* method to retrieve contig info from DB and load into VID mapper */
+  int load_contig_info();
 
-    /* method to retrieve callset info from DB and load into VID mapper */
-    int load_callset_info();
+  /* method to retrieve callset info from DB and load into VID mapper */
+  int load_callset_info();
 
-    /* method to retrieve field info from DB and load into VID mapper */
-    int load_field_info();
+  /* method to retrieve field info from DB and load into VID mapper */
+  int load_field_info();
 };
 
 class SQLBasedVidMapperException : public std::exception {
-  public:
-    /**
-     * Default constructor
-     */
-    SQLBasedVidMapperException(const std::string m="");
+ public:
+  /**
+   * Default constructor
+   */
+  SQLBasedVidMapperException(const std::string m="");
 
-    /*
-     * Destructor: must be called before end of scope of a
-     * VidMapper exception object
-     */
-    ~SQLBasedVidMapperException();
+  /*
+   * Destructor: must be called before end of scope of a
+   * VidMapper exception object
+   */
+  ~SQLBasedVidMapperException();
 
-    /*
-     * ACCESSORS
-     */
+  /*
+   * ACCESSORS
+   */
 
-    /**
-     * Returns the exception message.
-     */
-    const char* what() const noexcept { return msg_.c_str(); }
+  /**
+   * Returns the exception message.
+   */
+  const char* what() const noexcept {
+    return msg_.c_str();
+  }
 
-  private:
-    std::string msg_;
+ private:
+  std::string msg_;
 };
 
 #endif  // GENOMICSDB_VID_MAPPER_SQL_H

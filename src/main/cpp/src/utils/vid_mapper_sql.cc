@@ -91,18 +91,18 @@ int SQLBasedVidMapper::load_contig_info() {
 
     m_contig_name_to_idx[contig_name] = contig_idx;
     m_contig_idx_to_info[contig_idx].set_info(
-                                       contig_idx,
-                                       contig_name,
-                                       length,
-                                       tiledb_column_offset);
+      contig_idx,
+      contig_name,
+      length,
+      tiledb_column_offset);
     m_contig_begin_2_idx[contig_idx].first = tiledb_column_offset;
     m_contig_begin_2_idx[contig_idx].second = contig_idx;
-    m_contig_end_2_idx[contig_idx].first = (tiledb_column_offset + length - 1); 
+    m_contig_end_2_idx[contig_idx].first = (tiledb_column_offset + length - 1);
     m_contig_end_2_idx[contig_idx].second = contig_idx;
   }
 
   dbi_result_free(result);
-  return(GENOMICSDB_VID_MAPPER_SUCCESS);
+  return (GENOMICSDB_VID_MAPPER_SUCCESS);
 }
 
 int SQLBasedVidMapper::load_callset_info() {
@@ -136,7 +136,7 @@ int SQLBasedVidMapper::load_callset_info() {
   }
 
   dbi_result_free(result);
-  return(GENOMICSDB_VID_MAPPER_SUCCESS);
+  return (GENOMICSDB_VID_MAPPER_SUCCESS);
 }
 
 int SQLBasedVidMapper::load_field_info() {
@@ -176,13 +176,13 @@ int SQLBasedVidMapper::load_field_info() {
     if (! field_type.empty()) {
       auto iter = VidMapper::m_typename_string_to_type_index.find(field_type);
       VERIFY_OR_THROW(iter != VidMapper::m_typename_string_to_type_index.end()
-          && "Field type not handled");
+                      && "Field type not handled");
       ref.m_type_index = (*iter).second;
     }
     if (! field_type.empty()) {
       auto iter = VidMapper::m_typename_string_to_bcf_ht_type.find(field_type);
       VERIFY_OR_THROW(iter != VidMapper::m_typename_string_to_bcf_ht_type.end()
-          && "Field type not handled");
+                      && "Field type not handled");
       ref.m_bcf_ht_type = (*iter).second;
     }
 
@@ -217,14 +217,14 @@ int SQLBasedVidMapper::load_field_info() {
         ref.m_num_elements = dbi_result_get_int(result, DBTABLE_FIELD_COLUMN_LENVAL.c_str());
       } else {
         if (0 == length_type.compare("A")) {
-            ref.m_length_descriptor = BCF_VL_A;
+          ref.m_length_descriptor = BCF_VL_A;
         } else if (0 == length_type.compare("G")) {
-            ref.m_length_descriptor = BCF_VL_G;
+          ref.m_length_descriptor = BCF_VL_G;
         } else if (0 == length_type.compare("R")) {
-            ref.m_length_descriptor = BCF_VL_R;
+          ref.m_length_descriptor = BCF_VL_R;
         } else {
           if (0 == length_type.compare("VAR")) {
-              ref.m_length_descriptor = BCF_VL_VAR;
+            ref.m_length_descriptor = BCF_VL_VAR;
           }
         }
       }
@@ -278,14 +278,14 @@ int SQLBasedVidMapper::load_field_info() {
   }
 
   dbi_result_free(result);
-  return(GENOMICSDB_VID_MAPPER_SUCCESS);
+  return (GENOMICSDB_VID_MAPPER_SUCCESS);
 }
 
 int SQLBasedVidMapper::load_mapping_data_from_db() {
   load_contig_info();
   load_callset_info();
   load_field_info();
-  return(GENOMICSDB_VID_MAPPER_SUCCESS);
+  return (GENOMICSDB_VID_MAPPER_SUCCESS);
 }
 
 SQLBasedVidMapperException::~SQLBasedVidMapperException() {}
