@@ -369,8 +369,7 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
     if (m_json.HasMember("query_row_ranges") || m_json.HasMember("query_sample_names_lists")) {
       if(m_json.HasMember("query_row_ranges") && m_json.HasMember("query_sample_names_lists"))
 	VERIFY_OR_THROW(m_json["query_row_ranges"].Size() == m_json["query_sample_names_lists"].Size());
-      for(const auto json_name : { "query_row_ranges", "query_sample_names_lists" })
-      {
+      for(const auto json_name : { "query_row_ranges", "query_sample_names_lists" }) {
 	if(!m_json.HasMember(json_name))
 	  continue;
 	auto is_tiledb_row_range = (strcmp(json_name, "query_row_ranges") == 0);
@@ -395,8 +394,7 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
 	  m_row_ranges[i].resize(base_idx + q2.Size());
 	  for (rapidjson::SizeType j=0; j<q2.Size(); ++j) {
 	    const rapidjson::Value& q3 = q2[j];
-	    if(is_tiledb_row_range)
-	    {
+	    if(is_tiledb_row_range) {
 	      //q3 is list of 2 elements to represent query row interval
 	      if (q3.IsArray()) {
 		VERIFY_OR_THROW(q3.Size() == 2);
@@ -411,11 +409,8 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
 		} else if (q3.IsObject()) //Must be PB generated JSON object { "low": <>, "high": <> }
 	      VERIFY_OR_THROW(extract_interval_from_PB_struct_or_return_false(q3, &m_vid_mapper, m_row_ranges[i][base_idx+j]));
 	      }
-	    }
-	    else //sample names list
-	    {
-	      if(!q3.IsString())
-	      {
+	    } else { //sample names list
+	      if(!q3.IsString()) {
 		rapidjson::StringBuffer buffer;
 		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
 		q3.Accept(writer);

@@ -96,8 +96,7 @@ void VariantQueryConfig::setup_array_row_idx_to_query_row_idx_map() {
     if (get_array_row_idx_for_query_row_idx(i) >= m_smallest_row_idx &&
         get_array_row_idx_for_query_row_idx(i) < static_cast<int64_t>(get_num_rows_in_array()+m_smallest_row_idx)) {
       const auto array_row_idx = m_query_rows[i]-m_smallest_row_idx;
-      if(m_array_row_idx_to_query_row_idx[array_row_idx] == UNDEFINED_NUM_ROWS_VALUE) //first time this row is seen, skip duplicates
-      {
+      if(m_array_row_idx_to_query_row_idx[array_row_idx] == UNDEFINED_NUM_ROWS_VALUE) { //first time this row is seen, skip duplicates
 	m_array_row_idx_to_query_row_idx[array_row_idx] = valid_rows_idx;
 	tmp_vector[valid_rows_idx++] = m_query_rows[i];
       }
