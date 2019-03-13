@@ -102,6 +102,8 @@ public final class TestGenomicsDBDataSourceV2 {
       }
 
       queryJsonReader.close();
+      // since we removed samplenames from the default schema, add it back for the CI tests
+      schemaArray.add(new StructField("sampleNames", DataTypes.NullType, true, Metadata.empty());
       StructType st = new StructType(schemaArray.toArray(new StructField[0]));
       return st;
     } catch (FileNotFoundException e) {
