@@ -95,13 +95,11 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
       }
     }
 
-    UTF8String[] sampleNames = new UTF8String[val.getNSamples()];
     UTF8String[] genotypes = new UTF8String[val.getNSamples()];
 
-    // get sample name and genotype info
+    // get genotype info
     int i = 0;
     for (Genotype g: val.getGenotypesOrderedByName()) {
-      sampleNames[i] = UTF8String.fromString(g.getSampleName());
       genotypes[i++] = UTF8String.fromString(g.getGenotypeString());
     }
 
@@ -117,7 +115,6 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
     } else {
       rowObjects.add(ArrayData.toArrayData(altAlleles));
     }
-    rowObjects.add(ArrayData.toArrayData(sampleNames));
     rowObjects.add(ArrayData.toArrayData(genotypes));
 
     // go through the schema and try to extract items if we haven't
@@ -130,10 +127,17 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
           || sf.name().equals("variantType")
           || sf.name().equals("refAllele")
           || sf.name().equals("alternateAlleles")
-          || sf.name().equals("sampleNames")
           || sf.name().equals("GT")) {
         // we've already added these fields
         continue;
+      } else if (sf.name().equals("sampleName")) {
+        // special case for sample names
+        UTF8String[] sampleNames = new UTF8String[val.getNSamples()];
+        int j = 0;
+        for (Genotype g: val.getGenotypesOrderedByName()) {
+          sampleNames[j++] = UTF8String.fromString(g.getSampleName());
+        }
+        rowObjects.add(ArrayData.toArrayData(sampleNames));
       } else {
         Map<String, GenomicsDBVidSchema> vMap = inputPartition.getGenomicsDBVidSchema();
         GenomicsDBVidSchema field = vMap.get(sf.name());

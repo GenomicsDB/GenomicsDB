@@ -67,8 +67,6 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
               new ArrayType(DataTypes.StringType, true),
               true,
               Metadata.empty()),
-          new StructField(
-              "sampleNames", new ArrayType(DataTypes.StringType, false), false, Metadata.empty()),
           new StructField("GT", new ArrayType(DataTypes.StringType, true), true, Metadata.empty())
         };
     StructType defaultSchema = new StructType(fields);
@@ -88,6 +86,17 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
     StructType finalSchema = defaultSchema;
     if (schema != null) {
       for (StructField sf : JavaConverters.asJavaIterableConverter(schema.toIterable()).asJava()) {
+
+        // special case for sample names
+        // we won't have these as default since they are largely redundant and take up lot of space
+        // but if the user specifically asks for them we'll put it in
+        if (sf.name().equalsIgnoreCase("samplename")) {
+          finalSchema = finalSchema.add(
+                  new StructField(
+                      "sampleNames", new ArrayType(DataTypes.StringType, false), false, Metadata.empty()));
+          continue;
+        }
+          
         GenomicsDBVidSchema field = vMap.get(sf.name());
         if (field == null) {
           throw new RuntimeException("Schema field " + sf.name() + " not available in vid");
