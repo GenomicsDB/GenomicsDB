@@ -156,17 +156,11 @@ public class GenomicsDBInputFormatTest {
     GenomicsDBInputFormat format = new GenomicsDBInputFormat();
     format.setConf(conf);
     List<InputSplit> splits = format.getSplits(job);
-    // in this case, number of splits is equal to entries in hostfile
-    Assert.assertTrue(splits.size()> 1);
-    for(int i=0; i<splits.size(); i++) {
-      GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(i);
-      // because we're using local data store here, all partitions and
-      // queries should be null. GenomicsDB will use the same query json
-      // from configuration object for all of them
-      Assert.assertEquals(gSplit.getPartitionInfo(), null);
-      Assert.assertEquals(gSplit.getQueryInfo(), null);
-      // check that locality values have been set according to hostfile
-      Assert.assertEquals(gSplit.getLocations()[0], String.valueOf("node"+i));
-    }
+    // local disk will also split in the same way as hdfs compliant stores now
+    Assert.assertEquals(splits.size(), 1);
+    GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(0);
+    Assert.assertEquals(gSplit.getPartitionInfo().getBeginPosition(), 0);
+    Assert.assertEquals(gSplit.getQueryInfo().getBeginPosition(), 500);
+    Assert.assertEquals(gSplit.getQueryInfo().getEndPosition(), 25000);
   }
 }
