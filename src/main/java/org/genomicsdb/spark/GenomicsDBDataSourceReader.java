@@ -90,7 +90,7 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
         // special case for sample names
         // we won't have these as default since they are largely redundant and take up lot of space
         // but if the user specifically asks for them we'll put it in
-        if (sf.name().equalsIgnoreCase("samplename")) {
+        if (sf.name().equalsIgnoreCase("samplenames")) {
           finalSchema = finalSchema.add(
                   new StructField(
                       "sampleNames", new ArrayType(DataTypes.StringType, false), false, Metadata.empty()));
