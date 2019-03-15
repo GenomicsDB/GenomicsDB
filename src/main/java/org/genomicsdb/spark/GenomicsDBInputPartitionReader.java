@@ -130,7 +130,7 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
           || sf.name().equals("GT")) {
         // we've already added these fields
         continue;
-      } else if (sf.name().equals("sampleName")) {
+      } else if (sf.name().equals("sampleNames")) {
         // special case for sample names
         UTF8String[] sampleNames = new UTF8String[val.getNSamples()];
         int j = 0;
