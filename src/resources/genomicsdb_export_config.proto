@@ -47,6 +47,10 @@ message RowRangeList {
   repeated RowRange range_list = 1;
 }
 
+message SampleNameList {
+  repeated string sample_name_list = 1;
+}
+
 message ExportConfiguration {
   required string workspace = 1;
   oneof array {
@@ -56,6 +60,7 @@ message ExportConfiguration {
   required string reference_genome = 3;
   repeated GenomicsDBColumnOrIntervalList query_column_ranges = 4;
   repeated RowRangeList query_row_ranges = 5;
+  repeated SampleNameList query_sample_names_lists = 22; //to match the structure of query_row_ranges
   repeated string attributes = 6;
   optional string vcf_header_filename = 7;
   optional string vcf_output_filename = 8;

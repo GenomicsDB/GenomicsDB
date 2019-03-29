@@ -190,11 +190,13 @@ void GenomicsDBConfigBase::subset_query_column_ranges_based_on_partition(const G
   // and update the m_column_ranges
   if (loader_config.is_partitioned_by_column()) {
     ColumnRange my_rank_loader_column_range = loader_config.get_column_partition(rank);
+    if(m_column_ranges.size() == 0u)
+      return;
     std::vector<ColumnRange> my_rank_queried_columns;
     for (auto queried_column_range : get_query_column_ranges(rank)) {
       if (queried_column_range.second >= my_rank_loader_column_range.first
-          && queried_column_range.first <= my_rank_loader_column_range.second)
-        my_rank_queried_columns.emplace_back(queried_column_range);
+	  && queried_column_range.first <= my_rank_loader_column_range.second)
+	my_rank_queried_columns.emplace_back(queried_column_range);
     }
     auto idx = m_single_query_column_ranges_vector ? 0 : rank;
     assert(static_cast<size_t>(idx) < m_column_ranges.size());

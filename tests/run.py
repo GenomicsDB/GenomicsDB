@@ -87,6 +87,10 @@ def create_query_json(ws_dir, test_name, query_param_dict):
     if('produce_GT_with_min_PL_value_for_spanning_deletions' in query_param_dict):
         test_dict['produce_GT_with_min_PL_value_for_spanning_deletions'] = \
                 query_param_dict['produce_GT_with_min_PL_value_for_spanning_deletions']
+    if('query_sample_names_lists' in query_param_dict):
+        test_dict['query_sample_names_lists'] = query_param_dict['query_sample_names_lists']
+	if('query_row_ranges' in test_dict):
+	  del test_dict['query_row_ranges']
     return test_dict;
 
 
@@ -249,6 +253,19 @@ def main():
                         "vcf"        : "golden_outputs/t0_1_2_vcf_at_0",
                         "batched_vcf": "golden_outputs/t0_1_2_vcf_at_0",
                         "java_vcf"   : "golden_outputs/java_t0_1_2_vcf_at_0",
+                        } },
+		    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }],
+		    "query_sample_names_lists" : [
+		        { "sample_name_list":[ "HG00141", "HG01958" ] }
+		      ],
+		    "golden_output": {
+                        "vcf"        : "golden_outputs/t0_1_vcf_at_0",
+			"java_vcf"   : "golden_outputs/java_t0_1_vcf_at_0",
                         } },
                     { "query_column_ranges": [ [  12000, 12142, 12144, 12160, 12290, 12294, 14000, 17384, 18000 ]],
                       "pass_through_query_json": True,
@@ -918,6 +935,37 @@ def main():
                       "golden_output": {
                         "vcf"        : "golden_outputs/min_PL_spanning_deletion_vcf",
                         } }
+                    ]
+            },
+	    { "name" : "t6_7_8_asa", 'golden_output' : 'golden_outputs/t6_7_8_asa.vcf',
+                'callset_mapping_file': 'inputs/callsets/t6_7_8_asa.json',
+                'vid_mapping_file': 'inputs/vid_all_asa.json',
+                'size_per_column_partition': 3000,
+                "query_params": [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }],
+                      "force_override": True,
+                      'segment_size': 100,
+                      "attributes": asa_vcf_attributes,
+                        "golden_output": {
+                        "vcf"      : "golden_outputs/t6_7_8_asa.vcf",
+                        } },
+		    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 8029500,
+                            "high": 1000000000
+                        }]
+                    }],
+                      "force_override": True,
+                      'segment_size': 100,
+                      "attributes": asa_vcf_attributes,
+                        "golden_output": {
+                        "vcf"      : "golden_outputs/t6_7_8_asa_vcf_at_8029500",
+                        } },
                     ]
             },
     ];

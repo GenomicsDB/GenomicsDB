@@ -223,7 +223,8 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
     VERIFY_OR_THROW(!(m_json.HasMember("row_partitions") && m_json.HasMember("column_partitions"))
                     && "Cannot have both \"row_partitions\" and \"column_partitions\" simultaneously in the JSON file");
     VERIFY_OR_THROW((m_json.HasMember("query_column_ranges") || m_json.HasMember("column_partitions") ||
-                     m_json.HasMember("query_row_ranges") || m_json.HasMember("row_partitions")) &&
+                     m_json.HasMember("query_row_ranges") || m_json.HasMember("row_partitions")
+		     || m_json.HasMember("query_sample_names_lists")) &&
                     "Must have one of \"query_column_ranges\" or \"column_partitions\" or \"query_row_ranges\" or \"row_partitions\"");
     VERIFY_OR_THROW((!m_json.HasMember("query_column_ranges") || !m_json.HasMember("column_partitions")) &&
                     "Cannot use both \"query_column_ranges\" and \"column_partitions\" simultaneously");
@@ -356,46 +357,75 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
     }
     VERIFY_OR_THROW((!m_json.HasMember("query_row_ranges") || !m_json.HasMember("row_partitions")) &&
                     "Cannot use both \"query_row_ranges\" and \"row_partitions\" simultaneously");
+    VERIFY_OR_THROW((!m_json.HasMember("query_sample_names_lists") || !m_json.HasMember("row_partitions")) &&
+                    "Cannot use both \"query_sample_names_lists\" and \"row_partitions\" simultaneously");
     //Query rows
     //Example:  [ [ [0,5], 45 ], [ 76, 87 ] ]
     //This means that rank 0 will query rows: [0-5] and [45-45] and rank 1 will have
     //2 intervals [76-76] and [87-87]
     //But you could have a single innermost list - with this option all ranks will query the same list
-    if (m_json.HasMember("query_row_ranges")) {
-      const rapidjson::Value& q1 = m_json["query_row_ranges"];
-      VERIFY_OR_THROW(q1.IsArray());
-      if (q1.Size() == 1)
-        m_single_query_row_ranges_vector = true;
-      m_row_ranges.resize(q1.Size());
-      for (rapidjson::SizeType i=0; i<q1.Size(); ++i) {
-        auto& curr_q1_entry = q1[i];
-        VERIFY_OR_THROW(curr_q1_entry.IsArray() || curr_q1_entry.IsObject());
-        //JSON produced by Protobuf - { "range_list": [ { "low":<>, "high":<> } ] }
-        if (curr_q1_entry.IsObject())
-          VERIFY_OR_THROW(curr_q1_entry.MemberCount() == 1u && curr_q1_entry.HasMember("range_list"));
-        const rapidjson::Value& q2 = curr_q1_entry.IsArray() ? q1[i]
-                                     : curr_q1_entry["range_list"];
-        VERIFY_OR_THROW(q2.IsArray());
-        m_row_ranges[i].resize(q2.Size());
-        for (rapidjson::SizeType j=0; j<q2.Size(); ++j) {
-          const rapidjson::Value& q3 = q2[j];
-          //q3 is list of 2 elements to represent query row interval
-          if (q3.IsArray()) {
-            VERIFY_OR_THROW(q3.Size() == 2);
-            VERIFY_OR_THROW(q3[0u].IsInt64());
-            VERIFY_OR_THROW(q3[1u].IsInt64());
-            m_row_ranges[i][j].first = q3[0u].GetInt64();
-            m_row_ranges[i][j].second = q3[1u].GetInt64();
-          } else {
-            if (q3.IsInt64()) { //single position
-              m_row_ranges[i][j].first = q3.GetInt64();
-              m_row_ranges[i][j].second = q3.GetInt64();
-            } else if (q3.IsObject()) //Must be PB generated JSON object { "low": <>, "high": <> }
-              VERIFY_OR_THROW(extract_interval_from_PB_struct_or_return_false(q3, &m_vid_mapper, m_row_ranges[i][j]));
-          }
-          if (m_row_ranges[i][j].first > m_row_ranges[i][j].second)
-            std::swap<int64_t>(m_row_ranges[i][j].first, m_row_ranges[i][j].second);
-        }
+    if (m_json.HasMember("query_row_ranges") || m_json.HasMember("query_sample_names_lists")) {
+      if(m_json.HasMember("query_row_ranges") && m_json.HasMember("query_sample_names_lists"))
+	VERIFY_OR_THROW(m_json["query_row_ranges"].Size() == m_json["query_sample_names_lists"].Size());
+      for(const auto json_name : { "query_row_ranges", "query_sample_names_lists" }) {
+	if(!m_json.HasMember(json_name))
+	  continue;
+	auto is_tiledb_row_range = (strcmp(json_name, "query_row_ranges") == 0);
+	const rapidjson::Value& q1 = m_json[json_name];
+	VERIFY_OR_THROW(q1.IsArray());
+	if (q1.Size() == 1)
+	  m_single_query_row_ranges_vector = true;
+	m_row_ranges.resize(q1.Size());
+	for (rapidjson::SizeType i=0; i<q1.Size(); ++i) {
+	  const auto& curr_q1_entry = q1[i];
+	  VERIFY_OR_THROW(curr_q1_entry.IsArray() || curr_q1_entry.IsObject());
+	  //JSON produced by Protobuf - either
+	  //  { "range_list": [ { "low":<>, "high":<> } ] } OR
+	  //  { "sample_name_list": [ "name1", "name2" ] }
+	  if (curr_q1_entry.IsObject())
+	    VERIFY_OR_THROW(curr_q1_entry.MemberCount() == 1u &&
+		(curr_q1_entry.HasMember("range_list") || curr_q1_entry.HasMember("sample_name_list")));
+	  const rapidjson::Value& q2 = curr_q1_entry.IsArray() ? curr_q1_entry
+	    : (curr_q1_entry.HasMember("range_list") ? curr_q1_entry["range_list"] : curr_q1_entry["sample_name_list"]);
+	  VERIFY_OR_THROW(q2.IsArray());
+	  const auto base_idx = m_row_ranges[i].size();
+	  m_row_ranges[i].resize(base_idx + q2.Size());
+	  for (rapidjson::SizeType j=0; j<q2.Size(); ++j) {
+	    const rapidjson::Value& q3 = q2[j];
+	    if(is_tiledb_row_range) {
+	      //q3 is list of 2 elements to represent query row interval
+	      if (q3.IsArray()) {
+		VERIFY_OR_THROW(q3.Size() == 2);
+		VERIFY_OR_THROW(q3[0u].IsInt64());
+		VERIFY_OR_THROW(q3[1u].IsInt64());
+		m_row_ranges[i][base_idx+j].first = q3[0u].GetInt64();
+		m_row_ranges[i][base_idx+j].second = q3[1u].GetInt64();
+	      } else {
+		if (q3.IsInt64()) { //single position
+		  m_row_ranges[i][base_idx+j].first = q3.GetInt64();
+		  m_row_ranges[i][base_idx+j].second = q3.GetInt64();
+		} else if (q3.IsObject()) //Must be PB generated JSON object { "low": <>, "high": <> }
+	      VERIFY_OR_THROW(extract_interval_from_PB_struct_or_return_false(q3, &m_vid_mapper, m_row_ranges[i][base_idx+j]));
+	      }
+	    } else { //sample names list
+	      if(!q3.IsString()) {
+		rapidjson::StringBuffer buffer;
+		rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+		q3.Accept(writer);
+		throw GenomicsDBConfigException(std::string("\"query_sample_names_lists\" must be a list of list of strings - ")
+		    + buffer.GetString() + " doesn't appear to be a string");
+	      }
+	      int64_t row_idx = -1;
+	      auto status = m_vid_mapper.get_tiledb_row_idx(row_idx, q3.GetString());
+	      if(!status)
+		throw GenomicsDBConfigException(std::string("Unknown sample name ") + q3.GetString());
+	      m_row_ranges[i][base_idx+j].first = row_idx;
+	      m_row_ranges[i][base_idx+j].second = row_idx;
+	    }
+	    if (m_row_ranges[i][base_idx+j].first > m_row_ranges[i][base_idx+j].second)
+	      std::swap<int64_t>(m_row_ranges[i][base_idx+j].first, m_row_ranges[i][base_idx+j].second);
+	  }
+	}
       }
     } else if (m_json.HasMember("row_partitions")) {
       m_row_partitions_specified = true;

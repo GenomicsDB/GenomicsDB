@@ -85,7 +85,7 @@ void VariantQueryConfig::invalidate_array_row_idx_to_query_row_idx_map(bool all_
 void VariantQueryConfig::setup_array_row_idx_to_query_row_idx_map() {
   if (m_query_all_rows) //if querying all rows, don't even bother setting up map
     return;
-  m_array_row_idx_to_query_row_idx.resize(get_num_rows_in_array());
+  m_array_row_idx_to_query_row_idx.resize(get_num_rows_in_array(), UNDEFINED_NUM_ROWS_VALUE);
   invalidate_array_row_idx_to_query_row_idx_map(true);
   //Some queried row idxs may be out of bounds - ignore them
   //This is done by creating a tmp_vector
@@ -95,8 +95,11 @@ void VariantQueryConfig::setup_array_row_idx_to_query_row_idx_map() {
     //Within bounds
     if (get_array_row_idx_for_query_row_idx(i) >= m_smallest_row_idx &&
         get_array_row_idx_for_query_row_idx(i) < static_cast<int64_t>(get_num_rows_in_array()+m_smallest_row_idx)) {
-      m_array_row_idx_to_query_row_idx[m_query_rows[i]-m_smallest_row_idx] = valid_rows_idx;
-      tmp_vector[valid_rows_idx++] = m_query_rows[i];
+      const auto array_row_idx = m_query_rows[i]-m_smallest_row_idx;
+      if(m_array_row_idx_to_query_row_idx[array_row_idx] == UNDEFINED_NUM_ROWS_VALUE) { //first time this row is seen, skip duplicates
+	m_array_row_idx_to_query_row_idx[array_row_idx] = valid_rows_idx;
+	tmp_vector[valid_rows_idx++] = m_query_rows[i];
+      }
     }
   }
   tmp_vector.resize(valid_rows_idx);
@@ -217,8 +220,7 @@ void VariantQueryConfig::read_from_file(const std::string& filename, const int r
   auto& array_name = m_single_array_name ? m_array_names[0] : m_array_names[rank];
   VERIFY_OR_THROW(!array_name.empty() && "Empty array name");
   //Query columns
-  VERIFY_OR_THROW((m_column_ranges.size() || m_scan_whole_array) && "Query column ranges not specified");
-  if (!m_scan_whole_array) {
+  if (!m_scan_whole_array && m_column_ranges.size()) {
     VERIFY_OR_THROW((m_single_query_column_ranges_vector || static_cast<size_t>(rank) < m_column_ranges.size())
                     && "Rank >= query column ranges vector size");
     for (const auto& range : get_query_column_ranges(rank))
