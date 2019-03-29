@@ -247,14 +247,15 @@ class VariantStorageManager {
   /*
    * Wrapper around forward iterator
    */
-  VariantArrayCellIterator* begin(
-    int ad, const int64_t* range, const std::vector<int>& attribute_ids) const ;
+  VariantArrayCellIterator* begin(int ad, const int64_t* range, 
+				  const std::vector<int>& attribute_ids, 
+				  const std::string& query_filter = "") const;
   /*
    * For columnar iterator
    */
   SingleCellTileDBIterator* begin_columnar_iterator(
     int ad, const VariantQueryConfig& query_config,
-    const bool use_common_array_object) const;
+    const bool use_common_array_object ) const;
   /*
    * Write sorted cell
    */

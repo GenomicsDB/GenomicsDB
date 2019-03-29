@@ -60,6 +60,7 @@ class GenomicsDBConfigBase {
     m_lb_callset_row_idx = 0;
     m_ub_callset_row_idx = INT64_MAX-1;
     m_segment_size = 10u*1024u*1024u; //10MiB default
+    m_query_filter = "";
     m_disable_file_locking_in_tiledb = false;
     m_determine_sites_with_max_alleles = false;
     m_max_diploid_alt_alleles_that_can_be_genotyped = MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED;
@@ -74,6 +75,9 @@ class GenomicsDBConfigBase {
   }
   const std::vector<ColumnRange>& get_query_column_ranges(const int rank) const;
   const std::vector<RowRange>& get_query_row_ranges(const int rank) const;
+  inline std::string get_query_filter() const {
+    return m_query_filter;
+  }
   inline size_t get_segment_size() const {
     return m_segment_size;
   }
