@@ -86,5 +86,12 @@ public class GenomicsDBUtilsJni {
      */
     public static native int jniMoveFile(final String source, final String destination);
 
+    /**
+     * Read entire file as string
+     * @param filename path to file, can be cloud URL
+     * @return contents of file as string
+     */
+    public static native String jniReadEntireFile(final String filename);
+
 }
 

@@ -47,6 +47,14 @@ JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniWriteToFile
 JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniMoveFile
   (JNIEnv *, jclass, jstring, jstring);
 
+/*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni
+ * Method:    jniReadEntireFile
+ * Signature: (Ljava/lang/String;)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniReadEntireFile
+  (JNIEnv *, jclass, jstring);
+
 #ifdef __cplusplus
 }
 #endif

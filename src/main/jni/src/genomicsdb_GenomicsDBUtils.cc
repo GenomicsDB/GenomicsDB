@@ -97,3 +97,19 @@ Java_org_genomicsdb_GenomicsDBUtilsJni_jniMoveFile
   env->ReleaseStringUTFChars(destination, destination_cstr);
   return return_val;
 }
+
+JNIEXPORT jstring JNICALL
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniReadEntireFile
+(JNIEnv *env, jclass currClass, jstring filename)
+{
+  auto filename_cstr = env->GetStringUTFChars(filename, NULL);
+  VERIFY_OR_THROW(filename_cstr);
+  char* contents_cstr;
+  size_t length;
+  auto return_val =  TileDBUtils::read_entire_file(filename_cstr, (void **)&contents_cstr, (size_t*)&length);
+  env->ReleaseStringUTFChars(filename, filename_cstr);
+  jstring return_string = env->NewStringUTF(contents_cstr);
+  free(contents_cstr);
+  VERIFY_OR_THROW(!return_val);
+  return return_string;
+}

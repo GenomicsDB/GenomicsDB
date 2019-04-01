@@ -48,6 +48,15 @@ public class GenomicsDBUtils {
     }
 
     /**
+     * Read entire file as string
+     * @param filename path to file
+     * @return contents of file as string
+     */
+    public static String readEntireFile(final String filename) {
+	return GenomicsDBUtilsJni.jniReadEntireFile(filename);
+    }
+
+    /**
      * Copy source path contents to destination
      * @param source local filesystem path
      * @param destination local or cloud filesystem URI

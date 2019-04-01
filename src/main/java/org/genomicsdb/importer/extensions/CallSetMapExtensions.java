@@ -4,9 +4,13 @@ import htsjdk.tribble.FeatureReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import org.genomicsdb.model.GenomicsDBCallsetsMapProto;
+import org.genomicsdb.GenomicsDBUtils;
 
 import java.net.URI;
 import java.util.*;
+
+import static com.googlecode.protobuf.format.JsonFormat.*;
+import static org.genomicsdb.GenomicsDBUtils.readEntireFile;
 
 public interface CallSetMapExtensions {
     /**
@@ -208,6 +212,28 @@ public interface CallSetMapExtensions {
             listOfSampleNames.add(sampleName);
         }
         return generateSortedCallSetMap(listOfSampleNames, useSamplesInOrderProvided, lbRowIdx);
+    }
+
+    /**
+     * Merges incremental import's callsets with existing callsets
+     * @param callsetMapJSONFilePath path to existing callset map file
+     * @param newCallsetMapJson callset mapping json string for new callsets
+     * @return merged callsets for callsets to TileDB rows
+     * @throws ParseException when there is an error parsing callset jsons
+     */
+    default GenomicsDBCallsetsMapProto.CallsetMappingPB mergeCallsetsForIncrementalImport(
+            final String callsetMapJSONFilePath,
+            final String newCallsetMapJson) throws ParseException {
+        String existingCallsetsJSON = GenomicsDBUtils.readEntireFile(callsetMapJSONFilePath);
+        System.out.println("debug: existing callset: "+existingCallsetsJSON);
+        GenomicsDBCallsetsMapProto.CallsetMappingPB.Builder callsetMapBuilder =
+                GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder();
+        merge(existingCallsetsJSON, callsetMapBuilder);
+        merge(newCallsetMapJson, callsetMapBuilder);
+        GenomicsDBCallsetsMapProto.CallsetMappingPB c = callsetMapBuilder.build();
+        System.out.println("debug: new callset: "+newCallsetMapJson);
+        System.out.println("debug: combined callset: "+printToString(c));
+        return callsetMapBuilder.build();
     }
 
     /**

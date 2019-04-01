@@ -61,6 +61,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.genomicsdb.GenomicsDBUtils.createTileDBWorkspace;
+import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBArrays;
+import static com.googlecode.protobuf.format.JsonFormat.printToString;
 
 /**
  * Java wrapper for vcf2tiledb - imports VCFs into TileDB/GenomicsDB.
@@ -124,7 +126,13 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     private GenomicsDBImporter(final ImportConfig importConfig,
                                final Map<String, FeatureReader<VariantContext>> sampleToReaderMap,
                                final int rank) throws IOException {
-
+        /* TODO move to GATK
+        if (importConfig.isIncrementalImport()) {
+            String workspace = this.config.getImportConfiguration().getColumnPartitions(0).getWorkspace();
+            final List<GenomicsDBImportConfiguration.Partition> partitions = generatePartitionListFromWorkspace(workspace);
+            importConfig.getImportConfiguration().addAllColumnPartitions(partitions);
+        }
+        */
         File importJSONFile = dumpTemporaryLoaderJSONFile(importConfig.getImportConfiguration(), "");
 
         initialize(importJSONFile.getAbsolutePath(), rank);
@@ -163,10 +171,19 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
      *
      * @param config Parallel import configuration
      * @throws FileNotFoundException when files could not be read/written
+     * @throws com.googlecode.protobuf.format.JsonFormat.ParseException when existing callset jsons are invalid. incremental case
      */
-    public GenomicsDBImporter(final ImportConfig config) throws FileNotFoundException {
+    public GenomicsDBImporter(final ImportConfig config) throws FileNotFoundException, 
+            com.googlecode.protobuf.format.JsonFormat.ParseException {
         this.config = config;
         this.config.setImportConfiguration(addExplicitValuesToImportConfiguration(config));
+        /* TODO move to GATK
+        if (this.config.isIncrementalImport()) {
+            String workspace = this.config.getImportConfiguration().getColumnPartitions(0).getWorkspace();
+            final List<GenomicsDBImportConfiguration.Partition> partitions = generatePartitionListFromWorkspace(workspace);
+            this.config.getImportConfiguration().addAllColumnPartitions(partitions);
+        }
+        */
         long lbRowIdx = this.config.getImportConfiguration().hasLbCallsetRowIdx()
             ? this.config.getImportConfiguration().getLbCallsetRowIdx()
             : 0L;
@@ -185,22 +202,40 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                 this.generateSortedCallSetMapFromNameToPathMap(this.config.getSampleNameToVcfPath(),
                         this.config.isUseSamplesInOrder(), lbRowIdx);
 
+        String outputCallsetmapJsonFilePath = this.config.getOutputCallsetmapJsonFile();
+        if (this.config.isIncrementalImport()) {
+            if (outputCallsetmapJsonFilePath == null || outputCallsetmapJsonFilePath.isEmpty()) {
+                throw new GenomicsDBException("Incremental import must specify callset file name");
+            }
+            String newCallsetJson = printToString(callsetMappingPB);
+            callsetMappingPB = this.mergeCallsetsForIncrementalImport(outputCallsetmapJsonFilePath,
+                                       newCallsetJson);
+            //TODO lbRowIdx += callsetMappingPB.getCallsetsList().size();
+        }
         //Vid map
-        GenomicsDBVidMapProto.VidMappingPB vidMapPB = generateVidMapFromMergedHeader(this.config.getMergedHeader());
+        String vidmapOutputFilepath = this.config.getOutputVidmapJsonFile();
+        GenomicsDBVidMapProto.VidMappingPB vidMapPB;
+        if (config.isIncrementalImport()) {
+            if (vidmapOutputFilepath == null || vidmapOutputFilepath.isEmpty()) {
+                throw new GenomicsDBException("Incremental import must specify vid file name");
+            }
+            vidMapPB = generateVidMapFromFile(vidmapOutputFilepath);
+        }
+        else {
+            vidMapPB = generateVidMapFromMergedHeader(this.config.getMergedHeader());
+        }
 
         //Write out callset map if needed
-        String outputCallsetmapJsonFilePath = this.config.getOutputCallsetmapJsonFile();
         if (outputCallsetmapJsonFilePath != null && !outputCallsetmapJsonFilePath.isEmpty())
             this.writeCallsetMapJSONFile(outputCallsetmapJsonFilePath, callsetMappingPB);
 
-        //Write out vidmap if needed
-        String vidmapOutputFilepath = this.config.getOutputVidmapJsonFile();
-        if (vidmapOutputFilepath != null && !vidmapOutputFilepath.isEmpty())
+        //Write out vidmap if needed, don't write for incremental import
+        if (!config.isIncrementalImport() && vidmapOutputFilepath != null && !vidmapOutputFilepath.isEmpty())
             this.writeVidMapJSONFile(vidmapOutputFilepath, vidMapPB);
 
-        //Write out merged header if needed
+        //Write out merged header if needed, don't write for incremental import
         String vcfHeaderOutputFilepath = this.config.getOutputVcfHeaderFile();
-        if (vcfHeaderOutputFilepath != null && !vcfHeaderOutputFilepath.isEmpty())
+        if (!config.isIncrementalImport() && vcfHeaderOutputFilepath != null && !vcfHeaderOutputFilepath.isEmpty())
             this.writeVcfHeaderFile(vcfHeaderOutputFilepath, this.config.getMergedHeader());
 
         //Set callset map and vid map in the top level config object
@@ -214,6 +249,41 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
 	if (createTileDBWorkspace(workspace, false) < 0) {
 	    throw new IllegalStateException(String.format("Cannot create '%s' workspace.", workspace));
         }
+    }
+
+    /**
+     * Function to construct the column partition information from array names. 
+     * Used in the incremental import case.
+     *
+     * @param workspace path to GenomicsDB workspace
+     * @return list of GenomicsDBImportConfiguration.Partition objects
+     */
+    private List<GenomicsDBImportConfiguration.Partition> generatePartitionListFromWorkspace(String workspace) {
+        // TODO move this into GATK instead
+        String[] partitions = listGenomicsDBArrays(workspace);
+        ArrayList<GenomicsDBImportConfiguration.Partition> partitionList = new ArrayList<>(partitions.length);
+        for (int i=0; i<partitions.length; i++) {
+            String[] partitionInfo = partitions[i].split("\\$");
+            if (partitionInfo.length != 3) {
+                throw new GenomicsDBException(
+                    "Workspace contains array name that doesn't fit the <contig>$<startpos>$<endpos> format:"+partitions[i]);
+            }
+            GenomicsDBImportConfiguration.Partition.Builder partitionBuilder = GenomicsDBImportConfiguration.Partition.newBuilder();
+            Coordinates.ContigPosition.Builder contigPositionBuilder = Coordinates.ContigPosition.newBuilder();
+            Coordinates.GenomicsDBColumn.Builder columnBuilder = Coordinates.GenomicsDBColumn.newBuilder();
+            //begin
+            contigPositionBuilder.setContig(partitionInfo[0]).setPosition(Long.parseLong(partitionInfo[1]));
+            columnBuilder.setContigPosition(contigPositionBuilder.build());
+            partitionBuilder.setBegin(columnBuilder.build());
+            //end
+            contigPositionBuilder.setPosition(Long.parseLong(partitionInfo[2]));
+            columnBuilder.setContigPosition(contigPositionBuilder.build());
+            partitionBuilder.setEnd(columnBuilder.build());
+            partitionBuilder.setWorkspace(workspace);
+            partitionBuilder.setGenerateArrayNameFromPartitionBounds(true);
+            partitionList.add(partitionBuilder.build());
+        }
+        return partitionList;
     }
 
     /**
@@ -537,7 +607,10 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
         final boolean failIfUpdating = this.config.getImportConfiguration().getFailIfUpdating();
         final int totalBatchCount = (sampleCount + updatedBatchSize - 1)/updatedBatchSize; //ceil
         BatchCompletionCallbackFunctionArgument callbackFunctionArgument = new BatchCompletionCallbackFunctionArgument(0, totalBatchCount);
-        for (int i = 0, batchCount = 1; i < sampleCount; i += updatedBatchSize, ++batchCount) {
+        int origLbRowIdx = (this.config.getImportConfiguration().hasLbCallsetRowIdx())
+                           ? ((int)this.config.getImportConfiguration().getLbCallsetRowIdx())
+                           : (0);
+        for (int i = origLbRowIdx, batchCount = 1; i < sampleCount; i += updatedBatchSize, ++batchCount) {
             final int index = i;
             IntStream.range(0, numberPartitions).forEach(rank -> updateConfigPartitionsAndLbUb(this.config, index, rank));
             GenomicsDBImportConfiguration.ImportConfiguration updatedConfig =
