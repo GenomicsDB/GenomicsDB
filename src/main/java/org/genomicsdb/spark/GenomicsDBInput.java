@@ -198,16 +198,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     if (!partitionsList.isEmpty())
       partition = partitionsList.get(pIndex);
 
-    // if workspace contains hdfs://, or s3:// or gc:// they're hdfs compliant and we support it
-    if (partition != null && !(partition.getWorkspace().contains("s3://") ||
-		partition.getWorkspace().contains("hdfs://") ||  
-		partition.getWorkspace().contains("gs://"))) {
-      List<String> hosts = genomicsDBConfiguration.getHosts();
-      for (int i=0; i<hosts.size(); i++) {
-        inputPartitions.add(getInputInstance(hosts.get(i)));
-      }
-    }
-    else if (partition != null) {
+    if (partition != null) {
       while (qIndex < queryRangeList.size() && partition != null) {
         GenomicsDBQueryInfo queryRange = queryRangeList.get(qIndex);
   
