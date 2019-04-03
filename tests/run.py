@@ -30,6 +30,7 @@ import shutil
 from collections import OrderedDict
 import jsondiff
 import errno
+import distutils.spawn
 
 query_json_template_string="""
 {   
@@ -164,6 +165,42 @@ def modify_query_column_ranges_for_PB(test_query_dict):
                 new_query_column_ranges.append(new_entry)
         test_query_dict['query_column_ranges'] = new_query_column_ranges
 
+def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, outfile_string, golden_string):
+    with open(outfilename, "w") as out_fd:
+        out_fd.write(outfile_string)
+    bcf_cmd = bcftools_path+' view -Oz -o '+outfilename+'.gz '+outfilename+' && '+bcftools_path+' index -f -t '+outfilename+'.gz'
+    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE)
+    bcf_stdout = pid.communicate()[0]
+    if(pid.returncode != 0):
+        sys.stderr.write('Call to bcftools failed. Cmd: '+bcf_cmd+'\n')
+        sys.stderr.write('Returned: '+bcf_stdout+'\n')
+        return True
+
+    with open(outfilename_golden, "w") as out_golden_fd:
+        out_golden_fd.write(golden_string)
+    bcf_cmd = bcftools_path+' view -Oz -o '+outfilename_golden+'.gz '+outfilename_golden+' && '+bcftools_path+' index -f -t '+outfilename_golden+'.gz'
+    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE)
+    bcf_stdout = pid.communicate()[0]
+    if(pid.returncode != 0):
+        sys.stderr.write('Call to bcftools failed. Cmd: '+bcf_cmd+'\n')
+        sys.stderr.write('Returned: '+bcf_stdout+'\n')
+        return True
+
+    vcfdiff_cmd = exe_path+os.path.sep+'vcfdiff '+outfilename+'.gz '+outfilename_golden+'.gz'
+    pid = subprocess.Popen(vcfdiff_cmd, shell=True, stdout=subprocess.PIPE)
+    vcfdiff_stdout = pid.communicate()[0]
+    if(pid.returncode != 0):
+        sys.stderr.write('vcfdiff cmd failed. Cmd: '+vcfdiff_cmd+'\n')
+        sys.stderr.write('Returned: '+vcfdiff_stdout+'\n')
+        return True
+    else:
+        if(len(vcfdiff_stdout) == 0):
+            return False
+        else:
+            sys.stderr.write('vcfdiff check failed. Cmd: '+vcfdiff_cmd+'\n')
+            sys.stderr.write('Returned: '+vcfdiff_stdout+'\n')
+            return True
+
 def cleanup_and_exit(tmpdir, exit_code):
     if(exit_code == 0):
         shutil.rmtree(tmpdir, ignore_errors=True)
@@ -207,6 +244,7 @@ def main():
     parent_dir=os.path.dirname(os.path.realpath(__file__))
     os.chdir(parent_dir)
     tmpdir = tempfile.mkdtemp()
+    bcftools_path = distutils.spawn.find_executable("bcftools")
     ws_dir=tmpdir+os.path.sep+'ws';
     jacoco_enabled = os.path.isfile(gcda_prefix_dir+os.path.sep+'jacocoagent.jar') and os.path.isfile(gcda_prefix_dir+os.path.sep+'jacococli.jar')
     loader_tests = [
@@ -994,14 +1032,21 @@ def main():
         if(pid.returncode != 0):
             sys.stderr.write('Loader test: '+test_name+' failed\n');
             sys.stderr.write(import_cmd+'\n')
+            sys.stderr.write(stdout_string+'\n')
             cleanup_and_exit(tmpdir, -1);
         md5sum_hash_str = str(hashlib.md5(stdout_string).hexdigest())
         if('golden_output' in test_params_dict):
             golden_stdout, golden_md5sum = get_file_content_and_md5sum(test_params_dict['golden_output']);
             if(golden_md5sum != md5sum_hash_str):
-                sys.stderr.write('Loader stdout mismatch for test: '+test_name+'\n');
-                print_diff(golden_stdout, stdout_string);
-                cleanup_and_exit(tmpdir, -1);
+                if(bcftools_path is None):
+                    sys.stderr.write('Did not find bcftools in path. If you are able to add that to the path, we can get a more precise diff\n')
+                else:
+                    outfilename = tmpdir+os.path.sep+test_name+'.vcf'
+                    outfilename_golden = tmpdir+os.path.sep+test_name+'_golden'+'.vcf'
+                    if(bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, stdout_string, golden_stdout)):
+                        sys.stderr.write('Loader stdout mismatch for test: '+test_name+'\n');
+                        print_diff(golden_stdout, stdout_string);
+                        cleanup_and_exit(tmpdir, -1);
         if('query_params' in test_params_dict):
             for query_param_dict in test_params_dict['query_params']:
                 test_query_dict = create_query_json(ws_dir, test_name, query_param_dict)
@@ -1084,8 +1129,17 @@ def main():
                                 except:
                                     json_diff_result = None;
                                     is_error = True
+                            # for VCF format try to use bcftools and call vcfdiff
+                            else:
+                                if(bcftools_path is None):
+                                    sys.stderr.write('Did not find bcftools in path. If you are able to add that to the path, we can get a more precise diff\n')
+                                else:
+                                    outfilename = tmpdir+os.path.sep+test_name+'_'+query_type+'.vcf'
+                                    outfilename_golden = tmpdir+os.path.sep+test_name+'_'+query_type+'_golden'+'.vcf'
+                                    is_error = bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, stdout_string, golden_stdout)
                             if(is_error):
                                 sys.stderr.write('Mismatch in query test: '+test_name+'-'+query_type+'\n');
+                                sys.stderr.write('Query command: '+query_command+'\n')
                                 print_diff(golden_stdout, stdout_string);
                                 if(json_diff_result):
                                     print(json.dumps(json_diff_result, indent=4, separators=(',', ': ')));
