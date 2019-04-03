@@ -610,16 +610,19 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
         int origLbRowIdx = (this.config.getImportConfiguration().hasLbCallsetRowIdx())
                            ? ((int)this.config.getImportConfiguration().getLbCallsetRowIdx())
                            : (0);
-        for (int i = origLbRowIdx, batchCount = 1; i < sampleCount; i += updatedBatchSize, ++batchCount) {
+        for (int i = origLbRowIdx, batchCount = 1; i < sampleCount+origLbRowIdx; i += updatedBatchSize, ++batchCount) {
             final int index = i;
             IntStream.range(0, numberPartitions).forEach(rank -> updateConfigPartitionsAndLbUb(this.config, index, rank));
             GenomicsDBImportConfiguration.ImportConfiguration updatedConfig =
                     this.config.getImportConfiguration().toBuilder().setConsolidateTiledbArrayAfterLoad(
-                            i + updatedBatchSize >= sampleCount && performConsolidation)
+                            ((i + updatedBatchSize) >= (sampleCount+origLbRowIdx)) && performConsolidation)
                     .setFailIfUpdating(failIfUpdating && i == 0) //fail if updating should be set to true iff user sets it and this is the first batch
                     .build();
             this.config.setImportConfiguration(updatedConfig);
-            List<CompletableFuture<Boolean>> futures = iterateOverChromosomeIntervals(updatedBatchSize, numberPartitions, executor, index);
+            // sending index-origLbRowIdx because iterativeOverChromosomeIntervals uses that to index sampleMap
+            // and in incremental import case that will only have the incremental callset
+            // whereas updateConfigPartitionsAndLbUb sets config that will index into merged callsetPB
+            List<CompletableFuture<Boolean>> futures = iterateOverChromosomeIntervals(updatedBatchSize, numberPartitions, executor, index-origLbRowIdx);
             List<Boolean> result = futures.stream().map(CompletableFuture::join).collect(Collectors.toList());
 
             if (result.contains(false)) {

@@ -276,25 +276,9 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
     public void testIncrementalImportJsonAndQuery(Map<String, FeatureReader<VariantContext>> sampleToReaderMap)
             throws IOException, InterruptedException {
         // get a subset of the map for initial import
-        System.out.println("debugging incremental test");
-        List<String> sampleSubset = new ArrayList<>();
-        sampleSubset.add("HG00141");
-        Map<String, FeatureReader<VariantContext>> subsetMap = sampleSubset.stream()
-                .filter(sampleToReaderMap::containsKey)
-                .collect(Collectors.toMap(Function.identity(), sampleToReaderMap::get));
-        GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A =
-                this.generateSortedCallSetMap(subsetMap, true, false);
-
-        Set<VCFHeaderLine> mergedHeader = createMergedHeader(subsetMap);
-
-        String inputVCF = "tests/inputs/vcfs/t6.vcf.gz"; 
+        String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
         GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF);
 
-//        importer.writeVidMapJSONFile(tempVidJsonFile.getAbsolutePath(),
-//                importer.generateVidMapFromMergedHeader(mergedHeader));
-//        importer.writeVcfHeaderFile(tempVcfHeaderFile.getAbsolutePath(), mergedHeader);
-//        importer.writeCallsetMapJSONFile(tempCallsetJsonFile.getAbsolutePath(),
-//                callsetMappingPB_A);
         importer.executeImport();
 
         Assert.assertEquals(importer.isDone(), true);
@@ -302,53 +286,37 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
         Assert.assertEquals(tempCallsetJsonFile.isFile(), true);
         Assert.assertEquals(tempVcfHeaderFile.isFile(), true);
 
-        JSONParser parser = new JSONParser();
+        String referenceGenome = "tests/inputs/chr1_10MB.fasta.gz";
 
-        try {
-            FileReader fileReader = new FileReader(tempCallsetJsonFile.getAbsolutePath());
-            JSONObject jsonObject = (JSONObject) parser.parse(fileReader);
-            JSONArray callsetArray = (JSONArray) jsonObject.get("callsets");
+        //When
+        GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration1 = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder()
+                .setWorkspace(WORKSPACE.getAbsolutePath())
+                .setReferenceGenome(referenceGenome)
+                .setVidMappingFile(tempVidJsonFile.getAbsolutePath())
+                .setCallsetMappingFile(tempCallsetJsonFile.getAbsolutePath()).setProduceGTField(true)
+                .setScanFull(true)
+                .setArrayName(String.format(CHROMOSOME_INTERVAL_FOLDER, "1", 17000, 9000000))
+                .build();
 
-            int index = 0;
+        GenomicsDBFeatureReader reader1 = new GenomicsDBFeatureReader<>(exportConfiguration1, new BCF2Codec(), Optional.empty());
 
-            for (Object cObject : callsetArray) {
-                JSONObject sampleObject = (JSONObject) cObject;
-                String sampleName_B = (String) sampleObject.get("sample_name");
-                Long tiledbRowIndex_B = (Long) sampleObject.get("row_idx");
-                String stream_name_B = (String) sampleObject.get("stream_name");
+        CloseableTribbleIterator<VariantContext> gdbIterator1 = reader1.iterator();
+        List<VariantContext> varCtxList1 = new ArrayList<>();
+        while (gdbIterator1.hasNext()) varCtxList1.add(gdbIterator1.next());
 
-                String sampleName_A = callsetMappingPB_A.getCallsets(index).getSampleName();
-                Long tileDBRowIndex_A = callsetMappingPB_A.getCallsets(index).getRowIdx();
-                String stream_name_A = callsetMappingPB_A.getCallsets(index).getStreamName();
+        //Then
+        assert(varCtxList1.size() == 3);
+        assert(varCtxList1.get(0).getStart() == 8029500);
+        assert(varCtxList1.get(0).getGenotypes().size() == 1);
+        assert(varCtxList1.get(1).getStart() == 8029501);
+        assert(varCtxList1.get(1).getGenotypes().size() == 1);
+        assert(varCtxList1.get(2).getStart() == 8029502);
+        assert(varCtxList1.get(2).getGenotypes().size() == 1);
 
-                Assert.assertEquals(sampleName_A, sampleName_B);
-                Assert.assertEquals(tileDBRowIndex_A, tiledbRowIndex_B);
-                Assert.assertEquals(stream_name_A, stream_name_B);
-                index++;
-            }
-        } catch (ParseException p) {
-            p.printStackTrace();
-        }
-        sampleSubset.clear();
-        sampleSubset.add("HG01958");
-        sampleSubset.add("HG01530");
-        Map<String, FeatureReader<VariantContext>> incrementalMap = sampleSubset.stream()
-                .filter(sampleToReaderMap::containsKey)
-                .collect(Collectors.toMap(Function.identity(), sampleToReaderMap::get));
-        GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_AIncremental =
-                this.generateSortedCallSetMap(incrementalMap, true, false);
-
-        Set<VCFHeaderLine> mergedHeaderInc = createMergedHeader(incrementalMap);
-
+        // do incremental import
         inputVCF = "tests/inputs/vcfs/t7.vcf.gz " + 
                    "tests/inputs/vcfs/t8.vcf.gz";
         GenomicsDBImporter importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 ", inputVCF);
-
-//        importerIncremental.writeVidMapJSONFile(tempVidJsonFile.getAbsolutePath(),
-//                importerIncremental.generateVidMapFromMergedHeader(mergedHeaderInc));
-//        importerIncremental.writeVcfHeaderFile(tempVcfHeaderFile.getAbsolutePath(), mergedHeaderInc);
-//        importerIncremental.writeCallsetMapJSONFile(tempCallsetJsonFile.getAbsolutePath(),
-//                callsetMappingPB_AIncremental);
 
         importerIncremental.executeImport();
         Assert.assertEquals(importerIncremental.isDone(), true);
@@ -356,45 +324,140 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
         Assert.assertEquals(tempCallsetJsonFile.isFile(), true);
         Assert.assertEquals(tempVcfHeaderFile.isFile(), true);
 
+        //When
+        GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder()
+                .setWorkspace(WORKSPACE.getAbsolutePath())
+                .setReferenceGenome(referenceGenome)
+                .setVidMappingFile(tempVidJsonFile.getAbsolutePath())
+                .setCallsetMappingFile(tempCallsetJsonFile.getAbsolutePath()).setProduceGTField(true)
+                .setScanFull(true)
+                .setArrayName(String.format(CHROMOSOME_INTERVAL_FOLDER, "1", 17000, 9000000))
+                .build();
 
-        try {
-            FileReader fileReader = new FileReader(tempCallsetJsonFile.getAbsolutePath());
-            JSONObject jsonObject = (JSONObject) parser.parse(fileReader);
-            JSONArray callsetArray = (JSONArray) jsonObject.get("callsets");
+        GenomicsDBFeatureReader reader = new GenomicsDBFeatureReader<>(exportConfiguration, new BCF2Codec(), Optional.empty());
 
-            int index = 0;
+        CloseableTribbleIterator<VariantContext> gdbIterator = reader.iterator();
+        List<VariantContext> varCtxList = new ArrayList<>();
+        while (gdbIterator.hasNext()) varCtxList.add(gdbIterator.next());
 
-            for (Object cObject : callsetArray) {
-                JSONObject sampleObject = (JSONObject) cObject;
-                String sampleName_B = (String) sampleObject.get("sample_name");
-                Long tiledbRowIndex_B = (Long) sampleObject.get("row_idx");
-                String stream_name_B = (String) sampleObject.get("stream_name");
+        //Then
+        assert(varCtxList.size() == 3);
+        assert(varCtxList.get(0).getStart() == 8029500);
+        assert(varCtxList.get(0).getGenotypes().size() == 3);
+        assert(varCtxList.get(1).getStart() == 8029501);
+        assert(varCtxList.get(1).getGenotypes().size() == 3);
+        assert(varCtxList.get(2).getStart() == 8029502);
+        assert(varCtxList.get(2).getGenotypes().size() == 3);
+    }
 
-                String sampleName_A;
-                Long tileDBRowIndex_A;
-                String stream_name_A;
-                if (index == 0) {
-                    sampleName_A = callsetMappingPB_A.getCallsets(index).getSampleName();
-                    tileDBRowIndex_A = callsetMappingPB_A.getCallsets(index).getRowIdx();
-                    stream_name_A = callsetMappingPB_A.getCallsets(index).getStreamName();
-                }
-                else {
-                    // everything should be index-1 because 1st sample is from callsetMappingPB_A
-                    // while 2nd and 3rd are from callsetMappingPB_AIncremental
-                    sampleName_A = callsetMappingPB_AIncremental.getCallsets(index-1).getSampleName();
-                    // increment row indices by 1 because of incremental import
-                    tileDBRowIndex_A = callsetMappingPB_AIncremental.getCallsets(index-1).getRowIdx() + 1;
-                    stream_name_A = callsetMappingPB_AIncremental.getCallsets(index-1).getStreamName();
-                }
+    @Test(testName = "genomicsdb incremental import batch size",
+            dataProvider = "vcfFiles",
+            dataProviderClass = GenomicsDBTestUtils.class)
+    public void testIncrementalImportBatchSize(Map<String, FeatureReader<VariantContext>> sampleToReaderMap)
+            throws IOException, InterruptedException {
+        // get a subset of the map for initial import
+        String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("--batchsize 2 ", inputVCF);
 
-                Assert.assertEquals(sampleName_A, sampleName_B);
-                Assert.assertEquals(tileDBRowIndex_A, tiledbRowIndex_B);
-                Assert.assertEquals(stream_name_A, stream_name_B);
-                index++;
-            }
-        } catch (ParseException p) {
-            p.printStackTrace();
-        }
+        importer.executeImport();
+
+        Assert.assertEquals(importer.isDone(), true);
+        Assert.assertEquals(tempVidJsonFile.isFile(), true);
+        Assert.assertEquals(tempCallsetJsonFile.isFile(), true);
+        Assert.assertEquals(tempVcfHeaderFile.isFile(), true);
+
+        String referenceGenome = "tests/inputs/chr1_10MB.fasta.gz";
+
+        //When
+        GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration1 = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder()
+                .setWorkspace(WORKSPACE.getAbsolutePath())
+                .setReferenceGenome(referenceGenome)
+                .setVidMappingFile(tempVidJsonFile.getAbsolutePath())
+                .setCallsetMappingFile(tempCallsetJsonFile.getAbsolutePath()).setProduceGTField(true)
+                .setScanFull(true)
+                .setArrayName(String.format(CHROMOSOME_INTERVAL_FOLDER, "1", 17000, 9000000))
+                .build();
+
+        GenomicsDBFeatureReader reader1 = new GenomicsDBFeatureReader<>(exportConfiguration1, new BCF2Codec(), Optional.empty());
+
+        CloseableTribbleIterator<VariantContext> gdbIterator1 = reader1.iterator();
+        List<VariantContext> varCtxList1 = new ArrayList<>();
+        while (gdbIterator1.hasNext()) varCtxList1.add(gdbIterator1.next());
+
+        //Then
+        assert(varCtxList1.size() == 3);
+        assert(varCtxList1.get(0).getStart() == 8029500);
+        assert(varCtxList1.get(0).getGenotypes().size() == 1);
+        assert(varCtxList1.get(1).getStart() == 8029501);
+        assert(varCtxList1.get(1).getGenotypes().size() == 1);
+        assert(varCtxList1.get(2).getStart() == 8029502);
+        assert(varCtxList1.get(2).getGenotypes().size() == 1);
+
+        // do incremental import
+        inputVCF = "tests/inputs/vcfs/t7.vcf.gz " +
+                   "tests/inputs/vcfs/t8.vcf.gz";
+        // adding --use_samples_in_order below because otherwise the callsetPB order and the
+        // sampleMap of FeatureReaders will not be in the same order...and then the batches
+        // may not (will not in our case) match (vis a vis callsetPB and feature reader map subset
+        GenomicsDBImporter importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 --batchsize 1 --use_samples_in_order ", inputVCF);
+
+        importerIncremental.executeImport();
+        Assert.assertEquals(importerIncremental.isDone(), true);
+        Assert.assertEquals(tempVidJsonFile.isFile(), true);
+        Assert.assertEquals(tempCallsetJsonFile.isFile(), true);
+        Assert.assertEquals(tempVcfHeaderFile.isFile(), true);
+
+        //When
+        GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder()
+                .setWorkspace(WORKSPACE.getAbsolutePath())
+                .setReferenceGenome(referenceGenome)
+                .setVidMappingFile(tempVidJsonFile.getAbsolutePath())
+                .setCallsetMappingFile(tempCallsetJsonFile.getAbsolutePath()).setProduceGTField(true)
+                .setScanFull(true)
+                .setArrayName(String.format(CHROMOSOME_INTERVAL_FOLDER, "1", 17000, 9000000))
+                .build();
+
+        GenomicsDBFeatureReader reader = new GenomicsDBFeatureReader<>(exportConfiguration, new BCF2Codec(), Optional.empty());
+
+        CloseableTribbleIterator<VariantContext> gdbIterator = reader.iterator();
+        List<VariantContext> varCtxList = new ArrayList<>();
+        while (gdbIterator.hasNext()) varCtxList.add(gdbIterator.next());
+
+        //Then
+        assert(varCtxList.size() == 3);
+        assert(varCtxList.get(0).getStart() == 8029500);
+        assert(varCtxList.get(0).getGenotypes().size() == 3);
+        assert(varCtxList.get(1).getStart() == 8029501);
+        assert(varCtxList.get(1).getGenotypes().size() == 3);
+        assert(varCtxList.get(2).getStart() == 8029502);
+        assert(varCtxList.get(2).getGenotypes().size() == 3);
+    }
+
+    @Test(testName = "genomicsdb multiple incremental imports",
+            dataProvider = "vcfFiles",
+            dataProviderClass = GenomicsDBTestUtils.class)
+    public void testMultipleIncrementalImport(Map<String, FeatureReader<VariantContext>> sampleToReaderMap)
+            throws IOException, InterruptedException {
+        System.out.println("third multiple test");
+        String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF);
+
+        importer.executeImport();
+        Assert.assertEquals(importer.isDone(), true);
+
+        // first incremental import
+        inputVCF = "tests/inputs/vcfs/t7.vcf.gz"; 
+        GenomicsDBImporter importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 ", inputVCF);
+
+        importerIncremental.executeImport();
+        Assert.assertEquals(importerIncremental.isDone(), true);
+
+        // second incremental import
+        inputVCF = "tests/inputs/vcfs/t8.vcf.gz";
+        GenomicsDBImporter importerIncremental2 = getGenomicsDBImporterForMultipleImport("--incremental_import 2 ", inputVCF);
+
+        importerIncremental2.executeImport();
+        Assert.assertEquals(importerIncremental2.isDone(), true);
 
         String referenceGenome = "tests/inputs/chr1_10MB.fasta.gz";
 

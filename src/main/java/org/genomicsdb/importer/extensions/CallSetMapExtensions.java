@@ -225,14 +225,10 @@ public interface CallSetMapExtensions {
             final String callsetMapJSONFilePath,
             final String newCallsetMapJson) throws ParseException {
         String existingCallsetsJSON = GenomicsDBUtils.readEntireFile(callsetMapJSONFilePath);
-        System.out.println("debug: existing callset: "+existingCallsetsJSON);
         GenomicsDBCallsetsMapProto.CallsetMappingPB.Builder callsetMapBuilder =
                 GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder();
         merge(existingCallsetsJSON, callsetMapBuilder);
         merge(newCallsetMapJson, callsetMapBuilder);
-        GenomicsDBCallsetsMapProto.CallsetMappingPB c = callsetMapBuilder.build();
-        System.out.println("debug: new callset: "+newCallsetMapJson);
-        System.out.println("debug: combined callset: "+printToString(c));
         return callsetMapBuilder.build();
     }
 
