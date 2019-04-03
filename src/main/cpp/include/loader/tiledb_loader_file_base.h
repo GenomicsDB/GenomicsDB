@@ -123,10 +123,8 @@ class BufferReaderBase : public virtual GenomicsDBImportReaderBase {
     if (src == 0)
       return 0u;
     if (m_num_valid_bytes_in_buffer+num_bytes > m_buffer.size()) {
-     auto env_var = getenv("TILEDB_DISABLE_FILE_LOCKING");
-  std::cerr << "*** GenomicsDB TILEDB_DISABLE_FILE_LOCKING=" << env_var << "***\n";
 #ifdef DEBUG
-      std::cerr << "Buffer 11 resized from " << m_buffer.size()
+      std::cerr << "Buffer resized from " << m_buffer.size()
                 << " bytes to " <<  m_num_valid_bytes_in_buffer+num_bytes << "\n";
 #endif
       m_buffer.resize(m_num_valid_bytes_in_buffer+num_bytes);
