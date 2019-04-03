@@ -49,6 +49,7 @@ query_json_template_string="""
                 "high": 3
             }]
         }],
+        "query_filter" : "",
         "reference_genome" : "inputs/chr1_10MB.fasta.gz",
         "attributes" : [ "REF", "ALT", "BaseQRankSum", "MQ", "RAW_MQ", "MQ0", "ClippingRankSum", "MQRankSum", "ReadPosRankSum", "DP", "GT", "GQ", "SB", "AD", "PL", "DP_FORMAT", "MIN_DP", "PID", "PGT" ]
 }"""
@@ -91,6 +92,8 @@ def create_query_json(ws_dir, test_name, query_param_dict):
         test_dict['query_sample_names_lists'] = query_param_dict['query_sample_names_lists']
 	if('query_row_ranges' in test_dict):
 	  del test_dict['query_row_ranges']
+    if('query_filter' in query_param_dict):
+        test_dict['query_filter'] = query_param_dict['query_filter']
     return test_dict;
 
 
@@ -433,6 +436,25 @@ def main():
                         "java_vcf"   : "golden_outputs/java_genomicsdb_importer_from_vcfs_t0_1_2_multi_contig_vcf_12150_18000",
                         } }
                 ]
+            },
+            { "name" : "t0_1_2_filter", 'golden_output' : 'golden_outputs/t0_1_2_loading',
+                'callset_mapping_file': 'inputs/callsets/t0_1_2_csv.json',
+                "query_params": [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }],
+                    'query_filter' : 'DP > 100',
+                    "golden_output": {
+                        "calls"      : "golden_outputs/t0_1_2_calls_at_0_with_DP_filter",
+                        "variants"   : "golden_outputs/t0_1_2_variants_at_0_with_DP_filter",
+                        "vcf"        : "golden_outputs/t0_1_2_vcf_at_0_with_DP_filter",
+                        "batched_vcf": "golden_outputs/t0_1_2_vcf_at_0_with_DP_filter",
+                        "java_vcf"   : "golden_outputs/java_t0_1_2_vcf_at_0_with_DP_filter",
+                        } },
+                    ]
             },
             { "name" : "t0_1_2_csv", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2_csv.json',
@@ -1101,6 +1123,7 @@ def main():
                         golden_stdout, golden_md5sum = get_file_content_and_md5sum(query_param_dict['golden_output'][query_type]);
                         if(golden_md5sum != md5sum_hash_str):
                             is_error = True;
+                            print("Command="+query_command+"\n");
                             #do JSON diff for variant and call format print
                             json_diff_result = None
                             if(query_type in set(['calls', 'variants'])):
