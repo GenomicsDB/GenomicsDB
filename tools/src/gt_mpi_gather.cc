@@ -232,7 +232,7 @@ void run_range_query(const VariantQueryProcessor& qp, const VariantQueryConfig& 
 #endif
 
   // Update the recvcounts and displs but multiply by 2 because
-  // each column has the start and end query posistion
+  // each column has the start and end query position
   total_columns = 0ull;
   if (my_world_mpi_rank == 0) {
     for (auto i = 0ull; i < recvcounts.size(); ++i) {
@@ -407,10 +407,10 @@ void print_usage() {
             << "\t\t Optional, prints VariantCalls in a JSON format\n"
             << "\t \e[1m--print-csv\e[0m\n"
             << "\t\t Optional, outputs CSV with the fields and the order of CSV lines determined by the query attributes\n"
-            << "\t \e[1m--produce-Broad-GCVF\e[0m\n"
+            << "\t \e[1m--produce-Broad-GVCF\e[0m\n"
             << "\t\t Optional, produces combined gVCF from the GenomicsDB data constrained by the query configuration\n"
             << "\t\t \e[1m--output-format\e[0m=<output_format>, \e[1m-O\e[0m <output_format>\n"
-            << "\t\t\t used with \e[1m--produce-Broad-GCVF\e[0m\n"
+            << "\t\t\t used with \e[1m--produce-Broad-GVCF\e[0m\n"
             << "\t\t\t Output format can be one of the following strings: \"z[0-9]\" (compressed VCF),\"b[0-9]\" (compressed BCF)\n"
             << "\t\t\t or \"bu\" (uncompressed BCF). Default is uncompressed VCF if not specified.\n"
             << "\t \e[1m--produce-histogram\e[0m\n"
