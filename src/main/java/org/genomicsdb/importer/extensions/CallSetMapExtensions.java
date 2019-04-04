@@ -217,18 +217,17 @@ public interface CallSetMapExtensions {
     /**
      * Merges incremental import's callsets with existing callsets
      * @param callsetMapJSONFilePath path to existing callset map file
-     * @param newCallsetMapJson callset mapping json string for new callsets
+     * @param newCallsetMapPB callset mapping protobuf for new callsets
      * @return merged callsets for callsets to TileDB rows
      * @throws ParseException when there is an error parsing callset jsons
      */
     default GenomicsDBCallsetsMapProto.CallsetMappingPB mergeCallsetsForIncrementalImport(
             final String callsetMapJSONFilePath,
-            final String newCallsetMapJson) throws ParseException {
+            final GenomicsDBCallsetsMapProto.CallsetMappingPB newCallsetMapPB) throws ParseException {
         String existingCallsetsJSON = GenomicsDBUtils.readEntireFile(callsetMapJSONFilePath);
         GenomicsDBCallsetsMapProto.CallsetMappingPB.Builder callsetMapBuilder =
-                GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder();
+                newCallsetMapPB.toBuilder();
         merge(existingCallsetsJSON, callsetMapBuilder);
-        merge(newCallsetMapJson, callsetMapBuilder);
         return callsetMapBuilder.build();
     }
 

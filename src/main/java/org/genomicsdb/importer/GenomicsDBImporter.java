@@ -62,7 +62,6 @@ import java.util.stream.IntStream;
 
 import static org.genomicsdb.GenomicsDBUtils.createTileDBWorkspace;
 import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBArrays;
-import static com.googlecode.protobuf.format.JsonFormat.printToString;
 
 /**
  * Java wrapper for vcf2tiledb - imports VCFs into TileDB/GenomicsDB.
@@ -126,13 +125,6 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     private GenomicsDBImporter(final ImportConfig importConfig,
                                final Map<String, FeatureReader<VariantContext>> sampleToReaderMap,
                                final int rank) throws IOException {
-        /* TODO move to GATK
-        if (importConfig.isIncrementalImport()) {
-            String workspace = this.config.getImportConfiguration().getColumnPartitions(0).getWorkspace();
-            final List<GenomicsDBImportConfiguration.Partition> partitions = generatePartitionListFromWorkspace(workspace);
-            importConfig.getImportConfiguration().addAllColumnPartitions(partitions);
-        }
-        */
         File importJSONFile = dumpTemporaryLoaderJSONFile(importConfig.getImportConfiguration(), "");
 
         initialize(importJSONFile.getAbsolutePath(), rank);
@@ -177,13 +169,6 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
             com.googlecode.protobuf.format.JsonFormat.ParseException {
         this.config = config;
         this.config.setImportConfiguration(addExplicitValuesToImportConfiguration(config));
-        /* TODO move to GATK
-        if (this.config.isIncrementalImport()) {
-            String workspace = this.config.getImportConfiguration().getColumnPartitions(0).getWorkspace();
-            final List<GenomicsDBImportConfiguration.Partition> partitions = generatePartitionListFromWorkspace(workspace);
-            this.config.getImportConfiguration().addAllColumnPartitions(partitions);
-        }
-        */
         long lbRowIdx = this.config.getImportConfiguration().hasLbCallsetRowIdx()
             ? this.config.getImportConfiguration().getLbCallsetRowIdx()
             : 0L;
@@ -207,10 +192,8 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
             if (outputCallsetmapJsonFilePath == null || outputCallsetmapJsonFilePath.isEmpty()) {
                 throw new GenomicsDBException("Incremental import must specify callset file name");
             }
-            String newCallsetJson = printToString(callsetMappingPB);
             callsetMappingPB = this.mergeCallsetsForIncrementalImport(outputCallsetmapJsonFilePath,
-                                       newCallsetJson);
-            //TODO lbRowIdx += callsetMappingPB.getCallsetsList().size();
+                                       callsetMappingPB);
         }
         //Vid map
         String vidmapOutputFilepath = this.config.getOutputVidmapJsonFile();
@@ -249,41 +232,6 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
 	if (createTileDBWorkspace(workspace, false) < 0) {
 	    throw new IllegalStateException(String.format("Cannot create '%s' workspace.", workspace));
         }
-    }
-
-    /**
-     * Function to construct the column partition information from array names. 
-     * Used in the incremental import case.
-     *
-     * @param workspace path to GenomicsDB workspace
-     * @return list of GenomicsDBImportConfiguration.Partition objects
-     */
-    private List<GenomicsDBImportConfiguration.Partition> generatePartitionListFromWorkspace(String workspace) {
-        // TODO move this into GATK instead
-        String[] partitions = listGenomicsDBArrays(workspace);
-        ArrayList<GenomicsDBImportConfiguration.Partition> partitionList = new ArrayList<>(partitions.length);
-        for (int i=0; i<partitions.length; i++) {
-            String[] partitionInfo = partitions[i].split("\\$");
-            if (partitionInfo.length != 3) {
-                throw new GenomicsDBException(
-                    "Workspace contains array name that doesn't fit the <contig>$<startpos>$<endpos> format:"+partitions[i]);
-            }
-            GenomicsDBImportConfiguration.Partition.Builder partitionBuilder = GenomicsDBImportConfiguration.Partition.newBuilder();
-            Coordinates.ContigPosition.Builder contigPositionBuilder = Coordinates.ContigPosition.newBuilder();
-            Coordinates.GenomicsDBColumn.Builder columnBuilder = Coordinates.GenomicsDBColumn.newBuilder();
-            //begin
-            contigPositionBuilder.setContig(partitionInfo[0]).setPosition(Long.parseLong(partitionInfo[1]));
-            columnBuilder.setContigPosition(contigPositionBuilder.build());
-            partitionBuilder.setBegin(columnBuilder.build());
-            //end
-            contigPositionBuilder.setPosition(Long.parseLong(partitionInfo[2]));
-            columnBuilder.setContigPosition(contigPositionBuilder.build());
-            partitionBuilder.setEnd(columnBuilder.build());
-            partitionBuilder.setWorkspace(workspace);
-            partitionBuilder.setGenerateArrayNameFromPartitionBounds(true);
-            partitionList.add(partitionBuilder.build());
-        }
-        return partitionList;
     }
 
     /**
