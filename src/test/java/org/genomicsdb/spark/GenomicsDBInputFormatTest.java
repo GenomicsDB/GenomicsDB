@@ -69,10 +69,10 @@ public class GenomicsDBInputFormatTest {
     }
   }
 
-  @Test(testName = "Testcase1 for creating InputSplits",
+  @Test(testName = "Test each query maps to same partition, no split",
       dataProvider = "loaderQueryHostFilesTest1",
       dataProviderClass = GenomicsDBTestUtils.class)
-  public void testGetSplits1(String queryPath, String loaderPath, String hostPath) 
+  public void testAllQueriesMapsToSamePartitionNoSplit(String queryPath, String loaderPath, String hostPath) 
               throws IOException, FileNotFoundException, InterruptedException{
     Job job = Job.getInstance();
     Configuration conf = job.getConfiguration();
@@ -99,17 +99,16 @@ public class GenomicsDBInputFormatTest {
     }
   }
 
-  @Test(testName = "Testcase2 for creating InputSplits",
+  @Test(testName = "Test single query splits up by query block over single partition",
       dataProvider = "loaderQueryHostFilesTest2",
       dataProviderClass = GenomicsDBTestUtils.class)
-  public void testGetSplits2(String queryPath, String loaderPath, String hostPath) 
+  public void testQuerySplitUpSinglePartition(String queryPath, String loaderPath, String hostPath) 
               throws IOException, FileNotFoundException, InterruptedException {
     Job job = Job.getInstance();
     Configuration conf = job.getConfiguration();
     conf.set(GenomicsDBConfiguration.LOADERJSON, loaderPath);
     conf.set(GenomicsDBConfiguration.QUERYJSON, queryPath);
     conf.set(GenomicsDBConfiguration.MPIHOSTFILE, hostPath);
-    ArrayList<GenomicsDBPartitionInfo> pList = new ArrayList<>(3);
     // test with single query that will get split up and maps to single partition
     GenomicsDBPartitionInfo p = new GenomicsDBPartitionInfo(0, "hdfs://tmp/ws", "part", "/tmp/test0.vcf.gz");
     int qstart = 500;
@@ -119,6 +118,7 @@ public class GenomicsDBInputFormatTest {
     GenomicsDBInputFormat format = new GenomicsDBInputFormat();
     format.setConf(conf);
     List<InputSplit> splits = format.getSplits(job);
+    Assert.assertEquals(splits.size(), 3);
     for(int i=0; i<splits.size(); i++) {
       GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(i);
       Assert.assertEquals(gSplit.getPartitionInfo(), p);
@@ -136,7 +136,7 @@ public class GenomicsDBInputFormatTest {
     }
   }
 
-  @Test(testName = "Testcase3 for creating InputSplits",
+  @Test(testName = "Test local filesystem splits same as hdfs-compliant",
       dataProvider = "loaderQueryHostFilesTest3",
       dataProviderClass = GenomicsDBTestUtils.class)
   public void testGetSplits3(String queryPath, String loaderPath, String hostPath) 
@@ -163,4 +163,36 @@ public class GenomicsDBInputFormatTest {
     Assert.assertEquals(gSplit.getQueryInfo().getBeginPosition(), 500);
     Assert.assertEquals(gSplit.getQueryInfo().getEndPosition(), 25000);
   }
+
+  @Test(testName = "Test query larger than partitions",
+      dataProvider = "loaderQueryHostFilesTest4",
+      dataProviderClass = GenomicsDBTestUtils.class)
+  public void testQueryLargerThanPartitions(String queryPath, 
+              String loaderPath, String hostPath) 
+              throws IOException, FileNotFoundException, InterruptedException {
+    Job job = Job.getInstance();
+    Configuration conf = job.getConfiguration();
+    conf.set(GenomicsDBConfiguration.LOADERJSON, loaderPath);
+    conf.set(GenomicsDBConfiguration.QUERYJSON, queryPath);
+    conf.set(GenomicsDBConfiguration.MPIHOSTFILE, hostPath);
+    ArrayList<GenomicsDBPartitionInfo> pList = new ArrayList<>(3);
+    // test with single query that will get split up and maps to single partition
+    for(int i=0; i<3; i++) {
+      GenomicsDBPartitionInfo p = new GenomicsDBPartitionInfo(i*10000, "hdfs://tmp/ws", "part"+i, "/tmp/test0.vcf.gz");
+      pList.add(p);
+    }
+    int qstart = 500;
+    int qend = 25000;
+    GenomicsDBQueryInfo q = new GenomicsDBQueryInfo(qstart, qend);
+
+    GenomicsDBInputFormat format = new GenomicsDBInputFormat();
+    format.setConf(conf);
+    List<InputSplit> splits = format.getSplits(job);
+    Assert.assertEquals(splits.size(), 3);
+    for(int i=0; i<splits.size(); i++) {
+      GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(i);
+      Assert.assertEquals(gSplit.getPartitionInfo(), pList.get(i));
+    }
+  }
+
 }

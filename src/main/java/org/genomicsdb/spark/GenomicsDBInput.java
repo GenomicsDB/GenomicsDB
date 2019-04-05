@@ -55,7 +55,13 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
   private Class<T> clazz;
 
   /**
-    * constructor
+    * constructor for GenomicsDBInput
+    * @param gdbconf GenomicsDBConfiguration object
+    * @param schema schema used for the datasource API
+    * @param vMap map of attribute to vid mapping information
+    * @param minQBS minimum query block size used for partitioning query
+    * @param maxQBS maximum query block size used for partitioning query
+    * @param clazz Class object used to decide how to instantiate partitions
     */
   GenomicsDBInput(GenomicsDBConfiguration gdbconf, StructType schema, 
       Map<String, GenomicsDBVidSchema> vMap, long minQBS, long maxQBS, Class<T> clazz) {
@@ -69,6 +75,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
 
   /**
    * set the GenomicsDBConfiguration object
+   * @param gdbconf GenomcisDBConfiguration object
    */
   public void setGenomicsDBConfiguration(GenomicsDBConfiguration gdbconf) {
     genomicsDBConfiguration = gdbconf;
@@ -76,6 +83,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
 
   /**
    * get the GenomicsDBConfiguration object
+   * @return GenomicsDBConfiguration object
    */
   public GenomicsDBConfiguration getGenomicsDBConfiguration() {
     return genomicsDBConfiguration;
@@ -216,6 +224,13 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
         long queryBlockSize = queryRange.getEndPosition() - queryRange.getBeginPosition() + 1;
         if (queryBlockSize < goalBlockSize) {
           inputPartitions.add(getInputInstance(partition, queryRange));
+  	  // if this queryRange spans multiple partitions, need to add those as splits as well
+  	  while ((pIndex + 1) < partitionsList.size() &&
+                  queryRange.getEndPosition() >= partitionsList.get(pIndex+1).getBeginPosition()) {
+  	    pIndex++;
+            partition = partitionsList.get(pIndex);
+  	    inputPartitions.add(getInputInstance(partition, queryRange));
+  	  }
         }
         else {
           // bigger than goalBlockSize, so break up into "query chunks"

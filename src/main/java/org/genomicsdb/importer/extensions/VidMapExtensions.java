@@ -204,6 +204,7 @@ public interface VidMapExtensions {
      * @param vidFile file with existing vid info
      * @return a vid map containing all field names, lengths and types
      * from the merged GVCF header. for incremental import case
+     * @throws ParseException when there is an error parsing existing vid json
      */
     default GenomicsDBVidMapProto.VidMappingPB generateVidMapFromFile(final String vidFile)
         throws ParseException {

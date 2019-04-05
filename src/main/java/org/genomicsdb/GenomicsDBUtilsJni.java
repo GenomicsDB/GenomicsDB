@@ -64,7 +64,7 @@ public class GenomicsDBUtilsJni {
 
     /**
      * List Arrays in given workspace.
-     * @param workspace
+     * @param workspace workspace
      * @return list of arrays in given workspace.
      */
     public static native String[] jniListTileDBArrays(final String workspace);

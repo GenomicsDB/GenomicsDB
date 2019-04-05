@@ -193,6 +193,7 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                 throw new GenomicsDBException("Incremental import must specify callset file name");
             }
             callsetMappingPB = this.mergeCallsetsForIncrementalImport(outputCallsetmapJsonFilePath,
+                                       this.config.getSampleNameToVcfPath(),
                                        callsetMappingPB);
         }
         //Vid map

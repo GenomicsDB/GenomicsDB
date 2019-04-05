@@ -62,6 +62,7 @@ public class ImportConfig {
      * @param mergedHeader              Required header
      * @param sampleNameToVcfPath       Sample name to VCF path map
      * @param sampleToReaderMapCreator  Function used for creating sampleToReaderMap
+     * @param incrementalImport         Flag for indicating incremental import
      */
     public ImportConfig(final GenomicsDBImportConfiguration.ImportConfiguration importConfiguration,
                         final boolean validateSampleToReaderMap,
