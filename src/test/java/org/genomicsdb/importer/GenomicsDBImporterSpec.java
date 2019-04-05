@@ -40,6 +40,7 @@ import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBCallsetsMapProto;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
+import org.genomicsdb.exception.GenomicsDBException;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -438,7 +439,6 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
             dataProviderClass = GenomicsDBTestUtils.class)
     public void testMultipleIncrementalImport(Map<String, FeatureReader<VariantContext>> sampleToReaderMap)
             throws IOException, InterruptedException {
-        System.out.println("third multiple test");
         String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
         GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF);
 
@@ -485,6 +485,25 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
         assert(varCtxList.get(1).getGenotypes().size() == 3);
         assert(varCtxList.get(2).getStart() == 8029502);
         assert(varCtxList.get(2).getGenotypes().size() == 3);
+    }
+
+    @Test(testName = "genomicsdb incremental import same sample",
+            dataProvider = "vcfFiles",
+            dataProviderClass = GenomicsDBTestUtils.class,
+            expectedExceptions = GenomicsDBException.class)
+    public void testIncrementalImportSameSample(Map<String, FeatureReader<VariantContext>> sampleToReaderMap)
+            throws IOException, InterruptedException {
+        String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF);
+
+        importer.executeImport();
+        Assert.assertEquals(importer.isDone(), true);
+
+        inputVCF = "tests/inputs/vcfs/t6.vcf.gz"; 
+        GenomicsDBImporter importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 ", inputVCF);
+
+        importerIncremental.executeImport();
+
     }
 
     @BeforeMethod

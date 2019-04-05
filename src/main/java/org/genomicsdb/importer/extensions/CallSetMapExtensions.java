@@ -5,6 +5,7 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import org.genomicsdb.model.GenomicsDBCallsetsMapProto;
 import org.genomicsdb.GenomicsDBUtils;
+import org.genomicsdb.exception.GenomicsDBException;
 
 import java.net.URI;
 import java.util.*;
@@ -152,7 +153,9 @@ public interface CallSetMapExtensions {
      * @param sampleToReaderMap         Variant Readers objects of the input GVCF files
      * @param useSamplesInOrderProvided If True, do not sort the samples,
      *                                  use the order they appear in
-     * @param validateSampleToReaderMap
+     * @param validateSampleToReaderMap If True, check i) whether sample names are consistent
+     *                                  with headers and ii) feature readers are valid
+     *                                  in sampleToReaderMap
      * @param useSamplesInOrderProvided use samples in order provided in the map
      * @return Mappings of callset (sample) names to TileDB rows
      */
@@ -217,18 +220,52 @@ public interface CallSetMapExtensions {
     /**
      * Merges incremental import's callsets with existing callsets
      * @param callsetMapJSONFilePath path to existing callset map file
+     * @param inputSampleNameToPath    map from sample name to VCF/BCF file path
      * @param newCallsetMapPB callset mapping protobuf for new callsets
      * @return merged callsets for callsets to TileDB rows
      * @throws ParseException when there is an error parsing callset jsons
      */
     default GenomicsDBCallsetsMapProto.CallsetMappingPB mergeCallsetsForIncrementalImport(
             final String callsetMapJSONFilePath,
-            final GenomicsDBCallsetsMapProto.CallsetMappingPB newCallsetMapPB) throws ParseException {
+            final Map<String, URI> inputSampleNameToPath,
+            final GenomicsDBCallsetsMapProto.CallsetMappingPB newCallsetMapPB) 
+            throws ParseException {
         String existingCallsetsJSON = GenomicsDBUtils.readEntireFile(callsetMapJSONFilePath);
         GenomicsDBCallsetsMapProto.CallsetMappingPB.Builder callsetMapBuilder =
                 newCallsetMapPB.toBuilder();
+        checkDuplicateCallsetsForIncrementalImport(existingCallsetsJSON, inputSampleNameToPath);
         merge(existingCallsetsJSON, callsetMapBuilder);
         return callsetMapBuilder.build();
+    }
+
+    /**
+     * Checks for duplicates between existing and incremental callsets
+     * @param existingCallsetsJSON json string with existing callset
+     * @param inputSampleNameToPath    map from sample name to VCF/BCF file path
+     * @throws ParseException when there is an error parsing callset jsons
+     * @throws GenomicsDBException when duplicate samples are found between existing
+     * and new callsets
+     */
+    default void checkDuplicateCallsetsForIncrementalImport(
+            final String existingCallsetsJSON,
+            final Map<String, URI> inputSampleNameToPath) 
+            throws ParseException, GenomicsDBException {
+        // create PB from existing json string to iterate through it
+        // maybe better to use some json library here since we just need to 
+        // iterate through the existing callset
+        GenomicsDBCallsetsMapProto.CallsetMappingPB.Builder callsetMapBuilder =
+                GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder();
+        merge(existingCallsetsJSON, callsetMapBuilder);
+        GenomicsDBCallsetsMapProto.CallsetMappingPB existingCallsetsPB = callsetMapBuilder.build();
+        int callsetsCount = existingCallsetsPB.getCallsetsCount();
+        for (int i=0; i<callsetsCount; i++) {
+            String sampleName = existingCallsetsPB.getCallsets(i).getSampleName();
+            URI value = inputSampleNameToPath.get(sampleName);
+            if (value != null) {
+                throw new GenomicsDBException("Duplicate sample name found: "+sampleName+". Sample "+
+                        "was originally in "+value);
+            }
+        }
     }
 
     /**
