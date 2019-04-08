@@ -11,7 +11,7 @@ SPARK_DIR=${INSTALL_DIR}/$SPARK
 SPARK_LOCAL_DIR="/usr/local/spark"
 
 download_spark() {
-  wget -nv --trust-server-names "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=spark/spark-$SPARK_VER/$SPARK.tgz"
+  wget -nv --trust-server-names "https://archive.apache.org/dist/spark/spark-$SPARK_VER/$SPARK.tgz"
   sudo tar -zxf $SPARK.tgz --directory $INSTALL_DIR &&
   sudo chown -R $USER:$USER $SPARK_DIR &&
   sudo ln -s $INSTALL_DIR/$SPARK $SPARK_LOCAL_DIR &&
