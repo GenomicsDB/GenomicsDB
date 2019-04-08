@@ -140,6 +140,8 @@ script:
         travis_wait 40 python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local gs://$GS_BUCKET client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests;
       elif [[ $TRAVIS_OS_NAME == osx && ! -f $CACHE_DIR/initialized ]]; then
         touch $CACHE_DIR/initialized;
+      elif [[ $TRAVIS_OS_NAME == osx && -f $CACHE_DIR/initialized ]]; then
+        travis_wait 40 python2 $TRAVIS_BUILD_DIR/tests/run.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR;
       else
         make test ARGS=-V;
       fi
