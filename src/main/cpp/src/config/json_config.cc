@@ -35,13 +35,11 @@ const char* g_json_indent_unit = "    ";
 
 rapidjson::Document parse_json_file(const std::string& filename) {
   VERIFY_OR_THROW(filename.length() && "vid/callset mapping file unspecified");
-  char *json_buffer;
+  char *json_buffer = 0;
   size_t json_buffer_length;
   if (TileDBUtils::read_entire_file(filename, (void **)&json_buffer, &json_buffer_length) != TILEDB_OK || !json_buffer || json_buffer_length == 0) {
-    if (json_buffer) {
-      free(json_buffer);
-      throw GenomicsDBConfigException((std::string("Could not open vid/callset mapping file \"")+filename+"\"").c_str());
-    }
+    free(json_buffer);
+    throw GenomicsDBConfigException((std::string("Could not open vid/callset mapping file \"")+filename+"\"").c_str());
   }
   rapidjson::Document json_doc;
   json_doc.Parse(json_buffer);
@@ -496,6 +494,10 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
       VERIFY_OR_THROW(q2.IsString());
       m_attributes[i] = std::move(std::string(q2.GetString()));
     }
+  }
+  if (m_json.HasMember("query_filter")) {
+    VERIFY_OR_THROW(m_json["query_filter"].IsString());
+    m_query_filter = m_json["query_filter"].GetString();
   }
   if (m_json.HasMember("segment_size")) {
     VERIFY_OR_THROW(m_json["segment_size"].IsInt64());

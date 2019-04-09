@@ -1,0 +1,5 @@
+{
+  "query_column_ranges": [[[175859120,210306771]]],
+  "callset_mapping_file": "inputs/callsets/t6_7_8.json", 
+  "vid_mapping_file": "inputs/vid.json" 
+}

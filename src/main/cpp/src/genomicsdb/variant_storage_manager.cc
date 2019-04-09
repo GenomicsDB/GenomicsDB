@@ -58,8 +58,10 @@ std::vector<const char*> VariantStorageManager::m_metadata_attributes = std::vec
 #define GET_ALIGNED_BUFFER_SIZE(buffer_size, field_size) ((((buffer_size)+(field_size)-1u)/(field_size))*(field_size))
 
 //VariantArrayCellIterator functions
-VariantArrayCellIterator::VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const VariantArraySchema& variant_array_schema,
-    const std::string& array_path, const int64_t* range, const std::vector<int>& attribute_ids, const size_t buffer_size)
+VariantArrayCellIterator::VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const VariantArraySchema& variant_array_schema, 
+						   const std::string& array_path, const int64_t* range,
+						   const std::vector<int>& attribute_ids,
+						   const size_t buffer_size, const std::string& query_filter)
   : m_num_queried_attributes(attribute_ids.size()), m_tiledb_ctx(tiledb_ctx),
     m_variant_array_schema(&variant_array_schema), m_cell(variant_array_schema, attribute_ids)
 #ifdef DO_PROFILING
@@ -92,7 +94,7 @@ VariantArrayCellIterator::VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const
     m_buffer_sizes[i] = m_buffers[i].size();
   }
   /* Initialize the array in READ mode. */
-  auto status = tiledb_array_iterator_init(
+  auto status = tiledb_array_iterator_init_with_filter(
                   tiledb_ctx,
                   &m_tiledb_array_iterator,
                   array_path.c_str(),
@@ -101,10 +103,12 @@ VariantArrayCellIterator::VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const
                   &(attribute_names[0]),
                   attribute_names.size(),
                   const_cast<void**>(&(m_buffer_pointers[0])),
-                  &(m_buffer_sizes[0]));
-  if (status != TILEDB_OK)
+                  &(m_buffer_sizes[0]),
+                  query_filter.c_str());
+  if (status != TILEDB_OK) {
     throw VariantStorageManagerException(std::string("Error while initializing TileDB iterator")
                                          +"\nTileDB error message : "+tiledb_errmsg);
+  }
 #ifdef DEBUG
   m_last_row = -1;
   m_last_column = -1;
@@ -461,7 +465,7 @@ VariantStorageManager::VariantStorageManager(const std::string& workspace, const
   }
 }
 
-int VariantStorageManager::open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode) {
+int VariantStorageManager::open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode, const std::string& query_filter) {
   auto mode_iter = VariantStorageManager::m_mode_string_to_int.find(mode);
   VERIFY_OR_THROW(mode_iter != VariantStorageManager::m_mode_string_to_int.end() && "Unknown mode of opening an array");
   auto mode_int = (*mode_iter).second;
@@ -474,6 +478,9 @@ int VariantStorageManager::open_array(const std::string& array_name, const VidMa
                     (m_workspace+'/'+array_name).c_str(),
                     mode_int, NULL,
                     0, 0);
+    if (status == TILEDB_OK && mode_int == TILEDB_ARRAY_READ && query_filter.size() != 0) {
+      status = tiledb_array_apply_filter(tiledb_array, query_filter.c_str());
+    }
     if (status == TILEDB_OK) {
       auto idx = m_open_arrays_info_vector.size();
       //Schema
@@ -667,13 +674,12 @@ int VariantStorageManager::get_array_schema(const std::string& array_name, Varia
   return TILEDB_OK;
 }
 
-VariantArrayCellIterator* VariantStorageManager::begin(
-  int ad, const int64_t* range, const std::vector<int>& attribute_ids) const {
+VariantArrayCellIterator* VariantStorageManager::begin(int ad, const int64_t* range, const std::vector<int>& attribute_ids, const std::string& query_filter) const {
   VERIFY_OR_THROW(static_cast<size_t>(ad) < m_open_arrays_info_vector.size() &&
                   m_open_arrays_info_vector[ad].get_array_name().length());
   auto& curr_elem = m_open_arrays_info_vector[ad];
   return new VariantArrayCellIterator(m_tiledb_ctx, curr_elem.get_schema(), m_workspace+'/'+curr_elem.get_array_name(),
-                                      range, attribute_ids, m_segment_size);
+                                      range, attribute_ids, m_segment_size, query_filter);
 }
 
 SingleCellTileDBIterator* VariantStorageManager::begin_columnar_iterator(
@@ -682,7 +688,7 @@ SingleCellTileDBIterator* VariantStorageManager::begin_columnar_iterator(
                   m_open_arrays_info_vector[ad].get_array_name().length());
   auto& curr_elem = m_open_arrays_info_vector[ad];
   return new SingleCellTileDBIterator(m_tiledb_ctx,
-                                      use_common_array_object ? m_open_arrays_info_vector[ad].get_tiledb_array() : 0,
+                                      use_common_array_object ? curr_elem.get_tiledb_array() : 0,
                                       curr_elem.get_vid_mapper(), curr_elem.get_schema(),
                                       m_workspace+'/'+curr_elem.get_array_name(),
                                       query_config, m_segment_size);

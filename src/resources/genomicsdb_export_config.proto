@@ -62,6 +62,7 @@ message ExportConfiguration {
   repeated RowRangeList query_row_ranges = 5;
   repeated SampleNameList query_sample_names_lists = 22; //to match the structure of query_row_ranges
   repeated string attributes = 6;
+  optional string query_filter = 23;
   optional string vcf_header_filename = 7;
   optional string vcf_output_filename = 8;
   optional string vcf_output_format = 9;

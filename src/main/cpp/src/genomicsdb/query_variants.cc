@@ -1047,7 +1047,7 @@ void VariantQueryProcessor::gt_initialize_forward_iter(
   if (forward_iter)
     forward_iter->reset_subarray(&(query_range[0]));
   else     //Assign forward iterator
-    forward_iter = get_storage_manager()->begin(ad, &(query_range[0]), query_config.get_query_attributes_schema_idxs());
+    forward_iter = get_storage_manager()->begin(ad, &(query_range[0]), query_config.get_query_attributes_schema_idxs(), query_config.get_query_filter());
 }
 
 void VariantQueryProcessor::clear() {

@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2019 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -231,7 +232,7 @@ void run_range_query(const VariantQueryProcessor& qp, const VariantQueryConfig& 
 #endif
 
   // Update the recvcounts and displs but multiply by 2 because
-  // each column has the start and end query posistion
+  // each column has the start and end query position
   total_columns = 0ull;
   if (my_world_mpi_rank == 0) {
     for (auto i = 0ull; i < recvcounts.size(); ++i) {
@@ -304,7 +305,6 @@ void run_range_query(const VariantQueryProcessor& qp, const VariantQueryConfig& 
   }
 }
 
-#if defined(HTSDIR)
 void scan_and_produce_Broad_GVCF(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config,
                                  VCFAdapter& vcf_adapter, const VidMapper& id_mapper,
                                  const ProduceBroadGVCFSubOperation sub_operation_type, int my_world_mpi_rank, bool skip_query_on_root) {
@@ -345,7 +345,6 @@ void scan_and_produce_Broad_GVCF(const VariantQueryProcessor& qp, const VariantQ
   timer.print(std::string("Total scan_and_produce_Broad_GVCF time")+" for rank "+std::to_string(my_world_mpi_rank), std::cerr);
   delete op_ptr;
 }
-#endif
 
 void print_calls(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, int command_idx, const VidMapper& id_mapper) {
   switch (command_idx) {
@@ -385,19 +384,54 @@ void produce_column_histogram(const VariantQueryProcessor& qp, const VariantQuer
     histogram_op.equi_partition_and_print_bins(val);
 }
 
-int main(int argc, char *argv[]) {
-  //Initialize MPI environment
+void print_usage() {
+  std::cout << "Usage: gt_mpi_gather [options]\n"
+            << "where options include:\n"
+            << "\t \e[1m--help\e[0m, \e[1m-h\e[0m Print a usage message summarizing options available and exit\n"
+            << "\t \e[1m--json-config\e[0m=<query json file>, \e[1m-j\e[0m <query json file>\n"
+            << "\t\t Can specify workspace, array, query_column_ranges, query_row_ranges, vid_mapping_file,\n"
+            << "\t\t callset_mapping_file, query_attributes, query_filter, reference_genome, etc. as fields in the json file e.g.\n"
+            << "\t\t\t { \"workspace\" : \"/tmp/ws\",\n"
+            << "\t\t\t   \"array\" : \"t0_1_2\",\n"
+            << "\t\t\t   \"query_column_ranges\" : [ [ [0, 100 ], 500 ] ],\n"
+            << "\t\t\t   \"query_row_ranges\" : [ [ [0, 2 ] ],\n"
+            << "\t\t\t   \"vid_mapping_file\" : \"/tests/inputs/vid.json\",\n"
+            << "\t\t\t   \"query_attributes\" : [ \"REF\", \"ALT\", \"BaseQRankSum\", \"MQ\", \"MQ0\", \"ClippingRankSum\", \"MQRankSum\", \"ReadPosRankSum\", \"DP\", \"GT\", \"GQ\", \"SB\", \"AD\", \"PL\", \"DP_FORMAT\", \"MIN_DP\" ] }\n"
+            << "\t \e[1m--loader-json-config\e[0m=<loader json file>, \e[1m-l\e[0m <loader json file>\n"
+            << "\t\t Optional, if vid_mapping_file and callset_mapping_file fields are specified in the query json file\n"
+            << "\t \e[1m--workspace\e[0m=<workspace dir>, \e[1m-w\e[0m <GenomicsDB workspace dir>\n"
+            << "\t\t Optional, if workspace is specified in any of the json config files\n"
+            << "\t \e[1m--array\e[0m=<array dir>, \e[1m-A\e[0m <GenomicsDB array dir>\n"
+            << "\t\t Optional, if array is specified in any of the json config files\n"
+            << "\t \e[1m--print-calls\e[0m\n"
+            << "\t\t Optional, prints VariantCalls in a JSON format\n"
+            << "\t \e[1m--print-csv\e[0m\n"
+            << "\t\t Optional, outputs CSV with the fields and the order of CSV lines determined by the query attributes\n"
+            << "\t \e[1m--produce-Broad-GVCF\e[0m\n"
+            << "\t\t Optional, produces combined gVCF from the GenomicsDB data constrained by the query configuration\n"
+            << "\t\t \e[1m--output-format\e[0m=<output_format>, \e[1m-O\e[0m <output_format>\n"
+            << "\t\t\t used with \e[1m--produce-Broad-GVCF\e[0m\n"
+            << "\t\t\t Output format can be one of the following strings: \"z[0-9]\" (compressed VCF),\"b[0-9]\" (compressed BCF)\n"
+            << "\t\t\t or \"bu\" (uncompressed BCF). Default is uncompressed VCF if not specified.\n"
+            << "\t \e[1m--produce-histogram\e[0m\n"
+            << "\t\t Optional\n"
+            << "\t \e[1m--produce-interesting-positions\e[0m\n"
+            << "\t\t Optional\n"
+            << "\t \e[1m--version\e[0m Print version and exit\n" 
+            << "\tIf none of the print/produce arguments are specified, the tool prints all the Variants constrained by the query configuration in a JSON format\n\n"
+            << "\t\e[1mParallel Querying\e[0m\n"
+            << "\t\t MPI could be used for parallel querying, e.g.\n"
+            << "\t\t mpirun -n <num_processes> -hostfile <hostfile> ./bin/gt_mpi_gather -j <query.json> -l <loader.json> [<other_args>]\n";
+}
+
+void initialize_MPI_env(int *my_world_mpi_rank, int *num_mpi_processes) {
   auto rc = MPI_Init(0, 0);
   if (rc != MPI_SUCCESS) {
     printf ("Error starting MPI program. Terminating.\n");
     MPI_Abort(MPI_COMM_WORLD, rc);
   }
-  //Get number of MPI processes
-  int num_mpi_processes = 0;
-  MPI_Comm_size(MPI_COMM_WORLD, &num_mpi_processes);
-  //Get my world rank
-  int my_world_mpi_rank = 0;
-  MPI_Comm_rank(MPI_COMM_WORLD, &my_world_mpi_rank);
+  MPI_Comm_size(MPI_COMM_WORLD, num_mpi_processes);
+  MPI_Comm_rank(MPI_COMM_WORLD, my_world_mpi_rank);
 #ifdef DEBUG
   //Print host, rank and LD_LIBRARY_PATH
   std::vector<char> hostname;
@@ -408,6 +442,13 @@ int main(int argc, char *argv[]) {
   auto* ld_library_path_cstr = getenv("LD_LIBRARY_PATH");
   std::cerr << "Host : "<< &(hostname[0]) << " rank "<< my_world_mpi_rank << " LD_LIBRARY_PATH= "<<(ld_library_path_cstr ? ld_library_path_cstr : "")<< "\n";
 #endif
+}
+
+int main(int argc, char *argv[]) {
+  int my_world_mpi_rank = 0;
+  int num_mpi_processes = 0;
+  initialize_MPI_env(&my_world_mpi_rank, &num_mpi_processes);
+
   // Define long options
   static struct option long_options[] = {
     {"page-size",1,0,'p'},
@@ -426,8 +467,10 @@ int main(int argc, char *argv[]) {
     {"print-AC",0,0,ARGS_IDX_PRINT_ALT_ALLELE_COUNTS},
     {"array",1,0,'A'},
     {"version",0,0,ARGS_IDX_VERSION},
+    {"help",0,0,'h'},
     {0,0,0,0},
   };
+
   int c;
   uint64_t page_size = 0u;
   std::string output_format = "";
@@ -436,12 +479,11 @@ int main(int argc, char *argv[]) {
   std::string json_config_file = "";
   std::string loader_json_config_file = "";
   bool skip_query_on_root = false;
-  auto print_version_only = false;
   unsigned command_idx = COMMAND_RANGE_QUERY;
   size_t segment_size = 10u*1024u*1024u; //in bytes = 10MB
   auto segment_size_set_in_command_line = false;
   auto sub_operation_type = ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_UNKNOWN;
-  while ((c=getopt_long(argc, argv, "j:l:w:A:p:O:s:r:", long_options, NULL)) >= 0) {
+  while ((c=getopt_long(argc, argv, "j:l:w:A:p:O:s:r:h", long_options, NULL)) >= 0) {
     switch (c) {
     case 'p':
       page_size = strtoull(optarg, 0, 10);
@@ -494,32 +536,38 @@ int main(int argc, char *argv[]) {
       break;
     case ARGS_IDX_VERSION:
       std::cout << GENOMICSDB_VERSION <<"\n";
-      print_version_only = true;
-      break;
+      return 0;
+    case 'h':
+      print_usage();
+      return 0;
     default:
       std::cerr << "Unknown command line argument\n";
-      exit(-1);
+      print_usage();
+      return -1;
     }
   }
-  if (!print_version_only) {
+
+  if (json_config_file.empty()) {
+    std::cerr << "Query JSON file (-j) is a mandatory argument - unspecified\n";
+    print_usage();
+    return -1;
+  }
+
+  int rc=0;
+  try {
     //Use VariantQueryConfig to setup query info
     VariantQueryConfig query_config;
-#ifdef HTSDIR
     VCFAdapter vcf_adapter_base;
     VCFSerializedBufferAdapter serialized_vcf_adapter(true, true);
     auto& vcf_adapter = (page_size > 0u) ? dynamic_cast<VCFAdapter&>(serialized_vcf_adapter) : vcf_adapter_base;
-#endif
-    if (json_config_file.empty()) {
-      std::cerr << "Query JSON file (-j) is a mandatory argument - unspecified\n";
-      exit(-1);
-    }
+
     //Loader configuration - optional
     GenomicsDBImportConfig loader_config;
     if (!loader_json_config_file.empty()) {
       loader_config.read_from_file(loader_json_config_file, my_world_mpi_rank);
       query_config.update_from_loader(loader_config, my_world_mpi_rank);
     }
-    //Ensures that info from loader (if exists) is obtained before reading query JSON
+    //Info from loader (if specified) is obtained before reading query JSON
     query_config.read_from_file(json_config_file, my_world_mpi_rank);
     //Discard intervals not part of this partition
     if (!loader_json_config_file.empty())
@@ -532,18 +580,16 @@ int main(int argc, char *argv[]) {
     vcf_adapter.initialize(query_config);
     workspace = query_config.get_workspace(my_world_mpi_rank);
     array_name = query_config.get_array_name(my_world_mpi_rank);
-    if (workspace.empty() || array_name.empty()) {
-      std::cerr << "Missing workspace(-w) or array name (-A)\n";
-      return -1;
-    }
+    assert(!workspace.empty() && !array_name.empty());
 #ifdef USE_GPERFTOOLS
     ProfilerStart("gprofile.log");
 #endif
     segment_size = segment_size_set_in_command_line ? segment_size
-                   : query_config.get_segment_size();
+        : query_config.get_segment_size();
 #if VERBOSE>0
     std::cerr << "Segment size: "<<segment_size<<" bytes\n";
 #endif
+
     /*Create storage manager*/
     VariantStorageManager sm(workspace, segment_size);
     /*Create query processor*/
@@ -552,32 +598,39 @@ int main(int argc, char *argv[]) {
                             || (command_idx == COMMAND_PRODUCE_BROAD_GVCF));
     qp.do_query_bookkeeping(qp.get_array_schema(), query_config, query_config.get_vid_mapper(), require_alleles);
     switch (command_idx) {
-    case COMMAND_RANGE_QUERY:
-      run_range_query(qp, query_config, query_config.get_vid_mapper(), output_format,
-                      (loader_json_config_file.empty() || loader_config.is_partitioned_by_column()),
-                      num_mpi_processes, my_world_mpi_rank, skip_query_on_root);
-      break;
-    case COMMAND_PRODUCE_BROAD_GVCF:
-#if defined(HTSDIR)
-      scan_and_produce_Broad_GVCF(qp, query_config, vcf_adapter, query_config.get_vid_mapper(),
-                                  sub_operation_type, my_world_mpi_rank, skip_query_on_root);
-#endif
-      break;
-    case COMMAND_PRODUCE_HISTOGRAM:
-      produce_column_histogram(qp, query_config, 100, std::vector<uint64_t>({ 128, 64, 32, 16, 8, 4, 2 }));
-      break;
-    case COMMAND_PRINT_CALLS:
-    case COMMAND_PRINT_CSV:
-    case COMMAND_PRINT_ALT_ALLELE_COUNTS:
-      print_calls(qp, query_config, command_idx, query_config.get_vid_mapper());
-      break;
+      case COMMAND_RANGE_QUERY:
+        run_range_query(qp, query_config, query_config.get_vid_mapper(), output_format,
+                        (loader_json_config_file.empty() || loader_config.is_partitioned_by_column()),
+                        num_mpi_processes, my_world_mpi_rank, skip_query_on_root);
+        break;
+      case COMMAND_PRODUCE_BROAD_GVCF:
+        scan_and_produce_Broad_GVCF(qp, query_config, vcf_adapter, query_config.get_vid_mapper(),
+                                    sub_operation_type, my_world_mpi_rank, skip_query_on_root);
+        break;
+      case COMMAND_PRODUCE_HISTOGRAM:
+        produce_column_histogram(qp, query_config, 100, std::vector<uint64_t>({ 128, 64, 32, 16, 8, 4, 2 }));
+        break;
+      case COMMAND_PRINT_CALLS:
+      case COMMAND_PRINT_CSV:
+      case COMMAND_PRINT_ALT_ALLELE_COUNTS:
+        print_calls(qp, query_config, command_idx, query_config.get_vid_mapper());
+        break;
     }
 #ifdef USE_GPERFTOOLS
     ProfilerStop();
 #endif
+
     sm.close_array(qp.get_array_descriptor());
+    GenomicsDBProtoBufInitAndCleanup::shutdown_protobuf_library();
+  } catch(const GenomicsDBConfigException& genomicsdb_ex) {
+    std::cerr << genomicsdb_ex.what() << "\n";
+    std::cerr << "Do the config files specified to gt_mpi_gather exist? Are they parseable as JSON?\n";
+  } catch (const std::exception& ex) {
+    std::cerr << ex.what() << "\n";
+    std::cerr << "Try running gt_mpi_gather --help for usage" << std::endl;
+    rc = -1;
   }
-  GenomicsDBProtoBufInitAndCleanup::shutdown_protobuf_library();
+
   MPI_Finalize();
-  return 0;
+  return rc;
 }
