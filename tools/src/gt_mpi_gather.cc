@@ -622,8 +622,11 @@ int main(int argc, char *argv[]) {
 
     sm.close_array(qp.get_array_descriptor());
     GenomicsDBProtoBufInitAndCleanup::shutdown_protobuf_library();
-  } catch (const std::exception& e) {
-    std::cerr << e.what() << "\n";
+  } catch(const GenomicsDBConfigException& genomicsdb_ex) {
+    std::cerr << genomicsdb_ex.what() << "\n";
+    std::cerr << "Do the config files specified to gt_mpi_gather exist? Are they parseable as JSON?\n";
+  } catch (const std::exception& ex) {
+    std::cerr << ex.what() << "\n";
     std::cerr << "Try running gt_mpi_gather --help for usage" << std::endl;
     rc = -1;
   }
