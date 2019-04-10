@@ -228,6 +228,9 @@ void SingleCellTileDBIterator::begin_new_query_column_interval(TileDB_CTX* tiled
         status = tiledb_array_reset_attributes(m_tiledb_array,
                                                &((*attribute_names)[0]),
                                                attribute_names->size());
+        if (status == TILEDB_OK && !m_query_config->get_query_filter().empty()) {
+          status = tiledb_array_apply_filter(m_tiledb_array, m_query_config->get_query_filter().c_str());
+        }
         if (status != TILEDB_OK)
           throw GenomicsDBIteratorException(std::string("Error while initializing attributes for the TileDB array object")
                                             + "\nTileDB error message : "+tiledb_errmsg);

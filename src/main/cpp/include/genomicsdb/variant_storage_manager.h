@@ -49,7 +49,8 @@ class VariantStorageManagerException : public std::exception {
 class VariantArrayCellIterator {
  public:
   VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const VariantArraySchema& variant_array_schema,
-                           const std::string& array_path, const int64_t* range, const std::vector<int>& attribute_ids, const size_t buffer_size);
+                           const std::string& array_path, const int64_t* range, 
+			   const std::vector<int>& attribute_ids, const size_t buffer_size, const std::string& query_filter=std::string());
   ~VariantArrayCellIterator() {
     if (m_tiledb_array_iterator)
       tiledb_array_iterator_finalize(m_tiledb_array_iterator);
@@ -233,7 +234,7 @@ class VariantStorageManager {
   VariantStorageManager& operator=(const VariantStorageManager& other) = delete;
   VariantStorageManager(VariantStorageManager&& other) = delete;
 
-  int open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode);
+  int open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode, const std::string& query_filter=std::string());
   void close_array(const int ad, const bool consolidate_tiledb_array=false);
   int define_array(const VariantArraySchema* variant_array_schema, const size_t num_cells_per_tile=1000u);
   void delete_array(const std::string& array_name);
@@ -246,14 +247,15 @@ class VariantStorageManager {
   /*
    * Wrapper around forward iterator
    */
-  VariantArrayCellIterator* begin(
-    int ad, const int64_t* range, const std::vector<int>& attribute_ids) const ;
+  VariantArrayCellIterator* begin(int ad, const int64_t* range, 
+				  const std::vector<int>& attribute_ids, 
+				  const std::string& query_filter = "") const;
   /*
    * For columnar iterator
    */
   SingleCellTileDBIterator* begin_columnar_iterator(
     int ad, const VariantQueryConfig& query_config,
-    const bool use_common_array_object) const;
+    const bool use_common_array_object ) const;
   /*
    * Write sorted cell
    */
@@ -283,6 +285,8 @@ class VariantStorageManager {
   std::vector<VariantArrayInfo> m_open_arrays_info_vector;
   //How much data to read/write in a given access
   size_t m_segment_size;
+  //Query filter expression, valid only for reads/read iterators
+  std::string m_query_filter;
   //Metadata attribute name
   static std::vector<const char*> m_metadata_attributes;
 };

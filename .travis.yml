@@ -23,10 +23,17 @@ matrix:
         env: INSTALL_TYPE=basic
         services: postgres
 
-      - name: "Basic build OSX"
+      - name: "Basic build OSX - 1"
         os: osx
         language: generic
-        env: TOXENV=py34 INSTALL_TYPE=basic PROTOBUF_VERSION=3.0.0-beta-1 PROTOBUF_HOME=$TRAVIS_BUILD_DIR/dependencies/protobuf
+        env: TOXENV=py34 INSTALL_TYPE=basic OSX_PHASE=1 PROTOBUF_VERSION=3.0.0-beta-1 PROTOBUF_HOME=$TRAVIS_BUILD_DIR/dependencies/protobuf
+        cache:
+          directories: $HOME/.m2 $HOME/Library/Caches/Homebrew $CACHE_DIR
+
+      - name: "Basic build OSX - 2"
+        os: osx
+        language: generic
+        env: TOXENV=py34 INSTALL_TYPE=basic OSX_PHASE=2 PROTOBUF_VERSION=3.0.0-beta-1 PROTOBUF_HOME=$TRAVIS_BUILD_DIR/dependencies/protobuf
         cache:
           directories: $HOME/.m2 $HOME/Library/Caches/Homebrew $CACHE_DIR
 
@@ -141,7 +148,7 @@ script:
       elif [[ $TRAVIS_OS_NAME == osx && ! -f $CACHE_DIR/initialized ]]; then
         touch $CACHE_DIR/initialized;
       elif [[ $TRAVIS_OS_NAME == osx && -f $CACHE_DIR/initialized ]]; then
-        travis_wait 50 python2 $TRAVIS_BUILD_DIR/tests/run.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR;
+        travis_wait 50 python2 $TRAVIS_BUILD_DIR/tests/run.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR $OSX_PHASE;
       else
         make test ARGS=-V;
       fi
