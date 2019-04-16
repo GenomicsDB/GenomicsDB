@@ -54,13 +54,12 @@ import org.testng.annotations.Test;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.LineNumberReader;
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
-import java.util.function.Function;
 
 import static org.genomicsdb.Constants.CHROMOSOME_INTERVAL_FOLDER;
-
+import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBFragments;
 
 public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
     private static final String TEST_CHROMOSOME_NAME = "1";
@@ -80,7 +79,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
         String inputVCF = "tests/inputs/vcfs/t6.vcf.gz " + 
                           "tests/inputs/vcfs/t7.vcf.gz " + 
                           "tests/inputs/vcfs/t8.vcf.gz";
-        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF);
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
 
         importer.executeImport();
 
@@ -104,7 +103,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
         String inputVCF = "tests/inputs/vcfs/t6.vcf.gz " + 
                           "tests/inputs/vcfs/t7.vcf.gz " + 
                           "tests/inputs/vcfs/t8.vcf.gz";
-        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF);
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
 
         importer.writeVidMapJSONFile(tempVidJsonFile.getAbsolutePath(),
                 importer.generateVidMapFromMergedHeader(mergedHeader));
@@ -163,7 +162,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
     public void testShouldRunParallelImportWithMultipleChromosomeIntervalsAndOneGvcf() throws IOException, InterruptedException {
         //Given
         String inputVCF = "tests/inputs/vcfs/t0.vcf.gz";
-        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF);
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
 
         //When
         importer.executeImport();
@@ -212,7 +211,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
     public void testShouldBeAbleToQueryUsingSpecificArrayName() throws IOException, InterruptedException {
         //Given
         String inputVCF = "tests/inputs/vcfs/t0.vcf.gz";
-        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF);
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
         importer.executeImport();
         Assert.assertEquals(tempVidJsonFile.isFile(), true);
         Assert.assertEquals(tempCallsetJsonFile.isFile(), true);
@@ -243,7 +242,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
     public void testShouldBeAbleToQueryUsingSpecificChromosomeInterval() throws IOException, InterruptedException {
         //Given
         String inputVCF = "tests/inputs/vcfs/t0.vcf.gz";
-        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF);
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
         importer.executeImport();
         Assert.assertEquals(tempVidJsonFile.isFile(), true);
         Assert.assertEquals(tempCallsetJsonFile.isFile(), true);
@@ -278,7 +277,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
             throws IOException, InterruptedException {
         // get a subset of the map for initial import
         String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
-        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF);
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
 
         importer.executeImport();
 
@@ -317,7 +316,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
         // do incremental import
         inputVCF = "tests/inputs/vcfs/t7.vcf.gz " + 
                    "tests/inputs/vcfs/t8.vcf.gz";
-        GenomicsDBImporter importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 ", inputVCF);
+        GenomicsDBImporter importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 ", inputVCF, false);
 
         importerIncremental.executeImport();
         Assert.assertEquals(importerIncremental.isDone(), true);
@@ -358,7 +357,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
             throws IOException, InterruptedException {
         // get a subset of the map for initial import
         String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
-        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("--batchsize 2 ", inputVCF);
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("--batchsize 2 ", inputVCF, false);
 
         importer.executeImport();
 
@@ -400,7 +399,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
         // adding --use_samples_in_order below because otherwise the callsetPB order and the
         // sampleMap of FeatureReaders will not be in the same order...and then the batches
         // may not (will not in our case) match (vis a vis callsetPB and feature reader map subset
-        GenomicsDBImporter importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 --batchsize 1 --use_samples_in_order ", inputVCF);
+        GenomicsDBImporter importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 --batchsize 1 --use_samples_in_order ", inputVCF, false);
 
         importerIncremental.executeImport();
         Assert.assertEquals(importerIncremental.isDone(), true);
@@ -440,21 +439,21 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
     public void testMultipleIncrementalImport(Map<String, FeatureReader<VariantContext>> sampleToReaderMap)
             throws IOException, InterruptedException {
         String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
-        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF);
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
 
         importer.executeImport();
         Assert.assertEquals(importer.isDone(), true);
 
         // first incremental import
         inputVCF = "tests/inputs/vcfs/t7.vcf.gz"; 
-        GenomicsDBImporter importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 ", inputVCF);
+        GenomicsDBImporter importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 ", inputVCF, false);
 
         importerIncremental.executeImport();
         Assert.assertEquals(importerIncremental.isDone(), true);
 
         // second incremental import
         inputVCF = "tests/inputs/vcfs/t8.vcf.gz";
-        GenomicsDBImporter importerIncremental2 = getGenomicsDBImporterForMultipleImport("--incremental_import 2 ", inputVCF);
+        GenomicsDBImporter importerIncremental2 = getGenomicsDBImporterForMultipleImport("--incremental_import 2 ", inputVCF, false);
 
         importerIncremental2.executeImport();
         Assert.assertEquals(importerIncremental2.isDone(), true);
@@ -494,16 +493,71 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
     public void testIncrementalImportSameSample(Map<String, FeatureReader<VariantContext>> sampleToReaderMap)
             throws IOException, InterruptedException {
         String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
-        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF);
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
 
         importer.executeImport();
         Assert.assertEquals(importer.isDone(), true);
 
         inputVCF = "tests/inputs/vcfs/t6.vcf.gz"; 
-        GenomicsDBImporter importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 ", inputVCF);
+        GenomicsDBImporter importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 ", inputVCF, false);
 
         importerIncremental.executeImport();
 
+    }
+
+    @Test(testName = "genomicsdb incremental import check backup",
+            dataProvider = "vcfFiles",
+            dataProviderClass = GenomicsDBTestUtils.class)
+    public void testIncrementalImportBackup(Map<String, FeatureReader<VariantContext>> sampleToReaderMap)
+            throws IOException, InterruptedException {
+        String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
+
+        importer.executeImport();
+        Assert.assertEquals(importer.isDone(), true);
+
+        // first incremental import
+        inputVCF = "tests/inputs/vcfs/t7.vcf.gz"; 
+        GenomicsDBImporter importerIncremental; 
+        importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 ", inputVCF, false);
+        importerIncremental.executeImport();
+        Assert.assertEquals(importerIncremental.isDone(), true);
+        String[] fragments = listGenomicsDBFragments(WORKSPACE.getAbsolutePath());
+        List<String> fragmentList = Arrays.asList(fragments);
+
+        // second incremental import
+        inputVCF = "tests/inputs/vcfs/t8.vcf.gz"; 
+        GenomicsDBImporter importerIncremental2; 
+        try {
+            importerIncremental2 = getGenomicsDBImporterForMultipleImport("--incremental_import 2 ", inputVCF, true);
+            importerIncremental2.executeImport();
+            // assert false, because we shouldn't get here and 
+            // should throw exception instead
+            Assert.assertTrue(false);
+        }
+        catch (GenomicsDBException e) {
+        }
+
+        JSONParser parser = new JSONParser();
+        try {
+            // check backup callset
+            FileReader fileReader = new FileReader(tempCallsetJsonFile.getAbsolutePath()+".inc.backup");
+            JSONObject jsonObject = (JSONObject) parser.parse(fileReader);
+            JSONArray callsetArray = (JSONArray) jsonObject.get("callsets");
+            Assert.assertEquals(callsetArray.size(), 2);
+
+            fileReader = new FileReader(tempCallsetJsonFile.getAbsolutePath()+".fragmentlist");
+            LineNumberReader lnr = new LineNumberReader(fileReader);
+            String line;
+            while((line = lnr.readLine()) != null) {
+                Assert.assertTrue(fragmentList.contains(line));
+            }
+
+            // check number of fragments
+            Assert.assertEquals(lnr.getLineNumber(), 2);
+        } catch (ParseException p) {
+            p.printStackTrace();
+        }
     }
 
     @BeforeMethod
@@ -529,14 +583,18 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
     }
 
     private GenomicsDBImporter getGenomicsDBImporterForMultipleImport(String incrementalImport,
-            String inputVCF) throws FileNotFoundException,
+            String inputVCF, boolean noVid) throws FileNotFoundException,
             com.googlecode.protobuf.format.JsonFormat.ParseException {
+        String vidArgument = "--vidmap-output " + tempVidJsonFile.getAbsolutePath() + " ";
+        if (noVid) {
+            vidArgument = "";
+        }
         String[] args = ("-L 1:12000-13000 -L 1:17000-9000000 " +
                 "-w " + WORKSPACE.getAbsolutePath()+ " " +
                 incrementalImport +
                 "--size_per_column_partition 16384 " +
                 "--segment_size 10485760 " +
-                "--vidmap-output " + tempVidJsonFile.getAbsolutePath() + " " +
+                vidArgument + 
                 "--callset-output " + tempCallsetJsonFile.getAbsolutePath() + " " +
                 inputVCF).split(" ");
         CommandLineImportConfig config = new CommandLineImportConfig("TestGenomicsDBImporterWithMergedVCFHeader", args);

@@ -39,6 +39,7 @@ import java.util.*;
 import java.lang.RuntimeException;
 import java.lang.InstantiationException;
 import java.lang.IllegalAccessException;
+import java.lang.ClassNotFoundException;
 
 /**
  * The input class represents all the data being queried from GenomicsDB.
@@ -116,18 +117,27 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     // seems sorta hacky to instantiate the splits/partitions this way
     // but should work and we shouldn't have to
     // scale this up to many more different classes...
-    if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
-      instance.setGenomicsDBConf(genomicsDBConfiguration);
-      instance.setGenomicsDBSchema(schema);
-      instance.setGenomicsDBVidSchema(vMap);
-      return instance;
-    }
-    else if (GenomicsDBInputSplit.class.isAssignableFrom(clazz)) {
+    if (GenomicsDBInputSplit.class.isAssignableFrom(clazz)) {
       instance.setHost(host);
       return instance;
     }
     else {
-      throw new RuntimeException("Unsupported class for GenomicsDBInput:"+clazz.getName());
+      try {
+        Class c = Class.forName("GenomicsDBInputPartition");
+        if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
+          instance.setGenomicsDBConf(genomicsDBConfiguration);
+          instance.setGenomicsDBSchema(schema);
+          instance.setGenomicsDBVidSchema(vMap);
+          return instance;
+        }
+        else {
+          throw new RuntimeException("Unsupported class for GenomicsDBInput:"+clazz.getName());
+        }
+      }
+      catch (ClassNotFoundException ex) {
+        throw new RuntimeException("Warning: Could not find GenomicsDBInputPartition. " +
+                                   "Datasourceapi only works with >= Spark 2.4.0");
+      }
     }
   }
 
@@ -144,21 +154,30 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     // seems sorta hacky to instantiate the splits/partitions this way
     // but should work and we shouldn't have to
     // scale this up to many more different classes...
-    if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
-      instance.setPartitionInfo(part);
-      instance.setQueryInfo(qrange);
-      instance.setGenomicsDBConf(genomicsDBConfiguration);
-      instance.setGenomicsDBSchema(schema);
-      instance.setGenomicsDBVidSchema(vMap);
-      return instance;
-    }
-    else if (GenomicsDBInputSplit.class.isAssignableFrom(clazz)) {
+    if (GenomicsDBInputSplit.class.isAssignableFrom(clazz)) {
       instance.setPartitionInfo(part);
       instance.setQueryInfo(qrange);
       return instance;
     }
     else {
-      throw new RuntimeException("Unsupported class for GenomicsDBInput:"+clazz.getName());
+      try {
+        Class c = Class.forName("GenomicsDBInputPartition");
+        if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
+          instance.setPartitionInfo(part);
+          instance.setQueryInfo(qrange);
+          instance.setGenomicsDBConf(genomicsDBConfiguration);
+          instance.setGenomicsDBSchema(schema);
+          instance.setGenomicsDBVidSchema(vMap);
+          return instance;
+        }
+        else {
+          throw new RuntimeException("Unsupported class for GenomicsDBInput:"+clazz.getName());
+        }
+      }
+      catch (ClassNotFoundException ex) {
+        throw new RuntimeException("Warning: Could not find GenomicsDBInputPartition. " +
+                                   "Datasourceapi only works with >= Spark 2.4.0");
+      }
     }
   }
 

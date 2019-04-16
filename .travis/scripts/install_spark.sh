@@ -10,22 +10,23 @@ SPARK=spark-$SPARK_VER-bin-hadoop${HADOOP_VER:-2.7}
 SPARK_DIR=${INSTALL_DIR}/$SPARK
 SPARK_LOCAL_DIR="/usr/local/spark"
 
+# retry logic from: https://docs.microsoft.com/en-us/azure/hdinsight/hdinsight-hadoop-script-actions-linux
 MAXATTEMPTS=3
 retry() {
     local -r CMD="$@"
-    local -i ATTMEPTNUM=1
+    local -i ATTEMPTNUM=1
     local -i RETRYINTERVAL=2
 
     until $CMD
     do
-        if (( ATTMEPTNUM == MAXATTEMPTS ))
+        if (( ATTEMPTNUM == MAXATTEMPTS ))
         then
-                echo "Attempt $ATTMEPTNUM failed. no more attempts left."
+                echo "Attempt $ATTEMPTNUM failed. no more attempts left."
                 return 1
         else
-                echo "Attempt $ATTMEPTNUM failed! Retrying in $RETRYINTERVAL seconds..."
+                echo "Attempt $ATTEMPTNUM failed! Retrying in $RETRYINTERVAL seconds..."
                 sleep $(( RETRYINTERVAL ))
-                ATTMEPTNUM=$ATTMEPTNUM+1
+                ATTEMPTNUM=$ATTEMPTNUM+1
         fi
     done
 }

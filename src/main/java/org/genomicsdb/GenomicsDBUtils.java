@@ -67,6 +67,15 @@ public class GenomicsDBUtils {
     } 
 
     /**
+     * Delete file
+     * @param filename path to file
+     * @return status 0 = OK
+     */
+    public static int deleteFile(final String filename) {
+	return GenomicsDBUtilsJni.jniDeleteFile(filename);
+    } 
+
+    /**
      * Consolidate TileDB array
      *
      * @param workspace path to workspace directory
@@ -95,5 +104,13 @@ public class GenomicsDBUtils {
         return GenomicsDBUtilsJni.jniListTileDBArrays(workspace);
     }
 
+    /**
+     * List the GenomicsDB fragments in the given workspace
+     * @param workspace workspace
+     * @return names of GenomicsDB fragments if they exist
+     */
+    public static String[] listGenomicsDBFragments(final String workspace) {
+        return GenomicsDBUtilsJni.jniListTileDBFragments(workspace);
+    }
 }
 

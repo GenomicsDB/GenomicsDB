@@ -70,6 +70,23 @@ Java_org_genomicsdb_GenomicsDBUtilsJni_jniListTileDBArrays
   return obj_array;
 }
 
+JNIEXPORT jobjectArray JNICALL
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniListTileDBFragments
+(JNIEnv *env, jclass currClass, jstring workspace)
+{
+  auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
+  VERIFY_OR_THROW(workspace_cstr);
+  std::vector<std::string> fragment_names = TileDBUtils::get_fragment_names(workspace_cstr);
+  jobjectArray obj_array = (jobjectArray)env->NewObjectArray(fragment_names.size(),
+							     env->FindClass("java/lang/String"),
+							     env->NewStringUTF(""));
+  for(uint i=0; i<fragment_names.size(); i++) {
+    env->SetObjectArrayElement(obj_array, i, env->NewStringUTF(fragment_names[i].c_str()));
+  }
+  env->ReleaseStringUTFChars(workspace, workspace_cstr);
+  return obj_array;
+}
+
 JNIEXPORT jint JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniWriteToFile
 (JNIEnv *env, jclass currClass, jstring filename, jstring contents, jlong length)
@@ -81,6 +98,17 @@ Java_org_genomicsdb_GenomicsDBUtilsJni_jniWriteToFile
   auto return_val =  TileDBUtils::write_file(filename_cstr, (void *)contents_cstr, (size_t)length, true);
   env->ReleaseStringUTFChars(filename, filename_cstr);
   env->ReleaseStringUTFChars(contents, contents_cstr);
+  return return_val;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniDeleteFile
+(JNIEnv *env, jclass currClass, jstring filename)
+{
+  auto filename_cstr = env->GetStringUTFChars(filename, NULL);
+  VERIFY_OR_THROW(filename_cstr);
+  auto return_val = TileDBUtils::delete_file(filename_cstr);
+  env->ReleaseStringUTFChars(filename, filename_cstr);
   return return_val;
 }
 

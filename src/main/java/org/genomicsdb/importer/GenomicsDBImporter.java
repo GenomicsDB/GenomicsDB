@@ -61,7 +61,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.genomicsdb.GenomicsDBUtils.createTileDBWorkspace;
-import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBArrays;
+import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBFragments;
+import static org.genomicsdb.GenomicsDBUtils.deleteFile;
+import static org.genomicsdb.GenomicsDBUtils.writeToFile;
 
 /**
  * Java wrapper for vcf2tiledb - imports VCFs into TileDB/GenomicsDB.
@@ -188,9 +190,15 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                         this.config.isUseSamplesInOrder(), lbRowIdx);
 
         String outputCallsetmapJsonFilePath = this.config.getOutputCallsetmapJsonFile();
+        String workspace = this.config.getImportConfiguration().getColumnPartitions(0).getWorkspace();
         if (this.config.isIncrementalImport()) {
             if (outputCallsetmapJsonFilePath == null || outputCallsetmapJsonFilePath.isEmpty()) {
                 throw new GenomicsDBException("Incremental import must specify callset file name");
+            }
+            // write out fragment names to file to help with backup/recovery
+            String[] fragments = listGenomicsDBFragments(workspace);
+            if(writeToFile(outputCallsetmapJsonFilePath+".fragmentlist", String.join("\n",fragments))!=0) {
+                System.err.println("Warning: Could not write original fragment list for backup");
             }
             callsetMappingPB = this.mergeCallsetsForIncrementalImport(outputCallsetmapJsonFilePath,
                                        this.config.getSampleNameToVcfPath(),
@@ -204,8 +212,7 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                 throw new GenomicsDBException("Incremental import must specify vid file name");
             }
             vidMapPB = generateVidMapFromFile(vidmapOutputFilepath);
-        }
-        else {
+        } else {
             vidMapPB = generateVidMapFromMergedHeader(this.config.getMergedHeader());
         }
 
@@ -229,7 +236,6 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                 .build());
 
         //Create workspace folder to avoid issues with concurrency
-        String workspace = this.config.getImportConfiguration().getColumnPartitions(0).getWorkspace();
 	if (createTileDBWorkspace(workspace, false) < 0) {
 	    throw new IllegalStateException(String.format("Cannot create '%s' workspace.", workspace));
         }
@@ -548,7 +554,23 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
         //Iterate over sorted sample list in batches
         iterateOverSamplesInBatches(sampleCount, updatedBatchSize, numberPartitions, executor, performConsolidation);
         executor.shutdown();
+        deleteBackupFiles();
         mDone = true;
+    }
+
+    private void deleteBackupFiles() {
+        if (this.config.isIncrementalImport()) {
+            String outputCallsetmapJsonFilePath = this.config.getOutputCallsetmapJsonFile();
+            if (outputCallsetmapJsonFilePath == null || outputCallsetmapJsonFilePath.isEmpty()) {
+                throw new GenomicsDBException("Incremental import must specify callset file name");
+            }
+            if(deleteFile(outputCallsetmapJsonFilePath+".inc.backup")!=0) {
+                System.err.println("Warning: Could not delete backup callset file"); 
+            }
+            if(deleteFile(outputCallsetmapJsonFilePath+".fragmentlist")!=0) {
+                System.err.println("Warning: Could not delete fragment list backup file"); 
+            }
+        }
     }
 
     private void iterateOverSamplesInBatches(final int sampleCount, final int updatedBatchSize, final int numberPartitions,
@@ -721,4 +743,5 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                 + loaderJSONFile + " rank: " + rank);
         mDone = true;
     }
+
 }

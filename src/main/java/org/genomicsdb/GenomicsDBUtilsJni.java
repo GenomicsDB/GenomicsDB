@@ -70,6 +70,13 @@ public class GenomicsDBUtilsJni {
     public static native String[] jniListTileDBArrays(final String workspace);
 
     /**
+     * List Fragments in given workspace.
+     * @param workspace workspace
+     * @return list of fragments in given workspace.
+     */
+    public static native String[] jniListTileDBFragments(final String workspace);
+
+    /**
      * Write contents into file
      * @param filename path to file, can be cloud URL
      * @param contents buffer to be written out
@@ -92,6 +99,13 @@ public class GenomicsDBUtilsJni {
      * @return contents of file as string
      */
     public static native String jniReadEntireFile(final String filename);
+
+    /**
+     * Delete file
+     * @param filename path to file, can be cloud URL
+     * @return status 0 = OK
+     */
+    public static native int jniDeleteFile(final String filename);
 
 }
 
