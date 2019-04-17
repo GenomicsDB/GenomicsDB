@@ -651,6 +651,8 @@ def main():
                         } }
                 ]
             },
+    ];
+    loader_tests1 = [
             { "name" : "java_genomicsdb_importer_from_vcfs_incremental_t6_7_8_multi_contig",
                 'callset_mapping_file': 'inputs/callsets/t6_7_8.0.json',
                 'callset_mapping_file1': 'inputs/callsets/t6_7_8.1.json',
@@ -717,8 +719,6 @@ def main():
                         } }
                     ]
             },
-    ];
-    loader_tests1 = [
             { "name" : "java_buffer_stream_t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2_buffer.json',
                 'stream_name_to_filename_mapping': 'inputs/callsets/t0_1_2_buffer_mapping.json',
