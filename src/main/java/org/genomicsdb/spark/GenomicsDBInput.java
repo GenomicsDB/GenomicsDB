@@ -123,7 +123,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     }
     else {
       try {
-        Class c = Class.forName("GenomicsDBInputPartition");
+        Class c = Class.forName("org.genomicsdb.spark.GenomicsDBInputPartition");
         if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
           instance.setGenomicsDBConf(genomicsDBConfiguration);
           instance.setGenomicsDBSchema(schema);
@@ -161,7 +161,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     }
     else {
       try {
-        Class c = Class.forName("GenomicsDBInputPartition");
+        Class c = Class.forName("org.genomicsdb.spark.GenomicsDBInputPartition");
         if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
           instance.setPartitionInfo(part);
           instance.setQueryInfo(qrange);
