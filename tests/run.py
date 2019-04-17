@@ -572,6 +572,8 @@ def main():
                 'callset_mapping_file': 'inputs/callsets/t0_overlapping.json',
                 'column_partitions': [ {"begin": 12202, "workspace":"", "array_name": "" }]
             },
+    ];
+    loader_tests1 = [
             { "name" : "t6_7_8", 'golden_output' : 'golden_outputs/t6_7_8_loading',
                 'callset_mapping_file': 'inputs/callsets/t6_7_8.json',
                 "query_params": [
@@ -651,8 +653,6 @@ def main():
                         } }
                 ]
             },
-    ];
-    loader_tests1 = [
             { "name" : "java_genomicsdb_importer_from_vcfs_incremental_t6_7_8_multi_contig",
                 'callset_mapping_file': 'inputs/callsets/t6_7_8.0.json',
                 'callset_mapping_file1': 'inputs/callsets/t6_7_8.1.json',
