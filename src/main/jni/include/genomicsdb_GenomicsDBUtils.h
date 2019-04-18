@@ -33,6 +33,22 @@ JNIEXPORT jobjectArray JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniListTil
 
 /*
  * Class:     org_genomicsdb_GenomicsDBUtilsJni
+ * Method:    jniListTileDBFragments
+ * Signature: (Ljava/lang/String;)[Ljava/lang/String;
+ */
+JNIEXPORT jobjectArray JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniListTileDBFragments
+  (JNIEnv *, jclass, jstring);
+
+/*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni
+ * Method:    jniDeleteFile
+ * Signature: (Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniDeleteFile
+  (JNIEnv *, jclass, jstring);
+
+/*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni
  * Method:    jniWriteToFile
  * Signature: (Ljava/lang/String;Ljava/lang/String;J)I
  */
@@ -46,6 +62,14 @@ JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniWriteToFile
  */
 JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniMoveFile
   (JNIEnv *, jclass, jstring, jstring);
+
+/*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni
+ * Method:    jniReadEntireFile
+ * Signature: (Ljava/lang/String;)Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniReadEntireFile
+  (JNIEnv *, jclass, jstring);
 
 #ifdef __cplusplus
 }

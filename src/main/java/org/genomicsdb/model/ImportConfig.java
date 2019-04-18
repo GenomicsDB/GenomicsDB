@@ -50,6 +50,7 @@ public class ImportConfig {
     private String outputVidMapJsonFile = null;
     private String outputCallsetMapJsonFile = null;
     private String outputVcfHeaderFile = null;
+    private boolean incrementalImport = false;
 
     /**
      * Main ImportConfig constructor
@@ -61,6 +62,7 @@ public class ImportConfig {
      * @param mergedHeader              Required header
      * @param sampleNameToVcfPath       Sample name to VCF path map
      * @param sampleToReaderMapCreator  Function used for creating sampleToReaderMap
+     * @param incrementalImport         Flag for indicating incremental import
      */
     public ImportConfig(final GenomicsDBImportConfiguration.ImportConfiguration importConfiguration,
                         final boolean validateSampleToReaderMap,
@@ -69,7 +71,8 @@ public class ImportConfig {
                         final Set<VCFHeaderLine> mergedHeader,
                         final Map<String, URI> sampleNameToVcfPath,
                         final Func<Map<String, URI>, Integer, Integer,
-                                Map<String, FeatureReader<VariantContext>>> sampleToReaderMapCreator) {
+                                Map<String, FeatureReader<VariantContext>>> sampleToReaderMapCreator,
+                        final boolean incrementalImport) {
         this.setImportConfiguration(importConfiguration);
         this.validateChromosomeIntervals();
         this.setValidateSampleToReaderMap(validateSampleToReaderMap);
@@ -78,6 +81,7 @@ public class ImportConfig {
         this.setMergedHeader(mergedHeader);
         this.setSampleNameToVcfPath(sampleNameToVcfPath);
         this.setSampleToReaderMapCreator(sampleToReaderMapCreator);
+        this.setIncrementalImport(incrementalImport);
     }
 
     protected ImportConfig() {
@@ -258,5 +262,13 @@ public class ImportConfig {
 
     public Function<BatchCompletionCallbackFunctionArgument, Void> getFunctionToCallOnBatchCompletion() {
         return functionToCallOnBatchCompletion;
+    }
+
+    public void setIncrementalImport(boolean incrementalImport) {
+        this.incrementalImport = incrementalImport;
+    }
+
+    public boolean isIncrementalImport() {
+        return incrementalImport;
     }
 }

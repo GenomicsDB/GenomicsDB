@@ -48,6 +48,15 @@ public class GenomicsDBUtils {
     }
 
     /**
+     * Read entire file as string
+     * @param filename path to file
+     * @return contents of file as string
+     */
+    public static String readEntireFile(final String filename) {
+	return GenomicsDBUtilsJni.jniReadEntireFile(filename);
+    }
+
+    /**
      * Copy source path contents to destination
      * @param source local filesystem path
      * @param destination local or cloud filesystem URI
@@ -55,6 +64,15 @@ public class GenomicsDBUtils {
      */
     public static int moveFile(final String source, final String destination) {
 	return GenomicsDBUtilsJni.jniMoveFile(source, destination);
+    } 
+
+    /**
+     * Delete file
+     * @param filename path to file
+     * @return status 0 = OK
+     */
+    public static int deleteFile(final String filename) {
+	return GenomicsDBUtilsJni.jniDeleteFile(filename);
     } 
 
     /**
@@ -86,5 +104,13 @@ public class GenomicsDBUtils {
         return GenomicsDBUtilsJni.jniListTileDBArrays(workspace);
     }
 
+    /**
+     * List the GenomicsDB fragments in the given workspace
+     * @param workspace workspace
+     * @return names of GenomicsDB fragments if they exist
+     */
+    public static String[] listGenomicsDBFragments(final String workspace) {
+        return GenomicsDBUtilsJni.jniListTileDBFragments(workspace);
+    }
 }
 

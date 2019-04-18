@@ -39,6 +39,7 @@ import java.util.*;
 import java.lang.RuntimeException;
 import java.lang.InstantiationException;
 import java.lang.IllegalAccessException;
+import java.lang.ClassNotFoundException;
 
 /**
  * The input class represents all the data being queried from GenomicsDB.
@@ -55,7 +56,13 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
   private Class<T> clazz;
 
   /**
-    * constructor
+    * constructor for GenomicsDBInput
+    * @param gdbconf GenomicsDBConfiguration object
+    * @param schema schema used for the datasource API
+    * @param vMap map of attribute to vid mapping information
+    * @param minQBS minimum query block size used for partitioning query
+    * @param maxQBS maximum query block size used for partitioning query
+    * @param clazz Class object used to decide how to instantiate partitions
     */
   GenomicsDBInput(GenomicsDBConfiguration gdbconf, StructType schema, 
       Map<String, GenomicsDBVidSchema> vMap, long minQBS, long maxQBS, Class<T> clazz) {
@@ -69,6 +76,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
 
   /**
    * set the GenomicsDBConfiguration object
+   * @param gdbconf GenomcisDBConfiguration object
    */
   public void setGenomicsDBConfiguration(GenomicsDBConfiguration gdbconf) {
     genomicsDBConfiguration = gdbconf;
@@ -76,6 +84,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
 
   /**
    * get the GenomicsDBConfiguration object
+   * @return GenomicsDBConfiguration object
    */
   public GenomicsDBConfiguration getGenomicsDBConfiguration() {
     return genomicsDBConfiguration;
@@ -108,18 +117,27 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     // seems sorta hacky to instantiate the splits/partitions this way
     // but should work and we shouldn't have to
     // scale this up to many more different classes...
-    if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
-      instance.setGenomicsDBConf(genomicsDBConfiguration);
-      instance.setGenomicsDBSchema(schema);
-      instance.setGenomicsDBVidSchema(vMap);
-      return instance;
-    }
-    else if (GenomicsDBInputSplit.class.isAssignableFrom(clazz)) {
+    if (GenomicsDBInputSplit.class.isAssignableFrom(clazz)) {
       instance.setHost(host);
       return instance;
     }
     else {
-      throw new RuntimeException("Unsupported class for GenomicsDBInput:"+clazz.getName());
+      try {
+        Class c = Class.forName("org.genomicsdb.spark.GenomicsDBInputPartition");
+        if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
+          instance.setGenomicsDBConf(genomicsDBConfiguration);
+          instance.setGenomicsDBSchema(schema);
+          instance.setGenomicsDBVidSchema(vMap);
+          return instance;
+        }
+        else {
+          throw new RuntimeException("Unsupported class for GenomicsDBInput:"+clazz.getName());
+        }
+      }
+      catch (ClassNotFoundException ex) {
+        throw new RuntimeException("Warning: Could not find GenomicsDBInputPartition. " +
+                                   "Datasourceapi only works with >= Spark 2.4.0");
+      }
     }
   }
 
@@ -136,21 +154,30 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     // seems sorta hacky to instantiate the splits/partitions this way
     // but should work and we shouldn't have to
     // scale this up to many more different classes...
-    if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
-      instance.setPartitionInfo(part);
-      instance.setQueryInfo(qrange);
-      instance.setGenomicsDBConf(genomicsDBConfiguration);
-      instance.setGenomicsDBSchema(schema);
-      instance.setGenomicsDBVidSchema(vMap);
-      return instance;
-    }
-    else if (GenomicsDBInputSplit.class.isAssignableFrom(clazz)) {
+    if (GenomicsDBInputSplit.class.isAssignableFrom(clazz)) {
       instance.setPartitionInfo(part);
       instance.setQueryInfo(qrange);
       return instance;
     }
     else {
-      throw new RuntimeException("Unsupported class for GenomicsDBInput:"+clazz.getName());
+      try {
+        Class c = Class.forName("org.genomicsdb.spark.GenomicsDBInputPartition");
+        if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
+          instance.setPartitionInfo(part);
+          instance.setQueryInfo(qrange);
+          instance.setGenomicsDBConf(genomicsDBConfiguration);
+          instance.setGenomicsDBSchema(schema);
+          instance.setGenomicsDBVidSchema(vMap);
+          return instance;
+        }
+        else {
+          throw new RuntimeException("Unsupported class for GenomicsDBInput:"+clazz.getName());
+        }
+      }
+      catch (ClassNotFoundException ex) {
+        throw new RuntimeException("Warning: Could not find GenomicsDBInputPartition. " +
+                                   "Datasourceapi only works with >= Spark 2.4.0");
+      }
     }
   }
 
@@ -198,16 +225,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     if (!partitionsList.isEmpty())
       partition = partitionsList.get(pIndex);
 
-    // if workspace contains hdfs://, or s3:// or gc:// they're hdfs compliant and we support it
-    if (partition != null && !(partition.getWorkspace().contains("s3://") ||
-		partition.getWorkspace().contains("hdfs://") ||  
-		partition.getWorkspace().contains("gs://"))) {
-      List<String> hosts = genomicsDBConfiguration.getHosts();
-      for (int i=0; i<hosts.size(); i++) {
-        inputPartitions.add(getInputInstance(hosts.get(i)));
-      }
-    }
-    else if (partition != null) {
+    if (partition != null) {
       while (qIndex < queryRangeList.size() && partition != null) {
         GenomicsDBQueryInfo queryRange = queryRangeList.get(qIndex);
   
@@ -225,6 +243,13 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
         long queryBlockSize = queryRange.getEndPosition() - queryRange.getBeginPosition() + 1;
         if (queryBlockSize < goalBlockSize) {
           inputPartitions.add(getInputInstance(partition, queryRange));
+  	  // if this queryRange spans multiple partitions, need to add those as splits as well
+  	  while ((pIndex + 1) < partitionsList.size() &&
+                  queryRange.getEndPosition() >= partitionsList.get(pIndex+1).getBeginPosition()) {
+  	    pIndex++;
+            partition = partitionsList.get(pIndex);
+  	    inputPartitions.add(getInputInstance(partition, queryRange));
+  	  }
         }
         else {
           // bigger than goalBlockSize, so break up into "query chunks"

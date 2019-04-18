@@ -68,6 +68,6 @@ public class ImportConfigSpec {
                 Map<String, FeatureReader<VariantContext>>> sampleToReaderMap = (a, b, c) -> new TreeMap<>();
 
         return new ImportConfig(configuration, validateSampleToReaderMap, passAsVcf, batchSize, mergedHeader,
-                sampleNameToVcfPath, sampleToReaderMap);
+                sampleNameToVcfPath, sampleToReaderMap, false);
     }
 }

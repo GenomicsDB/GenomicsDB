@@ -61,6 +61,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.genomicsdb.GenomicsDBUtils.createTileDBWorkspace;
+import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBFragments;
+import static org.genomicsdb.GenomicsDBUtils.deleteFile;
+import static org.genomicsdb.GenomicsDBUtils.writeToFile;
 
 /**
  * Java wrapper for vcf2tiledb - imports VCFs into TileDB/GenomicsDB.
@@ -124,7 +127,6 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     private GenomicsDBImporter(final ImportConfig importConfig,
                                final Map<String, FeatureReader<VariantContext>> sampleToReaderMap,
                                final int rank) throws IOException {
-
         File importJSONFile = dumpTemporaryLoaderJSONFile(importConfig.getImportConfiguration(), "");
 
         initialize(importJSONFile.getAbsolutePath(), rank);
@@ -163,8 +165,10 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
      *
      * @param config Parallel import configuration
      * @throws FileNotFoundException when files could not be read/written
+     * @throws com.googlecode.protobuf.format.JsonFormat.ParseException when existing callset jsons are invalid. incremental case
      */
-    public GenomicsDBImporter(final ImportConfig config) throws FileNotFoundException {
+    public GenomicsDBImporter(final ImportConfig config) throws FileNotFoundException, 
+            com.googlecode.protobuf.format.JsonFormat.ParseException {
         this.config = config;
         this.config.setImportConfiguration(addExplicitValuesToImportConfiguration(config));
         long lbRowIdx = this.config.getImportConfiguration().hasLbCallsetRowIdx()
@@ -185,22 +189,44 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                 this.generateSortedCallSetMapFromNameToPathMap(this.config.getSampleNameToVcfPath(),
                         this.config.isUseSamplesInOrder(), lbRowIdx);
 
+        String outputCallsetmapJsonFilePath = this.config.getOutputCallsetmapJsonFile();
+        String workspace = this.config.getImportConfiguration().getColumnPartitions(0).getWorkspace();
+        if (this.config.isIncrementalImport()) {
+            if (outputCallsetmapJsonFilePath == null || outputCallsetmapJsonFilePath.isEmpty()) {
+                throw new GenomicsDBException("Incremental import must specify callset file name");
+            }
+            // write out fragment names to file to help with backup/recovery
+            String[] fragments = listGenomicsDBFragments(workspace);
+            if(writeToFile(outputCallsetmapJsonFilePath+".fragmentlist", String.join("\n",fragments))!=0) {
+                System.err.println("Warning: Could not write original fragment list for backup");
+            }
+            callsetMappingPB = this.mergeCallsetsForIncrementalImport(outputCallsetmapJsonFilePath,
+                                       this.config.getSampleNameToVcfPath(),
+                                       callsetMappingPB);
+        }
         //Vid map
-        GenomicsDBVidMapProto.VidMappingPB vidMapPB = generateVidMapFromMergedHeader(this.config.getMergedHeader());
+        String vidmapOutputFilepath = this.config.getOutputVidmapJsonFile();
+        GenomicsDBVidMapProto.VidMappingPB vidMapPB;
+        if (config.isIncrementalImport()) {
+            if (vidmapOutputFilepath == null || vidmapOutputFilepath.isEmpty()) {
+                throw new GenomicsDBException("Incremental import must specify vid file name");
+            }
+            vidMapPB = generateVidMapFromFile(vidmapOutputFilepath);
+        } else {
+            vidMapPB = generateVidMapFromMergedHeader(this.config.getMergedHeader());
+        }
 
         //Write out callset map if needed
-        String outputCallsetmapJsonFilePath = this.config.getOutputCallsetmapJsonFile();
         if (outputCallsetmapJsonFilePath != null && !outputCallsetmapJsonFilePath.isEmpty())
             this.writeCallsetMapJSONFile(outputCallsetmapJsonFilePath, callsetMappingPB);
 
-        //Write out vidmap if needed
-        String vidmapOutputFilepath = this.config.getOutputVidmapJsonFile();
-        if (vidmapOutputFilepath != null && !vidmapOutputFilepath.isEmpty())
+        //Write out vidmap if needed, don't write for incremental import
+        if (!config.isIncrementalImport() && vidmapOutputFilepath != null && !vidmapOutputFilepath.isEmpty())
             this.writeVidMapJSONFile(vidmapOutputFilepath, vidMapPB);
 
-        //Write out merged header if needed
+        //Write out merged header if needed, don't write for incremental import
         String vcfHeaderOutputFilepath = this.config.getOutputVcfHeaderFile();
-        if (vcfHeaderOutputFilepath != null && !vcfHeaderOutputFilepath.isEmpty())
+        if (!config.isIncrementalImport() && vcfHeaderOutputFilepath != null && !vcfHeaderOutputFilepath.isEmpty())
             this.writeVcfHeaderFile(vcfHeaderOutputFilepath, this.config.getMergedHeader());
 
         //Set callset map and vid map in the top level config object
@@ -210,7 +236,6 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                 .build());
 
         //Create workspace folder to avoid issues with concurrency
-        String workspace = this.config.getImportConfiguration().getColumnPartitions(0).getWorkspace();
 	if (createTileDBWorkspace(workspace, false) < 0) {
 	    throw new IllegalStateException(String.format("Cannot create '%s' workspace.", workspace));
         }
@@ -529,7 +554,23 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
         //Iterate over sorted sample list in batches
         iterateOverSamplesInBatches(sampleCount, updatedBatchSize, numberPartitions, executor, performConsolidation);
         executor.shutdown();
+        deleteBackupFiles();
         mDone = true;
+    }
+
+    private void deleteBackupFiles() {
+        if (this.config.isIncrementalImport()) {
+            String outputCallsetmapJsonFilePath = this.config.getOutputCallsetmapJsonFile();
+            if (outputCallsetmapJsonFilePath == null || outputCallsetmapJsonFilePath.isEmpty()) {
+                throw new GenomicsDBException("Incremental import must specify callset file name");
+            }
+            if(deleteFile(outputCallsetmapJsonFilePath+".inc.backup")!=0) {
+                System.err.println("Warning: Could not delete backup callset file"); 
+            }
+            if(deleteFile(outputCallsetmapJsonFilePath+".fragmentlist")!=0) {
+                System.err.println("Warning: Could not delete fragment list backup file"); 
+            }
+        }
     }
 
     private void iterateOverSamplesInBatches(final int sampleCount, final int updatedBatchSize, final int numberPartitions,
@@ -537,16 +578,22 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
         final boolean failIfUpdating = this.config.getImportConfiguration().getFailIfUpdating();
         final int totalBatchCount = (sampleCount + updatedBatchSize - 1)/updatedBatchSize; //ceil
         BatchCompletionCallbackFunctionArgument callbackFunctionArgument = new BatchCompletionCallbackFunctionArgument(0, totalBatchCount);
-        for (int i = 0, batchCount = 1; i < sampleCount; i += updatedBatchSize, ++batchCount) {
+        int origLbRowIdx = (this.config.getImportConfiguration().hasLbCallsetRowIdx())
+                           ? ((int)this.config.getImportConfiguration().getLbCallsetRowIdx())
+                           : (0);
+        for (int i = origLbRowIdx, batchCount = 1; i < sampleCount+origLbRowIdx; i += updatedBatchSize, ++batchCount) {
             final int index = i;
             IntStream.range(0, numberPartitions).forEach(rank -> updateConfigPartitionsAndLbUb(this.config, index, rank));
             GenomicsDBImportConfiguration.ImportConfiguration updatedConfig =
                     this.config.getImportConfiguration().toBuilder().setConsolidateTiledbArrayAfterLoad(
-                            i + updatedBatchSize >= sampleCount && performConsolidation)
+                            ((i + updatedBatchSize) >= (sampleCount+origLbRowIdx)) && performConsolidation)
                     .setFailIfUpdating(failIfUpdating && i == 0) //fail if updating should be set to true iff user sets it and this is the first batch
                     .build();
             this.config.setImportConfiguration(updatedConfig);
-            List<CompletableFuture<Boolean>> futures = iterateOverChromosomeIntervals(updatedBatchSize, numberPartitions, executor, index);
+            // sending index-origLbRowIdx because iterativeOverChromosomeIntervals uses that to index sampleMap
+            // and in incremental import case that will only have the incremental callset
+            // whereas updateConfigPartitionsAndLbUb sets config that will index into merged callsetPB
+            List<CompletableFuture<Boolean>> futures = iterateOverChromosomeIntervals(updatedBatchSize, numberPartitions, executor, index-origLbRowIdx);
             List<Boolean> result = futures.stream().map(CompletableFuture::join).collect(Collectors.toList());
 
             if (result.contains(false)) {
@@ -696,4 +743,5 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                 + loaderJSONFile + " rank: " + rank);
         mDone = true;
     }
+
 }

@@ -62,7 +62,7 @@ public class CommandLineImportConfig extends ImportConfig {
         this.setImportConfiguration(configurationBuilder.build());
         this.validateChromosomeIntervals();
         int numPositionalArgs = commandArgs.length - getOpt.getOptind();
-        if (numPositionalArgs <= 0
+        if (numPositionalArgs <= 0 
                 || this.getImportConfiguration().getColumnPartitions(0).getWorkspace().isEmpty()
                 || this.getImportConfiguration().getColumnPartitionsList().isEmpty()) {
             throwIllegalArgumentException();
@@ -80,7 +80,7 @@ public class CommandLineImportConfig extends ImportConfig {
     }
 
     private LongOpt[] resolveLongOpt() {
-        LongOpt[] longopts = new LongOpt[13];
+        LongOpt[] longopts = new LongOpt[14];
         longopts[0] = new LongOpt("use_samples_in_order", LongOpt.NO_ARGUMENT, null,
                 ArgsIdxEnum.ARGS_IDX_USE_SAMPLES_IN_ORDER.idx());
         longopts[1] = new LongOpt("fail_if_updating", LongOpt.NO_ARGUMENT, null,
@@ -104,6 +104,8 @@ public class CommandLineImportConfig extends ImportConfig {
         longopts[11] = new LongOpt("array", LongOpt.REQUIRED_ARGUMENT, null, 'A');
         longopts[12] = new LongOpt("htslib", LongOpt.NO_ARGUMENT, null,
             ArgsIdxEnum.ARGS_IDX_READ_INPUT_VCF_USING_HTSLIB.idx());
+        longopts[13] = new LongOpt("incremental_import", LongOpt.REQUIRED_ARGUMENT, null,
+                ArgsIdxEnum.ARGS_IDX_INCREMENTAL_IMPORT.idx());
         return longopts;
     }
 
@@ -157,6 +159,10 @@ public class CommandLineImportConfig extends ImportConfig {
                             case ARGS_IDX_READ_INPUT_VCF_USING_HTSLIB:
                                 readVcfUsingHtslib = true;
                                 break;
+                            case ARGS_IDX_INCREMENTAL_IMPORT:
+                                this.setIncrementalImport(true);
+                                configurationBuilder.setLbCallsetRowIdx(Long.parseLong(commandArgs.getOptarg()));
+                                break;
                             default:
                                 throwIllegalArgumentException(commandArgs);
                                 return;
@@ -172,7 +178,7 @@ public class CommandLineImportConfig extends ImportConfig {
     private void throwIllegalArgumentException() {
         throw new IllegalArgumentException("Invalid usage. Correct way of using arguments: -L chromosome:interval " +
                 "-w genomicsdbworkspace [-A array] --size_per_column_partition 10000 --segment_size 1048576 variantfile(s) " +
-                "[--use_samples_in_order --fail_if_updating --batchsize=<N> --vidmap-output <path>]");
+                "[--use_samples_in_order --fail_if_updating --batchsize=<N> --vidmap-output <path> --incremental_update]");
     }
 
     private void throwIllegalArgumentException(Getopt commandArgs) {
@@ -231,7 +237,8 @@ public class CommandLineImportConfig extends ImportConfig {
         ARGS_IDX_SIZE_PER_COLUMN_PARTITION(1007),
         ARGS_IDX_SEGMENT_SIZE(1008),
         ARGS_IDX_READ_INPUT_VCF_USING_HTSLIB(1009),
-        ARGS_IDX_AFTER_LAST_ARG_IDX(1010);
+        ARGS_IDX_INCREMENTAL_IMPORT(1010),
+        ARGS_IDX_AFTER_LAST_ARG_IDX(1011);
         private final int mArgsIdx;
 
         ArgsIdxEnum(final int idx) {

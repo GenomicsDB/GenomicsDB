@@ -31,6 +31,7 @@ import shutil
 from collections import OrderedDict
 import jsondiff
 import errno
+import distutils.spawn
 
 query_json_template_string="""
 {   
@@ -168,6 +169,42 @@ def modify_query_column_ranges_for_PB(test_query_dict):
                 new_query_column_ranges.append(new_entry)
         test_query_dict['query_column_ranges'] = new_query_column_ranges
 
+def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, outfile_string, golden_string):
+    with open(outfilename, "w") as out_fd:
+        out_fd.write(outfile_string)
+    bcf_cmd = bcftools_path+' view -Oz -o '+outfilename+'.gz '+outfilename+' && '+bcftools_path+' index -f -t '+outfilename+'.gz'
+    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE)
+    bcf_stdout = pid.communicate()[0]
+    if(pid.returncode != 0):
+        sys.stderr.write('Call to bcftools failed. Cmd: '+bcf_cmd+'\n')
+        sys.stderr.write('Returned: '+bcf_stdout+'\n')
+        return True
+
+    with open(outfilename_golden, "w") as out_golden_fd:
+        out_golden_fd.write(golden_string)
+    bcf_cmd = bcftools_path+' view -Oz -o '+outfilename_golden+'.gz '+outfilename_golden+' && '+bcftools_path+' index -f -t '+outfilename_golden+'.gz'
+    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE)
+    bcf_stdout = pid.communicate()[0]
+    if(pid.returncode != 0):
+        sys.stderr.write('Call to bcftools failed. Cmd: '+bcf_cmd+'\n')
+        sys.stderr.write('Returned: '+bcf_stdout+'\n')
+        return True
+
+    vcfdiff_cmd = exe_path+os.path.sep+'vcfdiff '+outfilename+'.gz '+outfilename_golden+'.gz'
+    pid = subprocess.Popen(vcfdiff_cmd, shell=True, stdout=subprocess.PIPE)
+    vcfdiff_stdout = pid.communicate()[0]
+    if(pid.returncode != 0):
+        sys.stderr.write('vcfdiff cmd failed. Cmd: '+vcfdiff_cmd+'\n')
+        sys.stderr.write('Returned: '+vcfdiff_stdout+'\n')
+        return True
+    else:
+        if(len(vcfdiff_stdout) == 0):
+            return False
+        else:
+            sys.stderr.write('vcfdiff check failed. Cmd: '+vcfdiff_cmd+'\n')
+            sys.stderr.write('Returned: '+vcfdiff_stdout+'\n')
+            return True
+
 def cleanup_and_exit(tmpdir, exit_code):
     if(exit_code == 0):
         shutil.rmtree(tmpdir, ignore_errors=True)
@@ -239,9 +276,10 @@ def main():
     parent_dir=os.path.dirname(os.path.realpath(__file__))
     os.chdir(parent_dir)
     tmpdir = tempfile.mkdtemp()
+    bcftools_path = distutils.spawn.find_executable("bcftools")
     ws_dir=tmpdir+os.path.sep+'ws';
     jacoco_enabled = os.path.isfile(gcda_prefix_dir+os.path.sep+'jacocoagent.jar') and os.path.isfile(gcda_prefix_dir+os.path.sep+'jacococli.jar')
-    loader_tests = [
+    loader_tests0 = [
             { "name" : "t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
                 "query_params": [
@@ -437,6 +475,37 @@ def main():
                         } }
                 ]
             },
+            { "name" : "java_genomicsdb_importer_from_vcfs_incremental_t0_1_2_multi_contig",
+                'callset_mapping_file': 'inputs/callsets/t0_1_2.0.json',
+                'callset_mapping_file1': 'inputs/callsets/t0_1_2.1.json',
+                'chromosome_intervals': [ '1:1-12160', '1:12161-12200', '1:12201-18000' ],
+                "vid_mapping_file": "inputs/vid_phased_GT.json",
+                'generate_array_name_from_partition_bounds': True,
+                "query_params": [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 18000
+                        }]
+                    }],
+                        'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
+                        "vid_mapping_file": "inputs/vid_phased_GT.json",
+                        "golden_output": {
+                        "java_vcf"   : "golden_outputs/java_genomicsdb_importer_from_vcfs_t0_1_2_multi_contig_vcf_0_18000",
+                        } },
+                    {
+                        "query_contig_interval": {
+                            "contig": "1",
+                            "begin": 12151,
+                            "end": 18000
+                        },
+                        'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
+                        "vid_mapping_file": "inputs/vid_phased_GT.json",
+                        "golden_output": {
+                        "java_vcf"   : "golden_outputs/java_genomicsdb_importer_from_vcfs_t0_1_2_multi_contig_vcf_12150_18000",
+                        } }
+                ]
+            },
             { "name" : "t0_1_2_filter", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2_csv.json',
                 "query_params": [
@@ -503,6 +572,8 @@ def main():
                 'callset_mapping_file': 'inputs/callsets/t0_overlapping.json',
                 'column_partitions': [ {"begin": 12202, "workspace":"", "array_name": "" }]
             },
+    ];
+    loader_tests1 = [
             { "name" : "t6_7_8", 'golden_output' : 'golden_outputs/t6_7_8_loading',
                 'callset_mapping_file': 'inputs/callsets/t6_7_8.json',
                 "query_params": [
@@ -576,6 +647,42 @@ def main():
                             "end": 8029502
                         },
                         'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
+                        "vid_mapping_file": "inputs/vid_phased_GT.json",
+                        "golden_output": {
+                        "java_vcf"   : "golden_outputs/java_t6_7_8_vcf_at_8029501",
+                        } }
+                ]
+            },
+            { "name" : "java_genomicsdb_importer_from_vcfs_incremental_t6_7_8_multi_contig",
+                'callset_mapping_file': 'inputs/callsets/t6_7_8.0.json',
+                'callset_mapping_file1': 'inputs/callsets/t6_7_8.1.json',
+                'chromosome_intervals': [ '1:1-8029500','1:8029501-8029501', '1:8029502-10000000' ],
+                "vid_mapping_file": "inputs/vid_phased_GT.json",
+                'generate_array_name_from_partition_bounds': True,
+                "query_params": [
+                    {   'callset_mapping_file': 'inputs/callsets/t6_7_8.json',
+                        "vid_mapping_file": "inputs/vid_phased_GT.json",
+                        "golden_output": {
+                        "java_vcf"   : "golden_outputs/java_t6_7_8_vcf_at_0",
+                        } },
+                    {
+                        "query_contig_interval": {
+                            "contig": "1",
+                            "begin": 8029501,
+                            "end": 8029510
+                        },
+                        'callset_mapping_file': 'inputs/callsets/t6_7_8.json',
+                        "vid_mapping_file": "inputs/vid_phased_GT.json",
+                        "golden_output": {
+                        "java_vcf"   : "golden_outputs/java_t6_7_8_vcf_at_8029500",
+                        } },
+                    {
+                        "query_contig_interval": {
+                            "contig": "1",
+                            "begin": 8029502,
+                            "end": 8029502
+                        },
+                        'callset_mapping_file': 'inputs/callsets/t6_7_8.json',
                         "vid_mapping_file": "inputs/vid_phased_GT.json",
                         "golden_output": {
                         "java_vcf"   : "golden_outputs/java_t6_7_8_vcf_at_8029501",
@@ -728,8 +835,78 @@ def main():
                         } }
                     ]
             },
+            { "name" : "java_genomicsdb_importer_from_vcfs_incremental_t0_1_2",
+                'callset_mapping_file': 'inputs/callsets/t0_1_2.0.json',
+                'callset_mapping_file1': 'inputs/callsets/t0_1_2.1.json',
+                'chromosome_intervals': [ '1:1-100000000' ],
+                "vid_mapping_file": "inputs/vid_phased_GT.json",
+                "query_params": [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }],
+                        'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
+                        "vid_mapping_file": "inputs/vid_phased_GT.json",
+                        "golden_output": {
+                        "vcf"        : "golden_outputs/t0_1_2_vcf_at_0",
+                        "batched_vcf": "golden_outputs/t0_1_2_vcf_at_0",
+                        "java_vcf"   : "golden_outputs/java_t0_1_2_vcf_at_0",
+                        } },
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 12150,
+                            "high": 1000000000
+                        }]
+                    }],
+                        'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
+                        "vid_mapping_file": "inputs/vid_phased_GT.json",
+                        "golden_output": {
+                        "vcf"        : "golden_outputs/t0_1_2_vcf_at_12150",
+                        "batched_vcf": "golden_outputs/t0_1_2_vcf_at_12150",
+                        "java_vcf"   : "golden_outputs/java_t0_1_2_vcf_at_12150",
+                        } }
+                    ]
+            },
             { "name" : "java_genomicsdb_importer_from_vcfs_t6_7_8",
                 'callset_mapping_file': 'inputs/callsets/t6_7_8.json',
+                'chromosome_intervals': [ '1:1-100000000' ],
+                "vid_mapping_file": "inputs/vid_phased_GT.json",
+                "query_params": [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }],
+                        "vid_mapping_file": "inputs/vid_phased_GT.json",
+                        'callset_mapping_file': 'inputs/callsets/t6_7_8.json',
+                        "golden_output": {
+                        "calls"      : "golden_outputs/t6_7_8_calls_at_0_phased_GT",
+                        "variants"   : "golden_outputs/t6_7_8_variants_at_0_phased_GT",
+                        "vcf"        : "golden_outputs/t6_7_8_vcf_at_0",
+                        "batched_vcf": "golden_outputs/t6_7_8_vcf_at_0",
+                        } },
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 8029500,
+                            "high": 1000000000
+                        }]
+                    }],
+                        "vid_mapping_file": "inputs/vid_phased_GT.json",
+                        'callset_mapping_file': 'inputs/callsets/t6_7_8.json',
+                        "golden_output": {
+                        "calls"      : "golden_outputs/t6_7_8_calls_at_8029500_phased_GT",
+                        "variants"   : "golden_outputs/t6_7_8_variants_at_8029500_phased_GT",
+                        "vcf"        : "golden_outputs/t6_7_8_vcf_at_8029500",
+                        "batched_vcf": "golden_outputs/t6_7_8_vcf_at_8029500",
+                        } }
+                    ]
+            },
+            { "name" : "java_genomicsdb_importer_from_vcfs_incremental_t6_7_8",
+                'callset_mapping_file': 'inputs/callsets/t6_7_8.0.json',
+                'callset_mapping_file1': 'inputs/callsets/t6_7_8.1.json',
                 'chromosome_intervals': [ '1:1-100000000' ],
                 "vid_mapping_file": "inputs/vid_phased_GT.json",
                 "query_params": [
@@ -796,6 +973,26 @@ def main():
             { "name" : "java_genomicsdb_importer_from_vcfs_t0_1_2_with_DS_ID",
                 'vid_mapping_file': 'inputs/vid_DS_ID_phased_GT.json',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
+                'chromosome_intervals': [ '1:1-100000000' ],
+                "query_params": [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }],
+                        'vid_mapping_file': 'inputs/vid_DS_ID_phased_GT.json',
+                        'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
+                        "attributes": attributes_with_DS_ID, "golden_output": {
+                        "calls"      : "golden_outputs/t0_1_2_DS_ID_calls_at_0_phased_GT",
+                        "variants"   : "golden_outputs/t0_1_2_DS_ID_variants_at_0_phased_GT",
+                        } },
+                    ]
+            },
+            { "name" : "java_genomicsdb_importer_from_vcfs_incremental_t0_1_2_with_DS_ID",
+                'vid_mapping_file': 'inputs/vid_DS_ID_phased_GT.json',
+                'callset_mapping_file': 'inputs/callsets/t0_1_2.0.json',
+                'callset_mapping_file1': 'inputs/callsets/t0_1_2.1.json',
                 'chromosome_intervals': [ '1:1-100000000' ],
                 "query_params": [
                     { "query_column_ranges": [{
@@ -933,6 +1130,27 @@ def main():
                         } },
                     ]
             },
+            { "name" : "java_genomicsdb_importer_from_vcfs_incremental_t0_1_2_all_asa",
+                'callset_mapping_file': 'inputs/callsets/t0_1_2_all_asa.0.json',
+                'callset_mapping_file1': 'inputs/callsets/t0_1_2_all_asa.1.json',
+                'vid_mapping_file': 'inputs/vid_all_asa.json',
+                'chromosome_intervals': [ '1:1-100000000' ],
+                "query_params": [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }],
+                        "force_override": True,
+                        'segment_size': 100,
+                        "attributes": asa_vcf_attributes,
+                        "golden_output": {
+                        "vcf"      : "golden_outputs/t0_1_2_all_asa_loading",
+                        "java_vcf"   : "golden_outputs/t0_1_2_all_asa_java_query_vcf",
+                        } },
+                    ]
+            },
             { "name" : "min_PL_spanning_deletion", 'golden_output' : 'golden_outputs/min_PL_spanning_deletion_load_stdout',
                 'callset_mapping_file': 'inputs/callsets/min_PL_spanning_deletion.json',
                 "vid_mapping_file": "inputs/vid_phased_GT.json",
@@ -991,11 +1209,24 @@ def main():
                     ]
             },
     ];
+    if(len(sys.argv) < 4):
+        loader_tests = loader_tests0 + loader_tests1
+    elif(sys.argv[3] == '1'):
+        loader_tests = loader_tests0
+    else:
+        loader_tests = loader_tests1
+
     for test_params_dict in loader_tests:
         test_name = test_params_dict['name']
         test_loader_dict = create_loader_json(ws_dir, test_name, test_params_dict);
+        incremental_load = False
         if(test_name == "t0_1_2"):
             test_loader_dict["compress_tiledb_array"] = True;
+        # loader json won't get used with genomicsdb importer, but will need to be accurate 
+        # for queries (specifically --produce-Broad-GVCF). Point to the combined callset for queries
+        if(test_name.find('java_genomicsdb_importer_from_vcfs_incremental') != -1):
+            incr_callset = test_loader_dict["callset_mapping_file"]
+            test_loader_dict["callset_mapping_file"] = incr_callset.replace('.0', '')
         loader_json_filename = tmpdir+os.path.sep+test_name+'.json'
         with open(loader_json_filename, 'wb') as fptr:
             json.dump(test_loader_dict, fptr, indent=4, separators=(',', ': '));
@@ -1025,19 +1256,32 @@ def main():
             arg_list = ''
             for interval in test_params_dict['chromosome_intervals']:
                 arg_list += ' -L '+interval
-            arg_list += ' -w ' + ws_dir +' --use_samples_in_order ' + ' --batchsize=2 '
+            arg_list += ' -w ' + ws_dir +' --use_samples_in_order ' + ' --batchsize=1 '
             arg_list += ' --vidmap-output '+ tmpdir + os.path.sep + 'vid.json'
             arg_list += ' --callset-output '+ tmpdir + os.path.sep + 'callsets.json'
             if('generate_array_name_from_partition_bounds' not in test_params_dict or
                     not test_params_dict['generate_array_name_from_partition_bounds']):
                 arg_list += ' -A ' + test_name
+            file_list = ''
+            count=0
             with open(test_params_dict['callset_mapping_file'], 'rb') as cs_fptr:
                 callset_mapping_dict = json.load(cs_fptr, object_pairs_hook=OrderedDict)
                 for callset_name, callset_info in callset_mapping_dict['callsets'].iteritems():
-                    arg_list += ' '+callset_info['filename'];
+                    file_list += ' '+callset_info['filename'];
+                    count=count+1
                 cs_fptr.close();
             import_cmd = 'java'+jacoco+' -ea TestGenomicsDBImporterWithMergedVCFHeader --size_per_column_partition 16384 ' \
-                                   '--segment_size 10485760'+arg_list
+                                   '--segment_size 10485760'+arg_list+file_list
+            if(test_name.find('incremental') != -1):
+                incremental_load = True
+                file_list = ''
+                with open(test_params_dict['callset_mapping_file1'], 'rb') as cs_fptr:
+                    callset_mapping_dict = json.load(cs_fptr, object_pairs_hook=OrderedDict)
+                    for callset_name, callset_info in callset_mapping_dict['callsets'].iteritems():
+                        file_list += ' '+callset_info['filename'];
+                cs_fptr.close();
+                import_cmd_incremental = 'java'+jacoco+' -ea TestGenomicsDBImporterWithMergedVCFHeader --size_per_column_partition 16384 ' \
+                                               '--segment_size 10485760 --incremental '+str(count)+arg_list+file_list
         else:
             import_cmd = exe_path+os.path.sep+'vcf2tiledb '+loader_json_filename
         pid = subprocess.Popen(import_cmd, shell=True, stdout=subprocess.PIPE);
@@ -1045,14 +1289,31 @@ def main():
         if(pid.returncode != 0):
             sys.stderr.write('Loader test: '+test_name+' failed\n');
             sys.stderr.write(import_cmd+'\n')
+            sys.stderr.write(stdout_string+'\n')
             cleanup_and_exit(tmpdir, -1);
         md5sum_hash_str = str(hashlib.md5(stdout_string).hexdigest())
         if('golden_output' in test_params_dict):
             golden_stdout, golden_md5sum = get_file_content_and_md5sum(test_params_dict['golden_output']);
             if(golden_md5sum != md5sum_hash_str):
-                sys.stderr.write('Loader stdout mismatch for test: '+test_name+'\n');
-                print_diff(golden_stdout, stdout_string);
+                if(bcftools_path is None):
+                    sys.stderr.write('Did not find bcftools in path. If you are able to add that to the path, we can get a more precise diff\n')
+                else:
+                    outfilename = tmpdir+os.path.sep+test_name+'.vcf'
+                    outfilename_golden = tmpdir+os.path.sep+test_name+'_golden'+'.vcf'
+                    if(bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, stdout_string, golden_stdout)):
+                        sys.stderr.write('Loader stdout mismatch for test: '+test_name+'\n');
+                        print_diff(golden_stdout, stdout_string);
+                        cleanup_and_exit(tmpdir, -1);
+
+        if incremental_load:
+            pid = subprocess.Popen(import_cmd_incremental, shell=True, stdout=subprocess.PIPE);
+            stdout_string = pid.communicate()[0]
+            if(pid.returncode != 0):
+                sys.stderr.write('Loader test: '+test_name+' failed\n');
+                sys.stderr.write(import_cmd_incremental+'\n')
+                sys.stderr.write(stdout_string+'\n')
                 cleanup_and_exit(tmpdir, -1);
+
         if('query_params' in test_params_dict):
             for query_param_dict in test_params_dict['query_params']:
                 test_query_dict = create_query_json(ws_dir, test_name, query_param_dict)
@@ -1136,8 +1397,17 @@ def main():
                                 except:
                                     json_diff_result = None;
                                     is_error = True
+                            # for VCF format try to use bcftools and call vcfdiff
+                            else:
+                                if(bcftools_path is None):
+                                    sys.stderr.write('Did not find bcftools in path. If you are able to add that to the path, we can get a more precise diff\n')
+                                else:
+                                    outfilename = tmpdir+os.path.sep+test_name+'_'+query_type+'.vcf'
+                                    outfilename_golden = tmpdir+os.path.sep+test_name+'_'+query_type+'_golden'+'.vcf'
+                                    is_error = bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, stdout_string, golden_stdout)
                             if(is_error):
                                 sys.stderr.write('Mismatch in query test: '+test_name+'-'+query_type+'\n');
+                                sys.stderr.write('Query command: '+query_command+'\n')
                                 print_diff(golden_stdout, stdout_string);
                                 if(json_diff_result):
                                     print(json.dumps(json_diff_result, indent=4, separators=(',', ': ')));
