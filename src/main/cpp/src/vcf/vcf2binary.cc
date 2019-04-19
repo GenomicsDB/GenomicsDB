@@ -933,7 +933,8 @@ bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer,
       auto alleles = line->d.allele;
       auto ref_length = strlen(alleles[0]);
       for (auto j=1; j<line->n_allele; ++j) {
-        if (bcf_get_variant_type(line, j) == VCF_INDEL && ref_length > strlen(alleles[j])) {
+        auto vtype = bcf_get_variant_type(line, j);
+        if ((vtype == VCF_INDEL || vtype == VCF_SPANNING_DELETION) && ref_length > strlen(alleles[j])) {
           end_column_idx = column_idx + ref_length - 1;
           break;
         }

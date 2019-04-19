@@ -572,6 +572,10 @@ def main():
                 'callset_mapping_file': 'inputs/callsets/t0_overlapping.json',
                 'column_partitions': [ {"begin": 12202, "workspace":"", "array_name": "" }]
             },
+            { "name" : "spanning_with_partition_straddle", 'golden_output': 'golden_outputs/spanning_with_partition_straddle_load_stdout',
+                'callset_mapping_file': 'inputs/callsets/spanning_partition.json',
+                'column_partitions': [ {"begin": 1274365, "workspace":"", "array_name": ""}]
+            },
     ];
     loader_tests1 = [
             { "name" : "t6_7_8", 'golden_output' : 'golden_outputs/t6_7_8_loading',

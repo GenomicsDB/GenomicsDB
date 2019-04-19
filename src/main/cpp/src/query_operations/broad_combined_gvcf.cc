@@ -845,10 +845,18 @@ void BroadCombinedGVCFOperator::handle_deletions(Variant& variant, const Variant
       auto& ref_allele = get_known_field<VariantFieldString, true>(curr_call, query_config, GVCF_REF_IDX)->get();
       auto& alt_alleles = get_known_field<VariantFieldALTData, true>(curr_call, query_config, GVCF_ALT_IDX)->get();
       assert(alt_alleles.size() > 0u);
-      //Already handled as a spanning deletion, nothing to do
+      //Already handled as a spanning deletion, nothing to do - just invalidate INFO fields
       if (alt_alleles[0u] == g_vcf_SPANNING_DELETION &&
-          (alt_alleles.size() == 1u || (alt_alleles.size() == 2u && IS_NON_REF_ALLELE(alt_alleles[1u]))))
+          (alt_alleles.size() == 1u || (alt_alleles.size() == 2u && IS_NON_REF_ALLELE(alt_alleles[1u])))) {
+        //Invalidate INFO fields
+        for (const auto& tuple : m_INFO_fields_vec) {
+          auto query_idx = BCF_INFO_GET_QUERY_FIELD_IDX(tuple);
+          auto& field = curr_call.get_field(query_idx);
+          if (field.get())
+            field->set_valid(false);
+        }
         continue;
+      }
       m_reduced_alleles_LUT.resize_luts_if_needed(variant.get_num_calls(), alt_alleles.size()+1u); //+1 for REF
       //Reduced allele list will be REF="N", ALT="*, <NON_REF>"
       m_reduced_alleles_LUT.add_input_merged_idx_pair(curr_call_idx_in_variant, 0, 0);  //REF-REF mapping
@@ -964,13 +972,6 @@ void BroadCombinedGVCFOperator::handle_deletions(Variant& variant, const Variant
           //Copy back
           memcpy_s(&(input_GT[0]), input_GT.size()*sizeof(int), &(m_spanning_deletion_remapped_GT[0]), input_GT.size()*sizeof(int));
         }
-      }
-      //Invalidate INFO fields
-      for (const auto& tuple : m_INFO_fields_vec) {
-        auto query_idx = BCF_INFO_GET_QUERY_FIELD_IDX(tuple);
-        auto& field = curr_call.get_field(query_idx);
-        if (field.get())
-          field->set_valid(false);
       }
     }
   }
