@@ -1,0 +1,9 @@
+{
+    "callsets" : {
+        "HG00141" : {
+            "row_idx" : 0,
+            "idx_in_file": 0,
+            "filename": "inputs/vcfs/t6.vcf.gz"
+        }
+    }
+}
