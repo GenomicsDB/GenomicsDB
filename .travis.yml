@@ -30,10 +30,11 @@ matrix:
         cache:
           directories: $HOME/.m2 $HOME/Library/Caches/Homebrew $CACHE_DIR
 
-      - name: "Spark/HDFS Linux"
-        os: linux
-        env: INSTALL_TYPE=hdfs
-        services: postgres
+# commenting out Spark/HDFS build in the v1.0.0 branch as spark 2.4.0 has been superseded by 2.4.1 - not pulling those changes from master for now.
+#      - name: "Spark/HDFS Linux"
+#        os: linux
+#        env: INSTALL_TYPE=hdfs
+#        services: postgres
 
 #
 # commenting out for now because these seem flaky
