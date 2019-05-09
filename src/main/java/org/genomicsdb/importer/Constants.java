@@ -20,7 +20,8 @@ public final class Constants {
     ));
     public static final HashSet<String> R_LENGTH_TWO_DIM_INT_VECTOR_FIELDS = new HashSet<>(Arrays.asList(
             "AS_SB_TABLE",
-            "AS_QUALapprox"
+            "AS_QUALapprox",
+            "AS_VarDP"
     ));
     public static final long DEFAULT_BUFFER_CAPACITY = 20480; //20KB
 }
