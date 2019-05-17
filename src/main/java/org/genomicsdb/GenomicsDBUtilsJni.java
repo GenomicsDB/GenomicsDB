@@ -107,5 +107,12 @@ public class GenomicsDBUtilsJni {
      */
     public static native int jniDeleteFile(final String filename);
 
+    /**
+     * Get max valid row index
+     * @param workspace path to workspace
+     * @param array name of workspace
+     * @return max valid row idx, -1 for error
+     */
+    public static native int jniGetMaxValidRowIndex(final String workspace, final String array);
 }
 

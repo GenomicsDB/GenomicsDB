@@ -71,6 +71,14 @@ JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniMoveFile
 JNIEXPORT jstring JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniReadEntireFile
   (JNIEnv *, jclass, jstring);
 
+/*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni
+ * Method:    jniGetMaxValidRowIndex
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetMaxValidRowIndex
+  (JNIEnv *, jclass, jstring, jstring);
+
 #ifdef __cplusplus
 }
 #endif
