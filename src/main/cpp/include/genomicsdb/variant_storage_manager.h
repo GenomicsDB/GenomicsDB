@@ -160,7 +160,6 @@ class VariantArrayInfo {
     return m_name;
   }
   void write_cell(const void* ptr);
-  static int setup_tiledb_ctx(TileDB_CTX **ctx, const std::string& workspace);
   static int get_max_valid_row_idx(const std::string& workspace, const std::string& array);
   //Read #valid rows from metadata if available, else set from schema (array domain)
   void read_row_bounds_from_metadata();
