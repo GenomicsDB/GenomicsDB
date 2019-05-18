@@ -320,22 +320,10 @@ int read_row_bounds_kernel(TileDB_CTX *ctx,
   return -1;
 }
 
-// special case setup of tiledb ctx for JNI accesses that may need it directly
-// one case is to read max row idx from metadata for incremental import through GATK
-int VariantArrayInfo::setup_tiledb_ctx(TileDB_CTX **ctx, const std::string& workspace) {
-  int rc;
-  TileDB_Config tiledb_config;
-  memset(&tiledb_config, 0, sizeof(TileDB_Config));
-  tiledb_config.home_ = strdup(workspace.c_str());
-  tiledb_config.disable_file_locking_ = false;
-  rc = tiledb_ctx_init(ctx, &tiledb_config);
-  free((void *)tiledb_config.home_);
-  return rc;
-}
-
 int VariantArrayInfo::get_max_valid_row_idx(const std::string& workspace, const std::string& array) {
   TileDB_CTX *ctx;
-  if (setup_tiledb_ctx(&ctx, workspace))
+  // initialize ctx, and ensure that we've an existing workspace
+  if (TileDBUtils::initialize_workspace(&ctx, workspace, false) != 1)
     return -1;
   //To read genomicsdb json entries in meta directory
   std::vector<std::string> files = get_files(ctx, GET_METADATA_DIRECTORY(workspace, array));
