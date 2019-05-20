@@ -519,7 +519,9 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
         // first incremental import
         inputVCF = "tests/inputs/vcfs/t7.vcf.gz"; 
         GenomicsDBImporter importerIncremental; 
-        importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 1 ", inputVCF, false);
+        // we'll use 0 below (and set lbRowIdx to 0) to check whether
+        // we are able to read the max valid row idx from metadata
+        importerIncremental = getGenomicsDBImporterForMultipleImport("--incremental_import 0 ", inputVCF, false);
         importerIncremental.executeImport();
         Assert.assertEquals(importerIncremental.isDone(), true);
         String[] fragments = listGenomicsDBFragments(WORKSPACE.getAbsolutePath());

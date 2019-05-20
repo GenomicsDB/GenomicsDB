@@ -18,8 +18,10 @@ public final class Constants {
     public static final HashSet<String> R_LENGTH_TWO_DIM_FLOAT_VECTOR_FIELDS = new HashSet<>(Collections.singletonList(
             "AS_RAW_MQ"
     ));
-    public static final HashSet<String> R_LENGTH_TWO_DIM_INT_VECTOR_FIELDS = new HashSet<>(Collections.singletonList(
-            "AS_SB_TABLE"
+    public static final HashSet<String> R_LENGTH_TWO_DIM_INT_VECTOR_FIELDS = new HashSet<>(Arrays.asList(
+            "AS_SB_TABLE",
+            "AS_QUALapprox",
+            "AS_VarDP"
     ));
     public static final long DEFAULT_BUFFER_CAPACITY = 20480; //20KB
 }

@@ -160,6 +160,7 @@ class VariantArrayInfo {
     return m_name;
   }
   void write_cell(const void* ptr);
+  static int get_max_valid_row_idx(const std::string& workspace, const std::string& array);
   //Read #valid rows from metadata if available, else set from schema (array domain)
   void read_row_bounds_from_metadata();
   int read_row_bounds_from_metadata(const std::string& filepath);
