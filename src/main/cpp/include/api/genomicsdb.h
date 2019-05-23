@@ -194,24 +194,12 @@ class GenomicsDB {
    */
   template<class VariantOrVariantCall>
   interval_t get_interval(const VariantOrVariantCall* variant_or_variant_call);
-  template<>
-  interval_t get_interval(const genomicsdb_variant_t* variant);
-  template<>
-  interval_t get_interval(const genomicsdb_variant_call_t* variant_call);
 
   template<class VariantOrVariantCall>
   genomic_interval_t get_genomic_interval(const VariantOrVariantCall* variant_or_variant_call);
-  template<>
-  genomic_interval_t get_genomic_interval(const genomicsdb_variant_t* variant); 
-  template<>
-  genomic_interval_t get_genomic_interval(const genomicsdb_variant_call_t* variant_call); 
 
   template <class VariantOrVariantCall>
   std::vector<genomic_field_t> get_genomic_fields(const std::string& array, const VariantOrVariantCall* variant_or_variant_call);
-  template <>
-  std::vector<genomic_field_t> get_genomic_fields(const std::string& array, const genomicsdb_variant_t* variant);
-  template <>
-  std::vector<genomic_field_t> get_genomic_fields(const std::string& array, const genomicsdb_variant_call_t* variant_call);
 
   GenomicsDBVariantCalls get_variant_calls(const genomicsdb_variant_t* variant);
   
