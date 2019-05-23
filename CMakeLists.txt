@@ -261,6 +261,7 @@ include_directories (
     src/main/cpp/include/utils
     src/main/cpp/include/vcf
     src/main/cpp/include/config
+    src/main/cpp/include/api
     src/test/cpp/include
 )
 
