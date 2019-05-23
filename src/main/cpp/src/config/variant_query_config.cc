@@ -224,10 +224,11 @@ void VariantQueryConfig::validate(const int rank) {
   auto& array_name = m_single_array_name ? m_array_names[0] : m_array_names[rank];
   VERIFY_OR_THROW(!array_name.empty() && "Empty array name");
 
-  //Intialize vid_mapper from file, if not initialized
+  //Initialize vid_mapper from file if necessary
   if (!m_vid_mapper.is_initialized()) {
-    VERIFY_OR_THROW(m_vid_mapping_file.size() > 0 && "No vid mapping file specified");
-    m_vid_mapper = std::move(FileBasedVidMapper(m_vid_mapping_file));
+    if (m_vid_mapping_file.size() > 0) {
+      m_vid_mapper = std::move(FileBasedVidMapper(m_vid_mapping_file));
+    }
   }
   
   //Query columns
