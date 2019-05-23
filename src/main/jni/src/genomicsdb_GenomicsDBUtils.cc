@@ -23,6 +23,7 @@
 #include "tiledb_utils.h"
 #include "genomicsdb_jni_exception.h"
 #include "genomicsdb_GenomicsDBUtils.h"
+#include "variant_storage_manager.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBJNIException(#X);
 
@@ -140,4 +141,18 @@ Java_org_genomicsdb_GenomicsDBUtilsJni_jniReadEntireFile
   free(contents_cstr);
   VERIFY_OR_THROW(!return_val);
   return return_string;
+}
+
+JNIEXPORT jint JNICALL
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetMaxValidRowIndex
+(JNIEnv *env, jclass currClass, jstring workspace, jstring array)
+{
+  auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
+  VERIFY_OR_THROW(workspace_cstr);
+  auto array_cstr = env->GetStringUTFChars(array, NULL);
+  VERIFY_OR_THROW(array_cstr);
+  auto return_val = VariantArrayInfo::get_max_valid_row_idx(workspace_cstr, array_cstr);
+  env->ReleaseStringUTFChars(workspace, workspace_cstr);
+  env->ReleaseStringUTFChars(array, array_cstr);
+  return return_val;
 }

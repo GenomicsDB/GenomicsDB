@@ -293,6 +293,56 @@ void VariantArrayInfo::write_cell(const void* ptr) {
   m_buffer_offsets[coords_buffer_idx] += coords_size;
 }
 
+int read_row_bounds_kernel(TileDB_CTX *ctx,
+                                              rapidjson::Document *json_doc, 
+                                              char **buffer,
+                                              const std::string& filepath) {
+  size_t size = file_size(ctx, filepath);
+  if (size > 0) {
+    *buffer = (char *)malloc(size+1);
+    if (!*buffer)
+      throw VariantStorageManagerException(std::string("Out-of-memory exception while allocating memory"));
+    memset(*buffer, 0, size+1);
+
+    if (read_file(ctx, filepath, 0, *buffer, size) ||
+      close_file(ctx, filepath)) {
+      free(*buffer);
+      return -1;
+    }
+
+    json_doc->Parse(*buffer);
+    if (json_doc->HasParseError()) {
+      free(*buffer);
+      return -1;
+    }
+    return 0;
+  }
+  return -1;
+}
+
+int VariantArrayInfo::get_max_valid_row_idx(const std::string& workspace, const std::string& array) {
+  TileDB_CTX *ctx;
+  // initialize ctx, and ensure that we've an existing workspace
+  if (TileDBUtils::initialize_workspace(&ctx, workspace, false) != 1)
+    return -1;
+  //To read genomicsdb json entries in meta directory
+  std::vector<std::string> files = get_files(ctx, GET_METADATA_DIRECTORY(workspace, array));
+  int max_valid_row_idx = 0;
+  for (const std::string& filepath: files) {
+    if (is_genomicsdb_meta_file(ctx, filepath)) {
+      char *buffer;
+      rapidjson::Document json_doc;
+      if (read_row_bounds_kernel(ctx, &json_doc, &buffer, filepath))
+        return -1;
+      if (json_doc.HasMember("max_valid_row_idx_in_array") && json_doc["max_valid_row_idx_in_array"].IsInt64()
+          && (max_valid_row_idx < json_doc["max_valid_row_idx_in_array"].GetInt64()))
+        max_valid_row_idx = json_doc["max_valid_row_idx_in_array"].GetInt64();
+      free(buffer);
+    }
+  }
+  return max_valid_row_idx;
+} 
+
 void VariantArrayInfo::read_row_bounds_from_metadata() {
   //Compute value from array schema
   m_metadata_contains_max_valid_row_idx_in_array = false;
@@ -311,43 +361,26 @@ void VariantArrayInfo::read_row_bounds_from_metadata() {
 int VariantArrayInfo::read_row_bounds_from_metadata(const std::string& filepath) {
   //Try reading from metadata
   if (is_genomicsdb_meta_file(m_tiledb_ctx, filepath)) {
-    size_t size = file_size(m_tiledb_ctx, filepath);
-    if (size > 0) {
-      char *buffer = (char *)malloc(size+1);
-      if (!buffer)
-        throw VariantStorageManagerException(std::string("Out-of-memory exception while allocating memory"));
-      memset(buffer, 0, size+1);
+    char *buffer;
+    rapidjson::Document json_doc;
+    if (read_row_bounds_kernel(m_tiledb_ctx, &json_doc, &buffer, filepath))
+      return -1;
 
-      if (read_file(m_tiledb_ctx, filepath, 0, buffer, size) ||
-          close_file(m_tiledb_ctx, filepath)) {
-        free(buffer);
-        return -1;
-      }
-
-      rapidjson::Document json_doc;
-      json_doc.Parse(buffer);
-      if (json_doc.HasParseError()) {
-        free(buffer);
-        return -1;
-      }
-      //throw VariantStorageManagerException(std::string("Syntax error in corrupted JSON metadata file ")+m_metadata_filename);
-
-      if (json_doc.HasMember("max_valid_row_idx_in_array") && json_doc["max_valid_row_idx_in_array"].IsInt64()
-          && (!m_metadata_contains_max_valid_row_idx_in_array ||
-              m_max_valid_row_idx_in_array < json_doc["max_valid_row_idx_in_array"].GetInt64())
-         ) {
-        m_max_valid_row_idx_in_array = json_doc["max_valid_row_idx_in_array"].GetInt64();
-        m_metadata_contains_max_valid_row_idx_in_array = true;
-      }
-      if (json_doc.HasMember("lb_row_idx") && json_doc["lb_row_idx"].IsInt64()
-          && (!m_metadata_contains_lb_row_idx ||
-              m_lb_row_idx > json_doc["lb_row_idx"].GetInt64())) {
-        m_lb_row_idx = json_doc["lb_row_idx"].GetInt64();
-        m_metadata_contains_lb_row_idx = true;
-      }
-      free(buffer);
-      return 0;
+    if (json_doc.HasMember("max_valid_row_idx_in_array") && json_doc["max_valid_row_idx_in_array"].IsInt64()
+        && (!m_metadata_contains_max_valid_row_idx_in_array ||
+            m_max_valid_row_idx_in_array < json_doc["max_valid_row_idx_in_array"].GetInt64())
+       ) {
+      m_max_valid_row_idx_in_array = json_doc["max_valid_row_idx_in_array"].GetInt64();
+      m_metadata_contains_max_valid_row_idx_in_array = true;
     }
+    if (json_doc.HasMember("lb_row_idx") && json_doc["lb_row_idx"].IsInt64()
+        && (!m_metadata_contains_lb_row_idx ||
+            m_lb_row_idx > json_doc["lb_row_idx"].GetInt64())) {
+      m_lb_row_idx = json_doc["lb_row_idx"].GetInt64();
+      m_metadata_contains_lb_row_idx = true;
+    }
+    free(buffer);
+    return 0;
   }
 
   return -1;
