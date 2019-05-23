@@ -67,14 +67,18 @@ class GenomicsDBConfigBase {
     m_combined_vcf_records_buffer_size_limit = 10*1024u;
   }
   const std::string& get_workspace(const int rank) const;
+  void set_workspace(const std::string& workspace);
   const std::string& get_array_name(const int rank) const;
+  void set_array_name(const std::string& array_name);
   ColumnRange get_column_partition(const int rank, const unsigned idx=0u) const;
   RowRange get_row_partition(const int rank, const unsigned idx=0u) const;
   const std::vector<ColumnRange> get_sorted_column_partitions() const {
     return m_sorted_column_partitions;
   }
   const std::vector<ColumnRange>& get_query_column_ranges(const int rank) const;
+  void set_query_column_ranges(const std::vector<ColumnRange>& column_ranges);
   const std::vector<RowRange>& get_query_row_ranges(const int rank) const;
+  void set_query_row_ranges(const std::vector<RowRange>& row_ranges);
   inline std::string get_query_filter() const {
     return m_query_filter;
   }
@@ -110,6 +114,9 @@ class GenomicsDBConfigBase {
   const std::string& get_reference_genome() const {
     return m_reference_genome;
   }
+  void set_reference_genome(const std::string& reference_genome) {
+    m_reference_genome = reference_genome;
+  }
   const bool produce_GT_field() const {
     return m_produce_GT_field;
   }
@@ -134,8 +141,14 @@ class GenomicsDBConfigBase {
   const std::string& get_callset_mapping_file() const {
     return m_callset_mapping_file;
   }
+  void set_callset_mapping_file(const std::string& callset_mapping_file) {
+    m_callset_mapping_file = callset_mapping_file;
+  }
   const std::string& get_vid_mapping_file() const {
     return m_vid_mapping_file;
+  }
+  void set_vid_mapping_file(const std::string& vid_mapping_file) {
+    m_vid_mapping_file = vid_mapping_file;
   }
   //Sometimes information is present in the loader - copy over
   void update_from_loader(const GenomicsDBImportConfig& loader_config, const int rank);

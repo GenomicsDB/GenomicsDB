@@ -31,6 +31,7 @@ set(GenomicsDB_library_sources
     cpp/src/config/variant_query_config.cc
     cpp/src/config/genomicsdb_config_base.cc
     cpp/src/config/json_config.cc
+    cpp/src/api/genomicsdb.cc
     )
 
 include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})
@@ -85,3 +86,4 @@ endif()
 #endif()
 
 install(TARGETS genomicsdb tiledbgenomicsdb LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
+install(FILES cpp/include/api/genomicsdb.h DESTINATION include)

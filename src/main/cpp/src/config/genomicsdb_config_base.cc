@@ -62,12 +62,24 @@ const std::string& GenomicsDBConfigBase::get_workspace(const int rank) const {
   return m_workspaces[rank];
 }
 
+void GenomicsDBConfigBase::set_workspace(const std::string& workspace) {
+  m_single_workspace_path = true;
+  m_workspaces.clear();
+  m_workspaces.push_back(workspace);
+}
+
 const std::string& GenomicsDBConfigBase::get_array_name(const int rank) const {
   VERIFY_OR_THROW((m_single_array_name || static_cast<size_t>(rank) < m_array_names.size())
                   && ("Could not find array for rank "+std::to_string(rank)).c_str());
   if (m_single_array_name)
     return m_array_names[0];
   return m_array_names[rank];
+}
+
+void GenomicsDBConfigBase::set_array_name(const std::string& array_name) {
+  m_single_array_name = true;
+  m_array_names.clear();
+  m_array_names.push_back(array_name);
 }
 
 RowRange GenomicsDBConfigBase::get_row_partition(const int rank, const unsigned idx) const {
@@ -100,12 +112,24 @@ const std::vector<RowRange>& GenomicsDBConfigBase::get_query_row_ranges(const in
   return m_row_ranges[fixed_rank];
 }
 
+void GenomicsDBConfigBase::set_query_row_ranges(const std::vector<RowRange>& row_ranges) {
+  m_single_query_row_ranges_vector = true;
+  m_row_ranges.clear();
+  m_row_ranges.push_back(row_ranges);
+}
+
 const std::vector<ColumnRange>& GenomicsDBConfigBase::get_query_column_ranges(const int rank) const {
   auto fixed_rank = m_single_query_column_ranges_vector ? 0 : rank;
   if (static_cast<size_t>(fixed_rank) >= m_column_ranges.size())
     throw GenomicsDBConfigException(std::string("No column partition/query column range available for process with rank ")
                                     +std::to_string(rank));
   return m_column_ranges[fixed_rank];
+}
+
+void GenomicsDBConfigBase::set_query_column_ranges(const std::vector<ColumnRange>& column_ranges) {
+  m_single_query_column_ranges_vector = true;
+  m_column_ranges.clear();
+  m_column_ranges.push_back(column_ranges);
 }
 
 //Loader config functions
