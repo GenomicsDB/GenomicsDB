@@ -64,6 +64,7 @@ import static org.genomicsdb.GenomicsDBUtils.createTileDBWorkspace;
 import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBFragments;
 import static org.genomicsdb.GenomicsDBUtils.deleteFile;
 import static org.genomicsdb.GenomicsDBUtils.writeToFile;
+import static org.genomicsdb.GenomicsDBUtils.getMaxValidRowIndex;
 
 /**
  * Java wrapper for vcf2tiledb - imports VCFs into TileDB/GenomicsDB.
@@ -174,6 +175,25 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
         long lbRowIdx = this.config.getImportConfiguration().hasLbCallsetRowIdx()
             ? this.config.getImportConfiguration().getLbCallsetRowIdx()
             : 0L;
+        // if lower bound row index is zero, and this is incremental import
+        // then let's try to read from metadata 
+        String workspace = this.config.getImportConfiguration().getColumnPartitions(0).getWorkspace();
+        if (lbRowIdx == 0 && this.config.isIncrementalImport()) {
+            GenomicsDBImportConfiguration.Partition partition = this.config.getImportConfiguration().getColumnPartitions(0); 
+            String array;
+            if (partition.hasGenerateArrayNameFromPartitionBounds()) {
+                final String chromosomeName = partition.getBegin().getContigPosition().getContig();
+                final int chromosomeStart = (int) partition.getBegin().getContigPosition().getPosition();
+                final int chromosomeEnd = (int) partition.getEnd().getContigPosition().getPosition();
+                array = String.format(Constants.CHROMOSOME_INTERVAL_FOLDER, chromosomeName, chromosomeStart, chromosomeEnd);
+            } else {
+                array = partition.getArrayName();
+            }
+            lbRowIdx = getMaxValidRowIndex(workspace, array) + 1;
+            this.config.setImportConfiguration(this.config.getImportConfiguration().toBuilder()
+                    .setLbCallsetRowIdx(lbRowIdx)
+                    .build());
+        }
         //This sorts the list sampleNames if !useSamplesInOrder
         //Why you should use this? If you are writing multiple partitions in different machines,
         //you must have consistent ordering of samples across partitions. If file order is different
@@ -190,7 +210,6 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                         this.config.isUseSamplesInOrder(), lbRowIdx);
 
         String outputCallsetmapJsonFilePath = this.config.getOutputCallsetmapJsonFile();
-        String workspace = this.config.getImportConfiguration().getColumnPartitions(0).getWorkspace();
         if (this.config.isIncrementalImport()) {
             if (outputCallsetmapJsonFilePath == null || outputCallsetmapJsonFilePath.isEmpty()) {
                 throw new GenomicsDBException("Incremental import must specify callset file name");

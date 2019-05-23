@@ -192,11 +192,15 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
     }
 
     private void generateHeadersForQuery(final String randomExistingArrayName) throws IOException {
-        GenomicsDBExportConfiguration.ExportConfiguration fullExportConfiguration =
+        GenomicsDBExportConfiguration.ExportConfiguration.Builder fullExportConfigurationBuilder =
                 GenomicsDBExportConfiguration.ExportConfiguration.newBuilder(this.exportConfiguration)
-                        .setArrayName(randomExistingArrayName)
-                        .clearQueryColumnRanges()
-                        .build();
+                        .setArrayName(randomExistingArrayName);
+        if(this.exportConfiguration.getQueryColumnRangesCount() == 0
+                && this.exportConfiguration.getQueryRowRangesCount() == 0
+	        && this.exportConfiguration.getQuerySampleNamesListsCount() == 0) {
+            fullExportConfigurationBuilder.setScanFull(true);
+        }
+        GenomicsDBExportConfiguration.ExportConfiguration fullExportConfiguration = fullExportConfigurationBuilder.build();
         File queryJSONFile = createTempQueryJsonFile(randomExistingArrayName, fullExportConfiguration);
         generateHeadersForQueryGivenQueryJSONFile(queryJSONFile.getAbsolutePath());
         queryJSONFile.delete();

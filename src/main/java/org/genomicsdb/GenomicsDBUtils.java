@@ -112,5 +112,16 @@ public class GenomicsDBUtils {
     public static String[] listGenomicsDBFragments(final String workspace) {
         return GenomicsDBUtilsJni.jniListTileDBFragments(workspace);
     }
+
+    /**
+     * Get max valid row index
+     * @param workspace path to workspace
+     * @param array name of workspace
+     * @return max valid row idx, -1 for error
+     */
+    public static int getMaxValidRowIndex(final String workspace, final String array) {
+	return GenomicsDBUtilsJni.jniGetMaxValidRowIndex(workspace, array);
+    } 
+
 }
 
