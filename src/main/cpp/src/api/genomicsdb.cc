@@ -153,7 +153,7 @@ std::vector<genomicsdb_variant_t>* GenomicsDB::query_variants() {
 }
 
 
-GenomicsDBVariants GenomicsDB::query_variants1(const std::string& array,
+GenomicsDBResults GenomicsDB::query_variants1(const std::string& array,
                                            genomicsdb_ranges_t column_ranges,
                                            genomicsdb_ranges_t row_ranges) {
     // Create Variant Config for given concurrency_rank
@@ -163,7 +163,7 @@ GenomicsDBVariants GenomicsDB::query_variants1(const std::string& array,
   query_config.set_query_column_ranges(column_ranges);
   query_config.set_query_row_ranges(row_ranges);
 
-  return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_T_VECTOR(query_variants(array, &query_config)));
+  return GenomicsDBResults(TO_GENOMICSDB_VARIANT_T_VECTOR(query_variants(array, &query_config)));
 }
 
 
@@ -234,26 +234,24 @@ std::vector<VariantCall>* query_variant_calls(VariantQueryConfig *query_config) 
 
 // Template to get the mapped interval from the GenomicsDB array for the Variant(Call)
 template<class VariantOrVariantCall>
-interval_t GenomicsDB::get_interval(const VariantOrVariantCall* variant_or_variant_call) {
+interval_t get_interval_for(const VariantOrVariantCall* variant_or_variant_call) {
   return std::make_pair<uint64_t, uint64_t>(variant_or_variant_call->get_column_begin(), variant_or_variant_call->get_column_end());
 }
 
-template<>
 interval_t GenomicsDB::get_interval(const genomicsdb_variant_t* variant) {
-  return get_interval(TO_VARIANT(variant));
+  return get_interval_for(TO_VARIANT(variant));
 }
 
-template<>
 interval_t GenomicsDB::get_interval(const genomicsdb_variant_call_t* variant_call) {
-  return get_interval(TO_VARIANT_CALL(variant_call));
+  return get_interval_for(TO_VARIANT_CALL(variant_call));
 }
 
 // Template to get the genomic interval from the GenomicsDB array associated with the Variant(Call)
 template<class VariantOrVariantCall>
-genomic_interval_t GenomicsDB::get_genomic_interval(const VariantOrVariantCall* variant_or_variant_call) {
+genomic_interval_t get_genomic_interval_for(const VariantOrVariantCall* variant_or_variant_call, VidMapper *vid_mapper) {
   std::string contig_name;
   int64_t contig_position;
-  TO_VID_MAPPER(m_vid_mapper)->get_contig_location(variant_or_variant_call->get_column_begin(), contig_name,
+  vid_mapper->get_contig_location(variant_or_variant_call->get_column_begin(), contig_name,
                                                    contig_position);
   contig_position++;
   return genomic_interval_t(std::move(contig_name),
@@ -262,14 +260,12 @@ genomic_interval_t GenomicsDB::get_genomic_interval(const VariantOrVariantCall* 
                                                             -variant_or_variant_call->get_column_begin())));
 }
 
-template<>
 genomic_interval_t GenomicsDB::get_genomic_interval(const genomicsdb_variant_t* variant) {
-  return get_genomic_interval(TO_VARIANT(variant));
+  return get_genomic_interval_for(TO_VARIANT(variant), TO_VID_MAPPER(m_vid_mapper));
 }
 
-template<>
 genomic_interval_t GenomicsDB::get_genomic_interval(const genomicsdb_variant_call_t* variant_call) {
-  return get_genomic_interval(TO_VARIANT_CALL(variant_call));
+  return get_genomic_interval_for(TO_VARIANT_CALL(variant_call), TO_VID_MAPPER(m_vid_mapper));
 }
 
 // Template to get genomic fields from the GenomicsDB array associated with the Variant(Call)
@@ -296,15 +292,7 @@ inline std::string get_query_attribute_name(const VariantCall* variant_call, Var
 }
 
 template<class VariantOrVariantCall>
-std::vector<genomic_field_t> GenomicsDB::get_genomic_fields(const std::string& array, const VariantOrVariantCall* variant_or_variant_call) {
-  VariantQueryConfig *query_config;
-  auto query_config_for_array = m_query_configs_map.find(array);
-  if (query_config_for_array != m_query_configs_map.end()) {
-    query_config = &query_config_for_array->second;
-  } else {
-    query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
-  }
-
+std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, const VariantOrVariantCall* variant_or_variant_call, VariantQueryConfig* query_config) {
   std::vector<genomic_field_t> fields;
   auto index = 0u;
   for (const auto& field: get_fields(variant_or_variant_call)) {
@@ -320,18 +308,27 @@ std::vector<genomic_field_t> GenomicsDB::get_genomic_fields(const std::string& a
 
   return fields;
 }
-template<>
-std::vector<genomic_field_t> GenomicsDB::get_genomic_fields(const std::string& array, const genomicsdb_variant_t* variant) {
-  return get_genomic_fields(array, TO_VARIANT(variant));
-}
-template<>
-std::vector<genomic_field_t> GenomicsDB::get_genomic_fields(const std::string& array, const genomicsdb_variant_call_t* variant_call) {
-  return get_genomic_fields(array, TO_VARIANT_CALL(variant_call));
+
+VariantQueryConfig* GenomicsDB::get_query_config_for(const std::string& array) {
+  auto query_config_for_array = m_query_configs_map.find(array);
+  if (query_config_for_array != m_query_configs_map.end()) {
+    return &query_config_for_array->second;
+  } else {
+    return TO_VARIANT_QUERY_CONFIG(m_query_config);
+  }
 }
 
-GenomicsDBVariantCalls get_variant_calls(const Variant* variant) {
-  
+std::vector<genomic_field_t> GenomicsDB::get_genomic_fields(const std::string& array, const genomicsdb_variant_t* variant) {
+  return get_genomic_fields_for(array, TO_VARIANT(variant), get_query_config_for(array));
 }
+
+std::vector<genomic_field_t> GenomicsDB::get_genomic_fields(const std::string& array, const genomicsdb_variant_call_t* variant_call) {
+  return get_genomic_fields_for(array, TO_VARIANT_CALL(variant_call), get_query_config_for(array));
+}
+
+/*GenomicsDBVariantCalls get_variant_calls(const Variant* variant) {
+  
+  }
 
 #define TO_XXX(X) (reinterpret_cast<std::vector<genomicsdb_variant_call_t> *>(X))
 GenomicsDBVariantCalls get_variant_calls(const genomicsdb_variant_t* variant) {
@@ -339,22 +336,20 @@ GenomicsDBVariantCalls get_variant_calls(const genomicsdb_variant_t* variant) {
   int *b = (int *)(&a);
   return get_variant_calls(TO_VARIANT(variant));
 }
-
+*/
 #define TO_VARIANT_VECTOR(X) (reinterpret_cast<std::vector<Variant> *>(static_cast<void *>(X)))
 #define TO_VARIANT_CALL_VECTOR(X) (reinterpret_cast<std::vector<VariantCall> *>(static_cast<void *>(X)))
 
 #define TO_GENOMICSDB_VARIANT(X) (reinterpret_cast<const genomicsdb_variant_t *>(static_cast<const void *>(X)))
 #define TO_GENOMICSDB_VARIANT_CALL(X) (reinterpret_cast<const genomicsdb_variant_call_t *>(static_cast<const void *>(X)))
 
-// Templates to navigate GenomicsDBResults
+// Navigate GenomicsDBResults
 
-template<>
-std::size_t GenomicsDBVariants::size() const noexcept {
+std::size_t GenomicsDBResults::size() const noexcept {
   return TO_VARIANT_VECTOR(m_results)->size();
 }
 
-template<>
-const genomicsdb_variant_t* GenomicsDBVariants::at(std::size_t pos) {
+const genomicsdb_variant_t* GenomicsDBResults::at(std::size_t pos) {
   if (pos >= size()) {
     return nullptr;
   } else {
@@ -363,7 +358,6 @@ const genomicsdb_variant_t* GenomicsDBVariants::at(std::size_t pos) {
   }
 }
 
-template<>
-void GenomicsDBVariants::free() {
+void GenomicsDBResults::free() {
   delete TO_VARIANT_VECTOR(m_results);
 }
