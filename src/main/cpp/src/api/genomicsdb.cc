@@ -153,7 +153,7 @@ std::vector<genomicsdb_variant_t>* GenomicsDB::query_variants() {
 }
 
 
-GenomicsDBResults GenomicsDB::query_variants1(const std::string& array,
+GenomicsDBVariants GenomicsDB::query_variants1(const std::string& array,
                                            genomicsdb_ranges_t column_ranges,
                                            genomicsdb_ranges_t row_ranges) {
     // Create Variant Config for given concurrency_rank
@@ -163,7 +163,7 @@ GenomicsDBResults GenomicsDB::query_variants1(const std::string& array,
   query_config.set_query_column_ranges(column_ranges);
   query_config.set_query_row_ranges(row_ranges);
 
-  return GenomicsDBResults(TO_GENOMICSDB_VARIANT_T_VECTOR(query_variants(array, &query_config)));
+  return GenomicsDBResults<genomicsdb_variant_t>(TO_GENOMICSDB_VARIANT_T_VECTOR(query_variants(array, &query_config)));
 }
 
 
@@ -340,24 +340,24 @@ GenomicsDBVariantCalls get_variant_calls(const genomicsdb_variant_t* variant) {
 #define TO_VARIANT_VECTOR(X) (reinterpret_cast<std::vector<Variant> *>(static_cast<void *>(X)))
 #define TO_VARIANT_CALL_VECTOR(X) (reinterpret_cast<std::vector<VariantCall> *>(static_cast<void *>(X)))
 
-#define TO_GENOMICSDB_VARIANT(X) (reinterpret_cast<const genomicsdb_variant_t *>(static_cast<const void *>(X)))
-#define TO_GENOMICSDB_VARIANT_CALL(X) (reinterpret_cast<const genomicsdb_variant_call_t *>(static_cast<const void *>(X)))
+#define TO_GENOMICSDB_T(X) (reinterpret_cast<const T *>(static_cast<const void *>(X)))
 
 // Navigate GenomicsDBResults
-
-std::size_t GenomicsDBResults::size() const noexcept {
-  return TO_VARIANT_VECTOR(m_results)->size();
+template<class T>
+std::size_t GenomicsDBResults<T>::size() const noexcept {
+  return m_results->size();
 }
 
-const genomicsdb_variant_t* GenomicsDBResults::at(std::size_t pos) {
+template<class T>
+const T* GenomicsDBResults<T>::at(std::size_t pos) {
   if (pos >= size()) {
     return nullptr;
   } else {
-    Variant *variant = TO_VARIANT_VECTOR(m_results)->data() + pos;
-    return TO_GENOMICSDB_VARIANT(variant);
+    return TO_GENOMICSDB_T(&m_results[pos]);
   }
 }
 
-void GenomicsDBResults::free() {
-  delete TO_VARIANT_VECTOR(m_results);
+template<class T>
+void GenomicsDBResults<T>::free() {
+  delete m_results;
 }
