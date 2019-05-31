@@ -38,7 +38,7 @@
 #include <string>
 #include <vector>
 
-/** External export to override project visibility set to hidden */
+// Override project visibility set to hidden for api
 #if (defined __GNUC__ && __GNUC__ >= 4) || defined __INTEL_COMPILER
 #  define GENOMICSDB_EXPORT __attribute__((visibility("default")))
 #else
@@ -81,18 +81,22 @@ typedef std::vector<std::pair<int64_t, int64_t>> genomicsdb_ranges_t;
 
 GENOMICSDB_EXPORT std::string genomicsdb_version();
 
+template<class T>
 class GenomicsDBResults {
  public:
   //  GenomicsDBResults(std::vector<T>* results) : m_results(const_cast<std::vector<T>*>(results)) {};
-  GenomicsDBResults(std::vector<genomicsdb_variant_t>* results) : m_results(results) {};
+  GenomicsDBResults(std::vector<T>* results) : m_results(results) {};
   GENOMICSDB_EXPORT std::size_t size() const noexcept;
-  GENOMICSDB_EXPORT const genomicsdb_variant_t* at(std::size_t pos);
+  GENOMICSDB_EXPORT const T* at(std::size_t pos);
   inline const genomicsdb_variant_t* next() { return at(m_current_pos++); };
   GENOMICSDB_EXPORT void free();
  private:
-  std::vector<genomicsdb_variant_t>* m_results;
+  std::vector<T>* m_results;
   std::size_t m_current_pos=0;
 };
+
+typedef GenomicsDBResults<genomicsdb_variant_t> GenomicsDBVariants;
+typedef GenomicsDBResults<genomicsdb_variant_call_t> GenomicsDBVariantCalls;	
 
 // Forward Declarations for keeping Variant* classes opaque
 class Variant;
@@ -166,7 +170,7 @@ class GenomicsDB {
    *   column_ranges, optional
    *   row_ranges, optional
    */
-  GENOMICSDB_EXPORT GenomicsDBResults query_variants1(const std::string& array,
+  GENOMICSDB_EXPORT GenomicsDBVariants query_variants1(const std::string& array,
                                      genomicsdb_ranges_t column_ranges=SCAN_FULL,
                                      genomicsdb_ranges_t row_ranges=SCAN_FULL);
 
