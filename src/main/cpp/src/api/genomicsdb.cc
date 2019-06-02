@@ -47,8 +47,15 @@
 #define TO_VARIANT(X) (reinterpret_cast<const Variant *>(static_cast<const void *>(X)))
 #define TO_VARIANT_CALL(X) (reinterpret_cast<const VariantCall *>(static_cast<const void *>(X)))
 
-#define TO_GENOMICSDB_VARIANT_T_VECTOR(X) (reinterpret_cast<std::vector<genomicsdb_variant_t> *>(static_cast<void *>(X)))
-#define TO_GENOMICSDB_VARIANT_CALL_T_VECTOR(X) (reinterpret_cast<std::vector<genomicsdb_variant_call_t> *>(static_cast<void *>(X))
+#define TO_GENOMICSDB_VARIANT(X) (reinterpret_cast<const genomicsdb_variant_t *>(static_cast<const void *>(X)))
+#define TO_GENOMICSDB_VARIANT_CALL(X) (reinterpret_cast<const genomicsdb_variant_call_t *>(static_cast<const void *>(X)))
+
+#define TO_VARIANT_VECTOR(X) (reinterpret_cast<std::vector<Variant> *>(static_cast<void *>(X)))
+#define TO_VARIANT_CALL_VECTOR(X) (reinterpret_cast<std::vector<VariantCall> *>(static_cast<void *>(X)))
+
+#define TO_GENOMICSDB_VARIANT_VECTOR(X) (reinterpret_cast<std::vector<genomicsdb_variant_t> *>(static_cast<void *>(X)))
+#define TO_GENOMICSDB_VARIANT_CALL_VECTOR(X) (reinterpret_cast<std::vector<genomicsdb_variant_call_t> *>(static_cast<void *>(X)))
+
 
 std::string genomicsdb_version() {
   return GENOMICSDB_VERSION;
@@ -131,39 +138,24 @@ GenomicsDB::~GenomicsDB() {
   delete TO_VID_MAPPER(m_vid_mapper);
 }
 
-std::vector<genomicsdb_variant_t>* GenomicsDB::query_variants(const std::string& array,
-                                                              const genomicsdb_ranges_t column_ranges,
-                                                              const genomicsdb_ranges_t row_ranges) {
+GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
+					       genomicsdb_ranges_t column_ranges,
+					       genomicsdb_ranges_t row_ranges) {
   // Create Variant Config for given concurrency_rank
   VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   VariantQueryConfig query_config(*base_query_config);
   query_config.set_array_name(array);
   query_config.set_query_column_ranges(column_ranges);
   query_config.set_query_row_ranges(row_ranges);
- 
-  query_config.validate(m_concurrency_rank);
 
-  return TO_GENOMICSDB_VARIANT_T_VECTOR(query_variants(array, &query_config));
+  return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_VECTOR(query_variants(array, &query_config)));
 }
 
-std::vector<genomicsdb_variant_t>* GenomicsDB::query_variants() {
+
+GenomicsDBVariants GenomicsDB::query_variants() {
   VariantQueryConfig* query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   const std::string& array = query_config->get_array_name(m_concurrency_rank);
-  return TO_GENOMICSDB_VARIANT_T_VECTOR(query_variants(array, query_config));
-}
-
-
-GenomicsDBVariants GenomicsDB::query_variants1(const std::string& array,
-                                           genomicsdb_ranges_t column_ranges,
-                                           genomicsdb_ranges_t row_ranges) {
-    // Create Variant Config for given concurrency_rank
-  VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
-  VariantQueryConfig query_config(*base_query_config);
-  query_config.set_array_name(array);
-  query_config.set_query_column_ranges(column_ranges);
-  query_config.set_query_row_ranges(row_ranges);
-
-  return GenomicsDBResults<genomicsdb_variant_t>(TO_GENOMICSDB_VARIANT_T_VECTOR(query_variants(array, &query_config)));
+  return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_VECTOR(query_variants(array, query_config)));
 }
 
 
@@ -206,25 +198,19 @@ std::vector<Variant>* GenomicsDB::query_variants(const std::string& array, Varia
   return pvariants;
 }
 
-std::vector<genomicsdb_variant_call_t>* GenomicsDB::query_variant_calls(const std::string& array,
-                                                                        genomicsdb_ranges_t column_ranges,
-                                                                        genomicsdb_ranges_t row_ranges) {
+GenomicsDBVariantCalls GenomicsDB::query_variant_calls(const std::string& array,
+						       genomicsdb_ranges_t column_ranges,
+						       genomicsdb_ranges_t row_ranges) {
   // NYI
   std::cerr << "query_variant_calls NOT YET IMPLEMENTED" << std::endl;
-  return nullptr;
+  return GenomicsDBVariantCalls(nullptr);
 }
   
-std::vector<genomicsdb_variant_call_t>* GenomicsDB::query_variant_calls() {
+GenomicsDBVariantCalls GenomicsDB::query_variant_calls() {
   // NYI
   std::cerr << "query_variant_calls NOT YET IMPLEMENTED" << std::endl;
-  return nullptr;
+  return GenomicsDBVariantCalls(nullptr);
 }
-
-/*GenomicsDBVariantCalls GenomicsDB::query_variant_calls1(const std::string& array,
-                                                        genomicsdb_ranges_t column_ranges,
-                                                        genomicsdb_ranges_t row_ranges) {
-  //
-  }*/
 
 std::vector<VariantCall>* query_variant_calls(VariantQueryConfig *query_config) {
   // NYI
@@ -326,38 +312,49 @@ std::vector<genomic_field_t> GenomicsDB::get_genomic_fields(const std::string& a
   return get_genomic_fields_for(array, TO_VARIANT_CALL(variant_call), get_query_config_for(array));
 }
 
-/*GenomicsDBVariantCalls get_variant_calls(const Variant* variant) {
-  
-  }
-
-#define TO_XXX(X) (reinterpret_cast<std::vector<genomicsdb_variant_call_t> *>(X))
-GenomicsDBVariantCalls get_variant_calls(const genomicsdb_variant_t* variant) {
-  const int a = 3;
-  int *b = (int *)(&a);
-  return get_variant_calls(TO_VARIANT(variant));
+GenomicsDBVariantCalls GenomicsDB::get_variant_calls(const genomicsdb_variant_t* variant) {
+  std::vector<VariantCall>* variant_calls = const_cast<std::vector<VariantCall>*>(&(TO_VARIANT(variant)->get_calls()));
+  return GenomicsDBResults<genomicsdb_variant_call_t>(TO_GENOMICSDB_VARIANT_CALL_VECTOR(variant_calls));
 }
-*/
-#define TO_VARIANT_VECTOR(X) (reinterpret_cast<std::vector<Variant> *>(static_cast<void *>(X)))
-#define TO_VARIANT_CALL_VECTOR(X) (reinterpret_cast<std::vector<VariantCall> *>(static_cast<void *>(X)))
-
-#define TO_GENOMICSDB_T(X) (reinterpret_cast<const T *>(static_cast<const void *>(X)))
 
 // Navigate GenomicsDBResults
-template<class T>
-std::size_t GenomicsDBResults<T>::size() const noexcept {
-  return m_results->size();
+
+template<>
+std::size_t GenomicsDBResults<genomicsdb_variant_t>::size() const noexcept {
+  return TO_VARIANT_VECTOR(m_results)->size();
 }
 
-template<class T>
-const T* GenomicsDBResults<T>::at(std::size_t pos) {
+template<>
+const genomicsdb_variant_t* GenomicsDBResults<genomicsdb_variant_t>::at(std::size_t pos) {
   if (pos >= size()) {
     return nullptr;
   } else {
-    return TO_GENOMICSDB_T(&m_results[pos]);
+    Variant *variant = TO_VARIANT_VECTOR(m_results)->data() + pos;
+    return TO_GENOMICSDB_VARIANT(variant);
   }
 }
 
-template<class T>
-void GenomicsDBResults<T>::free() {
-  delete m_results;
+template<>
+void GenomicsDBResults<genomicsdb_variant_t>::free() {
+  delete TO_VARIANT_VECTOR(m_results);
+}
+
+template<>
+std::size_t GenomicsDBResults<genomicsdb_variant_call_t>::size() const noexcept {
+  return TO_VARIANT_CALL_VECTOR(m_results)->size();
+}
+
+template<>
+const genomicsdb_variant_call_t* GenomicsDBResults<genomicsdb_variant_call_t>::at(std::size_t pos) {
+  if (pos >= size()) {
+    return nullptr;
+  } else {
+    VariantCall *variant = TO_VARIANT_CALL_VECTOR(m_results)->data() + pos;
+    return TO_GENOMICSDB_VARIANT_CALL(variant);
+  }
+}
+
+template<>
+void GenomicsDBResults<genomicsdb_variant_call_t>::free() {
+  delete TO_VARIANT_CALL_VECTOR(m_results);
 }
