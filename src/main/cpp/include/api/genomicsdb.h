@@ -45,6 +45,8 @@
 #  define GENOMICSDB_EXPORT
 #endif
 
+GENOMICSDB_EXPORT std::string genomicsdb_version();
+
 typedef std::pair<uint64_t, uint64_t> interval_t;
 
 typedef struct genomic_interval_t {
@@ -58,20 +60,16 @@ typedef struct genomic_interval_t {
 
 typedef std::pair<std::string, std::string> genomic_field_t;
 
-// Shadow internal data structures in variant.h for opaque-ness, to reduce
-// re-compilation of api clients as new versions of the genomicsdb library are
-// released.
-
-// Shadow data structure to Variant - see src/main/cpp/include/genomicsdb/variant.h
+// Opaque data structure to Variant - see src/main/cpp/include/genomicsdb/variant.h
 // Similar to GAVariant in GA4GH API
 typedef struct genomicsdb_variant_t genomicsdb_variant_t;
 
-// Shadow data structure to VariantCall
+// Opaque data structure to VariantCall
 // Similar to GACall in GA4GH API. Stores info about 1 CallSet/row for a given position
 typedef struct genomicsdb_variant_call_t genomicsdb_variant_call_t;
 
 // Data structure to query a subset of ranges, can represent either column or row ranges
-// TODO: This should change to uint64_t!
+// TODO: This should change to uint64_t
 typedef std::vector<std::pair<int64_t, int64_t>> genomicsdb_ranges_t;
 
 // Default Segment Size in bytes = 10MB
@@ -79,24 +77,22 @@ typedef std::vector<std::pair<int64_t, int64_t>> genomicsdb_ranges_t;
 #define SCAN_FULL {{0, INT64_MAX}}
 #define ALL_ATTRIBUTES {}
 
-GENOMICSDB_EXPORT std::string genomicsdb_version();
-
-template<class T>
+template<typename T>
 class GenomicsDBResults {
  public:
-  //  GenomicsDBResults(std::vector<T>* results) : m_results(const_cast<std::vector<T>*>(results)) {};
   GenomicsDBResults(std::vector<T>* results) : m_results(results) {};
   GENOMICSDB_EXPORT std::size_t size() const noexcept;
   GENOMICSDB_EXPORT const T* at(std::size_t pos);
-  inline const genomicsdb_variant_t* next() { return at(m_current_pos++); };
+  inline const T* next() { return at(m_current_pos++); };
   GENOMICSDB_EXPORT void free();
  private:
   std::vector<T>* m_results;
   std::size_t m_current_pos=0;
 };
 
+// Specializations of the GenomicsDBResults Template
 typedef GenomicsDBResults<genomicsdb_variant_t> GenomicsDBVariants;
-typedef GenomicsDBResults<genomicsdb_variant_call_t> GenomicsDBVariantCalls;	
+typedef GenomicsDBResults<genomicsdb_variant_call_t> GenomicsDBVariantCalls;
 
 // Forward Declarations for keeping Variant* classes opaque
 class Variant;
@@ -147,33 +143,22 @@ class GenomicsDB {
   GENOMICSDB_EXPORT ~GenomicsDB();
 
   /**
-   * Query the array for variants constrained by the column and row ranges. 
+   * Query GenomicsDB array for variants constrained by column and row ranges.
    * Variants are similar to GAVariant in GA4GH API
    *   array
    *   column_ranges, optional
    *   row_ranges, optional
    */
-  GENOMICSDB_EXPORT std::vector<genomicsdb_variant_t>* query_variants(const std::string& array,
-                                                    genomicsdb_ranges_t column_ranges=SCAN_FULL,
-                                                    genomicsdb_ranges_t row_ranges=SCAN_FULL);
+  GENOMICSDB_EXPORT GenomicsDBVariants query_variants(const std::string& array,
+						      genomicsdb_ranges_t column_ranges=SCAN_FULL,
+						      genomicsdb_ranges_t row_ranges=SCAN_FULL);
+
 
   /**
    * Query using set configuration for variants. Useful when using parallelism paradigms(MPI, Intel TBB)
    * Variants are similar to GAVariant in GA4GH API
    */
-  GENOMICSDB_EXPORT std::vector<genomicsdb_variant_t>*  query_variants();
-
-  /**
-   * Query the array for variants constrained by the column and row ranges. 
-   * Variants are similar to GAVariant in GA4GH API
-   *   array
-   *   column_ranges, optional
-   *   row_ranges, optional
-   */
-  GENOMICSDB_EXPORT GenomicsDBVariants query_variants1(const std::string& array,
-                                     genomicsdb_ranges_t column_ranges=SCAN_FULL,
-                                     genomicsdb_ranges_t row_ranges=SCAN_FULL);
-
+  GENOMICSDB_EXPORT GenomicsDBVariants  query_variants();
 
   /**
    * Query the array for variant calls constrained by the column and row ranges.
@@ -182,20 +167,16 @@ class GenomicsDB {
    *   column_ranges, optional
    *   row_ranges, optional
    */
-  GENOMICSDB_EXPORT std::vector<genomicsdb_variant_call_t>* query_variant_calls(const std::string& array,
-                                                              genomicsdb_ranges_t column_ranges=SCAN_FULL,
-                                                              genomicsdb_ranges_t row_ranges=SCAN_FULL);
+  GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls(const std::string& array,
+							       genomicsdb_ranges_t column_ranges=SCAN_FULL,
+							       genomicsdb_ranges_t row_ranges=SCAN_FULL);
 
   /**
    * Query using set configuration for variant calls. Useful when using parallelism paradigms(MPI, Intel TBB)
    * Variant Calls are similar to GACall in GA4GH API.
    */
-  GENOMICSDB_EXPORT std::vector<genomicsdb_variant_call_t>* query_variant_calls();
+  GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls();
 
-  /*  GenomicsDBVariantCalls query_variant_calls1(const std::string& array,
-                                              genomicsdb_ranges_t column_ranges=SCAN_FULL,
-                                              genomicsdb_ranges_t row_ranges=SCAN_FULL);
-  */
   /**
    * Utility template functions to extract information from Variant and VariantCall classes
    */
@@ -208,7 +189,7 @@ class GenomicsDB {
   GENOMICSDB_EXPORT std::vector<genomic_field_t> get_genomic_fields(const std::string& array, const genomicsdb_variant_t* variant);
   GENOMICSDB_EXPORT std::vector<genomic_field_t> get_genomic_fields(const std::string& array, const genomicsdb_variant_call_t* variant_call);
 
-  /*  GENOMICSDB_EXPORT GenomicsDBVariantCalls get_variant_calls(const genomicsdb_variant_t* variant);*/
+  GENOMICSDB_EXPORT GenomicsDBVariantCalls get_variant_calls(const genomicsdb_variant_t* variant);
   
  private:
   std::vector<Variant>*  query_variants(const std::string& array, VariantQueryConfig *query_config);
@@ -223,8 +204,9 @@ class GenomicsDB {
   int m_concurrency_rank = 0;
 
   //TODO: Get VariantFields to have names instead of indices at the point of building the data structure, so
-  //      we don't have to maintain the following map
-  std::map<std::string, VariantQueryConfig> m_query_configs_map; // Associate array names with VariantQueryConfig  
+  //      we don't have to maintain m_query_configs_map
+  // Associate array names with VariantQueryConfig 
+  std::map<std::string, VariantQueryConfig> m_query_configs_map; 
 };
 
 /**
@@ -241,5 +223,22 @@ class GenomicsDBException : public std::exception {
  private:
   std::string m_msg;
 };
+
+// genomicsdb_variant_t specialization of GenomicsDBResults template
+template<>
+GENOMICSDB_EXPORT std::size_t GenomicsDBResults<genomicsdb_variant_t>::size() const noexcept;
+template<>
+GENOMICSDB_EXPORT const genomicsdb_variant_t* GenomicsDBResults<genomicsdb_variant_t>::at(std::size_t pos);
+template<>
+GENOMICSDB_EXPORT void GenomicsDBResults<genomicsdb_variant_t>::free();
+
+// genomicsdb_variant_call_t specialization for the GenomicsDBResults template
+template<>
+GENOMICSDB_EXPORT std::size_t GenomicsDBResults<genomicsdb_variant_call_t>::size() const noexcept;
+template<>
+GENOMICSDB_EXPORT const genomicsdb_variant_call_t* GenomicsDBResults<genomicsdb_variant_call_t>::at(std::size_t pos);
+template<>
+GENOMICSDB_EXPORT void GenomicsDBResults<genomicsdb_variant_call_t>::free();
+
 
 #endif /* GENOMICSDB_H */
