@@ -261,6 +261,40 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     }
 
     /**
+     * Function to return the vid mapping protobuf object. 
+     *
+     * @return protobuf object for vid mapping
+     */
+    public GenomicsDBVidMapProto.VidMappingPB getProtobufVidMapping() {
+        GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder = 
+                this.config.getImportConfiguration().toBuilder();
+        if (importConfigurationBuilder.hasVidMapping()) {
+            return importConfigurationBuilder.getVidMapping();
+        }
+        else {
+            return GenomicsDBVidMapProto.VidMappingPB.newBuilder().build();
+        }
+    }
+
+    /**
+     * Function to update vid mapping protobuf object in the top level config object.
+     * Used in cases where the VCF header doesn't contain accurate information about
+     * how to parse fields. For instance, allele specific annotations 
+     *
+     * @param vidMapPB vid mapping protobuf object to use as new
+     */
+    public void updateProtobufVidMapping(GenomicsDBVidMapProto.VidMappingPB vidMapPB) {
+        //Write out vidmap if needed, don't write for incremental import
+        String vidmapOutputFilepath = this.config.getOutputVidmapJsonFile();
+        if (!config.isIncrementalImport() && vidmapOutputFilepath != null && !vidmapOutputFilepath.isEmpty())
+            this.writeVidMapJSONFile(vidmapOutputFilepath, vidMapPB);
+
+        this.config.setImportConfiguration(this.config.getImportConfiguration().toBuilder()
+                .setVidMapping(vidMapPB)
+                .build());
+    }
+
+    /**
      * Utility function that returns a list of ChromosomeInterval objects for
      * the column partition specified by the loader JSON file and rank/partition index
      *
