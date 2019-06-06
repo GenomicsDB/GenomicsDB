@@ -90,9 +90,18 @@ class GenomicsDBResults {
   std::size_t m_current_pos=0;
 };
 
-// Specializations of the GenomicsDBResults Template
+// Specializations for the GenomicsDBResults Template
 typedef GenomicsDBResults<genomicsdb_variant_t> GenomicsDBVariants;
 typedef GenomicsDBResults<genomicsdb_variant_call_t> GenomicsDBVariantCalls;
+
+class GenomicsDBVariantCallProcessor {
+ public:
+  GenomicsDBVariantCallProcessor() {};
+  GENOMICSDB_EXPORT void process(interval_t interval);
+  GENOMICSDB_EXPORT void process(uint32_t row,
+                                 genomic_interval_t genomic_interval,
+                                 std::vector<genomic_field_t> genomic_fields);
+};
 
 // Forward Declarations for keeping Variant* classes opaque
 class Variant;
@@ -153,7 +162,6 @@ class GenomicsDB {
 						      genomicsdb_ranges_t column_ranges=SCAN_FULL,
 						      genomicsdb_ranges_t row_ranges=SCAN_FULL);
 
-
   /**
    * Query using set configuration for variants. Useful when using parallelism paradigms(MPI, Intel TBB)
    * Variants are similar to GAVariant in GA4GH API
@@ -168,6 +176,18 @@ class GenomicsDB {
    *   row_ranges, optional
    */
   GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls(const std::string& array,
+							       genomicsdb_ranges_t column_ranges=SCAN_FULL,
+							       genomicsdb_ranges_t row_ranges=SCAN_FULL);
+
+  /**
+   * Query the array for variant calls constrained by the column and row ranges.
+   * Variant Calls are similar to GACall in GA4GH API.
+   *   array
+   *   column_ranges, optional
+   *   row_ranges, optional
+   */
+  GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls(GenomicsDBVariantCallProcessor& processor,
+                                                               const std::string& array,
 							       genomicsdb_ranges_t column_ranges=SCAN_FULL,
 							       genomicsdb_ranges_t row_ranges=SCAN_FULL);
 
@@ -193,7 +213,7 @@ class GenomicsDB {
   
  private:
   std::vector<Variant>*  query_variants(const std::string& array, VariantQueryConfig *query_config);
-  std::vector<VariantCall>* query_variant_calls(VariantQueryConfig *query_config);
+  std::vector<VariantCall>* query_variant_calls(const std::string& array, VariantQueryConfig *query_config, GenomicsDBVariantCallProcessor& processor);
 
   VariantQueryConfig* get_query_config_for(const std::string& array);
 
