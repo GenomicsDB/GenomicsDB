@@ -168,6 +168,12 @@ class GenomicsDBColumnarCell {
   inline const int64_t* get_coordinates() const {
     return m_iterator->get_coordinates();
   }
+  inline void print(const int query_idx, std::ostream& fptr) const {
+    return m_iterator->print(query_idx, fptr);
+  }
+  inline void print_ALT(const int query_idx, std::ostream& fptr) const {
+    return m_iterator->print_ALT(query_idx, fptr);
+  }
   void print(std::ostream& fptr, const VariantQueryConfig* query_config,
              const std::string& indent_prefix, const VidMapper* vid_mapper) const;
   void print_csv(std::ostream& fptr, const VariantQueryConfig* query_config) const;
