@@ -97,10 +97,10 @@ typedef GenomicsDBResults<genomicsdb_variant_call_t> GenomicsDBVariantCalls;
 class GenomicsDBVariantCallProcessor {
  public:
   GenomicsDBVariantCallProcessor() {};
-  GENOMICSDB_EXPORT void process(interval_t interval);
-  GENOMICSDB_EXPORT void process(uint32_t row,
-                                 genomic_interval_t genomic_interval,
-                                 std::vector<genomic_field_t> genomic_fields);
+  virtual void process(interval_t interval);
+  virtual void process(uint32_t row,
+                       genomic_interval_t genomic_interval,
+                       std::vector<genomic_field_t> genomic_fields);
 };
 
 // Forward Declarations for keeping Variant* classes opaque
