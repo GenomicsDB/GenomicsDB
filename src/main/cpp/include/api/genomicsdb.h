@@ -94,7 +94,7 @@ class GenomicsDBResults {
 typedef GenomicsDBResults<genomicsdb_variant_t> GenomicsDBVariants;
 typedef GenomicsDBResults<genomicsdb_variant_call_t> GenomicsDBVariantCalls;
 
-class GenomicsDBVariantCallProcessor {
+class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
  public:
   GenomicsDBVariantCallProcessor() {};
   virtual void process(interval_t interval);
