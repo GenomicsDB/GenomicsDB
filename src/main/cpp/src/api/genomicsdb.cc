@@ -182,7 +182,7 @@ std::vector<Variant>* GenomicsDB::query_variants(const std::string& array, Varia
                                             *query_config, i, *pvariants);
   }
 
-#if(1)
+#if(0)
   print_variants(*pvariants, "default", *query_config);
 #endif
 
@@ -321,7 +321,7 @@ std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& arr
   query_processor->do_query_bookkeeping(query_processor->get_array_schema(),
                                         *query_config, query_config->get_vid_mapper(), true);
 
-#if(1)
+#if(0)
   print_variant_calls(*query_config, *query_processor, query_config->get_vid_mapper());
 #endif
 
