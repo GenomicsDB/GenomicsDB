@@ -40,6 +40,7 @@ endif()
 
 add_executable(ctests ${CPP_TEST_SOURCES})
 build_GENOMICSDB_executable_common(ctests)
-add_test(ctests ctests)
+add_test(ctests ctests -d yes)
 
 add_custom_target(all_ctests COMMAND ${CMAKE_CTEST_COMMAND} -V DEPENDS ctests)
+
