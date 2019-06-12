@@ -7,3 +7,6 @@
 [submodule "dependencies/RapidJSON"]
 	path = dependencies/RapidJSON
 	url = https://github.com/miloyip/rapidjson.git
+[submodule "src/test/cpp/Catch2"]
+	path = src/test/cpp/Catch2
+	url = https://github.com/catchorg/Catch2
