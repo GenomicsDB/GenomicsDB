@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2019 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -20,8 +21,11 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <gtest/gtest.h>
+#include <catch2/catch.hpp>
+
 #include "variant_operations.h"
+
+using Catch::Equals;
 
 class RemapDataTestClass : public RemappedDataWrapperBase
 {
@@ -72,8 +76,8 @@ void verify_remapped_gt_order(const std::vector<DataType>& input_data,
   std::string s;
   for(auto i=0u;i<ploidy;++i)
     s += (static_cast<char>(remapped_allele_idx_vec_for_current_gt_combination[i]) + 'A');
-  EXPECT_EQ(dynamic_cast<RemapDataTestClass&>(remapped_data).get_genotype_combination(remapped_gt_idx),
-      s);
+  CHECK_THAT(dynamic_cast<RemapDataTestClass&>(remapped_data).get_genotype_combination(remapped_gt_idx),
+	       Equals(s));
   s.clear();
   auto input_gt_idx = VariantOperations::get_genotype_index(input_call_allele_idx_vec, false);
   auto found_unmatched_allele = false;
@@ -81,7 +85,7 @@ void verify_remapped_gt_order(const std::vector<DataType>& input_data,
   {
     if(input_call_allele_idx_vec[i] < 0)
     {
-      EXPECT_TRUE(curr_genotype_combination_contains_missing_allele_for_input);
+      CHECK(curr_genotype_combination_contains_missing_allele_for_input);
       found_unmatched_allele = true;
     }
     else
@@ -90,17 +94,17 @@ void verify_remapped_gt_order(const std::vector<DataType>& input_data,
   if(!curr_genotype_combination_contains_missing_allele_for_input)
   {
     //Verifies functionality of get_genotype_index()
-    EXPECT_EQ(dynamic_cast<RemapDataTestClass&>(remapped_data).get_genotype_combination(input_gt_idx),
-        s);
+    CHECK_THAT(dynamic_cast<RemapDataTestClass&>(remapped_data).get_genotype_combination(input_gt_idx),
+	       Equals(s));
     //Verifies that lookup from merged genotype to input genotype is correct
-    EXPECT_EQ(dynamic_cast<RemapDataTestClass&>(remapped_data).get_input_genotype_combination(remapped_gt_idx),
-        s);
+    CHECK_THAT(dynamic_cast<RemapDataTestClass&>(remapped_data).get_input_genotype_combination(remapped_gt_idx),
+	       Equals(s));
   }
   else
   {
-    EXPECT_TRUE(found_unmatched_allele);
-    EXPECT_EQ(dynamic_cast<RemapDataTestClass&>(remapped_data).get_input_genotype_combination(remapped_gt_idx),
-        ".");
+    CHECK(found_unmatched_allele);
+    CHECK_THAT(dynamic_cast<RemapDataTestClass&>(remapped_data).get_input_genotype_combination(remapped_gt_idx),
+	       Equals("."));
   }
 }
 
@@ -143,7 +147,7 @@ void initialize_LUT_reordered_without_NON_REF(CombineAllelesLUT& lut)
 //Golden outputs copied from:
 //http://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
 
-TEST(genotype_ordering, haploid_5_alleles)
+TEST_CASE("genotype_ordering haploid_5_alleles", "[haploid_5_alleles]")
 {
   std::vector<int> tmp_vector;
   std::vector<std::pair<int, int> > tmp_stack;
@@ -163,7 +167,7 @@ TEST(genotype_ordering, haploid_5_alleles)
       verify_remapped_gt_order);
 }
 
-TEST(genotype_ordering, diploid_2_alleles)
+TEST_CASE("genotype_ordering diploid_2_alleles", "[diploid_2_alleles]")
 {
   std::vector<int> tmp_vector;
   std::vector<std::pair<int, int> > tmp_stack;
@@ -187,7 +191,7 @@ TEST(genotype_ordering, diploid_2_alleles)
       verify_remapped_gt_order);
 }
 
-TEST(genotype_ordering, diploid_3_alleles)
+TEST_CASE("genotype_ordering diploid_3_alleles", "[diploid_3_alleles]")
 {
   std::vector<int> tmp_vector;
   std::vector<std::pair<int, int> > tmp_stack;
@@ -214,7 +218,7 @@ TEST(genotype_ordering, diploid_3_alleles)
       verify_remapped_gt_order);
 }
 
-TEST(genotype_ordering, diploid_4_alleles)
+TEST_CASE("genotype_ordering diploid_4_alleles", "[diploid_4_alleles]")
 {
   std::vector<int> tmp_vector;
   std::vector<std::pair<int, int> > tmp_stack;
@@ -245,7 +249,7 @@ TEST(genotype_ordering, diploid_4_alleles)
       verify_remapped_gt_order);
 }
 
-TEST(genotype_ordering, triploid_2_alleles)
+TEST_CASE("genotype_ordering triploid_2_alleles", "[triploid_2_alleles]")
 {
   std::vector<int> tmp_vector;
   std::vector<std::pair<int, int> > tmp_stack;
@@ -270,7 +274,7 @@ TEST(genotype_ordering, triploid_2_alleles)
       verify_remapped_gt_order);
 }
 
-TEST(genotype_ordering, triploid_3_alleles)
+TEST_CASE("genotype_ordering triploid_3_alleles", "[triploid_3_alleles]")
 {
   std::vector<int> tmp_vector;
   std::vector<std::pair<int, int> > tmp_stack;
@@ -301,7 +305,7 @@ TEST(genotype_ordering, triploid_3_alleles)
       verify_remapped_gt_order);
 }
 
-TEST(genotype_ordering, triploid_4_alleles)
+TEST_CASE("genotype_ordering triploid_4_alleles", "[triploid_4_alleles]")
 {
   std::vector<int> tmp_vector;
   std::vector<std::pair<int, int> > tmp_stack;
@@ -342,7 +346,7 @@ TEST(genotype_ordering, triploid_4_alleles)
       verify_remapped_gt_order);
 }
 
-TEST(genotype_ordering, triploid_4_alleles_reordered_alleles)
+TEST_CASE("genotype_ordering triploid_4_alleles_reordered_alleles", "[triploid_4_alleles_reordered_alleles]")
 {
   std::vector<int> tmp_vector;
   std::vector<std::pair<int, int> > tmp_stack;
@@ -409,7 +413,7 @@ TEST(genotype_ordering, triploid_4_alleles_reordered_alleles)
       verify_remapped_gt_order);
 }
 
-TEST(genotype_ordering, triploid_4_alleles_reordered_alleles_without_NON_REF)
+TEST_CASE("genotype_ordering triploid_4_alleles_reordered_alleles_without_NON_REF", "[triploid_4_alleles_reordered_alleles_without_NON_REF]")
 {
   std::vector<int> tmp_vector;
   std::vector<std::pair<int, int> > tmp_stack;

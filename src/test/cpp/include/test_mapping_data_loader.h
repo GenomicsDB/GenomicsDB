@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2019 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -29,7 +30,6 @@
 #include "headers.h"
 #include "vid_mapper_sql.h"
 #include <limits.h>
-#include "gtest/gtest.h"
 
 const std::string config_file_name = "/tmp/sql_mapper/sql_mapper_config.txt";
 
