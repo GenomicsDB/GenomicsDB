@@ -248,6 +248,14 @@ if(HTSLIB_SOURCE_DIR)
     add_dependencies(clean-all clean-htslib)
 endif()
 
+#Uninstall GenomicsDB
+add_custom_target(
+   uninstall-genomicsdb
+   COMMAND echo "-- Uninstalling GenomicsDB from ${CMAKE_INSTALL_PREFIX}..."
+   COMMAND < install_manifest.txt xargs -I % sh -c 'echo -- Uninstalling % && rm -f %' %
+   COMMAND echo "-- GenomicsDB is uninstalled!"
+)
+
 find_package(safestringlib)
 if(SAFESTRINGLIB_FOUND)
     add_definitions(-DSAFESTRINGLIB_FOUND=1)
@@ -288,6 +296,11 @@ if(IPPROOT AND ${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 endif()
 
 function(build_GenomicsDB_executable_common target)
+  build_GenomicsDB_links(${target})
+  install(TARGETS ${target} RUNTIME DESTINATION bin)
+endfunction()
+
+function(build_GenomicsDB_links target)
     set_property(TARGET ${target} PROPERTY POSITION_INDEPENDENT_CODE ON)
     #add_executable(${target} src/${target}.cc)
     target_link_libraries(${target} genomicsdb)
@@ -313,7 +326,6 @@ function(build_GenomicsDB_executable_common target)
         target_link_libraries(${target} ${GPERFTOOLS_PROFILER_LIBRARY})
     endif()
     target_link_libraries(${target} ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES})
-    install(TARGETS ${target} RUNTIME DESTINATION bin)
 endfunction()
 
 function(build_GenomicsDB_executable target)

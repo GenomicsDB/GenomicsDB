@@ -37,3 +37,6 @@ src/main/java/com/intel/genomicsdb/GenomicsDBVidMapProto.java
 \#*\#
 .\#*
 TAGS
+
+#Xcode
+.DS_Store
