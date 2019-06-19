@@ -490,7 +490,7 @@ std::size_t GenomicsDBResults<genomicsdb_variant_t>::size() const noexcept {
 template<>
 const genomicsdb_variant_t* GenomicsDBResults<genomicsdb_variant_t>::at(std::size_t pos) {
   if (pos >= size()) {
-    throw std::out_of_range("Out of range. Number of results="+std::to_string(size()));
+    return nullptr;
   } else {
     Variant *variant = TO_VARIANT_VECTOR(m_results)->data() + pos;
     return TO_GENOMICSDB_VARIANT(variant);
@@ -510,7 +510,7 @@ std::size_t GenomicsDBResults<genomicsdb_variant_call_t>::size() const noexcept 
 template<>
 const genomicsdb_variant_call_t* GenomicsDBResults<genomicsdb_variant_call_t>::at(std::size_t pos) {
   if (pos >= size()) {
-    throw std::out_of_range("Out of range. Number of results="+std::to_string(size()));
+    return nullptr;
   } else {
     VariantCall *variant = TO_VARIANT_CALL_VECTOR(m_results)->data() + pos;
     return TO_GENOMICSDB_VARIANT_CALL(variant);
