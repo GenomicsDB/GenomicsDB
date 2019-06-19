@@ -67,7 +67,7 @@ static std::string array("t0_1_2");
 
 void check_query_variants_results(GenomicsDB* gdb, const std::string& array, GenomicsDBVariants variants) {
    REQUIRE(variants.size() == 4);
-   CHECK_THROWS_AS(variants.at(5), std::out_of_range);
+   CHECK(variants.at(5) == nullptr);
    auto variant = variants.next();
    auto variant1 = variants.at(0);
    REQUIRE(variant == variant1);
@@ -84,7 +84,7 @@ void check_query_variants_results(GenomicsDB* gdb, const std::string& array, Gen
    // Check variant calls
    auto variant_calls = gdb->get_variant_calls(variant);
    REQUIRE(variant_calls.size() == 1);
-   CHECK_THROWS_AS(variant_calls.at(1), std::out_of_range);
+   CHECK(variant_calls.at(1) == nullptr);
    auto variant_call = variant_calls.next();
    auto variant_call1 = variant_calls.at(0);
    REQUIRE(variant_call == variant_call1);
