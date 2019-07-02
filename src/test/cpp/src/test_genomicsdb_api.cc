@@ -28,6 +28,7 @@
 #include <catch2/catch.hpp>
 
 #include "genomicsdb.h"
+#include "genomicsdb_config_base.h"
 
 #include <iostream>
 #include <string>
@@ -116,8 +117,13 @@ TEST_CASE("api query_variants with json", "[query_variants") {
   GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
   check_query_variants_results(gdb, array, gdb->query_variants());
   delete gdb;
-}
 
+  gdb = new GenomicsDB(query_json, loader_json, 0);
+  check_query_variants_results(gdb, array, gdb->query_variants());
+  delete gdb;
+  
+  CHECK_THROWS_AS(new GenomicsDB(query_json, loader_json, 1), GenomicsDBConfigException);
+}
 
 class NullVariantCallProcessor : public GenomicsDBVariantCallProcessor {
  public:
@@ -229,11 +235,11 @@ TEST_CASE("api query_variant_calls with json", "[query_variant_calls_with_json]"
   OneQueryIntervalProcessor one_query_interval_processor;
   gdb->query_variant_calls(one_query_interval_processor);
   delete gdb;
+
+  OneQueryIntervalProcessor another_query_interval_processor;
+  gdb = new GenomicsDB(query_json, loader_json, 0);
+  gdb->query_variant_calls(another_query_interval_processor);
+  delete gdb;
+
+  CHECK_THROWS_AS(new GenomicsDB(query_json, loader_json, 1), GenomicsDBConfigException);
 }
-
-
-
-
-
-
-

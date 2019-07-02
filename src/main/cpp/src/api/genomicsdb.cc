@@ -299,7 +299,11 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
 
    std::string contig_name;
    int64_t contig_position;
-   m_vid_mapper->get_contig_location(coords[1], contig_name, contig_position);
+   if (!m_vid_mapper->get_contig_location(coords[1], contig_name, contig_position)) {
+     std::cerr << "Could not find genomic interval associated with Variant(Call) at "
+               << coords[1] << std::endl;
+     return;
+   }
 
    contig_position++;
    genomic_interval_t genomic_interval(std::move(contig_name),
@@ -396,13 +400,19 @@ template<class VariantOrVariantCall>
 genomic_interval_t get_genomic_interval_for(const VariantOrVariantCall* variant_or_variant_call, VidMapper *vid_mapper) {
   std::string contig_name;
   int64_t contig_position;
-  vid_mapper->get_contig_location(variant_or_variant_call->get_column_begin(), contig_name,
-                                                   contig_position);
-  contig_position++;
-  return genomic_interval_t(std::move(contig_name),
-                            std::make_pair(contig_position,
-                                           contig_position+(variant_or_variant_call->get_column_end()
-                                                            -variant_or_variant_call->get_column_begin())));
+  if (vid_mapper->get_contig_location(variant_or_variant_call->get_column_begin(), contig_name,
+                                      contig_position)) {
+    contig_position++;
+    return genomic_interval_t(std::move(contig_name),
+                              std::make_pair(contig_position,
+                                             contig_position
+                                             +(variant_or_variant_call->get_column_end()
+                                               -variant_or_variant_call->get_column_begin())));
+  } else {
+    // TODO: Extend api to return an genomic interval representing a NULL instead of throwing an exception
+    throw GenomicsDBException("Could not find genomic interval associated with Variant(Call) at "
+                             + std::to_string(variant_or_variant_call->get_column_begin()));
+  }
 }
 
 genomic_interval_t GenomicsDB::get_genomic_interval(const genomicsdb_variant_t* variant) {
