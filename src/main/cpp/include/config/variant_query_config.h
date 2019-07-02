@@ -339,6 +339,10 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
    * Read configuration from JSON file
    */
   void read_from_file(const std::string& filename, const int rank=0);
+  /*
+   * Validates and intializes variant query configuration. GenomicsDBConfigException is thrown on failed checks.
+   */
+  void validate(const int rank=0);
  private:
   /*
    * Function to invalid TileDB array row idx -> query row idx mapping
