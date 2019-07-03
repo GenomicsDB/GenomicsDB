@@ -198,6 +198,10 @@ std::vector<Variant>* GenomicsDB::query_variants(const std::string& array, Varia
                                             *query_config, i, *pvariants);
   }
 
+#if(DEBUG)
+  print_variants(*pvariants, "default", *query_config);
+#endif
+
   delete query_processor;
 
 #if(0)
@@ -343,7 +347,7 @@ void print_variant_calls(const VariantQueryConfig& query_config,
 #endif
 
 std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& array, VariantQueryConfig *query_config, GenomicsDBVariantCallProcessor& processor) {
-  #if(0)
+#if(0)
   auto query_timer = Timer();
   query_timer.start();
 #endif
@@ -530,7 +534,7 @@ const genomicsdb_variant_call_t* GenomicsDBResults<genomicsdb_variant_call_t>::a
 
 template<>
 void GenomicsDBResults<genomicsdb_variant_call_t>::free() {
-  // NOP: free'ing is done at the Variant(genomicsdb_variant_t) level
+  // NOP: free'ing is done at the Variant(genomicsdb_variant_t) levelx
 }
 
 
