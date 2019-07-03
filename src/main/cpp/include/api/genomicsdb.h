@@ -81,11 +81,12 @@ template<typename T>
 class GenomicsDBResults {
  public:
   GenomicsDBResults(std::vector<T>* results) : m_results(results), m_current_pos(0) {};
+  ~GenomicsDBResults() { free(); };
   GENOMICSDB_EXPORT std::size_t size() const noexcept;
   GENOMICSDB_EXPORT const T* at(std::size_t pos);
   inline const T* next() { return at(m_current_pos++); };
-  GENOMICSDB_EXPORT void free();
  private:
+  GENOMICSDB_EXPORT void free();
   std::vector<T>* m_results;
   std::size_t m_current_pos;
 };

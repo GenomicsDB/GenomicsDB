@@ -507,7 +507,10 @@ const genomicsdb_variant_t* GenomicsDBResults<genomicsdb_variant_t>::at(std::siz
 
 template<>
 void GenomicsDBResults<genomicsdb_variant_t>::free() {
-  delete TO_VARIANT_VECTOR(m_results);
+  if (m_results != nullptr) {
+    delete TO_VARIANT_VECTOR(m_results);
+  }
+  m_results = nullptr;
 }
 
 template<>
@@ -527,7 +530,7 @@ const genomicsdb_variant_call_t* GenomicsDBResults<genomicsdb_variant_call_t>::a
 
 template<>
 void GenomicsDBResults<genomicsdb_variant_call_t>::free() {
-  delete TO_VARIANT_CALL_VECTOR(m_results);
+  // NOP: free'ing is done at the Variant(genomicsdb_variant_t) level
 }
 
 
