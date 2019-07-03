@@ -198,10 +198,6 @@ std::vector<Variant>* GenomicsDB::query_variants(const std::string& array, Varia
                                             *query_config, i, *pvariants);
   }
 
-#if(0)
-  print_variants(*pvariants, "default", *query_config);
-#endif
-
   delete query_processor;
 
 #if(0)
@@ -331,6 +327,7 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
    m_variant_call_processor.process(coords[0], genomic_interval, genomic_fields);
 }
 
+#if(DEBUG)
 void print_variant_calls(const VariantQueryConfig& query_config,
                          const VariantQueryProcessor& query_processor,
                          const VidMapper& vid_mapper) {
@@ -343,6 +340,7 @@ void print_variant_calls(const VariantQueryConfig& query_config,
   std::cout << "\n" << indent_prefix << "]\n";
   std::cout << "}\n";
 }
+#endif
 
 std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& array, VariantQueryConfig *query_config, GenomicsDBVariantCallProcessor& processor) {
   #if(0)
@@ -356,7 +354,7 @@ std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& arr
   query_processor->do_query_bookkeeping(query_processor->get_array_schema(),
                                         *query_config, query_config->get_vid_mapper(), true);
 
-#if(0)
+#if(DEBUG)
   print_variant_calls(*query_config, *query_processor, query_config->get_vid_mapper());
 #endif
 

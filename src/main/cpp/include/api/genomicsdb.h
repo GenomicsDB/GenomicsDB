@@ -80,14 +80,14 @@ typedef std::vector<std::pair<int64_t, int64_t>> genomicsdb_ranges_t;
 template<typename T>
 class GenomicsDBResults {
  public:
-  GenomicsDBResults(std::vector<T>* results) : m_results(results) {};
+  GenomicsDBResults(std::vector<T>* results) : m_results(results), m_current_pos(0) {};
   GENOMICSDB_EXPORT std::size_t size() const noexcept;
   GENOMICSDB_EXPORT const T* at(std::size_t pos);
   inline const T* next() { return at(m_current_pos++); };
   GENOMICSDB_EXPORT void free();
  private:
   std::vector<T>* m_results;
-  std::size_t m_current_pos=0;
+  std::size_t m_current_pos;
 };
 
 // Specializations for the GenomicsDBResults Template
