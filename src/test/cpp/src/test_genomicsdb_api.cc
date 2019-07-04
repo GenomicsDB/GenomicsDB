@@ -52,6 +52,15 @@ TEST_CASE("api empty_args", "[empty_args]") {
   CHECK_THROWS_AS(new GenomicsDB(empty_string), std::exception);
   CHECK_THROWS_AS(new GenomicsDB(empty_string, empty_string), std::exception);
   CHECK_THROWS_AS(new GenomicsDB(empty_string, "loader_config.json"), std::exception);
+
+  // Check if there is an error message
+  try {
+    new GenomicsDB(empty_string);
+    FAIL();
+  } catch (GenomicsDBException& e) {
+    REQUIRE(e.what());
+    CHECK(strlen(e.what()) > 0);
+  }
 }
 
 static std::string ctests_input_dir(GENOMICSDB_CTESTS_DIR);
