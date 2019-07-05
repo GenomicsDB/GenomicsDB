@@ -32,43 +32,33 @@ GenomicsDBProtoBufInitAndCleanup g_genomicsdb_protobuf_init_and_cleanup;
 
 ProtoBufBasedVidMapper::ProtoBufBasedVidMapper(
   const VidMappingPB* vid_map_protobuf,
-  const CallsetMappingPB* callset_map_protobuf,
-  const std::vector<BufferStreamInfo>& buffer_stream_info_vec)
+  const CallsetMappingPB* callset_map_protobuf)
   : VidMapper() {
 
   // Verify that the version of the library that we linked against is
   // compatible with the version of the headers we compiled against.
   GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-  assert (vid_map_protobuf->IsInitialized() &&
-          vid_map_protobuf->contigs_size()!=0 &&
-          vid_map_protobuf->fields_size()!=0);
-
-  assert (callset_map_protobuf->IsInitialized() &&
-          callset_map_protobuf->callsets_size()!= 0);
-
-  initialize(vid_map_protobuf, callset_map_protobuf, buffer_stream_info_vec);
+  initialize(vid_map_protobuf, callset_map_protobuf);
 }
 
 void ProtoBufBasedVidMapper::initialize(
   const VidMappingPB* vid_map_protobuf,
-  const CallsetMappingPB* callset_map_protobuf,
-  const std::vector<BufferStreamInfo>& buffer_stream_info_vec) {
+  const CallsetMappingPB* callset_map_protobuf) {
 
   int ret = 0;
   ret = parse_callset_protobuf(
-          callset_map_protobuf,
-          buffer_stream_info_vec);
+          callset_map_protobuf);
   assert (ret == GENOMICSDB_VID_MAPPER_SUCCESS);
   ret = parse_vidmap_protobuf(vid_map_protobuf);
   assert (ret == GENOMICSDB_VID_MAPPER_SUCCESS);
-
-  m_is_initialized = true;
 }
 
 int ProtoBufBasedVidMapper::parse_callset_protobuf(
-  const CallsetMappingPB* callset_map_protobuf,
-  const std::vector<BufferStreamInfo>& buffer_stream_info_vec) {
+  const CallsetMappingPB* callset_map_protobuf) {
+
+  assert (callset_map_protobuf->IsInitialized() &&
+          callset_map_protobuf->callsets_size()!= 0);
 
   auto num_callsets = callset_map_protobuf->callsets_size();
   m_row_idx_to_info.resize(num_callsets);
@@ -82,7 +72,7 @@ int ProtoBufBasedVidMapper::parse_callset_protobuf(
     std::string callset_name = it->sample_name();
     int64_t row_idx = sample_info.row_idx();
     int64_t idx_in_file = sample_info.idx_in_file();
-    std::string stream_name = sample_info.stream_name();
+    std::string stream_name = sample_info.has_stream_name() ? sample_info.stream_name() : "";
 
     if (m_callset_name_to_row_idx.find(callset_name) !=
         m_callset_name_to_row_idx.end()) {
@@ -91,7 +81,7 @@ int ProtoBufBasedVidMapper::parse_callset_protobuf(
         throw ProtoBufBasedVidMapperException(
           std::string("ERROR: Callset/sample ")
           + callset_name
-          + " have two TileDB row indexes: "
+          + " has two entries in the vid mapper Protobuf object with two TileDB row indexes: "
           + std::to_string(m_callset_name_to_row_idx[callset_name])
           + ", "
           + std::to_string(row_idx));
@@ -120,7 +110,7 @@ int ProtoBufBasedVidMapper::parse_callset_protobuf(
           + stream_name);
       if (curr_row_info.m_idx_in_file != idx_in_file)
         throw ProtoBufBasedVidMapperException(
-          std::string("Conflicting values of \"sample_vcf_index\" ")
+          std::string("Conflicting values of \"idx_in_file\" ")
           + std::string("specified for Callset/sample ")
           + callset_name
           + ": "
@@ -128,17 +118,19 @@ int ProtoBufBasedVidMapper::parse_callset_protobuf(
           + ", "
           + std::to_string(idx_in_file));
     } else {
-      assert(file_idx < static_cast<int64_t>(m_file_idx_to_info.size()));
-      int64_t other_row_idx = 0ll;
-      auto added_successfully = m_file_idx_to_info[file_idx].add_local_tiledb_row_idx_pair(
-                                  idx_in_file,
-                                  row_idx,
-                                  other_row_idx);
-      if (!added_successfully)
-        throw ProtoBufBasedVidMapperException(std::string("Attempting to import a sample from file/stream ")+stream_name
-                                              +" multiple times under aliases '"+m_row_idx_to_info[other_row_idx].m_name
-                                              +"' and '"+callset_name+"' with row indexes "+std::to_string(other_row_idx)
-                                              +" and "+std::to_string(row_idx)+" respectively");
+      if(file_idx >= 0) {
+	assert(file_idx < static_cast<int64_t>(m_file_idx_to_info.size()));
+	int64_t other_row_idx = 0ll;
+	auto added_successfully = m_file_idx_to_info[file_idx].add_local_tiledb_row_idx_pair(
+	    idx_in_file,
+	    row_idx,
+	    other_row_idx);
+	if (!added_successfully)
+	  throw ProtoBufBasedVidMapperException(std::string("Attempting to import a sample from file/stream ")+stream_name
+	      +" multiple times under aliases '"+m_row_idx_to_info[other_row_idx].m_name
+	      +"' and '"+callset_name+"' with row indexes "+std::to_string(other_row_idx)
+	      +" and "+std::to_string(row_idx)+" respectively");
+      }
     }
 
     m_callset_name_to_row_idx[callset_name] = row_idx;
@@ -158,29 +150,10 @@ int ProtoBufBasedVidMapper::parse_callset_protobuf(
       idx_in_file);
   }  // end of for all callsets
 
-  //For buffer streams
-  m_buffer_stream_idx_to_global_file_idx.resize(
-    buffer_stream_info_vec.size(), -1);
+  check_for_missing_row_indexes();
 
-  auto max_buffer_stream_idx_with_global_file_idx = -1ll;
-  for (auto i=0ull; i<buffer_stream_info_vec.size(); ++i) {
-    const auto& info = buffer_stream_info_vec[i];
-    int64_t global_file_idx;
-    auto found = get_global_file_idx(info.m_name, global_file_idx);
-    if (found) {
-      auto& curr_file_info = m_file_idx_to_info[global_file_idx];
-      curr_file_info.m_type = info.m_type;
-      curr_file_info.m_buffer_stream_idx = i;
-      curr_file_info.m_buffer_capacity = info.m_buffer_capacity;
-      curr_file_info.m_initialization_buffer = info.m_initialization_buffer;
-      curr_file_info.m_initialization_buffer_num_valid_bytes =
-        info.m_initialization_buffer_num_valid_bytes;
-      m_buffer_stream_idx_to_global_file_idx[i] = global_file_idx;
-      max_buffer_stream_idx_with_global_file_idx = i;
-    }
-  }
-  m_buffer_stream_idx_to_global_file_idx.resize(
-    max_buffer_stream_idx_with_global_file_idx+1);
+  m_is_callset_mapping_initialized = true;
+  m_is_initialized = m_is_contig_and_field_info_initialized;
 
   return GENOMICSDB_VID_MAPPER_SUCCESS;
 } // end of parse_callset_protobuf
@@ -188,11 +161,18 @@ int ProtoBufBasedVidMapper::parse_callset_protobuf(
 int ProtoBufBasedVidMapper::parse_vidmap_protobuf(
   const VidMappingPB* vid_map_protobuf) {
 
+  assert (vid_map_protobuf->IsInitialized() &&
+          vid_map_protobuf->contigs_size()!=0 &&
+          vid_map_protobuf->fields_size()!=0);
+
   int ret = 0;
   ret = parse_contigs_from_vidmap(vid_map_protobuf);
   assert (ret == GENOMICSDB_VID_MAPPER_SUCCESS);
   ret = parse_infofields_from_vidmap(vid_map_protobuf);
   assert (ret == GENOMICSDB_VID_MAPPER_SUCCESS);
+
+  m_is_contig_and_field_info_initialized = true;
+  m_is_initialized = m_is_callset_mapping_initialized;
 
   return GENOMICSDB_VID_MAPPER_SUCCESS;
 }
@@ -213,9 +193,7 @@ int ProtoBufBasedVidMapper::parse_contigs_from_vidmap(
     if (m_contig_name_to_idx.find(contig_name) != m_contig_name_to_idx.end()) {
       std::cerr << "Contig/chromosome name "
                 << contig_name
-                << " appears more than once in vid map\n"
-                << " Please check merge headers method "
-                << "in GenomicsDBImporter.java\n";
+                << " appears more than once in vid map\n";
       duplicate_contigs_exist = true;
       continue;
     }
@@ -303,13 +281,11 @@ int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
 
   auto num_fields = vid_map_protobuf->fields_size();
   m_field_idx_to_info.resize(num_fields);
-  std::string field_name;
-  std::string field_type;
   auto duplicate_fields_exist = false;
 
   for (auto pb_field_idx = 0, field_idx = 0; pb_field_idx < num_fields;
        ++pb_field_idx) {
-    field_name = vid_map_protobuf->fields(pb_field_idx).name();
+    const auto& field_name = vid_map_protobuf->fields(pb_field_idx).name();
     if (m_field_name_to_idx.find(field_name) != m_field_name_to_idx.end()) {
       std::cerr << "Duplicate field name "
                 << field_name
@@ -329,18 +305,6 @@ int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
     m_field_idx_to_info[field_idx].set_info(field_name, field_idx);
     auto& ref = m_field_idx_to_info[field_idx];
 
-    //Field type - int, char etc
-    if (vid_map_protobuf->fields(pb_field_idx).type_size() == 0u)
-      throw VidMapperException(std::string("Attribute 'type' is mandatory for all fields in GenomicsDB ")
-                               +" field "+field_name+" missing 'type' in Protobuf structure");
-    FieldElementTypeDescriptor type_descriptor(vid_map_protobuf->fields(pb_field_idx).type_size());
-    for (auto i=0u; i<static_cast<unsigned>(vid_map_protobuf->fields(pb_field_idx).type_size()); ++i) {
-      field_type = vid_map_protobuf->fields(pb_field_idx).type(i);
-      auto type_index_ht_type_pair = get_type_index_and_bcf_ht_type(field_type.c_str());
-      type_descriptor.set_tuple_element_type(i, type_index_ht_type_pair.first, type_index_ht_type_pair.second);
-    }
-    ref.set_type(type_descriptor);
-
     // VCF class type can be an array of values: INFO, FORMAT and FILTER
     auto class_type_size =
       vid_map_protobuf->fields(pb_field_idx).vcf_field_class_size();
@@ -357,6 +321,8 @@ int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
           ref.m_is_vcf_FILTER_field = true;
       }
     }
+
+    //Length descriptor
     if (vid_map_protobuf->fields(pb_field_idx).length_size() > 0) {
       ref.m_length_descriptor.resize(vid_map_protobuf->fields(pb_field_idx).length_size());
       for (auto i=0; i<vid_map_protobuf->fields(pb_field_idx).length_size(); ++i) {
@@ -387,6 +353,18 @@ int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
       }
     }
 
+    //Field type - int, char, or <int, float> (allele specific annotations in GATK)
+    if (vid_map_protobuf->fields(pb_field_idx).type_size() == 0u)
+      throw VidMapperException(std::string("Attribute 'type' is mandatory for all fields in GenomicsDB ")
+                               +" field "+field_name+" missing 'type' in Protobuf structure");
+    FieldElementTypeDescriptor type_descriptor(vid_map_protobuf->fields(pb_field_idx).type_size());
+    for (auto i=0u; i<static_cast<unsigned>(vid_map_protobuf->fields(pb_field_idx).type_size()); ++i) {
+      const auto& field_type = vid_map_protobuf->fields(pb_field_idx).type(i);
+      auto type_index_ht_type_pair = get_type_index_and_bcf_ht_type(field_type.c_str());
+      type_descriptor.set_tuple_element_type(i, type_index_ht_type_pair.first, type_index_ht_type_pair.second);
+    }
+    ref.set_type(type_descriptor);
+
     //Sometimes the VCF type can be different from the real datatype of the field
     //For example, for multi-D vectors, the VCF type is string: @$@#@#!#$%$%
     if (vid_map_protobuf->fields(pb_field_idx).has_vcf_type()) {
@@ -395,6 +373,15 @@ int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
       type_descriptor.set_tuple_element_type(0u, type_index_ht_type_pair.first, type_index_ht_type_pair.second);
       ref.set_vcf_type(type_descriptor);
     }
+    ref.modify_field_type_if_multi_dim_field();
+
+    if (vid_map_protobuf->fields(pb_field_idx).has_vcf_field_combine_operation())
+      set_VCF_field_combine_operation(ref,
+                                      vid_map_protobuf->fields(pb_field_idx).vcf_field_combine_operation().c_str());
+    else
+      if(is_known_field)
+	ref.m_VCF_field_combine_operation =
+	  KnownFieldInfo::get_VCF_field_combine_operation_for_known_field_enum(known_field_enum);
 
     //Generally used when multi-D vectors are represented as delimited strings in the VCF
     //Used mostly in conjunction with the vcf_type attribute
@@ -403,13 +390,6 @@ int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
         ref.m_length_descriptor.set_vcf_delimiter(i,
             vid_map_protobuf->fields(pb_field_idx).vcf_delimiter(i).c_str());
     }
-
-    if (vid_map_protobuf->fields(pb_field_idx).has_vcf_field_combine_operation())
-      set_VCF_field_combine_operation(ref,
-                                      vid_map_protobuf->fields(pb_field_idx).vcf_field_combine_operation().c_str());
-
-    ref.modify_field_type_if_multi_dim_field();
-    ref.compute_element_size();
 
     ++field_idx;
     flatten_field(field_idx, field_idx-1);

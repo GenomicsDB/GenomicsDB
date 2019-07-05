@@ -427,6 +427,7 @@ class VidMapper {
     clear();
     m_is_initialized = false;
     m_is_callset_mapping_initialized = false;
+    m_is_contig_and_field_info_initialized = false;
     m_max_callset_row_idx = -1;
   }
   void clear();
@@ -549,6 +550,8 @@ class VidMapper {
    * Get global file idx for filename, if not exist append and return last index
    */
   int64_t get_or_append_global_file_idx(const std::string& filename) {
+    if(filename.empty())
+      return -1;
     auto iter = m_filename_to_idx.find(filename);
     if (iter == m_filename_to_idx.end()) {
       auto file_idx = m_file_idx_to_info.size();
@@ -644,6 +647,8 @@ class VidMapper {
     file_info.m_split_files_paths.resize(1u);
     file_info.m_split_files_paths[0u] = split_output_filename;
   }
+  //Validation check
+  void check_for_missing_row_indexes();
   /*
    * While splitting files, get path of output split file
    */
@@ -782,10 +787,11 @@ class VidMapper {
   void flatten_field(int& field_idx, const int original_field_idx);
   void set_VCF_field_combine_operation(FieldInfo& field_info, const char* vcf_field_combine_operation);
  protected:
-  //Is initialized
+  //Is initialized - boolean AND of next 2 flags
   bool m_is_initialized;
   //are callsets initialized
   bool m_is_callset_mapping_initialized;
+  bool m_is_contig_and_field_info_initialized;
   //callset mappings
   std::unordered_map<std::string, int64_t> m_callset_name_to_row_idx;
   std::vector<CallSetInfo> m_row_idx_to_info;

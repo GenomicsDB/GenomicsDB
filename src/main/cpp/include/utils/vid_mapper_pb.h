@@ -63,8 +63,7 @@ class ProtoBufBasedVidMapper : public VidMapper {
    */
   ProtoBufBasedVidMapper(
     const VidMappingPB*,
-    const CallsetMappingPB*,
-    const std::vector<BufferStreamInfo>& buffer_stream_info_vec);
+    const CallsetMappingPB*);
 
   /**
    * Destructor -- must be called once you allocate an object
@@ -78,16 +77,14 @@ class ProtoBufBasedVidMapper : public VidMapper {
    */
   void initialize(
     const VidMappingPB*,
-    const CallsetMappingPB*,
-    const std::vector<BufferStreamInfo>& buffer_stream_info_vec);
+    const CallsetMappingPB*);
 
   /**
    * Parse the callset map protocol buffer structure and
    * populate data structures of the base jurassic VidMapper
    * class
    */
-  int parse_callset_protobuf(const CallsetMappingPB*,
-                             const std::vector<BufferStreamInfo>& buffer_stream_info_vec);
+  int parse_callset_protobuf(const CallsetMappingPB*);
 
   /**
    * Parse the variant id map protocol buffer structure which
