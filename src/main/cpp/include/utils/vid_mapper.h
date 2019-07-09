@@ -417,6 +417,10 @@ class FieldInfo {
   unsigned m_parent_composite_field_idx;
 };
 
+//Protobuf classes
+class VidMappingPB;
+class CallsetMappingPB;
+
 /*
  * Base class for mapping callset/contig names to rows/columns
  * Many implementations possible (PostgreSQL, file, SQLite etc)
@@ -637,7 +641,7 @@ class VidMapper {
   inline const std::vector<int64_t>& get_buffer_stream_idx_to_global_file_idx_vec() const {
     return m_buffer_stream_idx_to_global_file_idx;
   }
-  void build_file_partitioning(const int partition_idx, const RowRange row_partition);
+  void build_file_partitioning(const int partition_idx, const TileDBRowRange row_partition);
   void verify_file_partitioning() const;
   //Set path of split file
   void set_single_split_file_path(const int64_t global_file_idx, const std::string& split_output_filename) {
@@ -774,6 +778,7 @@ class VidMapper {
   //Buffer streams for import
   void set_buffer_stream_info(
     const std::vector<BufferStreamInfo>& buffer_stream_info_vec);
+
   //Read callsets information from json_doc structure
   void read_callsets_info(const rapidjson::Value& json_doc, const int rank=0);
   void parse_callsets_json(
@@ -781,6 +786,23 @@ class VidMapper {
     const bool is_file);
   void parse_callsets_json(
     const rapidjson::Value& callsets_container);
+
+  /**
+   * Parse the callset map protocol buffer structure and
+   * populate data structures of the base jurassic VidMapper
+   * class
+   */
+  int parse_callset_protobuf(const CallsetMappingPB*);
+
+  /**
+   * Parse the variant id map protocol buffer structure which
+   * contains the merged header. These headers are picked
+   * from each of the input GVCF files. Populate the data
+   * structures of the base jurassic VidMapper class
+   */
+  int parse_vidmap_protobuf(const VidMappingPB* callsetMapProto);
+  int parse_contigs_from_vidmap(const VidMappingPB* vidMapProto);
+  int parse_infofields_from_vidmap(const VidMappingPB* vidMapProto);
 
  protected:
   void add_mandatory_fields();

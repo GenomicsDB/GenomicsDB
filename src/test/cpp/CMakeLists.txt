@@ -26,11 +26,14 @@
 #
 
 include_directories(Catch INTERFACE Catch2/single_include)
+include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})
 
 set(CPP_TEST_SOURCES
   src/ctest_main.cc
   src/test_non_diploid_mapper.cc
-  src/test_multid_vector.cc)
+  src/test_multid_vector.cc
+  src/test_pb.cc
+  )
 
 if(LIBDBI_FOUND)
   set(CPP_TEST_SOURCES

@@ -82,9 +82,9 @@ void GenomicsDBConfigBase::set_array_name(const std::string& array_name) {
   m_array_names.push_back(array_name);
 }
 
-RowRange GenomicsDBConfigBase::get_row_partition(const int rank, const unsigned idx) const {
+TileDBRowRange GenomicsDBConfigBase::get_row_partition(const int rank, const unsigned idx) const {
   if (!m_row_partitions_specified)
-    return RowRange(0, INT64_MAX-1);
+    return TileDBRowRange(0, INT64_MAX-1);
   auto fixed_rank = m_single_query_row_ranges_vector ? 0 : rank;
   if (static_cast<size_t>(fixed_rank) >= m_row_ranges.size())
     throw GenomicsDBConfigException(std::string("No row partition/query interval available for process with rank ")
@@ -104,7 +104,7 @@ ColumnRange GenomicsDBConfigBase::get_column_partition(const int rank, const uns
   return m_column_ranges[fixed_rank][idx];
 }
 
-const std::vector<RowRange>& GenomicsDBConfigBase::get_query_row_ranges(const int rank) const {
+const std::vector<TileDBRowRange>& GenomicsDBConfigBase::get_query_row_ranges(const int rank) const {
   auto fixed_rank = m_single_query_row_ranges_vector ? 0 : rank;
   if (static_cast<size_t>(fixed_rank) >= m_row_ranges.size())
     throw GenomicsDBConfigException(std::string("No row partition/query row range available for process with rank ")
@@ -112,7 +112,7 @@ const std::vector<RowRange>& GenomicsDBConfigBase::get_query_row_ranges(const in
   return m_row_ranges[fixed_rank];
 }
 
-void GenomicsDBConfigBase::set_query_row_ranges(const std::vector<RowRange>& row_ranges) {
+void GenomicsDBConfigBase::set_query_row_ranges(const std::vector<TileDBRowRange>& row_ranges) {
   m_single_query_row_ranges_vector = true;
   m_row_ranges.clear();
   m_row_ranges.push_back(row_ranges);
@@ -226,4 +226,13 @@ void GenomicsDBConfigBase::subset_query_column_ranges_based_on_partition(const G
     assert(static_cast<size_t>(idx) < m_column_ranges.size());
     m_column_ranges[idx] = std::move(my_rank_queried_columns);
   }
+}
+
+void GenomicsDBConfigBase::scan_whole_array()
+{
+  m_scan_whole_array = true;
+  m_column_ranges.resize(1u, std::vector<ColumnRange>({ColumnRange(0, INT64_MAX-1)}));
+  m_single_query_column_ranges_vector = true;
+  m_row_ranges.resize(1u, std::vector<TileDBRowRange>({TileDBRowRange(0, INT64_MAX-1)}));
+  m_single_query_row_ranges_vector = true;
 }

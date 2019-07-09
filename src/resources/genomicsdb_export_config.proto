@@ -34,6 +34,8 @@ import "genomicsdb_callsets_mapping.proto";
 option java_package = "org.genomicsdb.model";
 option java_outer_classname = "GenomicsDBExportConfiguration";
 
+package genomicsdb_pb;
+
 message GenomicsDBColumnOrIntervalList {
   repeated GenomicsDBColumnOrInterval column_or_interval_list = 1;
 }
@@ -47,20 +49,21 @@ message RowRangeList {
   repeated RowRange range_list = 1;
 }
 
-message SampleNameList {
-  repeated string sample_name_list = 1;
-}
-
 message ExportConfiguration {
   required string workspace = 1;
   oneof array {
     string array_name = 2;
     bool generate_array_name_from_partition_bounds = 18;
   }
-  required string reference_genome = 3;
+  optional string reference_genome = 3;
+  //Only one of the following two fields must be defined - the seconds one is  a simpler
+  //version that I would recommend using
+  //Ideally, query_column_ranges should be deprecated
   repeated GenomicsDBColumnOrIntervalList query_column_ranges = 4;
+  repeated ContigInterval query_contig_intervals = 26;
+  //Similar to above - query_row_ranges should be deprecated
   repeated RowRangeList query_row_ranges = 5;
-  repeated SampleNameList query_sample_names_lists = 22; //to match the structure of query_row_ranges
+  repeated string query_sample_names = 22;
   repeated string attributes = 6;
   optional string query_filter = 23;
   optional string vcf_header_filename = 7;
@@ -82,4 +85,7 @@ message ExportConfiguration {
   optional bool sites_only_query = 16;
   optional bool produce_GT_with_min_PL_value_for_spanning_deletions = 17;
   optional bool scan_full = 21;
+  optional uint32 segment_size = 24;
+  optional uint32 combined_vcf_records_buffer_size_limit = 25;
+  optional bool disable_file_locking_in_tiledb = 27;
 }

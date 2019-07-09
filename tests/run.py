@@ -37,7 +37,7 @@ query_json_template_string="""
 {   
         "workspace" : "",
         "array_name" : "",
-        "vcf_header_filename" : ["inputs/template_vcf_header.vcf"],
+        "vcf_header_filename" : "inputs/template_vcf_header.vcf",
         "query_column_ranges": [{
             "range_list": [{
                 "low": 0,
@@ -89,8 +89,8 @@ def create_query_json(ws_dir, test_name, query_param_dict):
     if('produce_GT_with_min_PL_value_for_spanning_deletions' in query_param_dict):
         test_dict['produce_GT_with_min_PL_value_for_spanning_deletions'] = \
                 query_param_dict['produce_GT_with_min_PL_value_for_spanning_deletions']
-    if('query_sample_names_lists' in query_param_dict):
-        test_dict['query_sample_names_lists'] = query_param_dict['query_sample_names_lists']
+    if('query_sample_names' in query_param_dict):
+        test_dict['query_sample_names'] = query_param_dict['query_sample_names']
 	if('query_row_ranges' in test_dict):
 	  del test_dict['query_row_ranges']
     if('query_filter' in query_param_dict):
@@ -163,7 +163,7 @@ def modify_query_column_ranges_for_PB(test_query_dict):
                 for curr_interval in curr_entry['range_list']:
                     if(type(curr_interval) is dict and 'low' in curr_interval
                             and 'high' in curr_interval):
-                        new_interval_list.append({'column_interval': { 'column_interval':
+                        new_interval_list.append({'column_interval': { 'tiledb_column_interval':
                             { 'begin': curr_interval['low'], 'end': curr_interval['high'] } } })
                 new_entry = { 'column_or_interval_list': new_interval_list }
                 new_query_column_ranges.append(new_entry)
@@ -204,6 +204,13 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
             sys.stderr.write('vcfdiff check failed. Cmd: '+vcfdiff_cmd+'\n')
             sys.stderr.write('Returned: '+vcfdiff_stdout+'\n')
             return True
+
+def create_json_file(tmpdir, test_name, query_type, test_dict):
+    query_json_filename = tmpdir+os.path.sep+test_name+ (('_'+query_type) if query_type else '') +'.json'
+    with open(query_json_filename, 'wb') as fptr:
+	json.dump(test_dict, fptr, indent=4, separators=(',', ': '))
+	fptr.close()
+    return query_json_filename
 
 def cleanup_and_exit(tmpdir, exit_code):
     if(exit_code == 0):
@@ -265,11 +272,62 @@ def tool_sanity_checks(exe_path):
     run_cmd(gt_mpi_gather_path + ' -j inputs/tools/non_existent_workspace_array.json', False);
     run_cmd(gt_mpi_gather_path + ' -j inputs/tools/unparseable_query.json', False);
 
+def test_pb_configs(tmpdir, ctest_dir):
+    pb_query_test_configs = [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                        }],
+	              "query_row_ranges": [{
+			  "range_list": [{
+			      "low": 0,
+			      "high": 1
+			      },
+			      {
+			      "low": 3,
+			      "high": 3
+			      }
+			      ]
+			  }],
+                      'callset_mapping_file': 'inputs/callsets/t0_haploid_triploid_1_2_3_triploid_deletion.json',
+                      "vid_mapping_file": "inputs/vid_DS_ID_phased_GT.json",
+                      'produce_GT_field': True,
+                      'segment_size': 100,
+                    },
+                    { "query_samples_names": [
+			"HG00141", "NA12878"
+			],
+		       "query_contig_intervals": [
+			   { "contig": "1" },
+			   { "contig": "1", "begin": 100 },
+			   { "contig": "1", "begin": 100, "end": 500 },
+			   ],
+                      'callset_mapping_file': 'inputs/callsets/t0_haploid_triploid_1_2_3_triploid_deletion.json',
+                      "vid_mapping_file": "inputs/vid_DS_ID_phased_GT.json",
+                      'sites_only_query': True,
+                      'segment_size': 100,
+                    },
+                ]
+    for test_pb_dict in pb_query_test_configs:
+	query_dict = create_query_json('/tmp/ws', 'pb_test', test_pb_dict)
+	if('scan_full' in query_dict):
+	    del query_dict['scan_full']
+	modify_query_column_ranges_for_PB(query_dict)
+	query_json_filename = create_json_file(tmpdir, 'pb_test', None, query_dict)
+	cmd = ctest_dir+'/ctests pb_query_config_test --pb-query-json-file '+query_json_filename
+	exit_code = subprocess.call(cmd, shell=True)
+	if(exit_code != 0):
+	    sys.stderr.write('Failed command: '+cmd+'\n')
+	    cleanup_and_exit(tmpdir, exit_code)
+
 def main():
     if(len(sys.argv) < 3):
         sys.stderr.write('Needs 2 arguments <build_dir> <install_dir>\n');
         sys.exit(-1);
     gcda_prefix_dir = sys.argv[1];
+    ctest_dir = gcda_prefix_dir+'/src/test/cpp'
     exe_path = sys.argv[2]+os.path.sep+'bin';
     tool_sanity_checks(exe_path);
     #Switch to tests directory
@@ -279,6 +337,7 @@ def main():
     bcftools_path = distutils.spawn.find_executable("bcftools")
     ws_dir=tmpdir+os.path.sep+'ws';
     jacoco_enabled = os.path.isfile(gcda_prefix_dir+os.path.sep+'jacocoagent.jar') and os.path.isfile(gcda_prefix_dir+os.path.sep+'jacococli.jar')
+    test_pb_configs(tmpdir, ctest_dir)
     loader_tests0 = [
             { "name" : "t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
@@ -301,9 +360,7 @@ def main():
                             "high": 1000000000
                         }]
                     }],
-		    "query_sample_names_lists" : [
-		        { "sample_name_list":[ "HG00141", "HG01958" ] }
-		      ],
+		    "query_sample_names" : [ "HG00141", "HG01958" ] ,
 		    "golden_output": {
                         "vcf"        : "golden_outputs/t0_1_vcf_at_0",
 			"java_vcf"   : "golden_outputs/java_t0_1_vcf_at_0",
@@ -1235,10 +1292,7 @@ def main():
         if(test_name.find('java_genomicsdb_importer_from_vcfs_incremental') != -1):
             incr_callset = test_loader_dict["callset_mapping_file"]
             test_loader_dict["callset_mapping_file"] = incr_callset.replace('.0', '')
-        loader_json_filename = tmpdir+os.path.sep+test_name+'.json'
-        with open(loader_json_filename, 'wb') as fptr:
-            json.dump(test_loader_dict, fptr, indent=4, separators=(',', ': '));
-            fptr.close();
+        loader_json_filename = create_json_file(tmpdir, test_name, None, test_loader_dict)
         if jacoco_enabled:
             jacoco_dest_file = "=destfile="+gcda_prefix_dir+os.path.sep+"target"+os.path.sep+"jacoco-reports"+os.path.sep+"jacoco-ci.exec"
             jacoco = " -javaagent:"+gcda_prefix_dir+os.path.sep+"jacocoagent.jar"+jacoco_dest_file
@@ -1350,10 +1404,7 @@ def main():
                             test_query_dict['attributes'] = vcf_attributes_order;
                         if(query_type.find('java_vcf') != -1 and 'pass_through_query_json' not in query_param_dict):
                             modify_query_column_ranges_for_PB(test_query_dict)
-                        query_json_filename = tmpdir+os.path.sep+test_name+'_'+query_type+'.json'
-                        with open(query_json_filename, 'wb') as fptr:
-                            json.dump(test_query_dict, fptr, indent=4, separators=(',', ': '));
-                            fptr.close();
+			query_json_filename = create_json_file(tmpdir, test_name, query_type, test_query_dict)
                         if(query_type == 'java_vcf'):
                             loader_argument = loader_json_filename;
                             misc_args = ''
@@ -1429,7 +1480,7 @@ def main():
         stdout_string = pid.communicate()[0]
         if(pid.returncode != 0):
             sys.stderr.write('Jacoco report generation command:'+jacoco_report_cmd+' failed\n')
-    cleanup_and_exit(tmpdir, 0); 
+    cleanup_and_exit(tmpdir, 0)
 
 if __name__ == '__main__':
     main()

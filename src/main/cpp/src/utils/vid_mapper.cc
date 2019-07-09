@@ -408,7 +408,7 @@ const {
   array_schema = new VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression, compression_level);
 }
 
-void VidMapper::build_file_partitioning(const int partition_idx, const RowRange row_partition) {
+void VidMapper::build_file_partitioning(const int partition_idx, const TileDBRowRange row_partition) {
   if (static_cast<size_t>(partition_idx) >= m_owner_idx_to_file_idx_vec.size())
     m_owner_idx_to_file_idx_vec.resize(partition_idx+1);
   m_owner_idx_to_file_idx_vec[partition_idx].clear();

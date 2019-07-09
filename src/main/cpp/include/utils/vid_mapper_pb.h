@@ -38,7 +38,11 @@ enum {
  */
 class GenomicsDBProtoBufInitAndCleanup {
  public:
-  GenomicsDBProtoBufInitAndCleanup() { }
+  GenomicsDBProtoBufInitAndCleanup() {
+    // Verify that the version of the library that we linked against is
+    // compatible with the version of the headers we compiled against.
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+  }
   ~GenomicsDBProtoBufInitAndCleanup() {
     GenomicsDBProtoBufInitAndCleanup::shutdown_protobuf_library();
   }
@@ -47,58 +51,6 @@ class GenomicsDBProtoBufInitAndCleanup {
   }
 };
 extern GenomicsDBProtoBufInitAndCleanup g_genomicsdb_protobuf_init_and_cleanup;
-
-class ProtoBufBasedVidMapper : public VidMapper {
- public:
-
-  /**
-   * Constructor
-   * 1. Callset is required. This is not an option (compared to
-   *    FileBasedVidMapper
-   * 2. VidMapping protocol buffer structure contains the
-   *    merged header from all input GVCFs
-   * 3. CallsetMap protocl buffer structure contains the
-   *    callset to TileDB row mapping. It also contains
-   *    stream names. Stream names cannot be empty
-   */
-  ProtoBufBasedVidMapper(
-    const VidMappingPB*,
-    const CallsetMappingPB*);
-
-  /**
-   * Destructor -- must be called once you allocate an object
-   */
-  ~ProtoBufBasedVidMapper();
-
-  /**
-   * Initialization routine to populate this jurassic VidMapper
-   * data structure. Super important for maintaining correctness
-   * while filling the underlying TileDB array
-   */
-  void initialize(
-    const VidMappingPB*,
-    const CallsetMappingPB*);
-
-  /**
-   * Parse the callset map protocol buffer structure and
-   * populate data structures of the base jurassic VidMapper
-   * class
-   */
-  int parse_callset_protobuf(const CallsetMappingPB*);
-
-  /**
-   * Parse the variant id map protocol buffer structure which
-   * contains the merged header. These headers are picked
-   * from each of the input GVCF files. Populate the data
-   * structures of the base jurassic VidMapper class
-   */
-  int parse_vidmap_protobuf(const VidMappingPB* callsetMapProto);
-  int parse_contigs_from_vidmap(const VidMappingPB* vidMapProto);
-  int parse_infofields_from_vidmap(const VidMappingPB* vidMapProto);
-
- protected:
-  std::string m_msg;
-};
 
 class ProtoBufBasedVidMapperException : public std::exception {
  public:

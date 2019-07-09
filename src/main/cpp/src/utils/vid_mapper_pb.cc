@@ -30,31 +30,7 @@
 
 GenomicsDBProtoBufInitAndCleanup g_genomicsdb_protobuf_init_and_cleanup;
 
-ProtoBufBasedVidMapper::ProtoBufBasedVidMapper(
-  const VidMappingPB* vid_map_protobuf,
-  const CallsetMappingPB* callset_map_protobuf)
-  : VidMapper() {
-
-  // Verify that the version of the library that we linked against is
-  // compatible with the version of the headers we compiled against.
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  initialize(vid_map_protobuf, callset_map_protobuf);
-}
-
-void ProtoBufBasedVidMapper::initialize(
-  const VidMappingPB* vid_map_protobuf,
-  const CallsetMappingPB* callset_map_protobuf) {
-
-  int ret = 0;
-  ret = parse_callset_protobuf(
-          callset_map_protobuf);
-  assert (ret == GENOMICSDB_VID_MAPPER_SUCCESS);
-  ret = parse_vidmap_protobuf(vid_map_protobuf);
-  assert (ret == GENOMICSDB_VID_MAPPER_SUCCESS);
-}
-
-int ProtoBufBasedVidMapper::parse_callset_protobuf(
+int VidMapper::parse_callset_protobuf(
   const CallsetMappingPB* callset_map_protobuf) {
 
   assert (callset_map_protobuf->IsInitialized() &&
@@ -158,7 +134,7 @@ int ProtoBufBasedVidMapper::parse_callset_protobuf(
   return GENOMICSDB_VID_MAPPER_SUCCESS;
 } // end of parse_callset_protobuf
 
-int ProtoBufBasedVidMapper::parse_vidmap_protobuf(
+int VidMapper::parse_vidmap_protobuf(
   const VidMappingPB* vid_map_protobuf) {
 
   assert (vid_map_protobuf->IsInitialized() &&
@@ -177,7 +153,7 @@ int ProtoBufBasedVidMapper::parse_vidmap_protobuf(
   return GENOMICSDB_VID_MAPPER_SUCCESS;
 }
 
-int ProtoBufBasedVidMapper::parse_contigs_from_vidmap(
+int VidMapper::parse_contigs_from_vidmap(
   const VidMappingPB* vid_map_protobuf) {
 
   auto num_contigs = vid_map_protobuf->contigs_size();
@@ -276,7 +252,7 @@ int ProtoBufBasedVidMapper::parse_contigs_from_vidmap(
   return GENOMICSDB_VID_MAPPER_SUCCESS;
 } // end of parse_contigs_from_vidmap
 
-int ProtoBufBasedVidMapper::parse_infofields_from_vidmap(
+int VidMapper::parse_infofields_from_vidmap(
   const VidMappingPB* vid_map_protobuf) {
 
   auto num_fields = vid_map_protobuf->fields_size();
