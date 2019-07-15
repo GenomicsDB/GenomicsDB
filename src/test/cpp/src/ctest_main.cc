@@ -24,6 +24,33 @@
 // Amortize the cost of building catch2.hpp for
 // every unit test by linking in ctest_main.o
 
-#define CATCH_CONFIG_MAIN
+//See https://github.com/catchorg/Catch2/blob/master/docs/own-main.md#adding-your-own-command-line-options
+//to pass run time arguments to tests
+
+#define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>
 
+std::string g_pb_query_json_file = "";
+
+int main( int argc, char* argv[] )
+{
+  Catch::Session session; // There must be exactly one instance
+
+  // Build a new parser on top of Catch's
+  using namespace Catch::clara;
+  auto cli 
+    = session.cli() // Get Catch's composite command line parser
+    | Opt( g_pb_query_json_file, "Protobuf query JSON file" ) // bind variable to a new option, with a hint string
+     ["--pb-query-json-file"]    // the option names it will respond to
+    ("Protobuf query JSON file");        // description string for the help output
+
+  // Now pass the new composite back to Catch so it uses that
+  session.cli( cli ); 
+
+  // Let Catch (using Clara) parse the command line
+  int returnCode = session.applyCommandLine( argc, argv );
+  if( returnCode != 0 ) // Indicates a command line error
+    return returnCode;
+
+  return session.run();
+}

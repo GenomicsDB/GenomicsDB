@@ -71,15 +71,15 @@ class GenomicsDBConfigBase {
   const std::string& get_array_name(const int rank) const;
   void set_array_name(const std::string& array_name);
   ColumnRange get_column_partition(const int rank, const unsigned idx=0u) const;
-  RowRange get_row_partition(const int rank, const unsigned idx=0u) const;
+  TileDBRowRange get_row_partition(const int rank, const unsigned idx=0u) const;
   const std::vector<ColumnRange> get_sorted_column_partitions() const {
     return m_sorted_column_partitions;
   }
   const std::vector<ColumnRange>& get_query_column_ranges(const int rank) const;
   void set_query_column_ranges(const std::vector<ColumnRange>& column_ranges);
-  const std::vector<RowRange>& get_query_row_ranges(const int rank) const;
-  void set_query_row_ranges(const std::vector<RowRange>& row_ranges);
-  inline std::string get_query_filter() const {
+  const std::vector<TileDBRowRange>& get_query_row_ranges(const int rank) const;
+  void set_query_row_ranges(const std::vector<TileDBRowRange>& row_ranges);
+  inline const std::string& get_query_filter() const {
     return m_query_filter;
   }
   inline size_t get_segment_size() const {
@@ -153,8 +153,8 @@ class GenomicsDBConfigBase {
   //Sometimes information is present in the loader - copy over
   void update_from_loader(const GenomicsDBImportConfig& loader_config, const int rank);
   void subset_query_column_ranges_based_on_partition(const GenomicsDBImportConfig& loader_config, const int rank);
-  inline RowRange get_row_bounds() const {
-    return RowRange(m_lb_callset_row_idx, m_ub_callset_row_idx);
+  inline TileDBRowRange get_row_bounds() const {
+    return TileDBRowRange(m_lb_callset_row_idx, m_ub_callset_row_idx);
   }
   inline uint64_t get_num_rows_within_bounds() const {
     return m_ub_callset_row_idx - m_lb_callset_row_idx + 1ull;
@@ -162,6 +162,8 @@ class GenomicsDBConfigBase {
   inline bool disable_file_locking_in_tiledb() const {
     return m_disable_file_locking_in_tiledb;
   }
+  void scan_whole_array();
+  const std::vector<std::string>& get_attributes() const { return m_attributes; }
  protected:
   bool m_single_workspace_path;
   bool m_single_array_name;
@@ -183,10 +185,10 @@ class GenomicsDBConfigBase {
   std::vector<std::string> m_workspaces;
   std::vector<std::string> m_array_names;
   std::vector<std::vector<ColumnRange>> m_column_ranges;
-  std::vector<std::vector<RowRange>> m_row_ranges;
+  std::vector<std::vector<TileDBRowRange>> m_row_ranges;
   std::vector<std::string> m_attributes;
   std::vector<ColumnRange> m_sorted_column_partitions;
-  std::vector<RowRange> m_sorted_row_partitions;
+  std::vector<TileDBRowRange> m_sorted_row_partitions;
   //Lower and upper bounds of callset row idx to import in this invocation
   int64_t m_lb_callset_row_idx;
   int64_t m_ub_callset_row_idx;

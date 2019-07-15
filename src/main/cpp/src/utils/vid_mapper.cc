@@ -408,7 +408,7 @@ const {
   array_schema = new VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression, compression_level);
 }
 
-void VidMapper::build_file_partitioning(const int partition_idx, const RowRange row_partition) {
+void VidMapper::build_file_partitioning(const int partition_idx, const TileDBRowRange row_partition) {
   if (static_cast<size_t>(partition_idx) >= m_owner_idx_to_file_idx_vec.size())
     m_owner_idx_to_file_idx_vec.resize(partition_idx+1);
   m_owner_idx_to_file_idx_vec[partition_idx].clear();
@@ -940,6 +940,13 @@ void VidMapper::parse_callsets_json(const rapidjson::Value& callsets_container) 
       ++dict_iter;
     next_callset_exists = is_array ? (json_callset_idx < callsets_container.Size()) : (dict_iter != dict_end_position);
   }
+
+  m_is_callset_mapping_initialized = true;
+  m_is_initialized = m_is_contig_and_field_info_initialized;
+}
+
+void VidMapper::check_for_missing_row_indexes()
+{
   auto missing_row_idxs_exist = false;
   for (auto row_idx=0ll; static_cast<size_t>(row_idx)<m_row_idx_to_info.size(); ++row_idx)
     if (!(m_row_idx_to_info[row_idx].m_is_initialized)) {
@@ -947,9 +954,7 @@ void VidMapper::parse_callsets_json(const rapidjson::Value& callsets_container) 
       missing_row_idxs_exist = true;
     }
   if (missing_row_idxs_exist)
-    throw FileBasedVidMapperException(std::string("Row indexes with missing sample/callset information found in callsets mapping"));
-
-  m_is_callset_mapping_initialized = true;
+    throw VidMapperException(std::string("Row indexes with missing sample/callset information found in callsets mapping"));
 }
 
 void VidMapper::set_buffer_stream_info(
@@ -1295,7 +1300,8 @@ void FileBasedVidMapper::common_constructor_initialization(
     if (duplicate_fields_exist)
       throw FileBasedVidMapperException(std::string("Duplicate fields exist in vid attribute \"fields\""));
   }
-  m_is_initialized = true;
+  m_is_contig_and_field_info_initialized = true;
+  m_is_initialized = m_is_callset_mapping_initialized;
 }
 
 void FileBasedVidMapper::parse_type_descriptor(FieldInfo& field_info, const rapidjson::Value& field_info_json_dict) {

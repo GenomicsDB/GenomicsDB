@@ -184,8 +184,9 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
             GenomicsDBExportConfiguration.ExportConfiguration.newBuilder(this.exportConfiguration)
             .setArrayName(folderName);
         if(this.exportConfiguration.getQueryColumnRangesCount() == 0
+	        && this.exportConfiguration.getQueryContigIntervalsCount() == 0
                 && this.exportConfiguration.getQueryRowRangesCount() == 0
-	        && this.exportConfiguration.getQuerySampleNamesListsCount() == 0)
+	        && this.exportConfiguration.getQuerySampleNamesCount() == 0)
             fullExportConfigurationBuilder.setScanFull(true);
         GenomicsDBExportConfiguration.ExportConfiguration fullExportConfiguration = fullExportConfigurationBuilder.build();
         return createTempQueryJsonFile(fullExportConfiguration.getArrayName(), fullExportConfiguration).getAbsolutePath();
@@ -196,8 +197,9 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
                 GenomicsDBExportConfiguration.ExportConfiguration.newBuilder(this.exportConfiguration)
                         .setArrayName(randomExistingArrayName);
         if(this.exportConfiguration.getQueryColumnRangesCount() == 0
+	        && this.exportConfiguration.getQueryContigIntervalsCount() == 0
                 && this.exportConfiguration.getQueryRowRangesCount() == 0
-	        && this.exportConfiguration.getQuerySampleNamesListsCount() == 0) {
+	        && this.exportConfiguration.getQuerySampleNamesCount() == 0) {
             fullExportConfigurationBuilder.setScanFull(true);
         }
         GenomicsDBExportConfiguration.ExportConfiguration fullExportConfiguration = fullExportConfigurationBuilder.build();

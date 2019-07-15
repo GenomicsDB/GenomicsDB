@@ -57,7 +57,7 @@
 #endif
 
 typedef std::pair<int64_t, int64_t> ColumnRange;
-typedef std::pair<int64_t, int64_t> RowRange;
+typedef std::pair<int64_t, int64_t> TileDBRowRange;
 bool ColumnRangeCompare(const ColumnRange& x, const ColumnRange& y);
 
 class CircularBufferController {
