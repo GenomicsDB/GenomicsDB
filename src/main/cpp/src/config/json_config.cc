@@ -28,6 +28,7 @@
 #include <zlib.h>
 #include "json_config.h"
 #include "tiledb_utils.h"
+#include "genomicsdb_config_base.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X);
 
@@ -50,7 +51,7 @@ rapidjson::Document parse_json_file(const std::string& filename) {
   return json_doc;
 }
 
-void JSONConfigBase::extract_contig_interval_from_object(const rapidjson::Value& curr_json_object,
+void GenomicsDBConfigBase::extract_contig_interval_from_object(const rapidjson::Value& curr_json_object,
     const VidMapper* id_mapper, ColumnRange& result) {
   // This MUST be a dictionary of the form "contig" : position or "contig" : [start, end]
   VERIFY_OR_THROW(curr_json_object.IsObject());
@@ -73,7 +74,7 @@ void JSONConfigBase::extract_contig_interval_from_object(const rapidjson::Value&
   ContigInfo contig_info;
   VERIFY_OR_THROW(id_mapper != 0 && id_mapper->is_initialized());
   if (!id_mapper->get_contig_info(contig_name, contig_info))
-    throw VidMapperException("JSONConfigBase::read_from_file: Invalid contig name : " + contig_name);
+    throw VidMapperException("GenomicsDBConfigBase::read_from_file: Invalid contig name : " + contig_name);
   const rapidjson::Value& contig_position = *contig_position_ptr;
   if (contig_position.IsArray()) {
     VERIFY_OR_THROW(contig_position.Size() == 2);
@@ -89,14 +90,14 @@ void JSONConfigBase::extract_contig_interval_from_object(const rapidjson::Value&
   }
 }
 
-ColumnRange JSONConfigBase::parse_contig_interval_object(const rapidjson::Value& interval_object, const VidMapper* id_mapper)
+ColumnRange GenomicsDBConfigBase::parse_contig_interval_object(const rapidjson::Value& interval_object, const VidMapper* id_mapper)
 {
   VERIFY_OR_THROW(interval_object.IsObject());
   VERIFY_OR_THROW(interval_object.HasMember("contig"));
   ContigInfo contig_info;
   auto contig_name = interval_object["contig"].GetString();
   if (!id_mapper->get_contig_info(contig_name, contig_info))
-    throw VidMapperException(std::string("JSONConfigBase::read_from_file: Invalid contig name : ")
+    throw VidMapperException(std::string("GenomicsDBConfigBase::read_from_file: Invalid contig name : ")
 	+ contig_name);
   if(interval_object.HasMember("end") && !interval_object.HasMember("begin"))
     throw GenomicsDBConfigException("Contig interval cannot have end without defining begin");
@@ -109,7 +110,7 @@ ColumnRange JSONConfigBase::parse_contig_interval_object(const rapidjson::Value&
 }
 
 //JSON produced by Protobuf - { "low":<>, "high":<> }
-bool JSONConfigBase::extract_interval_from_PB_struct_or_return_false(const rapidjson::Value& curr_json_object,
+bool GenomicsDBConfigBase::extract_interval_from_PB_struct_or_return_false(const rapidjson::Value& curr_json_object,
     const VidMapper* id_mapper,
     ColumnRange& result) {
   VERIFY_OR_THROW(id_mapper != 0 && id_mapper->is_initialized());
@@ -163,7 +164,7 @@ bool JSONConfigBase::extract_interval_from_PB_struct_or_return_false(const rapid
               ContigInfo contig_info;
               auto contig_name = interval_object["contig_position"]["contig"].GetString();
               if (!id_mapper->get_contig_info(contig_name, contig_info))
-                throw VidMapperException(std::string("JSONConfigBase::read_from_file: Invalid contig name : ")
+                throw VidMapperException(std::string("GenomicsDBConfigBase::read_from_file: Invalid contig name : ")
                                          + contig_name);
               auto contig_position_int = interval_object["contig_position"]["position"].GetInt64();
               result = verify_contig_position_and_get_tiledb_column_interval(contig_info,
@@ -178,20 +179,26 @@ bool JSONConfigBase::extract_interval_from_PB_struct_or_return_false(const rapid
   return false;
 }
 
-void JSONConfigBase::read_from_file(const std::string& filename, const int rank) {
+rapidjson::Document GenomicsDBConfigBase::read_from_file(const std::string& filename, const int rank) {
   std::ifstream ifs(filename.c_str());
   VERIFY_OR_THROW(ifs.is_open());
   std::string str((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-  m_json.Parse(str.c_str());
-  if (m_json.HasParseError())
+  rapidjson::Document json_doc;
+  json_doc.Parse(str.c_str());
+  if (json_doc.HasParseError())
     throw GenomicsDBConfigException(std::string("Syntax error in JSON file ")+filename);
+  read_from_JSON(json_doc, rank);
+  return json_doc;
+}
+
+void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, const int rank) {
   //Null or un-initialized
-  read_and_initialize_vid_and_callset_mapping_if_available(rank);
+  read_and_initialize_vid_and_callset_mapping_if_available(json_doc, rank);
   VERIFY_OR_THROW(m_vid_mapper.is_initialized() && m_vid_mapper.is_callset_mapping_initialized());
   //Workspace
-  if (m_json.HasMember("workspace")) {
+  if (json_doc.HasMember("workspace")) {
     m_workspaces.clear();
-    const rapidjson::Value& workspace = m_json["workspace"];
+    const rapidjson::Value& workspace = json_doc["workspace"];
     //workspace could be an array, one workspace dir for every rank
     if (workspace.IsArray()) {
       for (rapidjson::SizeType i=0; i<workspace.Size(); ++i) {
@@ -206,10 +213,10 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
     }
   }
   //Array
-  VERIFY_OR_THROW(!(m_json.HasMember("array") && m_json.HasMember("array_name")));
-  if (m_json.HasMember("array") || m_json.HasMember("array_name")) {
+  VERIFY_OR_THROW(!(json_doc.HasMember("array") && json_doc.HasMember("array_name")));
+  if (json_doc.HasMember("array") || json_doc.HasMember("array_name")) {
     m_array_names.clear();
-    const rapidjson::Value& array_name = m_json.HasMember("array") ? m_json["array"] : m_json["array_name"];
+    const rapidjson::Value& array_name = json_doc.HasMember("array") ? json_doc["array"] : json_doc["array_name"];
     //array could be an array, one array dir for every rank
     if (array_name.IsArray()) {
       for (rapidjson::SizeType i=0; i<array_name.Size(); ++i) {
@@ -223,21 +230,21 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
       m_single_array_name = true;
     }
   }
-  //VERIFY_OR_THROW(m_json.HasMember("query_column_ranges") || m_json.HasMember("column_partitions")
-  //|| m_json.HasMember("scan_full"));
-  if (m_json.HasMember("scan_full") && m_json["scan_full"].IsBool() && m_json["scan_full"].GetBool()) {
+  //VERIFY_OR_THROW(json_doc.HasMember("query_column_ranges") || json_doc.HasMember("column_partitions")
+  //|| json_doc.HasMember("scan_full"));
+  if (json_doc.HasMember("scan_full") && json_doc["scan_full"].IsBool() && json_doc["scan_full"].GetBool()) {
     scan_whole_array();
   } else {
-    VERIFY_OR_THROW(!(m_json.HasMember("row_partitions") && m_json.HasMember("column_partitions"))
+    VERIFY_OR_THROW(!(json_doc.HasMember("row_partitions") && json_doc.HasMember("column_partitions"))
                     && "Cannot have both \"row_partitions\" and \"column_partitions\" simultaneously in the JSON file");
-    VERIFY_OR_THROW((m_json.HasMember("query_column_ranges") || m_json.HasMember("column_partitions")
-	             || m_json.HasMember("query_contig_intervals")
-                     || m_json.HasMember("query_row_ranges") || m_json.HasMember("row_partitions")
-		     || m_json.HasMember("query_sample_names_lists")) &&
+    VERIFY_OR_THROW((json_doc.HasMember("query_column_ranges") || json_doc.HasMember("column_partitions")
+	             || json_doc.HasMember("query_contig_intervals")
+                     || json_doc.HasMember("query_row_ranges") || json_doc.HasMember("row_partitions")
+		     || json_doc.HasMember("query_sample_names_lists")) &&
                     "Must have one of \"query_column_ranges\" or \"column_partitions\" or \"query_row_ranges\" or \"row_partitions\"");
-    uint8_t num_column_query_fields = m_json.HasMember("query_column_ranges") ? 1 : 0;
-    num_column_query_fields += (m_json.HasMember("column_partitions") ? 1 : 0);
-    num_column_query_fields += (m_json.HasMember("query_contig_intervals") ? 1 : 0);
+    uint8_t num_column_query_fields = json_doc.HasMember("query_column_ranges") ? 1 : 0;
+    num_column_query_fields += (json_doc.HasMember("column_partitions") ? 1 : 0);
+    num_column_query_fields += (json_doc.HasMember("query_contig_intervals") ? 1 : 0);
     if(num_column_query_fields > 1)
      throw GenomicsDBConfigException("Can use only one of \"query_column_ranges\", \"column_partitions\" or \"query_contig_intervals\" at a time");
     //Query columns
@@ -245,8 +252,8 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
     //This means that rank 0 will have 2 query intervals: [0-5] and [45-45] and rank 1 will have
     //2 intervals [76-76] and [87-87]
     //But you could have a single innermost list - with this option all ranks will query the same list
-    if (m_json.HasMember("query_column_ranges")) {
-      const rapidjson::Value& q1 = m_json["query_column_ranges"];
+    if (json_doc.HasMember("query_column_ranges")) {
+      const rapidjson::Value& q1 = json_doc["query_column_ranges"];
       VERIFY_OR_THROW(q1.IsArray());
       if (q1.Size() == 1)
         m_single_query_column_ranges_vector = true;
@@ -285,7 +292,7 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
             std::string contig_name = q3.GetString();
             assert(m_vid_mapper.is_initialized());
             if (!m_vid_mapper.get_contig_info(contig_name, contig_info))
-              throw VidMapperException("JSONConfigBase::read_from_file: Invalid contig name : " + contig_name);
+              throw VidMapperException("GenomicsDBConfigBase::read_from_file: Invalid contig name : " + contig_name);
             m_column_ranges[i][j].first = contig_info.m_tiledb_column_offset;
             m_column_ranges[i][j].second = contig_info.m_tiledb_column_offset + contig_info.m_length - 1;
           } else if (!extract_interval_from_PB_struct_or_return_false(q3, &m_vid_mapper, m_column_ranges[i][j])) { //check if PB based JSON
@@ -296,18 +303,18 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
             std::swap<int64_t>(m_column_ranges[i][j].first, m_column_ranges[i][j].second);
         }
       }
-    } else if(m_json.HasMember("query_contig_intervals")) {
+    } else if(json_doc.HasMember("query_contig_intervals")) {
       m_single_query_column_ranges_vector = true;
       m_column_ranges.resize(1u);
-      const auto& query_contig_intervals = m_json["query_contig_intervals"];
+      const auto& query_contig_intervals = json_doc["query_contig_intervals"];
       VERIFY_OR_THROW(query_contig_intervals.IsArray());
       m_column_ranges[0].resize(query_contig_intervals.Size());
       for(rapidjson::SizeType i=0;i<query_contig_intervals.Size();++i)
 	m_column_ranges[0][i] = parse_contig_interval_object(query_contig_intervals[i], &m_vid_mapper);
-    } else if (m_json.HasMember("column_partitions")) {
+    } else if (json_doc.HasMember("column_partitions")) {
       m_column_partitions_specified = true;
       //column_partitions_array itself is an array of the form [ { "begin" : <value> }, { "begin":<value>} ]
-      auto& column_partitions_array = m_json["column_partitions"];
+      auto& column_partitions_array = json_doc["column_partitions"];
       VERIFY_OR_THROW(column_partitions_array.IsArray());
       m_sorted_column_partitions.resize(column_partitions_array.Size());
       m_column_ranges.resize(column_partitions_array.Size());
@@ -375,20 +382,20 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
 	m_column_ranges[idx][0].second = m_sorted_column_partitions[i].second;
       }
     }
-    VERIFY_OR_THROW((!m_json.HasMember("query_row_ranges") || !m_json.HasMember("row_partitions")) &&
+    VERIFY_OR_THROW((!json_doc.HasMember("query_row_ranges") || !json_doc.HasMember("row_partitions")) &&
                     "Cannot use both \"query_row_ranges\" and \"row_partitions\" simultaneously");
-    VERIFY_OR_THROW((!m_json.HasMember("query_sample_names_lists") || !m_json.HasMember("row_partitions")) &&
+    VERIFY_OR_THROW((!json_doc.HasMember("query_sample_names_lists") || !json_doc.HasMember("row_partitions")) &&
                     "Cannot use both \"query_sample_names_lists\" and \"row_partitions\" simultaneously");
     //Query rows
     //Example:  [ [ [0,5], 45 ], [ 76, 87 ] ]
     //This means that rank 0 will query rows: [0-5] and [45-45] and rank 1 will have
     //2 intervals [76-76] and [87-87]
     //But you could have a single innermost list - with this option all ranks will query the same list
-    if (m_json.HasMember("query_row_ranges") || m_json.HasMember("query_sample_names")) {
-      if(m_json.HasMember("query_row_ranges") && m_json.HasMember("query_sample_names"))
+    if (json_doc.HasMember("query_row_ranges") || json_doc.HasMember("query_sample_names")) {
+      if(json_doc.HasMember("query_row_ranges") && json_doc.HasMember("query_sample_names"))
 	throw GenomicsDBConfigException("Cannot have query_row_ranges and query_sample_names together");
-      if(m_json.HasMember("query_sample_names")) {
-	const rapidjson::Value& q1 = m_json["query_sample_names"];
+      if(json_doc.HasMember("query_sample_names")) {
+	const rapidjson::Value& q1 = json_doc["query_sample_names"];
 	VERIFY_OR_THROW(q1.IsArray());
 	m_single_query_row_ranges_vector = true;
 	m_row_ranges.resize(1);
@@ -404,8 +411,8 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
 	  m_row_ranges[0][i].second = row_idx;
 	}
       }
-     if(m_json.HasMember("query_row_ranges")) {
-	const rapidjson::Value& q1 = m_json["query_row_ranges"];
+     if(json_doc.HasMember("query_row_ranges")) {
+	const rapidjson::Value& q1 = json_doc["query_row_ranges"];
 	if (q1.Size() == 1)
 	  m_single_query_row_ranges_vector = true;
 	m_row_ranges.resize(q1.Size());
@@ -445,10 +452,10 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
 	  }
 	}
       }
-    } else if (m_json.HasMember("row_partitions")) {
+    } else if (json_doc.HasMember("row_partitions")) {
       m_row_partitions_specified = true;
       //row_partitions value itself is an array [ { "begin" : <value> } ]
-      auto& row_partitions_array = m_json["row_partitions"];
+      auto& row_partitions_array = json_doc["row_partitions"];
       VERIFY_OR_THROW(row_partitions_array.IsArray());
       m_sorted_row_partitions.resize(row_partitions_array.Size());
       m_row_ranges.resize(row_partitions_array.Size());
@@ -500,11 +507,11 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
       }
     }
   }
-  if (m_json.HasMember("query_attributes") && m_json.HasMember("attributes"))
+  if (json_doc.HasMember("query_attributes") && json_doc.HasMember("attributes"))
     throw GenomicsDBConfigException("Query configuration cannot have both \"query_attributes\" and \"attributes\"");
-  if (m_json.HasMember("query_attributes") || m_json.HasMember("attributes")) {
-    const rapidjson::Value& q1 = m_json.HasMember("query_attributes") ?
-                                 m_json["query_attributes"] : m_json["attributes"];
+  if (json_doc.HasMember("query_attributes") || json_doc.HasMember("attributes")) {
+    const rapidjson::Value& q1 = json_doc.HasMember("query_attributes") ?
+                                 json_doc["query_attributes"] : json_doc["attributes"];
     VERIFY_OR_THROW(q1.IsArray());
     m_attributes.resize(q1.Size());
     for (rapidjson::SizeType i=0; i<q1.Size(); ++i) {
@@ -513,17 +520,17 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
       m_attributes[i] = std::move(std::string(q2.GetString()));
     }
   }
-  if (m_json.HasMember("query_filter")) {
-    VERIFY_OR_THROW(m_json["query_filter"].IsString());
-    m_query_filter = m_json["query_filter"].GetString();
+  if (json_doc.HasMember("query_filter")) {
+    VERIFY_OR_THROW(json_doc["query_filter"].IsString());
+    m_query_filter = json_doc["query_filter"].GetString();
   }
-  if (m_json.HasMember("segment_size")) {
-    VERIFY_OR_THROW(m_json["segment_size"].IsInt64());
-    m_segment_size = m_json["segment_size"].GetInt64();
+  if (json_doc.HasMember("segment_size")) {
+    VERIFY_OR_THROW(json_doc["segment_size"].IsInt64());
+    m_segment_size = json_doc["segment_size"].GetInt64();
   }
   //VCF header filename
-  if (m_json.HasMember("vcf_header_filename")) {
-    const rapidjson::Value& v = m_json["vcf_header_filename"];
+  if (json_doc.HasMember("vcf_header_filename")) {
+    const rapidjson::Value& v = json_doc["vcf_header_filename"];
     //vcf_header_filename could be an array, one vcf_header_filename location for every rank
     if (v.IsArray()) {
       VERIFY_OR_THROW(rank < static_cast<int>(v.Size()));
@@ -535,8 +542,8 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
     }
   }
   //VCF output filename
-  if (m_json.HasMember("vcf_output_filename")) {
-    const rapidjson::Value& v = m_json["vcf_output_filename"];
+  if (json_doc.HasMember("vcf_output_filename")) {
+    const rapidjson::Value& v = json_doc["vcf_output_filename"];
     //vcf_output_filename could be an array, one vcf_output_filename location for every rank
     if (v.IsArray()) {
       VERIFY_OR_THROW(rank < static_cast<int>(v.Size()));
@@ -548,12 +555,12 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
     }
   } else
     m_vcf_output_filename = "-";        //stdout
-  if (m_json.HasMember("vcf_output_format"))
-    set_vcf_output_format(m_json["vcf_output_format"].GetString());
+  if (json_doc.HasMember("vcf_output_format"))
+    set_vcf_output_format(json_doc["vcf_output_format"].GetString());
   //VCF output could also be specified in column partitions
-  if (m_json.HasMember("column_partitions")) {
+  if (json_doc.HasMember("column_partitions")) {
     //column_partitions_array is an array of the form [ { "begin" : <value> }, {"begin":<value>} ]
-    auto& column_partitions_array = m_json["column_partitions"];
+    auto& column_partitions_array = json_doc["column_partitions"];
     VERIFY_OR_THROW(column_partitions_array.IsArray());
     if (rank < static_cast<int>(column_partitions_array.Size())) {
       // {"begin": x}
@@ -567,8 +574,8 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
     }
   }
   //Reference genome
-  if (m_json.HasMember("reference_genome")) {
-    const rapidjson::Value& v = m_json["reference_genome"];
+  if (json_doc.HasMember("reference_genome")) {
+    const rapidjson::Value& v = json_doc["reference_genome"];
     //reference_genome could be an array, one reference_genome location for every rank
     if (v.IsArray()) {
       VERIFY_OR_THROW(rank < static_cast<int>(v.Size()));
@@ -580,43 +587,44 @@ void JSONConfigBase::read_from_file(const std::string& filename, const int rank)
     }
   }
   //Limit on max #alt alleles so that PL fields get re-computed
-  if (m_json.HasMember("max_diploid_alt_alleles_that_can_be_genotyped"))
-    m_max_diploid_alt_alleles_that_can_be_genotyped = m_json["max_diploid_alt_alleles_that_can_be_genotyped"].GetInt();
+  if (json_doc.HasMember("max_diploid_alt_alleles_that_can_be_genotyped"))
+    m_max_diploid_alt_alleles_that_can_be_genotyped = json_doc["max_diploid_alt_alleles_that_can_be_genotyped"].GetInt();
   else
     m_max_diploid_alt_alleles_that_can_be_genotyped = MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED;
   //Don't produce the full VCF, but determine sites with high allele count
-  if (m_json.HasMember("determine_sites_with_max_alleles"))
-    m_determine_sites_with_max_alleles = m_json["determine_sites_with_max_alleles"].GetInt();
+  if (json_doc.HasMember("determine_sites_with_max_alleles"))
+    m_determine_sites_with_max_alleles = json_doc["determine_sites_with_max_alleles"].GetInt();
   else
     m_determine_sites_with_max_alleles = 0;
   //Buffer size for combined vcf records
-  if (m_json.HasMember("combined_vcf_records_buffer_size_limit"))
-    m_combined_vcf_records_buffer_size_limit = m_json["combined_vcf_records_buffer_size_limit"].GetInt64();
+  if (json_doc.HasMember("combined_vcf_records_buffer_size_limit"))
+    m_combined_vcf_records_buffer_size_limit = json_doc["combined_vcf_records_buffer_size_limit"].GetInt64();
   else
     m_combined_vcf_records_buffer_size_limit = DEFAULT_COMBINED_VCF_RECORDS_BUFFER_SIZE;
   //Cannot be 0
   m_combined_vcf_records_buffer_size_limit = std::max<size_t>(1ull, m_combined_vcf_records_buffer_size_limit);
   //GATK CombineGVCF does not produce GT field by default - option to produce GT
-  m_produce_GT_field = (m_json.HasMember("produce_GT_field") && m_json["produce_GT_field"].GetBool());
+  m_produce_GT_field = (json_doc.HasMember("produce_GT_field") && json_doc["produce_GT_field"].GetBool());
   //GATK CombineGVCF does not produce FILTER field by default - option to produce FILTER
-  m_produce_FILTER_field = (m_json.HasMember("produce_FILTER_field") && m_json["produce_FILTER_field"].GetBool());
+  m_produce_FILTER_field = (json_doc.HasMember("produce_FILTER_field") && json_doc["produce_FILTER_field"].GetBool());
   //index output VCF file
-  m_index_output_VCF = (m_json.HasMember("index_output_VCF") && m_json["index_output_VCF"].GetBool());
+  m_index_output_VCF = (json_doc.HasMember("index_output_VCF") && json_doc["index_output_VCF"].GetBool());
   //sites-only query - doesn't produce any of the FORMAT fields
-  m_sites_only_query = (m_json.HasMember("sites_only_query") && m_json["sites_only_query"].GetBool());
+  m_sites_only_query = (json_doc.HasMember("sites_only_query") && json_doc["sites_only_query"].GetBool());
   //when producing GT, use the min PL value GT for spanning deletions
-  m_produce_GT_with_min_PL_value_for_spanning_deletions = (m_json.HasMember("produce_GT_with_min_PL_value_for_spanning_deletions")
-      && m_json["produce_GT_with_min_PL_value_for_spanning_deletions"].GetBool());
+  m_produce_GT_with_min_PL_value_for_spanning_deletions = (json_doc.HasMember("produce_GT_with_min_PL_value_for_spanning_deletions")
+      && json_doc["produce_GT_with_min_PL_value_for_spanning_deletions"].GetBool());
   //Disable file locking in TileDB
   m_disable_file_locking_in_tiledb = false;
-  if (m_json.HasMember("disable_file_locking_in_tiledb") && m_json["disable_file_locking_in_tiledb"].GetBool())
+  if (json_doc.HasMember("disable_file_locking_in_tiledb") && json_doc["disable_file_locking_in_tiledb"].GetBool())
     m_disable_file_locking_in_tiledb = true;
 }
 
-void JSONConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(const int rank) {
+void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(
+    const rapidjson::Document& json_doc, const int rank) {
   //Callset mapping file and vid file
-  if (m_json.HasMember("vid_mapping_file")) {
-    const rapidjson::Value& v = m_json["vid_mapping_file"];
+  if (json_doc.HasMember("vid_mapping_file")) {
+    const rapidjson::Value& v = json_doc["vid_mapping_file"];
     //Could be array - one for each process
     if (v.IsArray()) {
       VERIFY_OR_THROW(rank < static_cast<int>(v.Size()));
@@ -628,8 +636,8 @@ void JSONConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(co
     }
   }
   //Over-ride callset mapping file in top-level config if necessary
-  if (m_json.HasMember("callset_mapping_file")) {
-    const rapidjson::Value& v = m_json["callset_mapping_file"];
+  if (json_doc.HasMember("callset_mapping_file")) {
+    const rapidjson::Value& v = json_doc["callset_mapping_file"];
     //Could be array - one for each process
     if (v.IsArray()) {
       VERIFY_OR_THROW(rank < static_cast<int>(v.Size()));
@@ -641,22 +649,17 @@ void JSONConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(co
     }
   }
   if (m_vid_mapping_file.empty()) {
-    if (m_json.HasMember("vid_mapping")) {
-      VERIFY_OR_THROW(m_json["vid_mapping"].IsObject());
-      m_vid_mapper = std::move(FileBasedVidMapper(m_json["vid_mapping"]));
+    if (json_doc.HasMember("vid_mapping")) {
+      VERIFY_OR_THROW(json_doc["vid_mapping"].IsObject());
+      m_vid_mapper = std::move(FileBasedVidMapper(json_doc["vid_mapping"]));
     }
   } else
     m_vid_mapper = std::move(FileBasedVidMapper(m_vid_mapping_file));
-  m_vid_mapper.read_callsets_info(m_json, rank);
+  m_vid_mapper.read_callsets_info(json_doc, rank);
 }
 
 void GenomicsDBImportConfig::read_from_file(const std::string& filename, const int rank) {
-  //Why do this? Avoid diamond inheritance problem
-  JSONConfigBase tmp_config;
-  tmp_config.read_from_file(filename, rank);
-  //Copy over data from tmp_config
-  *(static_cast<GenomicsDBConfigBase*>(this)) = std::move(static_cast<GenomicsDBConfigBase&>(tmp_config));
-  auto& json_doc = tmp_config.get_rapidjson_doc();
+  rapidjson::Document json_doc = std::move(GenomicsDBConfigBase::read_from_file(filename, rank));
   //Check for row based partitioning - default column based
   m_row_based_partitioning = json_doc.HasMember("row_based_partitioning") && json_doc["row_based_partitioning"].IsBool()
                              && json_doc["row_based_partitioning"].GetBool();

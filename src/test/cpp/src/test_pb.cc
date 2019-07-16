@@ -27,11 +27,12 @@
 
 #include "tiledb_utils.h"
 #include "json_config.h"
-#include "pb_config.h"
+#include "variant_query_config.h"
+#include "genomicsdb_export_config.pb.h"
 
 extern std::string g_pb_query_json_file;
 
-void check_equal_query_config(const JSONConfigBase& json_config, const PBConfigBase& pb_config) {
+void check_equal_query_config(const GenomicsDBConfigBase& json_config, const GenomicsDBConfigBase& pb_config) {
   CHECK(pb_config.get_workspace(0) == json_config.get_workspace(0));
   CHECK(pb_config.get_array_name(0) == json_config.get_array_name(0));
   CHECK(pb_config.get_query_column_ranges(0) == json_config.get_query_column_ranges(0));
@@ -60,7 +61,7 @@ void check_equal_query_config(const JSONConfigBase& json_config, const PBConfigB
 TEST_CASE("pb_query_config_test", "[protobuf_config]")
 {
   if(!g_pb_query_json_file.empty()) {
-    JSONConfigBase json_config;
+    GenomicsDBConfigBase json_config;
     json_config.read_from_file(g_pb_query_json_file, 0);
     char *json_buffer = 0;
     size_t json_buffer_length;
@@ -91,7 +92,7 @@ TEST_CASE("pb_query_config_test", "[protobuf_config]")
     free(json_buffer);
     json_buffer = 0;
     CHECK(export_config.IsInitialized());
-    PBConfigBase pb_config;
+    GenomicsDBConfigBase pb_config;
     pb_config.read_from_PB(&export_config, 0);
     check_equal_query_config(json_config, pb_config);
     std::string binary_pb_string;
@@ -102,7 +103,7 @@ TEST_CASE("pb_query_config_test", "[protobuf_config]")
     auto deserialize_success = deserialize_export_config.ParseFromString(binary_pb_string);
     CHECK(deserialize_success);
     CHECK(deserialize_export_config.IsInitialized());
-    PBConfigBase pb_config2;
+    VariantQueryConfig pb_config2;
     pb_config2.read_from_PB(&deserialize_export_config, 0);
     check_equal_query_config(json_config, pb_config2);
   }

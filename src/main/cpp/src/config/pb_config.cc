@@ -26,13 +26,14 @@
 #endif
 
 #include <zlib.h>
-#include "pb_config.h"
 #include "tiledb_utils.h"
 #include "json_config.h"
+#include "genomicsdb_config_base.h"
+#include "genomicsdb_export_config.pb.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X);
 
-void PBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration* export_config, const int rank) {
+void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration* export_config, const int rank) {
   VERIFY_OR_THROW(export_config && export_config->IsInitialized());
   read_and_initialize_vid_and_callset_mapping_if_available(export_config);
   VERIFY_OR_THROW(m_vid_mapper.is_initialized() && m_vid_mapper.is_callset_mapping_initialized());
@@ -203,7 +204,7 @@ void PBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration* export
     ? export_config->disable_file_locking_in_tiledb() : false;
 }
 
-void PBConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(
+void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(
     const genomicsdb_pb::ExportConfiguration* export_config) {
   //Callset mapping and vid mapping
   if(export_config->has_vid_mapping_file()) {

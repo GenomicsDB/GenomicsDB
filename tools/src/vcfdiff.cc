@@ -788,7 +788,7 @@ void set_regions(VCFDiffFile& gold, VCFDiffFile& test, const std::string& region
 }
 
 void construct_regions_for_partitions(const std::string& loader_json_filename, VidMapper*& vid_mapper,
-                                      JSONConfigBase& json_config_base, const int rank,
+                                      GenomicsDBConfigBase& json_config_base, const int rank,
                                       VCFDiffFile& gold, VCFDiffFile& test, std::string& regions) {
   regions = "";
   //Parse JSON
@@ -933,7 +933,7 @@ int main(int argc, char** argv) {
   test.setup_luts(gold, use_loader_json_file && (test_to_gold_callset_map_file.length() > 0u));
   //Loader input json - compare partitions created by vcf2tiledb
   VidMapper* vid_mapper = 0;
-  JSONConfigBase json_config_base;
+  GenomicsDBConfigBase json_config_base;
   if (use_loader_json_file) {
     construct_regions_for_partitions(loader_json_filename, vid_mapper, json_config_base, my_world_mpi_rank,
                                      gold, test, regions);

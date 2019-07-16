@@ -25,6 +25,10 @@
 
 #include "vid_mapper.h"
 
+namespace genomicsdb_pb {
+  class ExportConfiguration;
+}
+
 //Exceptions thrown
 class GenomicsDBConfigException : public std::exception {
  public:
@@ -43,29 +47,7 @@ class GenomicsDBImportConfig;
 
 class GenomicsDBConfigBase {
  public:
-  GenomicsDBConfigBase() {
-    m_single_array_name = false;
-    m_single_workspace_path = false;
-    m_single_query_column_ranges_vector = false;
-    m_column_partitions_specified = false;
-    m_single_query_row_ranges_vector = false;
-    m_row_partitions_specified = false;
-    m_scan_whole_array = false;
-    m_produce_GT_field = false;
-    m_produce_FILTER_field = false;
-    m_index_output_VCF = false;
-    m_sites_only_query = false;
-    m_produce_GT_with_min_PL_value_for_spanning_deletions = false;
-    //Lower and upper bounds of callset row idx to import in this invocation
-    m_lb_callset_row_idx = 0;
-    m_ub_callset_row_idx = INT64_MAX-1;
-    m_segment_size = 10u*1024u*1024u; //10MiB default
-    m_query_filter = "";
-    m_disable_file_locking_in_tiledb = false;
-    m_determine_sites_with_max_alleles = false;
-    m_max_diploid_alt_alleles_that_can_be_genotyped = MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED;
-    m_combined_vcf_records_buffer_size_limit = 10*1024u;
-  }
+  GenomicsDBConfigBase();
   const std::string& get_workspace(const int rank) const;
   void set_workspace(const std::string& workspace);
   const std::string& get_array_name(const int rank) const;
@@ -164,6 +146,19 @@ class GenomicsDBConfigBase {
   }
   void scan_whole_array();
   const std::vector<std::string>& get_attributes() const { return m_attributes; }
+  //JSON parsing functions
+  static void extract_contig_interval_from_object(const rapidjson::Value& curr_json_object,
+      const VidMapper* id_mapper, ColumnRange& result);
+  static bool extract_interval_from_PB_struct_or_return_false(const rapidjson::Value& curr_json_object,
+      const VidMapper* id_mapper,
+      ColumnRange& result);
+  rapidjson::Document read_from_file(const std::string& filename, const int rank=0);
+  void read_from_JSON(const rapidjson::Document& json_doc, const int rank=0);
+  void read_and_initialize_vid_and_callset_mapping_if_available(const rapidjson::Document& json_doc, const int rank);
+  static ColumnRange parse_contig_interval_object(const rapidjson::Value& interval_object, const VidMapper* id_mapper);
+  //Protobuf parsing functions
+  void read_from_PB(const genomicsdb_pb::ExportConfiguration* x, const int rank=0);
+  void read_and_initialize_vid_and_callset_mapping_if_available(const genomicsdb_pb::ExportConfiguration*);
  protected:
   bool m_single_workspace_path;
   bool m_single_array_name;
