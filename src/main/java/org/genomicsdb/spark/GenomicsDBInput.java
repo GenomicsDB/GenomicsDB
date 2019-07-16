@@ -22,6 +22,8 @@
 
 package org.genomicsdb.spark;
 
+import org.genomicsdb.model.*;
+
 import org.apache.spark.sql.types.StructType;
 
 import org.json.simple.JSONObject;
@@ -40,6 +42,8 @@ import java.lang.RuntimeException;
 import java.lang.InstantiationException;
 import java.lang.IllegalAccessException;
 import java.lang.ClassNotFoundException;
+
+import com.googlecode.protobuf.format.JsonFormat;
 
 /**
  * The input class represents all the data being queried from GenomicsDB.
@@ -200,13 +204,28 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     */
   public List<T> divideInput() {
 
-    try {
-      genomicsDBConfiguration.populateListFromJson(GenomicsDBConfiguration.LOADERJSON);
-      genomicsDBConfiguration.populateListFromJson(GenomicsDBConfiguration.QUERYJSON);
+    if (genomicsDBConfiguration.get(GenomicsDBConfiguration.LOADERPB) != null) {
+      genomicsDBConfiguration.populateListFromPB(GenomicsDBConfiguration.LOADERPB);
+    } else {
+      try {
+        genomicsDBConfiguration.populateListFromJson(GenomicsDBConfiguration.LOADERJSON);
+      }
+      catch (IOException | ParseException e) {
+        e.printStackTrace();
+        return null;
+      }
     }
-    catch (IOException | ParseException e) {
-      e.printStackTrace();
-      return null;
+
+    if (genomicsDBConfiguration.get(GenomicsDBConfiguration.QUERYPB) != null) {
+      genomicsDBConfiguration.populateListFromPB(GenomicsDBConfiguration.QUERYPB);
+    } else {
+      try {
+        genomicsDBConfiguration.populateListFromJson(GenomicsDBConfiguration.QUERYJSON);
+      }
+      catch (IOException | ParseException e) {
+        e.printStackTrace();
+        return null;
+      }
     }
 
     ArrayList<GenomicsDBPartitionInfo> partitionsList = genomicsDBConfiguration.getPartitions();
@@ -279,41 +298,82 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
   }
 
   /**
-   * Creates tmp query file based on partition, query and existing query file
+   * Creates export configuration protobuf object 
+   * based on partition, query and existing query file or protobuf
    *
-   * @param queryJson Existing query json file
+   * @param queryFileOrPB Existing query json file or protobuf string
    * @param partition used to populate array
    * @param query used to bound query column ranges
+   * @param isPB boolean parameter that denotes if queryFileOrPB is protobug string
    * @return  Returns path to temporary query file
    * @throws FileNotFoundException  Thrown if queryJson file isn't found
    * @throws IOException  Thrown if other IO exception while handling file operations
    * @throws ParseException  Thrown if JSON parsing fails
    */
-  public static String createTmpQueryFile(String queryJson, GenomicsDBPartitionInfo partition, GenomicsDBQueryInfo query) 
-		  throws FileNotFoundException, IOException, ParseException {
-    JSONObject amended = new JSONObject();
-    amended.put("array",partition.getArrayName());
-    if (query.getBeginPosition() == query.getEndPosition()) {
-      JSONArray l1 = new JSONArray();
-      ArrayList<Long> a = new ArrayList<>(1);
-      a.add(query.getBeginPosition());
-      l1.add(a);
-      amended.put("query_column_ranges",l1);
+  public static GenomicsDBExportConfiguration.ExportConfiguration 
+        createTargetExportConfigurationPB(String queryFileOrPB, 
+        GenomicsDBPartitionInfo partition, GenomicsDBQueryInfo query, 
+        boolean isPB) 
+        throws FileNotFoundException, IOException, ParseException {
+    GenomicsDBExportConfiguration.ExportConfiguration.Builder 
+        exportConfigurationBuilder;
+
+    if (isPB) {
+      exportConfigurationBuilder = 
+          GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
+      JsonFormat.merge(queryFileOrPB, exportConfigurationBuilder);
     }
     else {
-      JSONArray l1 = new JSONArray();
-      ArrayList<ArrayList<Long>> a = new ArrayList<>(1);
-      a.add(new ArrayList<Long>(2));
-      a.get(0).add(query.getBeginPosition());
-      a.get(0).add(query.getEndPosition());
-      l1.add(a);
-      amended.put("query_column_ranges", l1);
+      exportConfigurationBuilder = 
+          getExportConfigurationFromJsonFile(queryFileOrPB);
+    }
+    // set the array name per the targeted partition
+    exportConfigurationBuilder.setArrayName(partition.getArrayName());
+    exportConfigurationBuilder.clearQueryColumnRanges();
+    // set query range per the part of the query this will handle
+    GenomicsDBExportConfiguration.GenomicsDBColumnOrIntervalList.Builder 
+        queryRangeBuilder = 
+        GenomicsDBExportConfiguration.GenomicsDBColumnOrIntervalList.newBuilder();
+    if (query.getBeginPosition() == query.getEndPosition()) {
+      Coordinates.GenomicsDBColumnOrInterval.Builder columnBuilder = 
+              Coordinates.GenomicsDBColumnOrInterval.newBuilder();
+      Coordinates.GenomicsDBColumn.Builder gdbColumnBuilder = 
+              Coordinates.GenomicsDBColumn.newBuilder();
+
+      gdbColumnBuilder.setTiledbColumn(query.getBeginPosition());
+      queryRangeBuilder.addColumnOrIntervalList(
+          columnBuilder.setColumn(gdbColumnBuilder));
+    }
+    else {
+      Coordinates.GenomicsDBColumnOrInterval.Builder intervalBuilder = 
+              Coordinates.GenomicsDBColumnOrInterval.newBuilder();
+      Coordinates.GenomicsDBColumnInterval.Builder gdbColumnIntervalBuilder = 
+              Coordinates.GenomicsDBColumnInterval.newBuilder();
+      Coordinates.TileDBColumnInterval.Builder tdbColumnIntervalBuilder = 
+              Coordinates.TileDBColumnInterval.newBuilder();
+
+      tdbColumnIntervalBuilder.setBegin(query.getBeginPosition())
+              .setEnd(query.getEndPosition());
+      queryRangeBuilder.addColumnOrIntervalList(
+              intervalBuilder.setColumnInterval(
+              gdbColumnIntervalBuilder.setTiledbColumnInterval(
+              tdbColumnIntervalBuilder)));
     }
 
-    try {
+    return exportConfigurationBuilder
+            .addQueryColumnRanges(queryRangeBuilder).build();
+  }
 
+  public static GenomicsDBExportConfiguration.ExportConfiguration.Builder 
+        getExportConfigurationFromJsonFile(String queryFile) 
+        throws FileNotFoundException, IOException, ParseException {
+    GenomicsDBExportConfiguration.ExportConfiguration.Builder 
+        exportConfigurationBuilder = 
+        GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
+
+    try {
       JSONParser parser = new JSONParser();
-      FileReader queryJsonReader = new FileReader(queryJson);
+      FileReader queryJsonReader = new FileReader(queryFile);
       JSONObject obj = null;
       try {
         obj = (JSONObject)parser.parse(queryJsonReader);
@@ -323,9 +383,106 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
         throw e;
       }
   
-      obj.forEach((k, v) -> {
-        if (!(k.equals("query_column_ranges") || k.equals("array"))) {
-          amended.put(k, v);
+      obj.forEach((key, val) -> {
+        switch (key.toString()) {
+          case "workspace":
+            exportConfigurationBuilder.setWorkspace(val.toString()); break;
+          case "reference_genome":
+            exportConfigurationBuilder.setReferenceGenome(val.toString()); break;
+          case "produce_GT_field":
+            exportConfigurationBuilder.setProduceGTField(
+                val.toString().equals("true")); 
+            break;
+          case "produce_FILTER_field":
+            exportConfigurationBuilder.setProduceFILTERField(
+                val.toString().equals("true")); 
+            break;
+          case "query_filter":
+            exportConfigurationBuilder.setQueryFilter(val.toString()); break;
+          case "query_attributes":
+            for (Object element : (JSONArray)val) {
+              exportConfigurationBuilder.addAttributes(element.toString());
+            }
+            break;
+          case "query_row_ranges":
+            JSONArray list = (JSONArray)((JSONArray)val).get(0);
+            for (Object element : list) {
+              JSONArray value = (JSONArray)element;
+              GenomicsDBExportConfiguration.RowRangeList.Builder queryRowRangesBuilder = 
+                      GenomicsDBExportConfiguration.RowRangeList.newBuilder();
+              GenomicsDBExportConfiguration.RowRange.Builder rowRangeBuilder = 
+                      GenomicsDBExportConfiguration.RowRange.newBuilder();
+              rowRangeBuilder.setLow((long)value.get(0))
+                      .setHigh((long)value.get(1));
+    
+              exportConfigurationBuilder.addQueryRowRanges(queryRowRangesBuilder
+                      .addRangeList(rowRangeBuilder));
+            }
+            break;
+          case "array":
+          case "array_name":
+            exportConfigurationBuilder.setArrayName(val.toString()); break;
+          case "query_column_ranges":
+            JSONArray columnList = (JSONArray)((JSONArray)val).get(0);
+            GenomicsDBExportConfiguration.GenomicsDBColumnOrIntervalList.Builder 
+                queryRangeBuilder = 
+                GenomicsDBExportConfiguration.GenomicsDBColumnOrIntervalList.newBuilder();
+            for (Object element : columnList) {
+              long start = 0, end = 0;
+              if (element instanceof JSONArray) {
+                JSONArray v = (JSONArray)element;
+                assert v.size() == 2;
+                start = (long)v.get(0);
+                end = (long)v.get(1);
+              }
+              else if (element instanceof JSONObject) {
+                JSONObject v = (JSONObject)element;
+                assert v.size() == 1;
+                start = end = (long)v.get(0);
+              }
+              else {
+                start = end = (long)element;
+              }
+              if (start == end) {
+                Coordinates.GenomicsDBColumnOrInterval.Builder columnBuilder = 
+                        Coordinates.GenomicsDBColumnOrInterval.newBuilder();
+                Coordinates.GenomicsDBColumn.Builder gdbColumnBuilder = 
+                        Coordinates.GenomicsDBColumn.newBuilder();
+          
+                gdbColumnBuilder.setTiledbColumn(start);
+                queryRangeBuilder.addColumnOrIntervalList(
+                    columnBuilder.setColumn(gdbColumnBuilder));
+              }
+              else {
+                Coordinates.GenomicsDBColumnOrInterval.Builder intervalBuilder = 
+                        Coordinates.GenomicsDBColumnOrInterval.newBuilder();
+                Coordinates.GenomicsDBColumnInterval.Builder gdbColumnIntervalBuilder = 
+                        Coordinates.GenomicsDBColumnInterval.newBuilder();
+                Coordinates.TileDBColumnInterval.Builder tdbColumnIntervalBuilder = 
+                        Coordinates.TileDBColumnInterval.newBuilder();
+          
+                tdbColumnIntervalBuilder.setBegin(start)
+                        .setEnd(end);
+                queryRangeBuilder.addColumnOrIntervalList(
+                        intervalBuilder.setColumnInterval(
+                        gdbColumnIntervalBuilder.setTiledbColumnInterval(
+                        tdbColumnIntervalBuilder)));
+              }
+            }
+            exportConfigurationBuilder
+                    .addQueryColumnRanges(queryRangeBuilder);
+            break;
+
+          case "query_block_size":
+            JSONObject qbs = (JSONObject)val;
+            exportConfigurationBuilder.setQueryBlockSize((long)qbs.get(0));
+            break;
+          case "query_block_size_margin":
+            JSONObject qbsm = (JSONObject)val;
+            exportConfigurationBuilder.setQueryBlockSizeMargin((long)qbsm.get(0));
+            break;
+          default:
+            // we'll ignore all other fields
         }
       });
       queryJsonReader.close();
@@ -334,18 +491,6 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       e.printStackTrace();
       return null;
     }
-    File tmpQueryFile = File.createTempFile("queryJson", ".json");
-    tmpQueryFile.deleteOnExit();
-    FileWriter fptr = new FileWriter(tmpQueryFile);
-    try {
-        fptr.write(amended.toJSONString());
-    }
-    catch(IOException e) {
-        fptr.close();
-        throw new IOException(e);
-    }
-    fptr.close();
-    return tmpQueryFile.getAbsolutePath();
+    return exportConfigurationBuilder;
   }
-
 }

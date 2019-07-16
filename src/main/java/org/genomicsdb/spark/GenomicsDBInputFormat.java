@@ -23,6 +23,9 @@
 package org.genomicsdb.spark;
 
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
+import org.genomicsdb.model.Coordinates;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
+
 import htsjdk.tribble.Feature;
 import htsjdk.tribble.FeatureCodec;
 import htsjdk.variant.bcf2.BCF2Codec;
@@ -86,10 +89,18 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     GenomicsDBRecordReader<VCONTEXT, SOURCE> recordReader;
     GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)inputSplit;
 
+    boolean isPB;
     if (taskAttemptContext != null) {
       Configuration configuration = taskAttemptContext.getConfiguration();
       loaderJson = configuration.get(GenomicsDBConfiguration.LOADERJSON);
-      queryJson = configuration.get(GenomicsDBConfiguration.QUERYJSON);
+      if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
+        queryJson = configuration.get(GenomicsDBConfiguration.QUERYPB);
+        isPB = true;
+      }
+      else {
+        queryJson = configuration.get(GenomicsDBConfiguration.QUERYJSON);
+        isPB = false;
+      }
     } else {
       // If control comes here, means this method is called from
       // GenomicsDBRDD. Hence, the configuration object must be
@@ -97,31 +108,35 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
       // NullPointerException
       assert(configuration!=null);
       loaderJson = configuration.get(GenomicsDBConfiguration.LOADERJSON);
-      queryJson = configuration.get(GenomicsDBConfiguration.QUERYJSON);
+      if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
+        queryJson = configuration.get(GenomicsDBConfiguration.QUERYPB);
+        isPB = true;
+      }
+      else {
+        queryJson = configuration.get(GenomicsDBConfiguration.QUERYJSON);
+        isPB = false;
+      }
     }
 
     // Need to amend query file being passed in based on inputSplit
-    // so we'll create a temporary query file
-    // only do this IF we are using hdfs compliant data store i.e., 
-    // getPartitionInfo is not null
-    String amendedQuery = queryJson;
-    if (gSplit.getPartitionInfo() != null) {
-      try {
-        amendedQuery = GenomicsDBInput.createTmpQueryFile(queryJson, 
-                                                          gSplit.getPartitionInfo(),
-                                                          gSplit.getQueryInfo());
-      }
-      catch (ParseException e) {
-        e.printStackTrace();
-        return null;
-      }
+    // so we'll create an appropriate protobuf object
+    GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration;
+    try {
+      exportConfiguration = 
+              GenomicsDBInput.createTargetExportConfigurationPB(queryJson, 
+              gSplit.getPartitionInfo(),
+              gSplit.getQueryInfo(), isPB);
+    }
+    catch (ParseException e) {
+      e.printStackTrace();
+      return null;
     }
     //GenomicsDBExportConfiguration.ExportConfiguration.Builder exportConfigurationBuilder = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
     //JsonFormat.merge(queryJson, exportConfigurationBuilder);
     //GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration = exportConfigurationBuilder
             //.setWorkspace("").setReferenceGenome("").build();
 
-    featureReader = new GenomicsDBFeatureReader<>(amendedQuery,
+    featureReader = new GenomicsDBFeatureReader<>(exportConfiguration,
             (FeatureCodec<VCONTEXT, SOURCE>) new BCF2Codec(), Optional.of(loaderJson));
     recordReader = new GenomicsDBRecordReader<>(featureReader);
     return recordReader;

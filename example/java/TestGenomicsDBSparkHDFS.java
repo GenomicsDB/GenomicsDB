@@ -36,6 +36,8 @@ import org.apache.spark.api.java.JavaSparkContext;
 
 import org.genomicsdb.spark.GenomicsDBConfiguration;
 import org.genomicsdb.spark.GenomicsDBInputFormat;
+import org.genomicsdb.spark.GenomicsDBInput;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -44,9 +46,12 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
 
+import com.googlecode.protobuf.format.JsonFormat;
+
 public final class TestGenomicsDBSparkHDFS {
 
-  public static void main(final String[] args) throws IOException {
+  public static void main(final String[] args) throws IOException,
+        org.json.simple.parser.ParseException {
     LongOpt[] longopts = new LongOpt[6];
     longopts[0] = new LongOpt("loader", LongOpt.REQUIRED_ARGUMENT, null, 'l');
     longopts[1] = new LongOpt("query", LongOpt.REQUIRED_ARGUMENT, null, 'q');
@@ -54,15 +59,18 @@ public final class TestGenomicsDBSparkHDFS {
     longopts[3] = new LongOpt("template_vcf_header", LongOpt.REQUIRED_ARGUMENT, null, 't');
     longopts[4] = new LongOpt("spark_master", LongOpt.REQUIRED_ARGUMENT, null, 's');
     longopts[5] = new LongOpt("jar_dir", LongOpt.REQUIRED_ARGUMENT, null, 'j');
+    longopts[6] = new LongOpt("use-query-protobuf", LongOpt.NO_ARGUMENT, null, 'p');
 
-    if (args.length != 12) {
+    if (args.length < 12) {
       System.err.println("Usage:\n\t--loader <loader.json> --query <query.json> --hostfile <hostfile>"
-            +" --template_vcf_header <templateVCFHeader> --spark_master <sparkMaster> --jar_dir <jar_dir>");
+            +" --template_vcf_header <templateVCFHeader> --spark_master <sparkMaster> --jar_dir <jar_dir>"
+            +" --use-query-protobuf");
       System.exit(-1);
     }
     String loaderFile, queryFile, hostfile, templateVCFHeader, sparkMaster, jarDir;
+    boolean useQueryProtobuf = false;
     loaderFile = queryFile = hostfile = templateVCFHeader = sparkMaster = jarDir = "";
-    Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:t:s:j:", longopts);
+    Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:t:s:j:p", longopts);
     int c = -1;
     String optarg;
 
@@ -86,6 +94,9 @@ public final class TestGenomicsDBSparkHDFS {
         case 'j':
           jarDir = g.getOptarg();
           break;
+        case 'p':
+          useQueryProtobuf = true;
+          break;
         default:
           System.err.println("Unknown command line option "+g.getOptarg());
           System.exit(-1);
@@ -96,19 +107,34 @@ public final class TestGenomicsDBSparkHDFS {
     Path dstdir = Paths.get("").toAbsolutePath();
     Path qSrc = Paths.get(queryFile);
     Path lSrc = Paths.get(loaderFile);
-    File qDstFile = File.createTempFile("query", ".json", new File(dstdir.toString()));
-    qDstFile.deleteOnExit();
+    File qDstFile = null;
+    if(!useQueryProtobuf) {
+      qDstFile = File.createTempFile("query", ".json", new File(dstdir.toString()));
+      qDstFile.deleteOnExit();
+    }
     File lDstFile = File.createTempFile("loader", ".json", new File(dstdir.toString()));
     lDstFile.deleteOnExit();
-    Files.copy(qSrc, qDstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    if(!useQueryProtobuf) {
+      Files.copy(qSrc, qDstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+    }
     Files.copy(lSrc, lDstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
 
     JavaSparkContext sc = new JavaSparkContext(conf);
-    sc.addFile(qDstFile.getName());
+    if(!useQueryProtobuf) {
+      sc.addFile(qDstFile.getName());
+    }
     sc.addFile(lDstFile.getName());
     Configuration hadoopConf = sc.hadoopConfiguration();
     hadoopConf.set(GenomicsDBConfiguration.LOADERJSON, lDstFile.getName());
-    hadoopConf.set(GenomicsDBConfiguration.QUERYJSON, qDstFile.getName());
+    if(!useQueryProtobuf) {
+      hadoopConf.set(GenomicsDBConfiguration.QUERYJSON, qDstFile.getName());
+    }
+    else {
+      GenomicsDBExportConfiguration.ExportConfiguration.Builder builder =
+          GenomicsDBInput.getExportConfigurationFromJsonFile(queryFile);
+      String pbString = JsonFormat.printToString(builder.build());
+      hadoopConf.set(GenomicsDBConfiguration.QUERYPB, pbString);
+    }
     hadoopConf.set(GenomicsDBConfiguration.MPIHOSTFILE, hostfile);
 
     JavaPairRDD<String, VariantContext> variants;

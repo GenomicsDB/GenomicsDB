@@ -28,6 +28,8 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
+import org.genomicsdb.model.*;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -38,6 +40,8 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.Iterator;
 import java.lang.RuntimeException;
+
+import com.googlecode.protobuf.format.JsonFormat;
 
 /**
  * The configuration class enables users to use Java/Scala
@@ -53,6 +57,8 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   public static final String QUERYJSON = "genomicsdb.input.queryjsonfile";
   public static final String MPIHOSTFILE = "genomicsdb.input.mpi.hostfile";
   public static final String PARTITION_STRATEGY = "genomicsdb.partition.strategy";
+  public static final String LOADERPB = "genomicsdb.input.loaderprotobuf";
+  public static final String QUERYPB = "genomicsdb.input.queryprotobuf";
 
   private Boolean produceCombinedVCF = false;
   private Boolean produceTileDBArray = false;
@@ -226,7 +232,7 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   }
 
   /**
-   * parse json file to populate ArrayList
+   * parse json file to populate partition and query lists
    * Assuming here that using the Spark interface implies column partitions
    * @param jsonType json file to use while loading - either LOADERJSON or QUERYJSON
    * @throws FileNotFoundException  Thrown if queryJson file isn't found
@@ -249,6 +255,91 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     }
     finally {
       jsonReader.close();
+    }
+  }
+
+  private void readColumnPartitionsPB(String pb) throws
+        com.googlecode.protobuf.format.JsonFormat.ParseException {
+    GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder = 
+             GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
+    JsonFormat.merge(pb, importConfigurationBuilder);
+    GenomicsDBImportConfiguration.ImportConfiguration loaderPB = importConfigurationBuilder.build();
+
+    if (partitionInfoList==null) {
+      partitionInfoList = new ArrayList<>();
+    }
+
+    for (GenomicsDBImportConfiguration.Partition partition : 
+            loaderPB.getColumnPartitionsList()) {
+      if (!partition.getBegin().hasTiledbColumn()) {
+        throw new RuntimeException("Spark layer doesn't support specifying Partitions as contig position");
+      }
+      partitionInfoList.add(new GenomicsDBPartitionInfo(
+              partition.getBegin().getTiledbColumn(),
+              partition.getWorkspace(),
+              partition.getArrayName(),
+              partition.getVcfOutputFilename()));
+    }
+  }
+
+  private void readQueryRangesPB(String pb) throws 
+        com.googlecode.protobuf.format.JsonFormat.ParseException {
+    GenomicsDBExportConfiguration.ExportConfiguration.Builder exportConfigurationBuilder = 
+             GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
+    JsonFormat.merge(pb, exportConfigurationBuilder);
+    GenomicsDBExportConfiguration.ExportConfiguration queryPB = exportConfigurationBuilder.build();
+
+    if (queryInfoList==null) {
+      queryInfoList = new ArrayList<>();
+    }
+
+    for (GenomicsDBExportConfiguration.GenomicsDBColumnOrIntervalList 
+            qcrList : queryPB.getQueryColumnRangesList()) {
+      for (Coordinates.GenomicsDBColumnOrInterval colOrInterval : qcrList.getColumnOrIntervalListList()) {
+        long start = -1;
+        long end = -1;
+        if (colOrInterval.hasColumn()) {
+          if(colOrInterval.getColumn().hasTiledbColumn()) {
+            start = end = colOrInterval.getColumn().getTiledbColumn();
+          }
+        }
+        else if (colOrInterval.hasColumnInterval()) {
+          if(colOrInterval.getColumnInterval().hasTiledbColumnInterval()) {
+            start = colOrInterval.getColumnInterval().getTiledbColumnInterval().getBegin();
+            end = colOrInterval.getColumnInterval().getTiledbColumnInterval().getEnd();
+          }
+        }
+        if (start == -1 || end == -1) {
+          throw new RuntimeException("Query range must be specified as tiledb columns or intervals");
+        }
+        queryInfoList.add(new GenomicsDBQueryInfo(start, end));
+      }
+    }
+    if(queryPB.hasQueryBlockSize()) {
+      QueryBlockSize = queryPB.getQueryBlockSize();
+    }
+    if(queryPB.hasQueryBlockSizeMargin()) {
+      QueryBlockSizeMargin = queryPB.getQueryBlockSizeMargin();
+    }
+  }
+
+  /**
+   * parse protobuf to populate partition and query lists
+   * Assuming here that using the Spark interface implies column partitions
+   * @param pbType protobuf type to use - either LOADERPB or QUERYPB
+   */
+  void populateListFromPB(String pbType) {
+    try {
+      if (pbType.equals(LOADERPB)) {
+        readColumnPartitionsPB(get(pbType));
+      }
+      else if (pbType.equals(QUERYPB)) {
+        readQueryRangesPB(get(pbType));
+      }
+    }
+    catch (Exception e) {
+        System.err.println("Could not parse protobuf while populating partition and query lists");
+        e.printStackTrace();
     }
   }
 }
