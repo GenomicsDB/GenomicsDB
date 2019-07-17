@@ -23,6 +23,7 @@
 #ifndef JSON_CONFIG_H
 #define JSON_CONFIG_H
 
+#include "headers.h"
 #include "rapidjson/document.h"
 #include "rapidjson/reader.h"
 #include "rapidjson/stringbuffer.h"
@@ -30,6 +31,15 @@
 #include "rapidjson/filewritestream.h"
 #include "rapidjson/prettywriter.h"
 
+class VidMapper;
+
+//JSON parsing functions
 rapidjson::Document parse_json_file(const std::string& s);
+void extract_contig_interval_from_object(const rapidjson::Value& curr_json_object,
+    const VidMapper* id_mapper, ColumnRange& result);
+bool extract_interval_from_PB_struct_or_return_false(const rapidjson::Value& curr_json_object,
+    const VidMapper* id_mapper,
+    ColumnRange& result);
+ColumnRange parse_contig_interval_object(const rapidjson::Value& interval_object, const VidMapper* id_mapper);
 
 #endif

@@ -147,16 +147,12 @@ class GenomicsDBConfigBase {
   void scan_whole_array();
   const std::vector<std::string>& get_attributes() const { return m_attributes; }
   //JSON parsing functions
-  static void extract_contig_interval_from_object(const rapidjson::Value& curr_json_object,
-      const VidMapper* id_mapper, ColumnRange& result);
-  static bool extract_interval_from_PB_struct_or_return_false(const rapidjson::Value& curr_json_object,
-      const VidMapper* id_mapper,
-      ColumnRange& result);
   rapidjson::Document read_from_file(const std::string& filename, const int rank=0);
+  rapidjson::Document read_from_JSON_string(const std::string& str, const int rank=0);
   void read_from_JSON(const rapidjson::Document& json_doc, const int rank=0);
   void read_and_initialize_vid_and_callset_mapping_if_available(const rapidjson::Document& json_doc, const int rank);
-  static ColumnRange parse_contig_interval_object(const rapidjson::Value& interval_object, const VidMapper* id_mapper);
   //Protobuf parsing functions
+  void read_from_PB_binary_string(const std::string& str, const int rank=0);
   void read_from_PB(const genomicsdb_pb::ExportConfiguration* x, const int rank=0);
   void read_and_initialize_vid_and_callset_mapping_if_available(const genomicsdb_pb::ExportConfiguration*);
  protected:

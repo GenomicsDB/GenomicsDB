@@ -51,7 +51,7 @@ rapidjson::Document parse_json_file(const std::string& filename) {
   return json_doc;
 }
 
-void GenomicsDBConfigBase::extract_contig_interval_from_object(const rapidjson::Value& curr_json_object,
+void extract_contig_interval_from_object(const rapidjson::Value& curr_json_object,
     const VidMapper* id_mapper, ColumnRange& result) {
   // This MUST be a dictionary of the form "contig" : position or "contig" : [start, end]
   VERIFY_OR_THROW(curr_json_object.IsObject());
@@ -80,17 +80,17 @@ void GenomicsDBConfigBase::extract_contig_interval_from_object(const rapidjson::
     VERIFY_OR_THROW(contig_position.Size() == 2);
     VERIFY_OR_THROW(contig_position[0u].IsInt64());
     VERIFY_OR_THROW(contig_position[1u].IsInt64());
-    result = verify_contig_position_and_get_tiledb_column_interval(contig_info,
+    result = GenomicsDBConfigBase::verify_contig_position_and_get_tiledb_column_interval(contig_info,
              contig_position[0u].GetInt64(), contig_position[1u].GetInt64());
   } else { // single position
     VERIFY_OR_THROW(contig_position.IsInt64());
     auto contig_position_int = contig_position.GetInt64();
-    result = verify_contig_position_and_get_tiledb_column_interval(contig_info,
+    result = GenomicsDBConfigBase::verify_contig_position_and_get_tiledb_column_interval(contig_info,
              contig_position_int, contig_position_int);
   }
 }
 
-ColumnRange GenomicsDBConfigBase::parse_contig_interval_object(const rapidjson::Value& interval_object, const VidMapper* id_mapper)
+ColumnRange parse_contig_interval_object(const rapidjson::Value& interval_object, const VidMapper* id_mapper)
 {
   VERIFY_OR_THROW(interval_object.IsObject());
   VERIFY_OR_THROW(interval_object.HasMember("contig"));
@@ -106,11 +106,11 @@ ColumnRange GenomicsDBConfigBase::parse_contig_interval_object(const rapidjson::
   int64_t end = interval_object.HasMember("end")
     ? interval_object["end"].GetInt64()
     : (interval_object.HasMember("begin") ? begin : contig_info.m_length);
-  return verify_contig_position_and_get_tiledb_column_interval(contig_info, begin, end);
+  return GenomicsDBConfigBase::verify_contig_position_and_get_tiledb_column_interval(contig_info, begin, end);
 }
 
 //JSON produced by Protobuf - { "low":<>, "high":<> }
-bool GenomicsDBConfigBase::extract_interval_from_PB_struct_or_return_false(const rapidjson::Value& curr_json_object,
+bool extract_interval_from_PB_struct_or_return_false(const rapidjson::Value& curr_json_object,
     const VidMapper* id_mapper,
     ColumnRange& result) {
   VERIFY_OR_THROW(id_mapper != 0 && id_mapper->is_initialized());
@@ -167,7 +167,7 @@ bool GenomicsDBConfigBase::extract_interval_from_PB_struct_or_return_false(const
                 throw VidMapperException(std::string("GenomicsDBConfigBase::read_from_file: Invalid contig name : ")
                                          + contig_name);
               auto contig_position_int = interval_object["contig_position"]["position"].GetInt64();
-              result = verify_contig_position_and_get_tiledb_column_interval(contig_info,
+              result = GenomicsDBConfigBase::verify_contig_position_and_get_tiledb_column_interval(contig_info,
                        contig_position_int, contig_position_int);
               return true;
             }
@@ -180,13 +180,16 @@ bool GenomicsDBConfigBase::extract_interval_from_PB_struct_or_return_false(const
 }
 
 rapidjson::Document GenomicsDBConfigBase::read_from_file(const std::string& filename, const int rank) {
-  std::ifstream ifs(filename.c_str());
-  VERIFY_OR_THROW(ifs.is_open());
-  std::string str((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+  rapidjson::Document json_doc = std::move(parse_json_file(filename));
+  read_from_JSON(json_doc, rank);
+  return json_doc;
+}
+
+rapidjson::Document GenomicsDBConfigBase::read_from_JSON_string(const std::string& str, const int rank) {
   rapidjson::Document json_doc;
   json_doc.Parse(str.c_str());
   if (json_doc.HasParseError())
-    throw GenomicsDBConfigException(std::string("Syntax error in JSON file ")+filename);
+    throw GenomicsDBConfigException(std::string("Syntax error in JSON string ")+str);
   read_from_JSON(json_doc, rank);
   return json_doc;
 }

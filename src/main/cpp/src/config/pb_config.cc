@@ -33,6 +33,14 @@
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X);
 
+void GenomicsDBConfigBase::read_from_PB_binary_string(const std::string& str, const int rank) {
+  genomicsdb_pb::ExportConfiguration export_config;
+  auto status = export_config.ParseFromString(str);
+  if(!status || !export_config.IsInitialized())
+    throw GenomicsDBConfigException("Could not deserialize PB binary string");
+  read_from_PB(&export_config, rank);
+}
+
 void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration* export_config, const int rank) {
   VERIFY_OR_THROW(export_config && export_config->IsInitialized());
   read_and_initialize_vid_and_callset_mapping_if_available(export_config);

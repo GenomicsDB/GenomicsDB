@@ -106,5 +106,8 @@ TEST_CASE("pb_query_config_test", "[protobuf_config]")
     VariantQueryConfig pb_config2;
     pb_config2.read_from_PB(&deserialize_export_config, 0);
     check_equal_query_config(json_config, pb_config2);
+    VariantQueryConfig pb_config3;
+    pb_config3.read_from_PB_binary_string(binary_pb_string, 0);
+    check_equal_query_config(json_config, pb_config3);
   }
 }
