@@ -202,10 +202,7 @@ void VariantQueryConfig::flatten_composite_fields(const VidMapper& vid_mapper) {
 }
 
 void VariantQueryConfig::read_from_file(const std::string& filename, const int rank) {
-  JSONConfigBase tmp_config(static_cast<const GenomicsDBConfigBase&>(*this));
-  tmp_config.read_from_file(filename, rank);
-  //Move configuration to ready the configuration for validation.
-  *(static_cast<GenomicsDBConfigBase*>(this)) = std::move(static_cast<GenomicsDBConfigBase&>(tmp_config));
+  GenomicsDBConfigBase::read_from_file(filename, rank);
   validate(rank);
 }
 

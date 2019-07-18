@@ -33,6 +33,29 @@
 std::unordered_map<std::string, bool> GenomicsDBConfigBase::m_vcf_output_format_to_is_bcf_flag =
 std::unordered_map<std::string, bool> { {"b", true}, {"bu",true}, {"z",false}, {"",false} };
 
+GenomicsDBConfigBase::GenomicsDBConfigBase() {
+    m_single_array_name = false;
+    m_single_workspace_path = false;
+    m_single_query_column_ranges_vector = false;
+    m_column_partitions_specified = false;
+    m_single_query_row_ranges_vector = false;
+    m_row_partitions_specified = false;
+    m_scan_whole_array = false;
+    m_produce_GT_field = false;
+    m_produce_FILTER_field = false;
+    m_index_output_VCF = false;
+    m_sites_only_query = false;
+    m_produce_GT_with_min_PL_value_for_spanning_deletions = false;
+    //Lower and upper bounds of callset row idx to import in this invocation
+    m_lb_callset_row_idx = 0;
+    m_ub_callset_row_idx = INT64_MAX-1;
+    m_segment_size = 10u*1024u*1024u; //10MiB default
+    m_query_filter = "";
+    m_disable_file_locking_in_tiledb = false;
+    m_determine_sites_with_max_alleles = false;
+    m_max_diploid_alt_alleles_that_can_be_genotyped = MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED;
+    m_combined_vcf_records_buffer_size_limit = 10*1024u;
+  }
 ColumnRange GenomicsDBConfigBase::verify_contig_position_and_get_tiledb_column_interval(const ContigInfo& contig_info,
     const int64_t begin, const int64_t end) {
   ColumnRange result;

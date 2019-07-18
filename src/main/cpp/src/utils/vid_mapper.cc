@@ -24,6 +24,7 @@
 #include <libgen.h>
 #include "vid_mapper.h"
 #include "json_config.h"
+#include "genomicsdb_config_base.h"
 #include "known_field_info.h"
 #include "tiledb.h"
 #include "tiledb_utils.h"
