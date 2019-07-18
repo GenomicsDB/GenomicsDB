@@ -19,6 +19,14 @@ JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQueryStream_jniGeno
 
 /*
  * Class:     org_genomicsdb_reader_GenomicsDBQueryStream
+ * Method:    jniGenomicsDBInit
+ * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIJJ)J
+ */
+JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQueryStream_jniGenomicsDBInit
+  (JNIEnv *, jobject, jstring, jbyteArray, jstring, jint, jint, jint, jlong, jlong, jboolean, jboolean, jboolean, jboolean);
+
+/*
+ * Class:     org_genomicsdb_reader_GenomicsDBQueryStream
  * Method:    jniGenomicsDBClose
  * Signature: (J)J
  */

@@ -23,8 +23,8 @@
 #include "genomicsdb_bcf_generator.h"
 
 unsigned GenomicsDBBCFGenerator_NUM_ENTRIES_IN_CIRCULAR_BUFFER=1u;
-
-GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_file, const std::string& query_config_file,
+GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_file, 
+    const genomicsdb_pb::ExportConfiguration *query_config_pb,
     const char* chr, const int start, const int end,
     int my_rank, size_t buffer_capacity, size_t tiledb_segment_size, const char* output_format,
     const bool produce_header_only,
@@ -46,8 +46,8 @@ GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_
     loader_config.read_from_file(loader_config_file, my_rank);
     m_query_config.update_from_loader(loader_config, my_rank);
   }
-  //Parse query JSON file - ensures that vid, callset may be obtained from loader (if exists)
-  m_query_config.read_from_file(query_config_file, my_rank);
+  //Parse query protobuf - ensures that vid, callset may be obtained from loader (if exists)
+  m_query_config.read_from_PB(query_config_PB, my_rank);
   if (!(loader_config_file.empty()))
     m_query_config.subset_query_column_ranges_based_on_partition(loader_config, my_rank);
   m_query_config.set_vcf_output_format(output_format);

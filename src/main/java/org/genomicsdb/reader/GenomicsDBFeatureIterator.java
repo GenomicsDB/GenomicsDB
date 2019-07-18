@@ -37,6 +37,8 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
 
+import static org.genomicsdb.Constants.CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX;
+
 /**
  * Iterator over {@link htsjdk.variant.variantcontext.VariantContext} objects.
  * Uses {@link GenomicsDBQueryStream} to obtain combined gVCF records
@@ -47,15 +49,15 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
     private class GenomicsDBQueryStreamParamsHolder {
 
         public String loaderJSONFile;
-        public String queryJSONFile;
+        public ExportConfiguration queryPB;
         public String contig;
         public int begin;
         public int end;
 
-        GenomicsDBQueryStreamParamsHolder(final String loaderJSONFile, final String queryJSONFile,
+        GenomicsDBQueryStreamParamsHolder(final String loaderJSONFile, final ExportConfiguration queryPB,
                 final String contig, final int begin, final int end) {
             this.loaderJSONFile = loaderJSONFile;
-            this.queryJSONFile = queryJSONFile;
+            this.queryPB = queryPB;
             this.contig = contig;
             this.begin = begin;
             this.end = end;
@@ -93,42 +95,76 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
      * Constructor
      *
      * @param loaderJSONFile     GenomicsDB loader JSON configuration file
-     * @param queryJSONFiles     GenomicsDB query JSON configuration file list
+     * @param queryPB            GenomicsDB query protobuf object
+     * @param featureCodecHeader htsjdk Feature codec header
+     * @param codec              FeatureCodec, currently only {@link htsjdk.variant.bcf2.BCF2Codec}
+     *                           and {@link htsjdk.variant.vcf.VCFCodec} are tested
+     * @param intervalPerArray   Optional map of relation between qjf and a contig interval
+     * @throws IOException when data cannot be read from the stream
+     */
+    GenomicsDBFeatureIterator(final String loaderJSONFile, final ExportConfiguration queryPB,
+                              final Optional<List<String>> arrayNames, 
+                              final FeatureCodecHeader featureCodecHeader, 
+                              final FeatureCodec<T, SOURCE> codec)
+            throws IOException {
+        this(loaderJSONFile, queryPB, arrayNames, featureCodecHeader, codec, "", OptionalInt.empty(),
+                OptionalInt.empty());
+    }
+
+    /**
+     * Constructor
+     *
+     * @param loaderJSONFile     GenomicsDB loader JSON configuration file
+     * @param queryPB            GenomicsDB query protobuf
+     * @param arrayNames         List of array names
      * @param featureCodecHeader htsjdk Feature codec header
      * @param codec              FeatureCodec, currently only {@link htsjdk.variant.bcf2.BCF2Codec}
      *                           and {@link htsjdk.variant.vcf.VCFCodec} are tested
      * @param chr                contig name
      * @param start              start position (1-based)
      * @param end                end position, inclusive (1-based)
-     * @param intervalPerArray   Optional map of relation between qjf and a contig interval
-     * @throws IOException when data cannot be read from the stream
      */
-    GenomicsDBFeatureIterator(final String loaderJSONFile, final List<String> queryJSONFiles,
+    GenomicsDBFeatureIterator(final String loaderJSONFile, final ExportConfiguration queryPB,
+                              final Optional<List<String>> arrayNames,
                               final FeatureCodecHeader featureCodecHeader, final FeatureCodec<T, SOURCE> codec,
-                              final String chr, final OptionalInt start, final OptionalInt end,
-                              final Optional<Map<String, Coordinates.ContigInterval>> intervalPerArray) throws IOException {
+                              final String chr, final OptionalInt start, final OptionalInt end) {
         this.featureCodecHeader = featureCodecHeader;
         this.codec = codec;
-        boolean areIntervalPerArraySpecified = intervalPerArray.isPresent() && intervalPerArray.get().size() > 0;
-        this.queryParamsList = queryJSONFiles.stream().map(qjf -> {
-            GenomicsDBQueryStreamParamsHolder genomicsDBQueryStreamParams;
-            if (areIntervalPerArraySpecified && start.isPresent() && end.isPresent()) {
-                Coordinates.ContigInterval interval = intervalPerArray.get().get(qjf);
-                genomicsDBQueryStreamParams = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, qjf, interval.getContig(),
-                        Math.max(start.getAsInt(), (int) interval.getBegin()),
-                        Math.min(end.getAsInt(), (int) interval.getEnd()));
-            } else if (areIntervalPerArraySpecified && !start.isPresent() && !end.isPresent()) {
-                Coordinates.ContigInterval interval = intervalPerArray.get().get(qjf);
-                genomicsDBQueryStreamParams = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, qjf, interval.getContig(),
-                        (int) interval.getBegin(), (int) interval.getEnd());
-            } else {
-                final boolean isChrEmpty = chr.isEmpty();
-                genomicsDBQueryStreamParams = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, qjf, chr,
+        if (arrayNames.isPresent()) {
+            this.queryParamsList = arrayNames.stream().map(array -> {
+                GenomicsDBExportConfiguration.ExportConfiguration newQueryPB =
+                    GenomicsDBExportConfiguration.ExportConfiguration.newBuilder(queryPB)
+                    .setArrayName(array).build();
+                GenomicsDBQueryStreamParamsHolder params;
+                String[] ref = array.split(CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX);
+                if(ref.length != 3) {
+                    throw new RuntimException("Array folder name format should be " +
+                            "in {chromosome}{delimiter}{intervalStart}{delimiter}{intervalEnd}");
+                }
+                int iStart = Integer.parseInt(ref[1]);
+                int iEnd= Integer.parseInt(ref[2]);
+                if (start.isPresent() && end.isPresent()) {
+                    params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, 
+                            newQueryPB, ref[0], Math.max(start.getAsInt(), iStart),
+                            Math.min(end.getAsInt(), iEnd));
+                }
+                else if (!start.isPresent() && !end.isPresent()) {
+                    params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, 
+                            newQueryPB, ref[0], iStart, iEnd);
+                }
+                else {
+                    throw new RuntimeException("start and end must either be both specified or both unsepcified");
+                }
+                return params;
+            }).collect(Collectors.toList());
+        }
+        else {
+            boolean isChrEmpty = chr.isEmpty();
+            this.queryParamsList = Collections.singletonList(
+                    new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, queryPB, chr,
                     start.isPresent() ? start.getAsInt() : isChrEmpty ? 0 : 1,
-                    end.isPresent() ? end.getAsInt() : isChrEmpty ? 0 : Integer.MAX_VALUE);
-            }
-            return genomicsDBQueryStreamParams;
-        }).collect(Collectors.toList());
+                    end.isPresent() ? end.getAsInt() : isChrEmpty? 0 : Integer.MAX_VALUE));
+        }
         if (queryParamsList.isEmpty()) throw new IllegalStateException("There are no sources based on those query parameters");
         this.currentIndexInQueryParamsList = -1;
         this.currentSource = null;
@@ -136,6 +172,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
         this.timer = new GenomicsDBTimer();
         this.closedBefore = false;
     }
+
 
     @Override
     public boolean hasNext() {
@@ -187,7 +224,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
         if (this.currentIndexInQueryParamsList < this.queryParamsList.size()) {
             boolean readAsBCF = this.codec instanceof BCF2Codec;
             GenomicsDBQueryStreamParamsHolder currParams = this.queryParamsList.get(this.currentIndexInQueryParamsList);
-            GenomicsDBQueryStream queryStream = new GenomicsDBQueryStream(currParams.loaderJSONFile, currParams.queryJSONFile,
+            GenomicsDBQueryStream queryStream = new GenomicsDBQueryStream(currParams.loaderJSONFile, currParams.queryPB,
                     currParams.contig, currParams.begin, currParams.end, readAsBCF);
             this.currentSource = this.codec.makeSourceFromStream(queryStream);
             try {
