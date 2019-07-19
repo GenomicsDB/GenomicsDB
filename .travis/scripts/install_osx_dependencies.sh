@@ -1,28 +1,5 @@
 #!/bin/bash
 
-install_gtest() {
-  GTEST_DIR=$TRAVIS_BUILD_DIR/dependencies/googletest-release-1.8.1
-  if [ ! -f $CACHE_DIR/googletest.tar ]; then
-     echo "Installing google test"
-     cd $TRAVIS_BUILD_DIR/dependencies
-     wget -nv https://github.com/google/googletest/archive/release-1.8.1.tar.gz &&
-     tar -xzf release-1.8.1.tar.gz &&
-     cd googletest-release-1.8.1/googletest && cmake . -DBUILD_SHARED_LIBS=1 && make &&
-     cd $GTEST_DIR && tar cf $CACHE_DIR/googletest.tar googletest/libgtest* googletest/include/gtest
-  else
-     echo "Extracting gtest"
-     if [ ! -d $GTEST_DIR ]; then
-       mkdir -p $GTEST_DIR
-     fi
-     cd $GTEST_DIR
-     tar -xf $CACHE_DIR/googletest.tar
-  fi
-  cd $GTEST_DIR/googletest &&
-  cp libgtest* /usr/local/lib && 
-  cp -r include/gtest /usr/local/include &&
-  echo "Installing google test SUCCESSFUL"
-}
-
 install_protobuf() {
   if [ ! -d $PROTOBUF_HOME ]; then
     mkdir -p $PROTOBUF_HOME
@@ -48,6 +25,5 @@ install_protobuf() {
 }
 
 echo "Installing OSX Dependencies"
-install_gtest &&
 install_protobuf &&
 echo "Installing OSX Dependencies DONE"

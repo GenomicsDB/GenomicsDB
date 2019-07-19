@@ -83,11 +83,6 @@ install:
         sudo apt-get -y install zip unzip;
         wget -nv https://github.com/GenomicsDB/GenomicsDB/releases/download/v1.0.0/protobuf-3.0.2-trusty.tar.gz -O protobuf-3.0.2-trusty.tar.gz;
         tar xzf protobuf-3.0.2-trusty.tar.gz && sudo rsync -a protobuf-3.0.2-trusty/ /usr/;
-        sudo apt-get -y install libgtest-dev;
-        cd /usr/src/gtest;
-        sudo cmake . -DBUILD_SHARED_LIBS=1;
-        sudo make;
-        sudo mv libgtest* /usr/lib;
         cd $TRAVIS_BUILD_DIR;
         cd dependencies && git clone https://github.com/rgamble/libcsv && cd libcsv && ./configure && make;
         jdk_switcher use openjdk8;
