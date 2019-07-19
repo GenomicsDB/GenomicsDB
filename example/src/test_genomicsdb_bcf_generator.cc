@@ -23,6 +23,11 @@
 #include <getopt.h>
 #include "headers.h"
 #include "genomicsdb_bcf_generator.h"
+#include "tiledb_utils.h"
+#include "genomicsdb_export_config.pb.h"
+#include <google/protobuf/util/json_util.h>
+#include <google/protobuf/util/type_resolver.h>
+#include <google/protobuf/util/type_resolver_util.h>
 #include <mpi.h>
 
 int main(int argc, char *argv[]) {
@@ -76,7 +81,37 @@ int main(int argc, char *argv[]) {
   }
   std::vector<uint8_t> buffer(page_size > 0u ? page_size : 100u); 
   //assert(json_config_file.length() > 0u && loader_json_config_file.length() > 0u);
-  GenomicsDBBCFGenerator bcf_reader(loader_json_config_file, json_config_file, my_world_mpi_rank, page_size, std::max<size_t>(page_size, 1024u),
+  // below taken from src/test/cpp/src/test_pb.cc
+  // to convert json file to protobuf
+  // This to support removing the jsonfile as input
+  char *json_buffer = 0;
+  size_t json_buffer_length;
+  if (TileDBUtils::read_entire_file(json_config_file, (void **)&json_buffer, &json_buffer_length) != TILEDB_OK
+        || !json_buffer || json_buffer_length == 0) { 
+    free(json_buffer);
+    std::cerr << "Could not open query JSON file "+json_config_file+"\n";
+    exit(-1);
+  }
+  genomicsdb_pb::ExportConfiguration export_config;
+  {
+    std::string json_to_binary_output;
+    google::protobuf::util::TypeResolver* resolver= google::protobuf::util::NewTypeResolverForDescriptorPool(
+        "", google::protobuf::DescriptorPool::generated_pool());
+    auto status = google::protobuf::util::JsonToBinaryString(resolver,
+        "/"+export_config.GetDescriptor()->full_name(), json_buffer,
+        &json_to_binary_output);
+    if (!status.ok()) {
+      std::cerr << "Error converting JSON to binary string\n";
+      exit(-1);
+    }
+    delete resolver;
+    auto success = export_config.ParseFromString(json_to_binary_output);
+    if(!success) {
+      std::cerr << "Could not parse query JSON file to protobuf\n";
+      exit(-1);
+    }
+  }
+  GenomicsDBBCFGenerator bcf_reader(loader_json_config_file, &export_config, my_world_mpi_rank, page_size, std::max<size_t>(page_size, 1024u),
       output_format.c_str());
   while(!(bcf_reader.end()))
   {

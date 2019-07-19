@@ -29,6 +29,7 @@ import htsjdk.tribble.FeatureCodecHeader;
 import htsjdk.variant.bcf2.BCF2Codec;
 
 import org.genomicsdb.model.Coordinates;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
 import java.io.IOException;
 import java.util.List;
@@ -36,6 +37,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
+import java.util.Collections;
+import java.lang.RuntimeException;
 
 import static org.genomicsdb.Constants.CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX;
 
@@ -49,12 +52,13 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
     private class GenomicsDBQueryStreamParamsHolder {
 
         public String loaderJSONFile;
-        public ExportConfiguration queryPB;
+        public GenomicsDBExportConfiguration.ExportConfiguration queryPB;
         public String contig;
         public int begin;
         public int end;
 
-        GenomicsDBQueryStreamParamsHolder(final String loaderJSONFile, final ExportConfiguration queryPB,
+        GenomicsDBQueryStreamParamsHolder(final String loaderJSONFile, 
+                final GenomicsDBExportConfiguration.ExportConfiguration queryPB,
                 final String contig, final int begin, final int end) {
             this.loaderJSONFile = loaderJSONFile;
             this.queryPB = queryPB;
@@ -76,37 +80,17 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
      * Constructor
      *
      * @param loaderJSONFile     GenomicsDB loader JSON configuration file
-     * @param queryJSONFiles     GenomicsDB query JSON configuration file list
-     * @param featureCodecHeader htsjdk Feature codec header
-     * @param codec              FeatureCodec, currently only {@link htsjdk.variant.bcf2.BCF2Codec}
-     *                           and {@link htsjdk.variant.vcf.VCFCodec} are tested
-     * @param intervalPerArray   Optional map of relation between qjf and a contig interval
-     * @throws IOException when data cannot be read from the stream
-     */
-    GenomicsDBFeatureIterator(final String loaderJSONFile, final List<String> queryJSONFiles,
-                              final FeatureCodecHeader featureCodecHeader, final FeatureCodec<T, SOURCE> codec,
-                              final Optional<Map<String, Coordinates.ContigInterval>> intervalPerArray)
-            throws IOException {
-        this(loaderJSONFile, queryJSONFiles, featureCodecHeader, codec, "", OptionalInt.empty(),
-                OptionalInt.empty(), intervalPerArray);
-    }
-
-    /**
-     * Constructor
-     *
-     * @param loaderJSONFile     GenomicsDB loader JSON configuration file
      * @param queryPB            GenomicsDB query protobuf object
+     * @param arrayNames         List of array names
      * @param featureCodecHeader htsjdk Feature codec header
      * @param codec              FeatureCodec, currently only {@link htsjdk.variant.bcf2.BCF2Codec}
      *                           and {@link htsjdk.variant.vcf.VCFCodec} are tested
-     * @param intervalPerArray   Optional map of relation between qjf and a contig interval
-     * @throws IOException when data cannot be read from the stream
      */
-    GenomicsDBFeatureIterator(final String loaderJSONFile, final ExportConfiguration queryPB,
-                              final Optional<List<String>> arrayNames, 
-                              final FeatureCodecHeader featureCodecHeader, 
-                              final FeatureCodec<T, SOURCE> codec)
-            throws IOException {
+    GenomicsDBFeatureIterator(final String loaderJSONFile, 
+            final GenomicsDBExportConfiguration.ExportConfiguration queryPB,
+            final Optional<List<String>> arrayNames, 
+            final FeatureCodecHeader featureCodecHeader, 
+            final FeatureCodec<T, SOURCE> codec) {
         this(loaderJSONFile, queryPB, arrayNames, featureCodecHeader, codec, "", OptionalInt.empty(),
                 OptionalInt.empty());
     }
@@ -124,21 +108,22 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
      * @param start              start position (1-based)
      * @param end                end position, inclusive (1-based)
      */
-    GenomicsDBFeatureIterator(final String loaderJSONFile, final ExportConfiguration queryPB,
-                              final Optional<List<String>> arrayNames,
-                              final FeatureCodecHeader featureCodecHeader, final FeatureCodec<T, SOURCE> codec,
-                              final String chr, final OptionalInt start, final OptionalInt end) {
+    GenomicsDBFeatureIterator(final String loaderJSONFile, 
+            final GenomicsDBExportConfiguration.ExportConfiguration queryPB,
+            final Optional<List<String>> arrayNames,
+            final FeatureCodecHeader featureCodecHeader, final FeatureCodec<T, SOURCE> codec,
+            final String chr, final OptionalInt start, final OptionalInt end) {
         this.featureCodecHeader = featureCodecHeader;
         this.codec = codec;
         if (arrayNames.isPresent()) {
-            this.queryParamsList = arrayNames.stream().map(array -> {
+            this.queryParamsList = arrayNames.orElse(Collections.emptyList()).stream().map(array -> {
                 GenomicsDBExportConfiguration.ExportConfiguration newQueryPB =
                     GenomicsDBExportConfiguration.ExportConfiguration.newBuilder(queryPB)
                     .setArrayName(array).build();
                 GenomicsDBQueryStreamParamsHolder params;
                 String[] ref = array.split(CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX);
                 if(ref.length != 3) {
-                    throw new RuntimException("Array folder name format should be " +
+                    throw new RuntimeException("Array folder name format should be " +
                             "in {chromosome}{delimiter}{intervalStart}{delimiter}{intervalEnd}");
                 }
                 int iStart = Integer.parseInt(ref[1]);
@@ -153,7 +138,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
                             newQueryPB, ref[0], iStart, iEnd);
                 }
                 else {
-                    throw new RuntimeException("start and end must either be both specified or both unsepcified");
+                    throw new RuntimeException("Start and End must either be both specified or both unspecified");
                 }
                 return params;
             }).collect(Collectors.toList());

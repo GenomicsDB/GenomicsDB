@@ -36,7 +36,6 @@ import org.apache.spark.api.java.JavaSparkContext;
 
 import org.genomicsdb.spark.GenomicsDBConfiguration;
 import org.genomicsdb.spark.GenomicsDBInputFormat;
-import org.genomicsdb.spark.GenomicsDBInput;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
 import java.io.*;
@@ -44,15 +43,21 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.charset.Charset;
 import java.util.List;
 
 import com.googlecode.protobuf.format.JsonFormat;
 
 public final class TestGenomicsDBSparkHDFS {
 
+  private static String readFile(String path, Charset encoding) throws IOException {
+    byte[] encoded = Files.readAllBytes(Paths.get(path));
+    return new String(encoded, encoding);
+  }
+
   public static void main(final String[] args) throws IOException,
         org.json.simple.parser.ParseException {
-    LongOpt[] longopts = new LongOpt[6];
+    LongOpt[] longopts = new LongOpt[7];
     longopts[0] = new LongOpt("loader", LongOpt.REQUIRED_ARGUMENT, null, 'l');
     longopts[1] = new LongOpt("query", LongOpt.REQUIRED_ARGUMENT, null, 'q');
     longopts[2] = new LongOpt("hostfile", LongOpt.REQUIRED_ARGUMENT, null, 'h');
@@ -131,7 +136,9 @@ public final class TestGenomicsDBSparkHDFS {
     }
     else {
       GenomicsDBExportConfiguration.ExportConfiguration.Builder builder =
-          GenomicsDBInput.getExportConfigurationFromJsonFile(queryFile);
+          GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
+      String jsonString = readFile(queryFile, Charset.defaultCharset());
+      JsonFormat.merge(jsonString, builder);
       String pbString = JsonFormat.printToString(builder.build());
       hadoopConf.set(GenomicsDBConfiguration.QUERYPB, pbString);
     }

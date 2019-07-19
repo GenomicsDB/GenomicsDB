@@ -40,7 +40,7 @@ class GenomicsDBBCFGenerator {
                          const bool produce_header_only=false,
                          const bool use_missing_values_only_not_vector_end=false,
                          const bool keep_idx_fields_in_bcf_header=true);
-  GenomicsDBBCFGenerator(const std::string& loader_config_file, const ExportConfiguration *query_config_pb, int my_rank=0,
+  GenomicsDBBCFGenerator(const std::string& loader_config_file, const genomicsdb_pb::ExportConfiguration *query_config_pb, int my_rank=0,
                          size_t buffer_capacity=DEFAULT_COMBINED_VCF_RECORDS_BUFFER_SIZE, size_t tiledb_segment_size=1048576u, const char* output_format="bu",
                          const bool produce_header_only=false,
                          const bool use_missing_values_only_not_vector_end=false)

@@ -69,8 +69,14 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(configuration);
     genomicsDBConfiguration.setLoaderJsonFile(
       configuration.get(GenomicsDBConfiguration.LOADERJSON));
-    genomicsDBConfiguration.setQueryJsonFile(
-      configuration.get(GenomicsDBConfiguration.QUERYJSON));
+    if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
+      genomicsDBConfiguration.setQueryJsonFile(
+        configuration.get(GenomicsDBConfiguration.QUERYPB));
+    }
+    else {
+      genomicsDBConfiguration.setQueryJsonFile(
+        configuration.get(GenomicsDBConfiguration.QUERYJSON));
+    }
     genomicsDBConfiguration.setHostFile(
       configuration.get(GenomicsDBConfiguration.MPIHOSTFILE));
 

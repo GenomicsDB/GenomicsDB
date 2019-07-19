@@ -29,7 +29,6 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import org.genomicsdb.spark.GenomicsDBInput;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
 import java.io.*;
@@ -37,6 +36,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.nio.charset.Charset;
 import java.util.*;
 
 import static org.apache.spark.sql.functions.bround;
@@ -49,6 +49,11 @@ public final class TestGenomicsDBDataSourceV2 {
   public static String[] floatFields = {
     "BaseQRankSum", "ClippingRankSum", "MQRankSum", "ReadPosRankSum", "MQ", "RAW_MQ", "MLEAF"
   };
+
+  private static String readFile(String path, Charset encoding) throws IOException {
+    byte[] encoded = Files.readAllBytes(Paths.get(path));
+    return new String(encoded, encoding);
+  }
 
   public static boolean schemaContainsField(StructType schema, String s) {
     String[] fields = schema.fieldNames();
@@ -117,7 +122,7 @@ public final class TestGenomicsDBDataSourceV2 {
 
   public static void main(final String[] args) throws IOException,
          org.json.simple.parser.ParseException {
-    LongOpt[] longopts = new LongOpt[5];
+    LongOpt[] longopts = new LongOpt[6];
     longopts[0] = new LongOpt("loader", LongOpt.REQUIRED_ARGUMENT, null, 'l');
     longopts[1] = new LongOpt("query", LongOpt.REQUIRED_ARGUMENT, null, 'q');
     longopts[2] = new LongOpt("vid", LongOpt.REQUIRED_ARGUMENT, null, 'v');
@@ -206,7 +211,9 @@ public final class TestGenomicsDBDataSourceV2 {
     }
     else {
       GenomicsDBExportConfiguration.ExportConfiguration.Builder builder =
-          GenomicsDBInput.getExportConfigurationFromJsonFile(queryFile);
+          GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
+      String jsonString = readFile(queryFile, Charset.defaultCharset());
+      JsonFormat.merge(jsonString, builder);
       String pbString = JsonFormat.printToString(builder.build());
       variants =
           spark.read()

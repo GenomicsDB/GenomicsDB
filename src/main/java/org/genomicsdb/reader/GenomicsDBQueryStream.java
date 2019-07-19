@@ -24,6 +24,7 @@ package org.genomicsdb.reader;
 
 import org.genomicsdb.GenomicsDBLibLoader;
 import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -58,7 +59,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param queryPB GenomicsDB query protobuf
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
-            final GenomicsDBExportConfiguration queryPB) {
+            final GenomicsDBExportConfiguration.ExportConfiguration queryPB) {
         this(loaderJSONFile, queryPB, "", 0, 0);
     }
 
@@ -69,7 +70,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param readAsBCF serialize-deserialize VCF records as BCF2 records
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
-            final GenomicsDBExportConfiguration queryPB, final boolean readAsBCF) {
+            final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final boolean readAsBCF) {
         this(loaderJSONFile, queryPB, readAsBCF, false);
     }
 
@@ -81,7 +82,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param produceHeaderOnly produce only the header
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
-            final GenomicsDBExportConfiguration queryPB, final boolean readAsBCF,
+            final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final boolean readAsBCF,
                                  final boolean produceHeaderOnly) {
         this(loaderJSONFile, queryPB, "", 0, 0, 0, 10485760,10485760,
                 readAsBCF, produceHeaderOnly);
@@ -96,7 +97,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param end end position, inclusive (1-based)
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
-            final GenomicsDBExportConfiguration queryPB, final String chr,
+            final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
                                  final int start, final int end) {
         this(loaderJSONFile, queryPB, chr, start, end, 0);
     }
@@ -111,7 +112,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param readAsBCF serialize-deserialize VCF records as BCF2 records
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
-           final GenomicsDBExportConfiguration queryPB, final String chr,
+           final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
            final int start, final int end, final boolean readAsBCF) {
         this(loaderJSONFile, queryPB, chr, start, end, 0, 10485760, 10485760,
                 readAsBCF, false);
@@ -127,7 +128,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param rank rank of this object if launched from within an MPI context (not used)
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
-            final GenomicsDBExportConfiguration queryPB, final String chr,
+            final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
             final int start, final int end, final int rank) {
         this(loaderJSONFile, queryPB, chr, start, end, rank, 10485760, 10485760);
     }
@@ -145,7 +146,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param segmentSize buffer to be used for querying TileDB
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
-            final GenomicsDBExportConfiguration queryPB, final String chr,
+            final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
             final int start, final int end, final int rank, final long bufferCapacity,
             final long segmentSize) {
         this(loaderJSONFile, queryPB, chr, start, end, rank, bufferCapacity, segmentSize, DEFAULT_READ_AS_BCF, false);
@@ -166,7 +167,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param produceHeaderOnly produce VCF/BCF header only - no records (minor optimization)
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
-            final GenomicsDBExportConfiguration queryPB, final String chr,
+            final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
             final int start, final int end, final int rank, final long bufferCapacity,
             final long segmentSize, final boolean readAsBCF, final boolean produceHeaderOnly) {
         this(loaderJSONFile, queryPB, chr, start, end, rank, bufferCapacity, segmentSize, readAsBCF,
@@ -190,7 +191,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param keepIDXFieldsInHeader keep BCF IDX fields in header
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
-            final GenomicsDBExportConfiguration queryPB, final String chr,
+            final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
             final int start, final int end, final int rank, final long bufferCapacity,
             final long segmentSize, final boolean readAsBCF, final boolean produceHeaderOnly,
             final boolean useMissingValuesOnlyNotVectorEnd, final boolean keepIDXFieldsInHeader) {

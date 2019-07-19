@@ -215,6 +215,9 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
 void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(
     const genomicsdb_pb::ExportConfiguration* export_config) {
   //Callset mapping and vid mapping
+  if (m_vid_mapper.is_initialized()) {
+    return;
+  }
   if(export_config->has_vid_mapping_file()) {
     m_vid_mapping_file = export_config->vid_mapping_file();
     m_vid_mapper = std::move(FileBasedVidMapper(m_vid_mapping_file));

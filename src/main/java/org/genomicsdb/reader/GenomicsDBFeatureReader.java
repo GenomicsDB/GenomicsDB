@@ -102,7 +102,7 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
      *
      * @return iterator over {@link htsjdk.variant.variantcontext.VariantContext} objects
      */
-    public CloseableTribbleIterator<T> iterator() throws IOException {
+    public CloseableTribbleIterator<T> iterator() {
         if (this.exportConfiguration.hasArrayName()) {
             return new GenomicsDBFeatureIterator(this.loaderJSONFile, 
                     this.exportConfiguration, Optional.empty(), 
@@ -126,7 +126,7 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
      * @param end   end position, inclusive (1-based)
      * @return iterator over {@link htsjdk.variant.variantcontext.VariantContext} objects
      */
-    public CloseableTribbleIterator<T> query(final String chr, final int start, final int end) throws IOException {
+    public CloseableTribbleIterator<T> query(final String chr, final int start, final int end) {
         if (this.exportConfiguration.hasArrayName()) {
             return new GenomicsDBFeatureIterator(this.loaderJSONFile, 
                     this.exportConfiguration, Optional.empty(), 
@@ -144,7 +144,7 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
     }
 
 
-    private List<String> (final Optional<Coordinates.ContigInterval> chromosome) {
+    private List<String> resolveChromosomeArrayFolderList(final Optional<Coordinates.ContigInterval> chromosome) {
         List<String> chromosomeIntervalArraysNames = getArrayListFromWorkspace(exportConfiguration.getWorkspace(), chromosome);
         chromosomeIntervalArraysNames.sort(new ChrArrayFolderComparator());
         return chromosomeIntervalArraysNames;

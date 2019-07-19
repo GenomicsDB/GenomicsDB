@@ -167,7 +167,10 @@ def modify_query_column_ranges_for_PB(test_query_dict):
                             { 'begin': curr_interval['low'], 'end': curr_interval['high'] } } })
                 new_entry = { 'column_or_interval_list': new_interval_list }
                 new_query_column_ranges.append(new_entry)
-        test_query_dict['query_column_ranges'] = new_query_column_ranges
+        if not new_query_column_ranges:
+            test_query_dict['query_column_ranges'] = original_query_column_ranges
+        else:
+            test_query_dict['query_column_ranges'] = new_query_column_ranges
 
 def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, outfile_string, golden_string):
     with open(outfilename, "w") as out_fd:
@@ -365,15 +368,21 @@ def main():
                         "vcf"        : "golden_outputs/t0_1_vcf_at_0",
 			"java_vcf"   : "golden_outputs/java_t0_1_vcf_at_0",
                         } },
-                    { "query_column_ranges": [ [  12000, 12142, 12144, 12160, 12290, 12294, 14000, 17384, 18000 ]],
-                      "pass_through_query_json": True,
+                    { "query_column_ranges": [{ 'column_or_interval_list': [{'column': {'tiledb_column': 12000}}, 
+                                                                            {'column': {'tiledb_column': 12142}},
+                                                                            {'column': {'tiledb_column': 12144}},
+                                                                            {'column': {'tiledb_column': 12160}},
+                                                                            {'column': {'tiledb_column': 12290}},
+                                                                            {'column': {'tiledb_column': 12294}},
+                                                                            {'column': {'tiledb_column': 14000}},
+                                                                            {'column': {'tiledb_column': 17384}},
+                                                                            {'column': {'tiledb_column': 18000}}]}],
                        "golden_output": {
                         "calls"      : "golden_outputs/t0_1_2_calls_at_multiple_positions",
                         "vcf"        : "golden_outputs/t0_1_2_vcf_at_multiple_positions",
                         "java_vcf"   : "golden_outputs/java_t0_1_2_vcf_at_multiple_positions",
                         } },
-                    { "query_column_ranges": [ [ [0, 1000000] ] ],
-                      "pass_through_query_json": True,
+                    { "query_column_ranges": [{ 'column_or_interval_list': [{'column_interval': {'tiledb_column_interval': {'begin': 0, 'end': 1000000}}}]}], 
                       "golden_output": {
                         "java_vcf"   : "golden_outputs/java_t0_1_2_vcf_at_0",
                         } },
@@ -1402,7 +1411,7 @@ def main():
                         if((query_type == 'vcf' or query_type == 'batched_vcf' or query_type.find('java_vcf') != -1)
                                 and 'force_override' not in query_param_dict):
                             test_query_dict['attributes'] = vcf_attributes_order;
-                        if(query_type.find('java_vcf') != -1 and 'pass_through_query_json' not in query_param_dict):
+                        if(query_type.find('java_vcf') != -1):
                             modify_query_column_ranges_for_PB(test_query_dict)
 			query_json_filename = create_json_file(tmpdir, test_name, query_type, test_query_dict)
                         if(query_type == 'java_vcf'):
@@ -1410,8 +1419,6 @@ def main():
                             misc_args = ''
                             if("query_without_loader" in query_param_dict and query_param_dict["query_without_loader"]):
                                 loader_argument = '""'
-                            if("pass_through_query_json" in query_param_dict and query_param_dict["pass_through_query_json"]):
-                                misc_args = "--pass_through_query_json"
                             if('query_contig_interval' in query_param_dict):
                                 query_contig_interval_dict = query_param_dict['query_contig_interval']
                                 misc_args += ('--chromosome '+query_contig_interval_dict['contig'] \

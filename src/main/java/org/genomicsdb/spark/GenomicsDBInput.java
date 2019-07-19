@@ -304,9 +304,8 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
    * @param queryFileOrPB Existing query json file or protobuf string
    * @param partition used to populate array
    * @param query used to bound query column ranges
-   * @param isPB boolean parameter that denotes if queryFileOrPB is protobug string
+   * @param isPB boolean parameter that denotes if queryFileOrPB is protobuf string
    * @return  Returns path to temporary query file
-   * @throws FileNotFoundException  Thrown if queryJson file isn't found
    * @throws IOException  Thrown if other IO exception while handling file operations
    * @throws ParseException  Thrown if JSON parsing fails
    */
@@ -314,7 +313,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
         createTargetExportConfigurationPB(String queryFileOrPB, 
         GenomicsDBPartitionInfo partition, GenomicsDBQueryInfo query, 
         boolean isPB) 
-        throws FileNotFoundException, IOException, ParseException {
+        throws IOException, ParseException {
     GenomicsDBExportConfiguration.ExportConfiguration.Builder 
         exportConfigurationBuilder;
 
@@ -365,8 +364,8 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
   }
 
   public static GenomicsDBExportConfiguration.ExportConfiguration.Builder 
-        getExportConfigurationFromJsonFile(String queryFile) 
-        throws FileNotFoundException, IOException, ParseException {
+        getExportConfigurationFromJsonFile(String queryFile)
+        throws IOException, ParseException {
     GenomicsDBExportConfiguration.ExportConfiguration.Builder 
         exportConfigurationBuilder = 
         GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
@@ -393,6 +392,18 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
             exportConfigurationBuilder.setProduceGTField(
                 val.toString().equals("true")); 
             break;
+          case "scan_full":
+            exportConfigurationBuilder.setScanFull(
+                val.toString().equals("true")); 
+            break;
+          case "sites_only_query":
+            exportConfigurationBuilder.setSitesOnlyQuery(
+                val.toString().equals("true")); 
+            break;
+          case "disable_file_locking_in_tiledb":
+            exportConfigurationBuilder.setDisableFileLockingInTiledb(
+                val.toString().equals("true")); 
+            break;
           case "produce_FILTER_field":
             exportConfigurationBuilder.setProduceFILTERField(
                 val.toString().equals("true")); 
@@ -402,6 +413,14 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
           case "query_attributes":
             for (Object element : (JSONArray)val) {
               exportConfigurationBuilder.addAttributes(element.toString());
+            }
+            break;
+          case "vcf_header_filename":
+            if (val instanceof JSONArray) {
+              exportConfigurationBuilder.setVcfHeaderFilename(((JSONArray)val).get(0).toString());
+            }
+            else {
+              exportConfigurationBuilder.setVcfHeaderFilename(val.toString());
             }
             break;
           case "query_row_ranges":
@@ -417,6 +436,11 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     
               exportConfigurationBuilder.addQueryRowRanges(queryRowRangesBuilder
                       .addRangeList(rowRangeBuilder));
+            }
+            break;
+          case "query_sample_names":
+            for (Object element : (JSONArray)val) {
+              exportConfigurationBuilder.addQuerySampleNames(element.toString());
             }
             break;
           case "array":
@@ -472,16 +496,18 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
             exportConfigurationBuilder
                     .addQueryColumnRanges(queryRangeBuilder);
             break;
-
+          case "segment_size":
+            exportConfigurationBuilder.setSegmentSize(((Long)val).intValue());
+            break;
           case "query_block_size":
-            JSONObject qbs = (JSONObject)val;
-            exportConfigurationBuilder.setQueryBlockSize((long)qbs.get(0));
+            exportConfigurationBuilder.setQueryBlockSize((long)val);
             break;
           case "query_block_size_margin":
-            JSONObject qbsm = (JSONObject)val;
-            exportConfigurationBuilder.setQueryBlockSizeMargin((long)qbsm.get(0));
+            exportConfigurationBuilder.setQueryBlockSizeMargin((long)val);
             break;
           default:
+            System.err.println("Ignoring attribute:"+key.toString()+
+                    " with val:"+val.toString());
             // we'll ignore all other fields
         }
       });

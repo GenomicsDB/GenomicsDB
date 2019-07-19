@@ -104,6 +104,11 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     return this;
   }
 
+  public GenomicsDBConfiguration setQueryPB(String pb) {
+    set(QUERYPB, pb);
+    return this;
+  }
+
   /**
    * Host file contains the hosts where GenomicsDB instances reside.
    * This file can be a replica of the slaves file. For now, we have

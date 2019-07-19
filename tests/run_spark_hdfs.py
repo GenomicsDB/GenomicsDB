@@ -51,11 +51,19 @@ query_attributes_with_PL_only = [ "PL" ]
 query_attributes_with_MLEAC_only = [ "MLEAC" ]
 default_segment_size = 40
 
+def query_column_ranges_for_PB(qcr):
+    return [{ 'column_or_interval_list': [{'column_interval': {'tiledb_column_interval':{'begin':qcr[0],'end':qcr[1]}}}]}]
+
 def create_query_json(ws_dir, test_name, query_param_dict, test_dir):
     test_dict=json.loads(query_json_template_string);
     test_dict["workspace"] = ws_dir
     test_dict["array"] = test_name
-    test_dict["query_column_ranges"] = [ [ query_param_dict["query_column_ranges"] ] ]
+    if (test_name == "t6_7_8"):
+        test_dict["query_column_ranges"] = query_column_ranges_for_PB(query_param_dict["query_column_ranges"])
+        if ('query_row_ranges' in test_dict):
+            del test_dict['query_row_ranges']
+    else:
+        test_dict["query_column_ranges"] = [ [query_param_dict["query_column_ranges"] ] ]
     if("vid_mapping_file" in query_param_dict):
         test_dict["vid_mapping_file"] = query_param_dict["vid_mapping_file"];
     if("callset_mapping_file" in query_param_dict):
@@ -398,10 +406,9 @@ def main():
                 with open(query_json_filename, 'wb') as fptr:
                     json.dump(test_query_dict, fptr, indent=4, separators=(',', ': '));
                     fptr.close();
-                loader_argument = loader_json_filename;
                 spark_cmd = 'spark-submit --class TestGenomicsDBSparkHDFS --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --hostfile '+hostfile_path+' --template_vcf_header '+template_vcf_header_path+' --spark_master '+spark_master+' --jar_dir '+jar_dir;
                 if (test_name == "t6_7_8"):
-                  spark_cmd = spark_cmd + ' --use-query-protobuf';
+                    spark_cmd = spark_cmd + ' --use-query-protobuf';
                 pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
                 stdout_string, stderr_string = pid.communicate()
                 if(pid.returncode != 0):
@@ -419,8 +426,10 @@ def main():
                     if(golden_md5sum != md5sum_hash_str):
                         sys.stdout.write('Mismatch in query test: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions\n');
                         print_diff(golden_stdout, stdout_filter);
+                        sys.stderr.write('Spark command was: '+spark_cmd+'\n');
                         sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
                         sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
+                        sys.stderr.write('Query file was: '+json.dumps(test_query_dict)+'\n');
                         cleanup_and_exit(namenode, tmpdir, -1);
                     else:
                         sys.stdout.write('Query test: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions passed\n');
@@ -439,6 +448,7 @@ def main():
                     sys.stderr.write('Spark command was: '+spark_cmd_v2+'\n');
                     sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
                     sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
+                    sys.stderr.write('Query file was: '+json.dumps(test_query_dict)+'\n');
                     cleanup_and_exit(namenode, tmpdir, -1);
                 stdout_list = stdout_string.splitlines(True);
                 stdout_filter = "".join(stdout_list);
