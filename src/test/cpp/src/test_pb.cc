@@ -21,11 +21,7 @@
  */
 
 #include <catch2/catch.hpp>
-#include <google/protobuf/util/json_util.h>
-#include <google/protobuf/util/type_resolver.h>
-#include <google/protobuf/util/type_resolver_util.h>
 
-#include "tiledb_utils.h"
 #include "json_config.h"
 #include "variant_query_config.h"
 #include "genomicsdb_export_config.pb.h"
@@ -63,34 +59,8 @@ TEST_CASE("pb_query_config_test", "[protobuf_config]")
   if(!g_pb_query_json_file.empty()) {
     GenomicsDBConfigBase json_config;
     json_config.read_from_file(g_pb_query_json_file, 0);
-    char *json_buffer = 0;
-    size_t json_buffer_length;
-    if (TileDBUtils::read_entire_file(g_pb_query_json_file, (void **)&json_buffer, &json_buffer_length) != TILEDB_OK
-	|| !json_buffer || json_buffer_length == 0) { 
-      free(json_buffer);
-      throw GenomicsDBConfigException((std::string("Could not open query JSON file \"")+g_pb_query_json_file+"\"").c_str());
-    }
     genomicsdb_pb::ExportConfiguration export_config;
-    //The function JsonStringToMessage was made available in Protobuf version 3.0.0. However,
-    //to maintain compatibility with GATK-4, we need to use 3.0.0-beta-1. This version doesn't have
-    //the JsonStringToMessage method. A workaround is as follows.
-    //https://stackoverflow.com/questions/41651271/is-there-an-example-of-protobuf-with-text-output
-    {
-      std::string json_to_binary_output;
-      google::protobuf::util::TypeResolver* resolver= google::protobuf::util::NewTypeResolverForDescriptorPool(
-	  "", google::protobuf::DescriptorPool::generated_pool());
-      auto status = google::protobuf::util::JsonToBinaryString(resolver,
-	  "/"+export_config.GetDescriptor()->full_name(), json_buffer,
-	  &json_to_binary_output);
-      CHECK(status.ok());
-      delete resolver;
-      auto success = export_config.ParseFromString(json_to_binary_output);
-      CHECK(success);
-    }
-    //auto status = google::protobuf::util::JsonStringToMessage(json_buffer, &export_config);
-    //CHECK(status.ok());
-    free(json_buffer);
-    json_buffer = 0;
+    GenomicsDBConfigBase::get_pb_from_query_json_file(&export_config, g_pb_query_json_file);
     CHECK(export_config.IsInitialized());
     GenomicsDBConfigBase pb_config;
     pb_config.read_from_PB(&export_config, 0);

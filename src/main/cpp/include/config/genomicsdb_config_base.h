@@ -155,6 +155,7 @@ class GenomicsDBConfigBase {
   void read_from_PB_binary_string(const std::string& str, const int rank=0);
   void read_from_PB(const genomicsdb_pb::ExportConfiguration* x, const int rank=0);
   void read_and_initialize_vid_and_callset_mapping_if_available(const genomicsdb_pb::ExportConfiguration*);
+  static void get_pb_from_query_json_file(genomicsdb_pb::ExportConfiguration* export_config, const std::string& json_file);
  protected:
   bool m_single_workspace_path;
   bool m_single_array_name;

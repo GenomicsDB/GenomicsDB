@@ -49,6 +49,11 @@ message RowRangeList {
   repeated RowRange range_list = 1;
 }
 
+message SparkConfig {
+  optional int64 query_block_size = 1;
+  optional int64 query_block_size_margin = 2;
+}
+
 message ExportConfiguration {
   required string workspace = 1;
   oneof array {
@@ -88,6 +93,5 @@ message ExportConfiguration {
   optional uint32 segment_size = 24;
   optional uint32 combined_vcf_records_buffer_size_limit = 25;
   optional bool disable_file_locking_in_tiledb = 27;
-  optional int64 query_block_size = 28;
-  optional int64 query_block_size_margin = 29;
+  optional SparkConfig spark_config = 28;
 }

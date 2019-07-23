@@ -64,7 +64,15 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
     public GenomicsDBFeatureReader(final GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration,
                                    final FeatureCodec<T, SOURCE> codec,
                                    final Optional<String> loaderJSONFile) throws IOException {
-        this.exportConfiguration = exportConfiguration;
+        GenomicsDBExportConfiguration.ExportConfiguration.Builder builder = 
+                exportConfiguration.toBuilder();
+        if(exportConfiguration.getQueryColumnRangesCount() == 0
+                && exportConfiguration.getQueryContigIntervalsCount() == 0
+                && exportConfiguration.getQueryRowRangesCount() == 0
+	        && exportConfiguration.getQuerySampleNamesCount() == 0) {
+            builder.setScanFull(true);
+        }
+        this.exportConfiguration = builder.build();
         this.codec = codec;
         this.loaderJSONFile = loaderJSONFile.orElse("");
         List<String> chromosomeIntervalArrays = this.exportConfiguration.hasArrayName() ? new ArrayList<String>() {{
@@ -130,7 +138,7 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
         if (this.exportConfiguration.hasArrayName()) {
             return new GenomicsDBFeatureIterator(this.loaderJSONFile, 
                     this.exportConfiguration, Optional.empty(), 
-                    this.featureCodecHeader, this.codec);
+                    this.featureCodecHeader, this.codec, chr, OptionalInt.of(start), OptionalInt.of(end));
         }
         else {
             Optional<Coordinates.ContigInterval> contigInterval = Optional.of(
@@ -167,7 +175,6 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
 	        && this.exportConfiguration.getQuerySampleNamesCount() == 0) {
             fullExportConfigurationBuilder.setScanFull(true);
         }
-        GenomicsDBExportConfiguration.ExportConfiguration fullExportConfiguration = fullExportConfigurationBuilder.build();
         GenomicsDBQueryStream gdbStream = new GenomicsDBQueryStream(
                 this.loaderJSONFile, fullExportConfigurationBuilder.build(),
                 this.codec instanceof BCF2Codec, true);

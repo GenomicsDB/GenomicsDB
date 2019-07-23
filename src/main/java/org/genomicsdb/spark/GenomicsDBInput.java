@@ -363,6 +363,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
             .addQueryColumnRanges(queryRangeBuilder).build();
   }
 
+  @Deprecated
   public static GenomicsDBExportConfiguration.ExportConfiguration.Builder 
         getExportConfigurationFromJsonFile(String queryFile)
         throws IOException, ParseException {
@@ -500,10 +501,28 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
             exportConfigurationBuilder.setSegmentSize(((Long)val).intValue());
             break;
           case "query_block_size":
-            exportConfigurationBuilder.setQueryBlockSize((long)val);
+            {
+              if(exportConfigurationBuilder.hasSparkConfig()) {
+                exportConfigurationBuilder.getSparkConfigBuilder().setQueryBlockSize((long)val);
+              }
+              else {
+                GenomicsDBExportConfiguration.SparkConfig.Builder configBuilder = 
+                        GenomicsDBExportConfiguration.SparkConfig.newBuilder();
+                exportConfigurationBuilder.setSparkConfig(configBuilder.setQueryBlockSize((long)val).build());
+              }
+            }
             break;
           case "query_block_size_margin":
-            exportConfigurationBuilder.setQueryBlockSizeMargin((long)val);
+            {
+              if(exportConfigurationBuilder.hasSparkConfig()) {
+                exportConfigurationBuilder.getSparkConfigBuilder().setQueryBlockSizeMargin((long)val);
+              }
+              else {
+                GenomicsDBExportConfiguration.SparkConfig.Builder configBuilder = 
+                        GenomicsDBExportConfiguration.SparkConfig.newBuilder();
+                exportConfigurationBuilder.setSparkConfig(configBuilder.setQueryBlockSizeMargin((long)val).build());
+              }
+            }
             break;
           default:
             System.err.println("Ignoring attribute:"+key.toString()+

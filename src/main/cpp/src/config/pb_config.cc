@@ -26,6 +26,9 @@
 #endif
 
 #include <zlib.h>
+#include <google/protobuf/util/json_util.h>
+#include <google/protobuf/util/type_resolver.h>
+#include <google/protobuf/util/type_resolver_util.h>
 #include "tiledb_utils.h"
 #include "json_config.h"
 #include "genomicsdb_config_base.h"
@@ -215,18 +218,18 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
 void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(
     const genomicsdb_pb::ExportConfiguration* export_config) {
   //Callset mapping and vid mapping
-  if (m_vid_mapper.is_initialized()) {
-    return;
-  }
   if(export_config->has_vid_mapping_file()) {
     m_vid_mapping_file = export_config->vid_mapping_file();
     m_vid_mapper = std::move(FileBasedVidMapper(m_vid_mapping_file));
   }
   else {
-    if(!export_config->has_vid_mapping()) //if vid file isn't specified, you must have the Vid PB object
+    if(export_config->has_vid_mapping()) {
+      m_vid_mapper.parse_vidmap_protobuf(&(export_config->vid_mapping()));
+    }
+    else if (!m_vid_mapper.is_initialized()) {
       throw GenomicsDBConfigException("Protobuf ExportConfiguration must have \
-	  either vid_mapping_file or vid_mapping object defined");
-    m_vid_mapper.parse_vidmap_protobuf(&(export_config->vid_mapping()));
+          either vid_mapping_file or vid_mapping object defined");
+    }
   }
   if(export_config->has_callset_mapping_file()) {
     m_callset_mapping_file = export_config->callset_mapping_file();
@@ -234,9 +237,45 @@ void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_availa
     m_vid_mapper.read_callsets_info(callsets_json_doc, 0);
   }
   else {
-    if(!export_config->has_callset_mapping())
+    if(export_config->has_callset_mapping()) {
+      m_vid_mapper.parse_callset_protobuf(&(export_config->callset_mapping()));
+    }
+    else if (!m_vid_mapper.is_initialized()) {
       throw GenomicsDBConfigException("Protobuf ExportConfiguration must have either \
 	  callset_mapping_file or callset_mapping object defined");
-    m_vid_mapper.parse_callset_protobuf(&(export_config->callset_mapping()));
+    }
+  }
+}
+
+void GenomicsDBConfigBase::get_pb_from_query_json_file(
+        genomicsdb_pb::ExportConfiguration *export_config,
+        const std::string& json_file) {
+  char *json_buffer = 0;
+  size_t json_buffer_length;
+  if (TileDBUtils::read_entire_file(json_file, (void **)&json_buffer, &json_buffer_length) != TILEDB_OK
+        || !json_buffer || json_buffer_length == 0) { 
+    free(json_buffer);
+    std::cerr << "Could not open query JSON file "+json_file+"\n";
+    exit(-1);
+  }
+  std::string json_to_binary_output;
+  //The function JsonStringToMessage was made available in Protobuf version 3.0.0. However,
+  //to maintain compatibility with GATK-4, we need to use 3.0.0-beta-1. This version doesn't have
+  //the JsonStringToMessage method. A workaround is as follows.
+  //https://stackoverflow.com/questions/41651271/is-there-an-example-of-protobuf-with-text-output
+  google::protobuf::util::TypeResolver* resolver= google::protobuf::util::NewTypeResolverForDescriptorPool(
+      "", google::protobuf::DescriptorPool::generated_pool());
+  auto status = google::protobuf::util::JsonToBinaryString(resolver,
+      "/"+export_config->GetDescriptor()->full_name(), json_buffer,
+      &json_to_binary_output);
+  if (!status.ok()) {
+    std::cerr << "Error converting JSON to binary string\n";
+    exit(-1);
+  }
+  delete resolver;
+  auto success = export_config->ParseFromString(json_to_binary_output);
+  if(!success) {
+    std::cerr << "Could not parse query JSON file to protobuf\n";
+    exit(-1);
   }
 }

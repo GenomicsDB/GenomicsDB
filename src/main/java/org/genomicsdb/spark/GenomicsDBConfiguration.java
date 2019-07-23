@@ -54,6 +54,7 @@ import com.googlecode.protobuf.format.JsonFormat;
 public class GenomicsDBConfiguration extends Configuration implements Serializable {
 
   public static final String LOADERJSON = "genomicsdb.input.loaderjsonfile";
+  @Deprecated
   public static final String QUERYJSON = "genomicsdb.input.queryjsonfile";
   public static final String MPIHOSTFILE = "genomicsdb.input.mpi.hostfile";
   public static final String PARTITION_STRATEGY = "genomicsdb.partition.strategy";
@@ -99,6 +100,7 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     return this;
   }
 
+  @Deprecated
   public GenomicsDBConfiguration setQueryJsonFile(String path) {
     set(QUERYJSON, path);
     return this;
@@ -199,6 +201,7 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     }
   }
 
+  @Deprecated
   private void readQueryRanges(JSONObject obj) throws ParseException {
     if (queryInfoList==null) {
       queryInfoList = new ArrayList<>();
@@ -320,11 +323,13 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
         queryInfoList.add(new GenomicsDBQueryInfo(start, end));
       }
     }
-    if(queryPB.hasQueryBlockSize()) {
-      QueryBlockSize = queryPB.getQueryBlockSize();
-    }
-    if(queryPB.hasQueryBlockSizeMargin()) {
-      QueryBlockSizeMargin = queryPB.getQueryBlockSizeMargin();
+    if(queryPB.hasSparkConfig()) {
+      if(queryPB.getSparkConfig().hasQueryBlockSize()) {
+        QueryBlockSize = queryPB.getSparkConfig().getQueryBlockSize();
+      }
+      if(queryPB.getSparkConfig().hasQueryBlockSizeMargin()) {
+        QueryBlockSizeMargin = queryPB.getSparkConfig().getQueryBlockSizeMargin();
+      }
     }
   }
 
