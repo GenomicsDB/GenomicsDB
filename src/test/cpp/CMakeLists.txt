@@ -41,14 +41,22 @@ if(LIBDBI_FOUND)
     src/test_mapping_data_loader.cc)
 endif()
 
+function(target_link_libraries_for_GenomicsDB_tests target)
+  build_GenomicsDB_links(${target})
+  # Need to explicitly add in pthread/dl libs for static linkage
+  if(BUILD_DISTRIBUTABLE_LIBRARY)
+    target_link_libraries(${target} pthread ${CMAKE_DL_LIBS})
+  endif()
+endfunction()
+
 add_executable(ctests ${CPP_TEST_SOURCES})
-build_GenomicsDB_links(ctests)
+target_link_libraries_for_GenomicsDB_tests(ctests)
 add_test(ctests ctests -d yes)
 
 add_executable(api_tests
   src/ctest_main.cc
   src/test_genomicsdb_api.cc)
-build_GenomicsDB_links(api_tests)
+target_link_libraries_for_GenomicsDB_tests(api_tests)
 target_compile_definitions(api_tests PRIVATE -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/")
 add_test(api_tests api_tests -d yes)
 
