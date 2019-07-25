@@ -418,13 +418,13 @@ if(BUILD_JAVA)
         ${MAVEN_PROTOBUF_REGENERATE_ARGS})
     #Maven build - depends on dynamic library
     add_custom_command(
-        OUTPUT ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-jar-with-dependencies.jar
+        OUTPUT ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-allinone.jar
         COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/pom.xml ${CMAKE_BINARY_DIR}/pom.xml
         COMMAND mvn versions:set ${MAVEN_QUIET_ARGS} -DnewVersion=${GENOMICSDB_RELEASE_VERSION} ${MAVEN_PROFILE}
         COMMAND mvn package -DskipTests ${MAVEN_ARGS}
         DEPENDS tiledbgenomicsdb ${JAVA_SCALA_SOURCES} pom.xml
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
-    install(FILES ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-jar-with-dependencies.jar DESTINATION bin)
+    install(FILES ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-allinone.jar DESTINATION bin)
 
     add_test(NAME javatests
         COMMAND mvn test
@@ -440,7 +440,7 @@ if(BUILD_JAVA)
 
     add_jar(genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples
         SOURCES ${GENOMICSDB_EXAMPLE_SOURCES}
-        INCLUDE_JARS ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-jar-with-dependencies.jar
+        INCLUDE_JARS ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-allinone.jar
         OUTPUT_DIR ${GENOMICSDB_MAVEN_BUILD_DIR})
 
     #Deploy to Maven central

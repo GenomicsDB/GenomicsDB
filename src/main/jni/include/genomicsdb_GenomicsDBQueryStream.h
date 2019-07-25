@@ -9,13 +9,14 @@ extern "C" {
 #endif
 #undef org_genomicsdb_reader_GenomicsDBQueryStream_MAX_SKIP_BUFFER_SIZE
 #define org_genomicsdb_reader_GenomicsDBQueryStream_MAX_SKIP_BUFFER_SIZE 2048L
+
 /*
  * Class:     org_genomicsdb_reader_GenomicsDBQueryStream
  * Method:    jniGenomicsDBInit
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIJJ)J
  */
 JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQueryStream_jniGenomicsDBInit
-  (JNIEnv *, jobject, jstring, jstring, jstring, jint, jint, jint, jlong, jlong, jboolean, jboolean, jboolean, jboolean);
+  (JNIEnv *, jobject, jstring, jbyteArray, jstring, jint, jint, jint, jlong, jlong, jboolean, jboolean, jboolean, jboolean);
 
 /*
  * Class:     org_genomicsdb_reader_GenomicsDBQueryStream

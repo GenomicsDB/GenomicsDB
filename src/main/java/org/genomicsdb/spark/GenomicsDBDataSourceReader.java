@@ -76,8 +76,22 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
     //                             StructField("encodedGenotypes", VectorType, false))
 
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration();
-    genomicsDBConfiguration.setLoaderJsonFile(options.get(GenomicsDBConfiguration.LOADERJSON).get());
-    genomicsDBConfiguration.setQueryJsonFile(options.get(GenomicsDBConfiguration.QUERYJSON).get());
+    if(options.get(GenomicsDBConfiguration.LOADERJSON).isPresent()) {
+      genomicsDBConfiguration.setLoaderJsonFile(options.get(GenomicsDBConfiguration.LOADERJSON).get());
+    }
+    else {
+      throw new RuntimeException("Must specify "+GenomicsDBConfiguration.LOADERJSON);
+    }
+    if(options.get(GenomicsDBConfiguration.QUERYPB).isPresent()) {
+      genomicsDBConfiguration.setQueryPB(options.get(GenomicsDBConfiguration.QUERYPB).get());
+    }
+    else if(options.get(GenomicsDBConfiguration.QUERYJSON).isPresent()) {
+      genomicsDBConfiguration.setQueryJsonFile(options.get(GenomicsDBConfiguration.QUERYJSON).get());
+    }
+    else {
+      throw new RuntimeException("Must specify either "+GenomicsDBConfiguration.QUERYJSON+
+              " or "+GenomicsDBConfiguration.QUERYPB);
+    }
     try {
       genomicsDBConfiguration.setHostFile(options.get(GenomicsDBConfiguration.MPIHOSTFILE).get());
     } catch (FileNotFoundException e) {

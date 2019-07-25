@@ -35,6 +35,9 @@ import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
+import org.genomicsdb.model.Coordinates;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
+
 import org.json.simple.parser.ParseException;
 import scala.collection.JavaConverters;
 
@@ -55,25 +58,25 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
 
   public GenomicsDBInputPartitionReader(GenomicsDBInputPartition iPartition) {
     inputPartition = iPartition;
-    String loaderJson = inputPartition.getLoaderFile();
-    String queryJson = inputPartition.getQueryFile();
-    String amendedQuery = queryJson;
-    if (inputPartition.getPartitionInfo() != null) {
-      try {
-        amendedQuery =
-            GenomicsDBInput.createTmpQueryFile(
-                queryJson, inputPartition.getPartitionInfo(), inputPartition.getQueryInfo());
-      } catch (ParseException | IOException e) {
-        e.printStackTrace();
-      }
+    String loader = inputPartition.getLoader();
+    String query = inputPartition.getQuery();
+    GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration;
+    try {
+      exportConfiguration =
+          GenomicsDBInput.createTargetExportConfigurationPB(
+              query, inputPartition.getPartitionInfo(), 
+              inputPartition.getQueryInfo(), inputPartition.getQueryIsPB());
+    } catch (ParseException | IOException e) {
+      e.printStackTrace();
+      exportConfiguration = null;
     }
 
     try {
       fReader =
           new GenomicsDBFeatureReader<>(
-              amendedQuery,
+              exportConfiguration,
               (FeatureCodec<VariantContext, PositionalBufferedStream>) new BCF2Codec(),
-              Optional.of(loaderJson));
+              Optional.of(loader));
       this.iterator = fReader.iterator();
     } catch (IOException e) {
       e.printStackTrace();

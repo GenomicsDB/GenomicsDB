@@ -22,13 +22,14 @@
 
 #include "genomicsdb_GenomicsDBQueryStream.h"
 #include "genomicsdb_bcf_generator.h"
+#include "genomicsdb_export_config.pb.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBJNIException(#X);
 #define GET_BCF_READER_FROM_HANDLE(X) (reinterpret_cast<GenomicsDBBCFGenerator*>(static_cast<std::uintptr_t>(X)))
 
 JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQueryStream_jniGenomicsDBInit
-  (JNIEnv* env, jobject curr_obj, jstring loader_configuration_file, jstring query_configuration_file,
-   jstring chr, jint start, jint end,
+  (JNIEnv* env, jobject curr_obj, jstring loader_configuration_file, 
+   jbyteArray query_buffer, jstring chr, jint start, jint end,
    jint rank, jlong buffer_capacity, jlong segment_size,
    jboolean is_bcf, jboolean produce_header_only,
    jboolean use_missing_values_only_not_vector_end, jboolean keep_idx_fields_in_bcf_header)
@@ -36,21 +37,30 @@ JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQueryStream_jniGeno
   //Java string to char*
   auto loader_configuration_file_cstr = env->GetStringUTFChars(loader_configuration_file, NULL);
   VERIFY_OR_THROW(loader_configuration_file_cstr);
-  auto query_configuration_file_cstr = env->GetStringUTFChars(query_configuration_file, NULL);
-  VERIFY_OR_THROW(query_configuration_file_cstr);
   auto chr_cstr = env->GetStringUTFChars(chr, NULL);
   VERIFY_OR_THROW(chr_cstr);
-  //Create object
+  // protobuf stuff from: https://askldjd.com/2013/02/19/protobuf-over-jni/
+  genomicsdb_pb::ExportConfiguration query_config_pb;
+  jbyte *bufferElems = env->GetByteArrayElements(query_buffer, 0);
+  int len = env->GetArrayLength(query_buffer);
   auto output_format = is_bcf ? "bu" : "";
-  auto bcf_reader_obj = new GenomicsDBBCFGenerator(loader_configuration_file_cstr, query_configuration_file_cstr,
-      chr_cstr, start, end,
-      rank, buffer_capacity, segment_size, output_format,
-      produce_header_only,
-      is_bcf && use_missing_values_only_not_vector_end, is_bcf && keep_idx_fields_in_bcf_header);
+  GenomicsDBBCFGenerator *bcf_reader_obj;
+  try {
+    query_config_pb.ParseFromArray(reinterpret_cast<void*>(bufferElems), len);
+    //Create object
+    bcf_reader_obj = new GenomicsDBBCFGenerator(loader_configuration_file_cstr, &query_config_pb,
+        chr_cstr, start, end,
+        rank, buffer_capacity, segment_size, output_format,
+        produce_header_only,
+        is_bcf && use_missing_values_only_not_vector_end, is_bcf && keep_idx_fields_in_bcf_header);
+  }
+  catch (...) {
+    bcf_reader_obj = NULL;
+  }
   //Cleanup
   env->ReleaseStringUTFChars(loader_configuration_file, loader_configuration_file_cstr);
-  env->ReleaseStringUTFChars(query_configuration_file, query_configuration_file_cstr);
   env->ReleaseStringUTFChars(chr, chr_cstr);
+  env->ReleaseByteArrayElements(query_buffer, bufferElems, JNI_ABORT);
   //Cast pointer to 64-bit int and return to Java
   return static_cast<jlong>(reinterpret_cast<std::uintptr_t>(bcf_reader_obj));
 }

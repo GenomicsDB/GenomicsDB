@@ -32,10 +32,12 @@ import java.util.Map;
 public class GenomicsDBInputPartition
     implements InputPartition<InternalRow>, GenomicsDBInputInterface {
 
-  private String loaderFile;
+  private String loader;
+  private String query;
+  private boolean loaderIsPB;
+  private boolean queryIsPB;
   private GenomicsDBPartitionInfo partition;
   private GenomicsDBQueryInfo queryRange;
-  private String queryFile;
   private String[] hosts;
   private StructType schema;
   private Map<String, GenomicsDBVidSchema> vMap;
@@ -45,8 +47,7 @@ public class GenomicsDBInputPartition
   public GenomicsDBInputPartition(String host, GenomicsDBConfiguration gConf, StructType schema) {
     hosts = new String[1];
     hosts[0] = host;
-    loaderFile = gConf.get(GenomicsDBConfiguration.LOADERJSON);
-    queryFile = gConf.get(GenomicsDBConfiguration.QUERYJSON);
+    setLoaderAndQuery(gConf);
     partition = null;
     queryRange = null;
     this.schema = schema;
@@ -57,8 +58,7 @@ public class GenomicsDBInputPartition
       GenomicsDBConfiguration gConf,
       StructType schema) {
     hosts = null;
-    loaderFile = gConf.get(GenomicsDBConfiguration.LOADERJSON);
-    queryFile = gConf.get(GenomicsDBConfiguration.QUERYJSON);
+    setLoaderAndQuery(gConf);
     this.partition = new GenomicsDBPartitionInfo(partition);
     this.queryRange = new GenomicsDBQueryInfo(query);
     this.schema = schema;
@@ -91,17 +91,24 @@ public class GenomicsDBInputPartition
     return vMap;
   }
 
-  public String getLoaderFile() {
-    return loaderFile;
+  public String getLoader() {
+    return loader;
   }
 
-  public String getQueryFile() {
-    return queryFile;
+  public String getQuery() {
+    return query;
+  }
+
+  public boolean getLoaderIsPB() {
+    return loaderIsPB;
+  }
+
+  public boolean getQueryIsPB() {
+    return queryIsPB;
   }
 
   public void setGenomicsDBConf(GenomicsDBConfiguration g) {
-    loaderFile = g.get(GenomicsDBConfiguration.LOADERJSON);
-    queryFile = g.get(GenomicsDBConfiguration.QUERYJSON);
+    setLoaderAndQuery(g);
   }
 
   public void setGenomicsDBSchema(StructType s) {
@@ -118,5 +125,24 @@ public class GenomicsDBInputPartition
 
   public void setQueryInfo(GenomicsDBQueryInfo q) {
     queryRange = q;
+  }
+
+  private void setLoaderAndQuery(GenomicsDBConfiguration g) {
+    if (g.get(GenomicsDBConfiguration.LOADERPB) != null) {
+      loader = g.get(GenomicsDBConfiguration.LOADERPB);
+      loaderIsPB = true;
+    }
+    else {
+      loader = g.get(GenomicsDBConfiguration.LOADERJSON);
+      loaderIsPB = false;
+    }
+    if (g.get(GenomicsDBConfiguration.QUERYPB) != null) {
+      query = g.get(GenomicsDBConfiguration.QUERYPB);
+      queryIsPB = true;
+    }
+    else {
+      query = g.get(GenomicsDBConfiguration.QUERYJSON);
+      queryIsPB = false;
+    }
   }
 }
