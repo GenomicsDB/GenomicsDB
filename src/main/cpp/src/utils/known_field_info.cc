@@ -120,7 +120,7 @@ unsigned KnownFieldInfo::get_num_elements_for_known_field_enum(unsigned known_fi
   return g_known_field_enum_to_info[known_field_enum].get_num_elements_for_known_field_enum(num_ALT_alleles, ploidy);
 }
 
-unsigned KnownFieldInfo::get_number_of_genotypes(const unsigned num_ALT_alleles, const unsigned ploidy) {
+uint64_t KnownFieldInfo::get_number_of_genotypes(const unsigned num_ALT_alleles, const unsigned ploidy) {
   switch (ploidy) {
   case 1u:
     return num_ALT_alleles+1u;

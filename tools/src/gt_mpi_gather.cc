@@ -317,8 +317,7 @@ void scan_and_produce_Broad_GVCF(const VariantQueryProcessor& qp, const VariantQ
   SingleVariantOperatorBase* op_ptr = 0;
   switch (sub_operation_type) {
   case ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_PRODUCE_GVCF:
-    op_ptr = new BroadCombinedGVCFOperator(vcf_adapter, id_mapper, query_config,
-                                           query_config.get_max_diploid_alt_alleles_that_can_be_genotyped());
+    op_ptr = new BroadCombinedGVCFOperator(vcf_adapter, id_mapper, query_config);
     break;
   case ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_PRODUCE_INTERESTING_POSITIONS:
     op_ptr = new InterestingLocationsPrinter(std::cout);

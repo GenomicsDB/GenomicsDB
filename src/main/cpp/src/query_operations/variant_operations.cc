@@ -370,11 +370,12 @@ void DummyGenotypingOperator::operate(Variant& variant, const VariantQueryConfig
 
 //GA4GHOperator functions
 GA4GHOperator::GA4GHOperator(const VariantQueryConfig& query_config,
-                             const VidMapper& vid_mapper,
-                             const unsigned max_diploid_alt_alleles_that_can_be_genotyped)
+                             const VidMapper& vid_mapper)
   : SingleVariantOperatorBase(&vid_mapper) {
   m_GT_query_idx = UNDEFINED_ATTRIBUTE_IDX_VALUE;
-  m_max_diploid_alt_alleles_that_can_be_genotyped = max_diploid_alt_alleles_that_can_be_genotyped;
+  m_max_diploid_alt_alleles_that_can_be_genotyped =
+    query_config.get_max_diploid_alt_alleles_that_can_be_genotyped();
+  m_max_genotype_count = query_config.get_max_genotype_count();
   m_remapped_fields_query_idxs.clear();
   for (auto query_field_idx=0u; query_field_idx<query_config.get_num_queried_attributes(); ++query_field_idx) {
     //Does the length dependent on number of alleles
@@ -582,6 +583,40 @@ void GA4GHOperator::operate(Variant& variant, const VariantQueryConfig& query_co
         copy_field(remapped_field, orig_field);
         if (remapped_field.get() && remapped_field->is_valid()) {   //Not null
           auto curr_ploidy = m_ploidy[curr_call_idx_in_variant];
+	  if (length_descriptor.is_length_genotype_dependent()
+	      && too_many_genotypes_for_genotype_length_fields(num_merged_alleles-1u, curr_ploidy)) {  //#alt = merged-1
+	    assert(m_vid_mapper);
+	    std::string contig_name;
+	    int64_t  contig_position = -1;
+	    auto contig_status = m_vid_mapper->get_contig_location(
+		variant.get_column_begin(), contig_name, contig_position);
+	    std::string callset_name;
+	    auto callset_status = m_vid_mapper->get_callset_name(remapped_call.get_row_idx(), callset_name);
+	    if(callset_status)
+	      std::cerr << "Sample/Callset "<<callset_name << "(";
+	    std::cerr << "TileDB row idx "<<remapped_call.get_row_idx();
+	    if(callset_status)
+	      std::cerr << ")";
+	    std::cerr << " at ";
+	    if (contig_status)
+	      std::cerr << "Chromosome "<<contig_name<<" position "<<contig_position+1<<" ("; //VCF contig coords are 1 based
+	    std::cerr << "TileDB column "<<variant.get_column_begin();
+	    if (contig_status)
+	      std::cerr << ")";
+	    std::cerr << " has too many genotypes in the combined VCF record : ";
+	    auto num_genotypes = KnownFieldInfo::get_number_of_genotypes(num_merged_alleles-1u, curr_ploidy);
+	    if(num_genotypes == UINT64_MAX)
+	      std::cerr << "<uint64_t overflow>";
+	    else
+	      std::cerr << num_genotypes;
+	    std::cerr  << " : current limit : "<<m_max_genotype_count
+	      << " (num_alleles, ploidy) = ("<<num_merged_alleles<< ", "<<curr_ploidy
+	      << "). Fields, such as  PL, with length equal to the number of genotypes will NOT be added \
+	      for this sample for this location.\n";
+	    remapped_field->set_valid(false);
+	    continue;
+	  }
+
           //Multi-D field
           if (query_config.get_length_descriptor_for_query_attribute_idx(query_field_idx).get_num_dimensions() > 1u)
             remap_allele_specific_annotations(orig_field, remapped_field,

@@ -312,8 +312,7 @@ LoaderCombinedGVCFOperator::LoaderCombinedGVCFOperator(const GenomicsDBImportCon
   if (m_query_config.get_determine_sites_with_max_alleles() > 0)
     m_operator = new MaxAllelesCountOperator(m_query_config.get_determine_sites_with_max_alleles());
   else
-    m_operator = new BroadCombinedGVCFOperator(*m_vcf_adapter, m_query_config.get_vid_mapper(), m_query_config,
-        m_query_config.get_max_diploid_alt_alleles_that_can_be_genotyped());
+    m_operator = new BroadCombinedGVCFOperator(*m_vcf_adapter, m_query_config.get_vid_mapper(), m_query_config);
   //Initialize variant
   m_variant = std::move(Variant(&m_query_config));
   m_variant.resize_based_on_query();

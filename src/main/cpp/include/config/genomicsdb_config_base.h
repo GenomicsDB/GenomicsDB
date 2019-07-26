@@ -76,6 +76,9 @@ class GenomicsDBConfigBase {
   inline unsigned get_max_diploid_alt_alleles_that_can_be_genotyped() const {
     return m_max_diploid_alt_alleles_that_can_be_genotyped;
   }
+  inline unsigned get_max_genotype_count() const {
+    return m_max_genotype_count;
+  }
   void set_combined_vcf_records_buffer_size_limit(const size_t val) {
     m_combined_vcf_records_buffer_size_limit = val;
   }
@@ -197,6 +200,8 @@ class GenomicsDBConfigBase {
   unsigned m_determine_sites_with_max_alleles;
   //Max diploid alleles for which fields whose length is equal to the number of genotypes can be produced (such as PL)
   unsigned m_max_diploid_alt_alleles_that_can_be_genotyped;
+  //Max #genotypes for which fields whose length is equal to the number of genotypes can be produced (such as PL)
+  unsigned m_max_genotype_count;
   //Buffer size for combined vcf records
   size_t m_combined_vcf_records_buffer_size_limit;
   //VidMapper
