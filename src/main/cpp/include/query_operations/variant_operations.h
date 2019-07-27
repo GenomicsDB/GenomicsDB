@@ -328,11 +328,15 @@ class VariantOperations {
     }
     auto numerator = 1ull;
     for (auto i=begin_idx; i<=static_cast<uint64_t>(n); ++i) {
-      auto numerator_bits = 64 - __builtin_clzll(numerator);
-      auto i_bits = 64 - __builtin_clzll(i);
-      if(numerator_bits + i_bits > 64) //this might sometimes falsely mark some products are overflowing
-	return UINT64_MAX;
-      numerator *= i;
+      /*auto numerator_bits = 64 - __builtin_clzll(numerator);*/
+      /*auto i_bits = 64 - __builtin_clzll(i);*/
+      /*if(numerator_bits + i_bits > 64) //this might sometimes falsely mark some products are overflowing*/
+      /*return UINT64_MAX;*/
+      auto tmp = numerator*i;
+      if(tmp/i == numerator) //detects overflow
+	numerator = tmp;
+      else
+	return UINT64_MAX; //overflow
     }
     auto denominator = 1ull;
     for (auto i=1ull; i<=end_idx; ++i)

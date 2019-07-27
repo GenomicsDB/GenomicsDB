@@ -44,7 +44,7 @@ inline bool IS_NON_REF_ALLELE(const char allele_char) {
 #define TILEDB_NON_REF_VARIANT_REPRESENTATION "&"
 #define TILEDB_ALT_ALLELE_SEPARATOR "|"
 #define MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED 50u
-#define MAX_GENOTYPE_COUNT 100000000u //this is likely larger than what can be handled by the VCF format
+#define MAX_GENOTYPE_COUNT ((unsigned)INT32_MAX) //this is likely larger than what can be handled by the VCF format
 #define DEFAULT_COMBINED_VCF_RECORDS_BUFFER_SIZE 1048576u
 
 #define UNDEFINED_ATTRIBUTE_IDX_VALUE 0xFFFFFFFFu

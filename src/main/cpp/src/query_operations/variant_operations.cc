@@ -593,7 +593,7 @@ void GA4GHOperator::operate(Variant& variant, const VariantQueryConfig& query_co
 	    std::string callset_name;
 	    auto callset_status = m_vid_mapper->get_callset_name(remapped_call.get_row_idx(), callset_name);
 	    if(callset_status)
-	      std::cerr << "Sample/Callset "<<callset_name << "(";
+	      std::cerr << "Sample/Callset "<<callset_name << "( ";
 	    std::cerr << "TileDB row idx "<<remapped_call.get_row_idx();
 	    if(callset_status)
 	      std::cerr << ")";
