@@ -1,3 +1,11 @@
+/**
+ * This file has been copied from the schema repository of the GA4GH Data Working
+ * Group (https://github.com/ga4gh/ga4gh-schemas). The original file URL is:
+ * https://github.com/ga4gh/ga4gh-schemas/blob/master/src/main/proto/ga4gh/common.proto
+ * The GA4GH schemas are covered by the Apache license v2.0.
+ */
+
+
 // This file defines common types used in other parts of the schema.
 // There are no directly associated methods.
 
