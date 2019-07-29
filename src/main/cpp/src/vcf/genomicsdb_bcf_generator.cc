@@ -73,7 +73,7 @@ GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_
   //Must set buffer before constructing BroadCombinedGVCFOperator
   set_write_buffer();
   m_combined_bcf_operator = new BroadCombinedGVCFOperator(m_vcf_adapter, vid_mapper, m_query_config,
-      m_query_config.get_max_diploid_alt_alleles_that_can_be_genotyped(), use_missing_values_only_not_vector_end);
+      use_missing_values_only_not_vector_end);
   m_query_column_interval_idx = 0u;
   if (produce_header_only)
     m_scan_state.set_done(true);

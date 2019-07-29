@@ -194,6 +194,8 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
   //Limit on max #alt alleles so that PL fields get re-computed
   m_max_diploid_alt_alleles_that_can_be_genotyped = export_config->has_max_diploid_alt_alleles_that_can_be_genotyped()
     ? export_config->max_diploid_alt_alleles_that_can_be_genotyped() : MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED;
+  m_max_genotype_count = export_config->has_max_genotype_count()
+    ? export_config->max_genotype_count() : MAX_GENOTYPE_COUNT;
   m_combined_vcf_records_buffer_size_limit = export_config->has_combined_vcf_records_buffer_size_limit()
     ? export_config->combined_vcf_records_buffer_size_limit() : DEFAULT_COMBINED_VCF_RECORDS_BUFFER_SIZE;
   //Cannot be 0

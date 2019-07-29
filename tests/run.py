@@ -95,6 +95,8 @@ def create_query_json(ws_dir, test_name, query_param_dict):
 	  del test_dict['query_row_ranges']
     if('query_filter' in query_param_dict):
         test_dict['query_filter'] = query_param_dict['query_filter']
+    if('max_genotype_count' in query_param_dict):
+        test_dict['max_genotype_count'] = query_param_dict['max_genotype_count']
     return test_dict;
 
 
@@ -661,6 +663,16 @@ def main():
                         "variants"   : "golden_outputs/t6_7_8_variants_at_0",
                         "vcf"        : "golden_outputs/t6_7_8_vcf_at_0",
                         "batched_vcf": "golden_outputs/t6_7_8_vcf_at_0",
+                        } },
+		    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }],
+		       "max_genotype_count": 8,
+		       "golden_output": {
+                        "vcf"        : "golden_outputs/t6_7_8_vcf_at_0_max_genotype_count_8",
                         } },
 		    { "query_column_ranges" : [{
                         "range_list": [{
