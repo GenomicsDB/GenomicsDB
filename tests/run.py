@@ -33,6 +33,8 @@ import jsondiff
 import errno
 import distutils.spawn
 
+import common
+
 query_json_template_string="""
 {   
         "workspace" : "",
@@ -264,7 +266,7 @@ def tool_sanity_checks(exe_path):
     try:
         st = os.stat(exe_path)
     except os.error:
-        sys.stderr.write("Could not find " + gt_mpi_gather_path);
+        sys.stderr.write("Could not find " + gt_mpi_gather_path + '\n');
         sys.exit(-1);
     run_cmd(gt_mpi_gather_path, False);
     run_cmd(gt_mpi_gather_path + ' --help', True);
@@ -328,21 +330,31 @@ def test_pb_configs(tmpdir, ctest_dir):
 	    cleanup_and_exit(tmpdir, exit_code)
 
 def main():
-    if(len(sys.argv) < 3):
-        sys.stderr.write('Needs 2 arguments <build_dir> <install_dir>\n');
+    #Initial Setup
+    if (len(sys.argv) < 3):
+        sys.stderr.write('Usage ./run.py <build_dir> <install_dir> [<build_type>] [<split_batch_num>]\n')
+        sys.stderr.write('   Optional Argument 3 - build_type=Release|Coverage|...\n')
+        sys.stderr.write('   Optional Argument 4 - Tests are batched into two to help with Travis builds on MacOS\n')
+        sys.stderr.write('                         specify batch with split_batch_num=0|1\n')
+        sys.stderr.write('                         Otherwise all tests are run.\n\n')
         sys.exit(-1);
-    gcda_prefix_dir = sys.argv[1];
-    ctest_dir = gcda_prefix_dir+'/src/test/cpp'
-    exe_path = sys.argv[2]+os.path.sep+'bin';
+    build_dir=os.path.abspath(sys.argv[1])
+    ctest_dir = os.path.join(build_dir, 'src/test/cpp')
+    exe_path = os.path.join(sys.argv[2],'bin')
     tool_sanity_checks(exe_path);
+    if (len(sys.argv) == 4):
+        build_type = sys.argv[3]
+    else:
+        build_type = "default"
     #Switch to tests directory
     parent_dir=os.path.dirname(os.path.realpath(__file__))
     os.chdir(parent_dir)
     tmpdir = tempfile.mkdtemp()
     bcftools_path = distutils.spawn.find_executable("bcftools")
     ws_dir=tmpdir+os.path.sep+'ws';
-    jacoco_enabled = os.path.isfile(gcda_prefix_dir+os.path.sep+'jacocoagent.jar') and os.path.isfile(gcda_prefix_dir+os.path.sep+'jacococli.jar')
     test_pb_configs(tmpdir, ctest_dir)
+    common.setup_classpath(build_dir)
+    jacoco, jacoco_report_cmd = common.setup_jacoco(build_dir, build_type)
     loader_tests0 = [
             { "name" : "t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
@@ -1295,9 +1307,9 @@ def main():
                     ]
             },
     ];
-    if(len(sys.argv) < 4):
+    if(len(sys.argv) < 5):
         loader_tests = loader_tests0 + loader_tests1
-    elif(sys.argv[3] == '1'):
+    elif(sys.argv[4] == '1'):
         loader_tests = loader_tests0
     else:
         loader_tests = loader_tests1
@@ -1314,17 +1326,6 @@ def main():
             incr_callset = test_loader_dict["callset_mapping_file"]
             test_loader_dict["callset_mapping_file"] = incr_callset.replace('.0', '')
         loader_json_filename = create_json_file(tmpdir, test_name, None, test_loader_dict)
-        if jacoco_enabled:
-            jacoco_dest_file = "=destfile="+gcda_prefix_dir+os.path.sep+"target"+os.path.sep+"jacoco-reports"+os.path.sep+"jacoco-ci.exec"
-            jacoco = " -javaagent:"+gcda_prefix_dir+os.path.sep+"jacocoagent.jar"+jacoco_dest_file
-            try:
-                os.makedirs(gcda_prefix_dir+os.path.sep+'target'+os.path.sep+'jacoco-reports'+os.path.sep+'jacoco-ci')
-            except OSError as e:
-                if e.errno != errno.EEXIST:
-                    sys.stderr.write('Error creating jacoco-reports dir:'+e.errno+' '+e.filename+' '+e.strerror)
-                    cleanup_and_exit(tmpdir, -1);
-        else:
-            jacoco = ''
         if(test_name  == 'java_t0_1_2'):
             import_cmd = 'java'+jacoco+' -ea TestGenomicsDB --load '+loader_json_filename
 
@@ -1491,14 +1492,10 @@ def main():
                                     print(json.dumps(json_diff_result, indent=4, separators=(',', ': ')));
                                 cleanup_and_exit(tmpdir, -1);
         shutil.rmtree(ws_dir, ignore_errors=True)
-    test_pre_1_0_0_query_compatibility(tmpdir);
-    if jacoco_enabled:
-        jacoco_ci_report_dir = gcda_prefix_dir+os.path.sep+'target'+os.path.sep+'jacoco-reports'+os.path.sep
-        jacoco_report_cmd = 'java -jar '+gcda_prefix_dir+os.path.sep+'jacococli.jar report '+jacoco_ci_report_dir+'jacoco-ci.exec --classfiles '+gcda_prefix_dir+os.path.sep+'target'+os.path.sep+'classes --html '+jacoco_ci_report_dir+'jacoco-ci --xml '+jacoco_ci_report_dir+'jacoco-ci'+os.path.sep+'jacoco-ci.xml'
-        pid = subprocess.Popen(jacoco_report_cmd, shell=True, stdout=subprocess.PIPE);
-        stdout_string = pid.communicate()[0]
-        if(pid.returncode != 0):
-            sys.stderr.write('Jacoco report generation command:'+jacoco_report_cmd+' failed\n')
+    test_pre_1_0_0_query_compatibility(tmpdir)
+    rc = common.report_jacoco_coverage(jacoco_report_cmd)
+    if (rc != 0):
+        cleanup_and_exit(namenode, tmpdir, -1);
     cleanup_and_exit(tmpdir, 0)
 
 if __name__ == '__main__':
