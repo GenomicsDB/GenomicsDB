@@ -416,6 +416,7 @@ def main():
                     sys.stderr.write('Spark command was: '+spark_cmd+'\n');
                     sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
                     sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
+                    sys.stderr.write('Query file was: '+json.dumps(test_query_dict)+'\n');
                     cleanup_and_exit(namenode, tmpdir, -1);
                 stdout_list = stdout_string.splitlines(True);
                 stdout_list_filter = [k for k in stdout_list if not k.startswith('##')];

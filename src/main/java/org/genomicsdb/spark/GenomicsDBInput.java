@@ -148,19 +148,20 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
   /**
    * create the appropriate partition/split object and initialize it
    * @param part GenomicsDBPartitionInfo for given partition/split
-   * @param qrange GenomicsDBQueryInfo for given partition/split
+   * @param qrangeList GenomicsDBQueryInfo for given partition/split
    * @return Returns initialized InputSplit or InputPartition
    * @throws RuntimeException Thrown if clazz is not GenomicsDBInputPartition or
    * GenomicsDBInputSplit
    */
-  private T getInputInstance(GenomicsDBPartitionInfo part, GenomicsDBQueryInfo qrange) throws RuntimeException {
+  private T getInputInstance(GenomicsDBPartitionInfo part, 
+      ArrayList<GenomicsDBQueryInfo> qrangeList) throws RuntimeException {
     T instance = createInputInstance();
     // seems sorta hacky to instantiate the splits/partitions this way
     // but should work and we shouldn't have to
     // scale this up to many more different classes...
     if (GenomicsDBInputSplit.class.isAssignableFrom(clazz)) {
       instance.setPartitionInfo(part);
-      instance.setQueryInfo(qrange);
+      instance.setQueryInfoList(qrangeList);
       return instance;
     }
     else {
@@ -168,7 +169,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
         Class c = Class.forName("org.genomicsdb.spark.GenomicsDBInputPartition");
         if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
           instance.setPartitionInfo(part);
-          instance.setQueryInfo(qrange);
+          instance.setQueryInfoList(qrangeList);
           instance.setGenomicsDBConf(genomicsDBConfiguration);
           instance.setGenomicsDBSchema(schema);
           instance.setGenomicsDBVidSchema(vMap);
@@ -245,32 +246,65 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       partition = partitionsList.get(pIndex);
 
     if (partition != null) {
+      // create a temporary arraylist that we'll use if we glom queries
+      ArrayList<GenomicsDBQueryInfo> glomQuerys = new ArrayList<GenomicsDBQueryInfo>();
+      // we'll use glommedSize to separate inputsplits if accumulated
+      // size of glommed queries goes above goalBlockSize
+      long glommedSize = 0;
       while (qIndex < queryRangeList.size() && partition != null) {
         GenomicsDBQueryInfo queryRange = queryRangeList.get(qIndex);
   
         // advance partition index if needed
         // i.e., advance till we find the partition that contains the query begin position
-        while ((pIndex + 1) < partitionsList.size() && partition.getBeginPosition() < queryRange.getBeginPosition()) {
+        while ((pIndex + 1) < partitionsList.size() && 
+              partitionsList.get(pIndex+1).getBeginPosition() <= 
+              queryRange.getBeginPosition()) {
+          // add glommed queries to inputsplit using previous partition since
+          // we're moving on to new partitions
+          if (!glomQuerys.isEmpty()) {
+            inputPartitions.add(getInputInstance(partition, glomQuerys));
+            glomQuerys.clear();
+          }
+          glommedSize = 0;
           pIndex++;
-  	  partition = partitionsList.get(pIndex);
-        }
-        if (partition.getBeginPosition() > queryRange.getBeginPosition()) {
-          pIndex--;
   	  partition = partitionsList.get(pIndex);
         }
   
         long queryBlockSize = queryRange.getEndPosition() - queryRange.getBeginPosition() + 1;
         if (queryBlockSize < goalBlockSize) {
-          inputPartitions.add(getInputInstance(partition, queryRange));
-  	  // if this queryRange spans multiple partitions, need to add those as splits as well
-  	  while ((pIndex + 1) < partitionsList.size() &&
-                  queryRange.getEndPosition() >= partitionsList.get(pIndex+1).getBeginPosition()) {
-  	    pIndex++;
-            partition = partitionsList.get(pIndex);
-  	    inputPartitions.add(getInputInstance(partition, queryRange));
-  	  }
+          // create glommed inputsplit
+          if(doesQuerySpanPartitions(pIndex+1, partitionsList, queryRange.getEndPosition())) {
+            // if current query spans multiple partitions then add to previous inputsplit as well
+            glomQuerys.add(queryRange);
+            inputPartitions.add(getInputInstance(partition, glomQuerys));
+            glomQuerys.clear();
+            glommedSize = 0;
+  	    // if this queryBlock spans multiple partitions, need to add those as splits as well
+  	    // can use the same ArrayList of queries since each inputsplit will only care
+  	    // about the section that is relevant to its partition
+            glomQuerys.add(queryRange);
+            partition = addSplitsIfQuerySpansPartitions(inputPartitions, pIndex, 
+                    queryRange.getEndPosition(), partitionsList, glomQuerys);
+            glomQuerys.clear();
+          }
+          else {
+            // add query to glom
+            glomQuerys.add(queryRange);
+            glommedSize += queryBlockSize;
+            // add to inputsplit and reset glom if accumulated glom size hits goal
+            if (glommedSize >= goalBlockSize) {
+    	      inputPartitions.add(getInputInstance(partition, glomQuerys));
+              glomQuerys.clear();
+              glommedSize = 0;
+            }
+          }
         }
         else {
+          if (!glomQuerys.isEmpty()) {
+            inputPartitions.add(getInputInstance(partition, glomQuerys));
+            glomQuerys.clear();
+            glommedSize = 0;
+          }
           // bigger than goalBlockSize, so break up into "query chunks"
   
   	  long queryBlockStart = queryRange.getBeginPosition();
@@ -278,23 +312,47 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
   	  while (queryBlockStart < queryRange.getEndPosition()) {
             long blockSize = (queryBlockSize > (goalBlockSize+queryBlockMargin)) ? goalBlockSize : queryBlockSize;
   	    GenomicsDBQueryInfo queryBlock = new GenomicsDBQueryInfo(queryBlockStart, queryBlockStart + blockSize - 1);
-  	    inputPartitions.add(getInputInstance(partition, queryBlock));
+            glomQuerys.add(queryBlock);
+  	    inputPartitions.add(getInputInstance(partition, glomQuerys));
   
   	    // if this queryBlock spans multiple partitions, need to add those as splits as well
-  	    while ((pIndex + 1) < partitionsList.size() &&
-                    queryBlockStart + blockSize - 1 >= partitionsList.get(pIndex+1).getBeginPosition()) {
-  	      pIndex++;
-              partition = partitionsList.get(pIndex);
-  	      inputPartitions.add(getInputInstance(partition, queryBlock));
-  	    }
+  	    partition = addSplitsIfQuerySpansPartitions(inputPartitions, pIndex,
+                    queryBlockStart+blockSize-1, partitionsList, glomQuerys);
+            glomQuerys.clear();
   	    queryBlockStart += blockSize;
   	    queryBlockSize -= blockSize;
   	  }
         }
         qIndex++;
       }
+      // if we still have glommed queries that haven't been assigned to
+      // an inputsplit, they go with the final partition
+      if(!glomQuerys.isEmpty()) {
+        inputPartitions.add(getInputInstance(partition, glomQuerys));
+      }
     }
     return inputPartitions;
+  }
+
+  private boolean doesQuerySpanPartitions(final int index, 
+          final ArrayList<GenomicsDBPartitionInfo> list,
+          final long queryEnd) {
+    return index < list.size() &&
+            queryEnd >= list.get(index).getBeginPosition();
+  }
+
+  private GenomicsDBPartitionInfo addSplitsIfQuerySpansPartitions(
+          ArrayList<T> list, int index,
+          final long queryEnd,
+          final ArrayList<GenomicsDBPartitionInfo> partitionList, 
+          final ArrayList<GenomicsDBQueryInfo> queryList) {
+    GenomicsDBPartitionInfo partition = partitionList.get(index);
+    while(doesQuerySpanPartitions(index+1, partitionList, queryEnd)) {
+      index++;
+      partition = partitionList.get(index);
+      list.add(getInputInstance(partition, queryList));
+    }
+    return partition;
   }
 
   /**
@@ -303,15 +361,16 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
    *
    * @param queryFileOrPB Existing query json file or protobuf string
    * @param partition used to populate array
-   * @param query used to bound query column ranges
+   * @param queryList used to bound query column ranges
    * @param isPB boolean parameter that denotes if queryFileOrPB is protobuf string
-   * @return  Returns path to temporary query file
+   * @return  Returns export configuration protobuf object
    * @throws IOException  Thrown if other IO exception while handling file operations
    * @throws ParseException  Thrown if JSON parsing fails
    */
   public static GenomicsDBExportConfiguration.ExportConfiguration 
         createTargetExportConfigurationPB(String queryFileOrPB, 
-        GenomicsDBPartitionInfo partition, GenomicsDBQueryInfo query, 
+        GenomicsDBPartitionInfo partition, 
+        ArrayList<GenomicsDBQueryInfo> queryList, 
         boolean isPB) 
         throws IOException, ParseException {
     GenomicsDBExportConfiguration.ExportConfiguration.Builder 
@@ -329,34 +388,36 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     // set the array name per the targeted partition
     exportConfigurationBuilder.setArrayName(partition.getArrayName());
     exportConfigurationBuilder.clearQueryColumnRanges();
-    // set query range per the part of the query this will handle
+
     GenomicsDBExportConfiguration.GenomicsDBColumnOrIntervalList.Builder 
         queryRangeBuilder = 
         GenomicsDBExportConfiguration.GenomicsDBColumnOrIntervalList.newBuilder();
-    if (query.getBeginPosition() == query.getEndPosition()) {
-      Coordinates.GenomicsDBColumnOrInterval.Builder columnBuilder = 
-              Coordinates.GenomicsDBColumnOrInterval.newBuilder();
-      Coordinates.GenomicsDBColumn.Builder gdbColumnBuilder = 
-              Coordinates.GenomicsDBColumn.newBuilder();
-
-      gdbColumnBuilder.setTiledbColumn(query.getBeginPosition());
-      queryRangeBuilder.addColumnOrIntervalList(
-          columnBuilder.setColumn(gdbColumnBuilder));
-    }
-    else {
-      Coordinates.GenomicsDBColumnOrInterval.Builder intervalBuilder = 
-              Coordinates.GenomicsDBColumnOrInterval.newBuilder();
-      Coordinates.GenomicsDBColumnInterval.Builder gdbColumnIntervalBuilder = 
-              Coordinates.GenomicsDBColumnInterval.newBuilder();
-      Coordinates.TileDBColumnInterval.Builder tdbColumnIntervalBuilder = 
-              Coordinates.TileDBColumnInterval.newBuilder();
-
-      tdbColumnIntervalBuilder.setBegin(query.getBeginPosition())
-              .setEnd(query.getEndPosition());
-      queryRangeBuilder.addColumnOrIntervalList(
-              intervalBuilder.setColumnInterval(
-              gdbColumnIntervalBuilder.setTiledbColumnInterval(
-              tdbColumnIntervalBuilder)));
+    for (GenomicsDBQueryInfo query : queryList) {
+      if (query.getBeginPosition() == query.getEndPosition()) {
+        Coordinates.GenomicsDBColumnOrInterval.Builder columnBuilder = 
+                Coordinates.GenomicsDBColumnOrInterval.newBuilder();
+        Coordinates.GenomicsDBColumn.Builder gdbColumnBuilder = 
+                Coordinates.GenomicsDBColumn.newBuilder();
+  
+        gdbColumnBuilder.setTiledbColumn(query.getBeginPosition());
+        queryRangeBuilder.addColumnOrIntervalList(
+            columnBuilder.setColumn(gdbColumnBuilder));
+      }
+      else {
+        Coordinates.GenomicsDBColumnOrInterval.Builder intervalBuilder = 
+                Coordinates.GenomicsDBColumnOrInterval.newBuilder();
+        Coordinates.GenomicsDBColumnInterval.Builder gdbColumnIntervalBuilder = 
+                Coordinates.GenomicsDBColumnInterval.newBuilder();
+        Coordinates.TileDBColumnInterval.Builder tdbColumnIntervalBuilder = 
+                Coordinates.TileDBColumnInterval.newBuilder();
+  
+        tdbColumnIntervalBuilder.setBegin(query.getBeginPosition())
+                .setEnd(query.getEndPosition());
+        queryRangeBuilder.addColumnOrIntervalList(
+                intervalBuilder.setColumnInterval(
+                gdbColumnIntervalBuilder.setTiledbColumnInterval(
+                tdbColumnIntervalBuilder)));
+      }
     }
 
     return exportConfigurationBuilder

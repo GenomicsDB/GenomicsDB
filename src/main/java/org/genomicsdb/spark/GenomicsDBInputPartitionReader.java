@@ -65,7 +65,7 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
       exportConfiguration =
           GenomicsDBInput.createTargetExportConfigurationPB(
               query, inputPartition.getPartitionInfo(), 
-              inputPartition.getQueryInfo(), inputPartition.getQueryIsPB());
+              inputPartition.getQueryInfoList(), inputPartition.getQueryIsPB());
     } catch (ParseException | IOException e) {
       e.printStackTrace();
       exportConfiguration = null;

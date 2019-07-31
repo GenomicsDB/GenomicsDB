@@ -131,7 +131,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
       exportConfiguration = 
               GenomicsDBInput.createTargetExportConfigurationPB(queryJson, 
               gSplit.getPartitionInfo(),
-              gSplit.getQueryInfo(), isPB);
+              gSplit.getQueryInfoList(), isPB);
     }
     catch (ParseException e) {
       e.printStackTrace();

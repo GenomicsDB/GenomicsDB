@@ -28,6 +28,7 @@ import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
 import org.apache.spark.sql.types.StructType;
 
 import java.util.Map;
+import java.util.ArrayList;
 
 public class GenomicsDBInputPartition
     implements InputPartition<InternalRow>, GenomicsDBInputInterface {
@@ -37,7 +38,7 @@ public class GenomicsDBInputPartition
   private boolean loaderIsPB;
   private boolean queryIsPB;
   private GenomicsDBPartitionInfo partition;
-  private GenomicsDBQueryInfo queryRange;
+  private ArrayList<GenomicsDBQueryInfo> queryRangeList;
   private String[] hosts;
   private StructType schema;
   private Map<String, GenomicsDBVidSchema> vMap;
@@ -49,18 +50,18 @@ public class GenomicsDBInputPartition
     hosts[0] = host;
     setLoaderAndQuery(gConf);
     partition = null;
-    queryRange = null;
+    queryRangeList = null;
     this.schema = schema;
   }
 
   public GenomicsDBInputPartition(GenomicsDBPartitionInfo partition,
-      GenomicsDBQueryInfo query,
+      ArrayList<GenomicsDBQueryInfo> queryList,
       GenomicsDBConfiguration gConf,
       StructType schema) {
     hosts = null;
     setLoaderAndQuery(gConf);
     this.partition = new GenomicsDBPartitionInfo(partition);
-    this.queryRange = new GenomicsDBQueryInfo(query);
+    this.queryRangeList = new ArrayList<GenomicsDBQueryInfo>(queryList);
     this.schema = schema;
   }
 
@@ -79,8 +80,8 @@ public class GenomicsDBInputPartition
     return partition;
   }
 
-  public GenomicsDBQueryInfo getQueryInfo() {
-    return queryRange;
+  public ArrayList<GenomicsDBQueryInfo> getQueryInfoList() {
+    return queryRangeList;
   }
 
   public StructType getSchema() {
@@ -123,8 +124,8 @@ public class GenomicsDBInputPartition
     partition = p;
   }
 
-  public void setQueryInfo(GenomicsDBQueryInfo q) {
-    queryRange = q;
+  public void setQueryInfoList(ArrayList<GenomicsDBQueryInfo> q) {
+    queryRangeList = new ArrayList<>(q);
   }
 
   private void setLoaderAndQuery(GenomicsDBConfiguration g) {
