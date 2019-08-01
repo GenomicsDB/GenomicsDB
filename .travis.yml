@@ -13,7 +13,6 @@ env:
         - GENOMICSDB_INSTALL_DIR=$GENOMICSDB_BUILD_DIR/install
         - PATH=$GENOMICSDB_INSTALL_DIR/bin:$TRAVIS_BUILD_DIR/bin:$PATH
         - GENOMICSDB_RELEASE_VERSION=x.y.z-travis-test
-        - CLASSPATH=$GENOMICSDB_INSTALL_DIR/bin/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-allinone.jar:$GENOMICSDB_BUILD_DIR/target/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples.jar:.
         - secure: ns0xWDbnmDb71J0/edoJ4jN/xtPg4yxnbexe/AcTwHUOkLehEuGHY7tlZa8cTlBsV19+CFXpYXn4LezS/7989gPfI5Kl0lLg1T8I4V+t2iJTAXurjew0i1AVjQBKfVWtYhGJQOws8DMUDunTxEJMahZzdNK1McLxvongJ7mD1rLabSlLE81lSnsVwvms/4Cp6c2hxec8mNsxxV9CUDzrsX63te/srvPuG+FMD1E32PYuTJJpNH3O7/nvbuW5bOvdwT5Yq/dHGF96U+YZpvqH1PqqtXUuZRJltFUaTsdEclv9Q1DpSpikEmPL+iOJRgS1W0i+mZ2wShFYmSZIv/fwlVoE4bNnLd/dJOTsS6hSpVpEPJnK/YizPNxoB21LAZACdg6rSBnPClfMnYdkNilL9h1s/u4P6RTHUztc8Ty6z1qpi78pOjS3t26o36m87MtXnkkTp06Q0O5kDSM35xsTdBevGeT3lWfYSxRpM/ypqb6xTnii8ZQ+Ohe+m7AVFhE5nFh2JUxQRCcl0xjZQyy2nbLPmDfvnAM+yIvGBZPPiCVJgWy5Vs3Jm1TC5Ju63Rz+RzJfAIiy6DhnUDK74ip5NMP1PXey8ySKnOfcPcxCdJVqqtEARvt+zIhrbGZCkjDUR1L2OOBheZ6RKY/rsuAsVOBo9s+ELBz0Y4hWXDhmn5c=
 
 matrix:
@@ -106,9 +105,6 @@ install:
 
     - cd $TRAVIS_BUILD_DIR
     - mkdir -p $GENOMICSDB_BUILD_DIR
-    # get jacoco
-    - wget https://github.com/jacoco/jacoco/releases/download/v0.8.2/jacoco-0.8.2.zip
-    - unzip -j jacoco-0.8.2.zip lib/jacocoagent.jar lib/jacococli.jar -d $GENOMICSDB_BUILD_DIR
 
 before_script:
     - cd $GENOMICSDB_BUILD_DIR
@@ -134,16 +130,16 @@ script:
     - if [[ $INSTALL_TYPE == hdfs ]]; then
         echo "Run spark/hdfs tests";
         /usr/local/spark/sbin/start-master.sh;
-        travis_wait 40 python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests;
+        travis_wait 40 python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests Coverage;
       elif [[ $INSTALL_TYPE == gcs ]]; then
         echo "Run spark/gcs tests";
         /usr/local/spark/sbin/start-master.sh;
         export GOOGLE_APPLICATION_CREDENTIALS=~/GCS.json;
-        travis_wait 40 python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local gs://$GS_BUCKET client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests;
+        travis_wait 40 python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local gs://$GS_BUCKET client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests Coverage;
       elif [[ $TRAVIS_OS_NAME == osx && ! -f $CACHE_DIR/initialized ]]; then
         touch $CACHE_DIR/initialized;
       elif [[ $TRAVIS_OS_NAME == osx && -f $CACHE_DIR/initialized ]]; then
-        travis_wait 50 python2 $TRAVIS_BUILD_DIR/tests/run.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR $OSX_PHASE;
+        travis_wait 50 python2 $TRAVIS_BUILD_DIR/tests/run.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR Coverage $OSX_PHASE;
       else
         make test ARGS=-V;
       fi
@@ -155,4 +151,4 @@ after_success:
     - lcov --remove coverage.info '/opt*' '/usr*' '*/dependencies/*' '*/src/test*' '*.pb.h' '*.pb.cc' -o coverage.info
     - lcov --list coverage.info
     # Uploading report to CodeCov
-    - cd $GENOMICSDB_INSTALL_DIR && bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
+    - bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"
