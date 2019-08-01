@@ -77,8 +77,10 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
       genomicsDBConfiguration.setQueryJsonFile(
         configuration.get(GenomicsDBConfiguration.QUERYJSON));
     }
-    genomicsDBConfiguration.setHostFile(
-      configuration.get(GenomicsDBConfiguration.MPIHOSTFILE));
+    if (configuration.get(GenomicsDBConfiguration.MPIHOSTFILE) != null) {
+      genomicsDBConfiguration.setHostFile(
+        configuration.get(GenomicsDBConfiguration.MPIHOSTFILE));
+    }
 
     input.setGenomicsDBConfiguration(genomicsDBConfiguration);
     return input.divideInput();
