@@ -172,7 +172,7 @@ class KnownFieldInfo {
   /*
    * Get #possible genotypes given #ALT alleles and ploidy
    */
-  static unsigned get_number_of_genotypes(const unsigned num_ALT_alleles, const unsigned ploidy);
+  static uint64_t get_number_of_genotypes(const unsigned num_ALT_alleles, const unsigned ploidy);
   /*
    * Function that determines whether length of the field is dependent on the #genotypes
    */

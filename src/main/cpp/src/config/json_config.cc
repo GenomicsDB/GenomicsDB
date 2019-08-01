@@ -590,10 +590,19 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
     }
   }
   //Limit on max #alt alleles so that PL fields get re-computed
-  if (json_doc.HasMember("max_diploid_alt_alleles_that_can_be_genotyped"))
+  if (json_doc.HasMember("max_diploid_alt_alleles_that_can_be_genotyped")) {
+    VERIFY_OR_THROW(json_doc["max_diploid_alt_alleles_that_can_be_genotyped"].IsInt());
     m_max_diploid_alt_alleles_that_can_be_genotyped = json_doc["max_diploid_alt_alleles_that_can_be_genotyped"].GetInt();
+  }
   else
     m_max_diploid_alt_alleles_that_can_be_genotyped = MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED;
+  //Limit on max #genotypes so that PL fields get re-computed
+  if(json_doc.HasMember("max_genotype_count")) {
+    VERIFY_OR_THROW(json_doc["max_genotype_count"].IsInt());
+    m_max_genotype_count = json_doc["max_genotype_count"].GetInt();
+  }
+  else
+    m_max_genotype_count = MAX_GENOTYPE_COUNT;
   //Don't produce the full VCF, but determine sites with high allele count
   if (json_doc.HasMember("determine_sites_with_max_alleles"))
     m_determine_sites_with_max_alleles = json_doc["determine_sites_with_max_alleles"].GetInt();

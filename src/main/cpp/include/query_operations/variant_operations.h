@@ -327,8 +327,17 @@ class VariantOperations {
       end_idx = r;
     }
     auto numerator = 1ull;
-    for (auto i=begin_idx; i<=static_cast<uint64_t>(n); ++i)
-      numerator *= i;
+    for (auto i=begin_idx; i<=static_cast<uint64_t>(n); ++i) {
+      /*auto numerator_bits = 64 - __builtin_clzll(numerator);*/
+      /*auto i_bits = 64 - __builtin_clzll(i);*/
+      /*if(numerator_bits + i_bits > 64) //this might sometimes falsely mark some products are overflowing*/
+      /*return UINT64_MAX;*/
+      auto tmp = numerator*i;
+      if(tmp/i == numerator) //detects overflow
+	numerator = tmp;
+      else
+	return UINT64_MAX; //overflow
+    }
     auto denominator = 1ull;
     for (auto i=1ull; i<=end_idx; ++i)
       denominator *= i;
@@ -633,8 +642,7 @@ void remap_allele_specific_annotations(
 class GA4GHOperator : public SingleVariantOperatorBase {
  public:
   GA4GHOperator(const VariantQueryConfig& query_config,
-                const VidMapper& vid_mapper,
-                const unsigned max_diploid_alt_alleles_that_can_be_genotyped=MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED);
+                const VidMapper& vid_mapper);
   virtual void operate(Variant& variant, const VariantQueryConfig& query_config);
   const Variant& get_remapped_variant() const {
     return m_remapped_variant;
@@ -645,6 +653,10 @@ class GA4GHOperator : public SingleVariantOperatorBase {
   void copy_back_remapped_fields(Variant& variant) const;
   bool too_many_alt_alleles_for_genotype_length_fields(unsigned num_alt_alleles) const {
     return num_alt_alleles > m_max_diploid_alt_alleles_that_can_be_genotyped;
+  }
+  bool too_many_genotypes_for_genotype_length_fields(const unsigned num_alt_alleles,
+      const unsigned ploidy) const {
+    return KnownFieldInfo::get_number_of_genotypes(num_alt_alleles, ploidy) > m_max_genotype_count;
   }
  protected:
   Variant m_remapped_variant;
@@ -658,6 +670,8 @@ class GA4GHOperator : public SingleVariantOperatorBase {
   std::vector<std::unique_ptr<VariantFieldHandlerBase>> m_field_handlers;
   //Max alt alleles that can be handled for computing the PL fields - default 50
   unsigned m_max_diploid_alt_alleles_that_can_be_genotyped;
+  //Max #genotypes that can be handled for computing PL fields
+  unsigned m_max_genotype_count;
   //1 per VariantCall (row)
   std::vector<unsigned> m_ploidy;
 };

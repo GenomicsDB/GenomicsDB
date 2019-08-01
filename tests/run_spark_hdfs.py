@@ -2,6 +2,7 @@
 
 #The MIT License (MIT)
 #Copyright (c) 2018 University of California, Los Angeles and Intel Corporation
+#Copyright (c) 2019 Omics Data Automation, Inc.
 
 #Permission is hereby granted, free of charge, to any person obtaining a copy of 
 #this software and associated documentation files (the "Software"), to deal in 
@@ -31,6 +32,8 @@ import shutil
 import difflib
 import errno
 from collections import OrderedDict
+
+import common
 
 query_json_template_string="""
 {   
@@ -192,7 +195,8 @@ def cleanup_and_exit(namenode, tmpdir, exit_code):
 
 def main():
     if(len(sys.argv) < 8):
-        sys.stderr.write('Needs 7 arguments <build_dir> <install_dir> <spark_master> <hdfs_namenode> <spark_deploy> <genomicsdb_version> <test_dir>\n');
+        sys.stderr.write('Usage: ./run_spark_hdfs.py <build_dir> <install_dir> <spark_master> <hdfs_namenode> <spark_deploy> <genomicsdb_version> <test_dir> [<build_type>]\n');
+        sys.stderr.write('   Optional Argument 8 - build_type=Release|Coverage|...\n')
         sys.exit(-1);
     exe_path = sys.argv[2]+os.path.sep+'bin';
     spark_master = sys.argv[3];
@@ -201,6 +205,10 @@ def main():
     spark_deploy = sys.argv[5];
     genomicsdb_version = sys.argv[6];
     test_dir = sys.argv[7];
+    if (len(sys.argv) == 9):
+        build_type = sys.argv[8]
+    else:
+        build_type = "default"
     #Switch to tests directory
     parent_dir=os.path.dirname(os.path.realpath(__file__))
     os.chdir(parent_dir)
@@ -209,7 +217,7 @@ def main():
     template_vcf_header_path=parent_dir+os.path.sep+'inputs'+os.path.sep+'template_vcf_header.vcf';
     tmpdir = tempfile.mkdtemp()
     ws_dir=tmpdir+os.path.sep+'ws';
-    jacoco_enabled = os.path.isfile(sys.argv[1]+os.path.sep+'jacocoagent.jar') and os.path.isfile(sys.argv[1]+os.path.sep+'jacococli.jar')
+    jacoco, jacoco_report_cmd = common.setup_jacoco(os.path.abspath(sys.argv[1]), build_type)
     loader_tests = [
             { "name" : "t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
@@ -347,17 +355,6 @@ def main():
                 ]
             },
     ];
-    if jacoco_enabled:
-        jacoco_dest_file = "=destfile="+sys.argv[1]+os.path.sep+"target"+os.path.sep+"jacoco-reports"+os.path.sep+"jacoco-ci.exec"
-        jacoco = " -javaagent:"+sys.argv[1]+os.path.sep+"jacocoagent.jar"+jacoco_dest_file
-        try:
-            os.makedirs(sys.argv[1]+os.path.sep+'target'+os.path.sep+'jacoco-reports'+os.path.sep+'jacoco-ci')
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                sys.stderr.write('Error creating jacoco-reports dir:'+e.errno+' '+e.filename+' '+e.strerror)
-                cleanup_and_exit("", tmpdir, -1);
-    else:
-        jacoco = ''
     if("://" in namenode):
         pid = subprocess.Popen('hadoop fs -mkdir -p '+namenode+'/home/hadoop/.tiledb/', shell=True, stdout=subprocess.PIPE);
         stdout_string = pid.communicate()[0]
@@ -465,16 +462,10 @@ def main():
                         sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
                         sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
                         cleanup_and_exit(namenode, tmpdir, -1);
-            
-    if jacoco_enabled:
-        jacoco_ci_report_dir = sys.argv[1]+os.path.sep+'target'+os.path.sep+'jacoco-reports'+os.path.sep
-        jacoco_report_cmd = 'java -jar '+sys.argv[1]+os.path.sep+'jacococli.jar report '+jacoco_ci_report_dir+'jacoco-ci.exec --classfiles '+sys.argv[1]+os.path.sep+'target'+os.path.sep+'classes --html '+jacoco_ci_report_dir+'jacoco-ci --xml '+jacoco_ci_report_dir+'jacoco-ci'+os.path.sep+'jacoco-ci.xml'
-        pid = subprocess.Popen(jacoco_report_cmd, shell=True, stdout=subprocess.PIPE);
-        stdout_string = pid.communicate()[0]
-        if(pid.returncode != 0):
-            sys.stderr.write('Jacoco report generation command:'+jacoco_report_cmd+' failed\n')
-            cleanup_and_exit(namenode, tmpdir, -1); 
-    cleanup_and_exit(namenode, tmpdir, 0); 
+        rc = common.report_jacoco_coverage(jacoco_report_cmd)
+        if (rc != 0):
+            cleanup_and_exit(namenode, tmpdir, -1)
+    cleanup_and_exit(namenode, tmpdir, 0)
 
 if __name__ == '__main__':
     main()
