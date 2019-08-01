@@ -335,14 +335,14 @@ def main():
         sys.stderr.write('Usage ./run.py <build_dir> <install_dir> [<build_type>] [<split_batch_num>]\n')
         sys.stderr.write('   Optional Argument 3 - build_type=Release|Coverage|...\n')
         sys.stderr.write('   Optional Argument 4 - Tests are batched into two to help with Travis builds on MacOS\n')
-        sys.stderr.write('                         specify batch with split_batch_num=0|1\n')
+        sys.stderr.write('                         specify batch with split_batch_num=1|2\n')
         sys.stderr.write('                         Otherwise all tests are run.\n\n')
         sys.exit(-1);
     build_dir=os.path.abspath(sys.argv[1])
     ctest_dir = os.path.join(build_dir, 'src/test/cpp')
     exe_path = os.path.join(sys.argv[2],'bin')
     tool_sanity_checks(exe_path);
-    if (len(sys.argv) == 4):
+    if (len(sys.argv) >= 4):
         build_type = sys.argv[3]
     else:
         build_type = "default"
@@ -1313,7 +1313,6 @@ def main():
         loader_tests = loader_tests0
     else:
         loader_tests = loader_tests1
-
     for test_params_dict in loader_tests:
         test_name = test_params_dict['name']
         test_loader_dict = create_loader_json(ws_dir, test_name, test_params_dict);
@@ -1495,7 +1494,7 @@ def main():
     test_pre_1_0_0_query_compatibility(tmpdir)
     rc = common.report_jacoco_coverage(jacoco_report_cmd)
     if (rc != 0):
-        cleanup_and_exit(namenode, tmpdir, -1);
+        cleanup_and_exit(tmpdir, -1);
     cleanup_and_exit(tmpdir, 0)
 
 if __name__ == '__main__':

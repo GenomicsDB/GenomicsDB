@@ -110,8 +110,10 @@ def report_jacoco_coverage(jacoco_report_cmd):
             stdout_string = pid.communicate()[0]
             if(pid.returncode != 0):
                 __error('jacoco report generation command:'+jacoco_report_cmd+' failed')
+            else:
+                rc = 0
         except Exception as e:
             __error('exception thrown while generating jacoco reports:'+str(e))
-        rc = 0
-    __error('jacoco_report_cmd does not seem to be passed as argument')
+    else:
+        __error('jacoco_report_cmd is null')
     return rc

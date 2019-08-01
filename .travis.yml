@@ -142,7 +142,7 @@ script:
       elif [[ $TRAVIS_OS_NAME == osx && ! -f $CACHE_DIR/initialized ]]; then
         touch $CACHE_DIR/initialized;
       elif [[ $TRAVIS_OS_NAME == osx && -f $CACHE_DIR/initialized ]]; then
-        travis_wait 50 python2 $TRAVIS_BUILD_DIR/tests/run.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR $OSX_PHASE;
+        travis_wait 50 python2 $TRAVIS_BUILD_DIR/tests/run.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR Coverage $OSX_PHASE;
       else
         make test ARGS=-V;
       fi
