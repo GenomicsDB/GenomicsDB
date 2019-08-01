@@ -105,9 +105,6 @@ install:
 
     - cd $TRAVIS_BUILD_DIR
     - mkdir -p $GENOMICSDB_BUILD_DIR
-    # get jacoco
-    - wget https://github.com/jacoco/jacoco/releases/download/v0.8.2/jacoco-0.8.2.zip
-    - unzip -j jacoco-0.8.2.zip lib/jacocoagent.jar lib/jacococli.jar -d $GENOMICSDB_BUILD_DIR
 
 before_script:
     - cd $GENOMICSDB_BUILD_DIR
