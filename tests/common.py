@@ -115,5 +115,5 @@ def report_jacoco_coverage(jacoco_report_cmd):
         except Exception as e:
             __error('exception thrown while generating jacoco reports:'+str(e))
     else:
-        __error('jacoco_report_cmd is null')
+        rc = 0
     return rc
