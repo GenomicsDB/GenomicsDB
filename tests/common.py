@@ -54,7 +54,10 @@ def setup_classpath(build_dir):
     target_dir=os.path.join(build_dir,'target')
     allinone_jar=__find_genomicsdb_jar(target_dir,'genomicsdb-*allinone.jar')
     examples_jar=__find_genomicsdb_jar(target_dir,'genomicsdb-*examples.jar')
-    classpath=os.environ['CLASSPATH']
+    if 'CLASSPATH' in os.environ:
+        classpath=os.environ['CLASSPATH']
+    else:
+        classpath=''
     if (len(classpath) > 0):
         environ["CLASSPATH"] = allinone_jar+os.pathsep+examples_jar
     else:
