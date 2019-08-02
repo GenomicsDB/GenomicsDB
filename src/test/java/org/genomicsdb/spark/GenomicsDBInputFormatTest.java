@@ -65,7 +65,7 @@ public class GenomicsDBInputFormatTest {
     for(int i=0; i<splits.size(); i++) {
       GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(i);
       Assert.assertEquals(gSplit.getPartitionInfo(), pList.get(i));
-      Assert.assertEquals(gSplit.getQueryInfo(), qList.get(i));
+      Assert.assertEquals(gSplit.getQueryInfoList().get(0), qList.get(i));
     }
   }
 
@@ -91,11 +91,11 @@ public class GenomicsDBInputFormatTest {
     GenomicsDBInputFormat format = new GenomicsDBInputFormat();
     format.setConf(conf);
     List<InputSplit> splits = format.getSplits(job);
-    Assert.assertEquals(splits.size(), 3);
+    Assert.assertEquals(splits.size(), 1);
     for(int i=0; i<splits.size(); i++) {
       GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(i);
       Assert.assertEquals(gSplit.getPartitionInfo(), p);
-      Assert.assertEquals(gSplit.getQueryInfo(), qList.get(i));
+      Assert.assertEquals(gSplit.getQueryInfoList().get(0), qList.get(i));
     }
   }
 
@@ -109,7 +109,10 @@ public class GenomicsDBInputFormatTest {
     conf.set(GenomicsDBConfiguration.LOADERJSON, loaderPath);
     conf.set(GenomicsDBConfiguration.QUERYJSON, queryPath);
     conf.set(GenomicsDBConfiguration.MPIHOSTFILE, hostPath);
-    // test with single query that will get split up and maps to single partition
+    // start with a couple of snps that should get glommed together
+    // these snps will be at 100, 200
+    // then add a single query going from [500, 25000] that will get 
+    // split up and maps to single partition
     GenomicsDBPartitionInfo p = new GenomicsDBPartitionInfo(0, "hdfs://tmp/ws", "part", "/tmp/test0.vcf.gz");
     int qstart = 500;
     int qend = 25000;
@@ -118,20 +121,27 @@ public class GenomicsDBInputFormatTest {
     GenomicsDBInputFormat format = new GenomicsDBInputFormat();
     format.setConf(conf);
     List<InputSplit> splits = format.getSplits(job);
-    Assert.assertEquals(splits.size(), 3);
-    for(int i=0; i<splits.size(); i++) {
-      GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(i);
+    // query_block_size is 5000 and query_block_size_margin is 500 (see dataProvider)
+    // so we expect that we'll have 5 input splits from splitting the [500, 25000] range
+    // and 1 from the two snps at 100 and 200
+    Assert.assertEquals(splits.size(), 6);
+    GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(0);
+    Assert.assertEquals(gSplit.getQueryInfoList().size(), 2);
+    Assert.assertEquals(gSplit.getQueryInfoList().get(0).getBeginPosition(), 100);
+    Assert.assertEquals(gSplit.getQueryInfoList().get(1).getBeginPosition(), 200);
+    for(int i=1; i<splits.size(); i++) {
+      gSplit = (GenomicsDBInputSplit)splits.get(i);
       Assert.assertEquals(gSplit.getPartitionInfo(), p);
-      if (i==0) {
-        Assert.assertEquals(gSplit.getQueryInfo().getBeginPosition(), qstart);
+      if (i==1) {
+        Assert.assertEquals(gSplit.getQueryInfoList().get(0).getBeginPosition(), qstart);
       }
       else {
         GenomicsDBInputSplit gSplitPrev = (GenomicsDBInputSplit)splits.get(i-1);
-        Assert.assertEquals(gSplit.getQueryInfo().getBeginPosition(), 
-			gSplitPrev.getQueryInfo().getEndPosition()+1);
+        Assert.assertEquals(gSplit.getQueryInfoList().get(0).getBeginPosition(), 
+			gSplitPrev.getQueryInfoList().get(0).getEndPosition()+1);
       }
       if (i==splits.size()-1) {
-        Assert.assertEquals(gSplit.getQueryInfo().getEndPosition(), qend);
+        Assert.assertEquals(gSplit.getQueryInfoList().get(0).getEndPosition(), qend);
       }
     }
   }
@@ -160,8 +170,8 @@ public class GenomicsDBInputFormatTest {
     Assert.assertEquals(splits.size(), 1);
     GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(0);
     Assert.assertEquals(gSplit.getPartitionInfo().getBeginPosition(), 0);
-    Assert.assertEquals(gSplit.getQueryInfo().getBeginPosition(), 500);
-    Assert.assertEquals(gSplit.getQueryInfo().getEndPosition(), 25000);
+    Assert.assertEquals(gSplit.getQueryInfoList().get(0).getBeginPosition(), 500);
+    Assert.assertEquals(gSplit.getQueryInfoList().get(0).getEndPosition(), 25000);
   }
 
   @Test(testName = "Test query larger than partitions",
@@ -195,4 +205,33 @@ public class GenomicsDBInputFormatTest {
     }
   }
 
+  @Test(testName = "Testcase5 for creating InputSplits",
+      dataProvider = "loaderQueryHostFilesTest5",
+      dataProviderClass = GenomicsDBTestUtils.class)
+  public void testGetSplits4(String queryPath, String loaderPath, String hostPath) 
+              throws IOException, FileNotFoundException, InterruptedException{
+    Job job = Job.getInstance();
+    Configuration conf = job.getConfiguration();
+    conf.set(GenomicsDBConfiguration.LOADERJSON, loaderPath);
+    conf.set(GenomicsDBConfiguration.QUERYJSON, queryPath);
+    conf.set(GenomicsDBConfiguration.MPIHOSTFILE, hostPath);
+    ArrayList<GenomicsDBQueryInfo> qList = new ArrayList<>(3);
+    // test with queries that will not get split up and all
+    // queries map to a single partition. single inputsplit because all queries get glommed together
+    GenomicsDBPartitionInfo p = new GenomicsDBPartitionInfo(0, "hdfs://tmp/ws", "part", "/tmp/test0.vcf.gz");
+    for(int i=0; i<3; i++) {
+      GenomicsDBQueryInfo q = new GenomicsDBQueryInfo(i*2000, i*2000);
+      qList.add(q);
+    }
+
+    GenomicsDBInputFormat format = new GenomicsDBInputFormat();
+    format.setConf(conf);
+    List<InputSplit> splits = format.getSplits(job);
+    Assert.assertEquals(splits.size(), 1);
+    GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(0);
+    Assert.assertEquals(gSplit.getPartitionInfo(), p);
+    for(int i=0; i<3; i++) {
+      Assert.assertEquals(gSplit.getQueryInfoList().get(i), qList.get(i));
+    }
+  }
 }

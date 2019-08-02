@@ -92,10 +92,12 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
       throw new RuntimeException("Must specify either "+GenomicsDBConfiguration.QUERYJSON+
               " or "+GenomicsDBConfiguration.QUERYPB);
     }
-    try {
-      genomicsDBConfiguration.setHostFile(options.get(GenomicsDBConfiguration.MPIHOSTFILE).get());
-    } catch (FileNotFoundException e) {
-      e.printStackTrace();
+    if(options.get(GenomicsDBConfiguration.MPIHOSTFILE).isPresent()) {
+      try {
+        genomicsDBConfiguration.setHostFile(options.get(GenomicsDBConfiguration.MPIHOSTFILE).get());
+      } catch (FileNotFoundException e) {
+        e.printStackTrace();
+      }
     }
     Map<String, GenomicsDBVidSchema> vMap = buildVidSchemaMap(options.get(GenomicsDBConfiguration.LOADERJSON).get());
 

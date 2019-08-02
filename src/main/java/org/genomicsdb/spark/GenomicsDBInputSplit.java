@@ -27,6 +27,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.log4j.Logger;
 import org.apache.spark.Partition;
+import java.util.ArrayList;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -38,7 +39,7 @@ public class GenomicsDBInputSplit extends InputSplit implements Writable, Genomi
   // per split
   String[] hosts;
   GenomicsDBPartitionInfo partition;
-  GenomicsDBQueryInfo queryRange;
+  ArrayList<GenomicsDBQueryInfo> queryRangeList;
   long length = 0;
 
   Logger logger = Logger.getLogger(GenomicsDBInputSplit.class);
@@ -54,9 +55,10 @@ public class GenomicsDBInputSplit extends InputSplit implements Writable, Genomi
     hosts[0] = loc;
   }
 
-  public GenomicsDBInputSplit(GenomicsDBPartitionInfo partition, GenomicsDBQueryInfo queryRange) {
+  public GenomicsDBInputSplit(GenomicsDBPartitionInfo partition, 
+        ArrayList<GenomicsDBQueryInfo> queryRangeList) {
     this.partition = new GenomicsDBPartitionInfo(partition);
-    this.queryRange = new GenomicsDBQueryInfo(queryRange);
+    this.queryRangeList = new ArrayList<GenomicsDBQueryInfo>(queryRangeList);
     // TODO: populate hosts if partition workspace is HDFS or S3?
     // this would help with locality
   }
@@ -77,8 +79,11 @@ public class GenomicsDBInputSplit extends InputSplit implements Writable, Genomi
       else {
         Text.writeString(dataOutput, vcfOutput); 
       }
-      dataOutput.writeLong(this.queryRange.getBeginPosition());
-      dataOutput.writeLong(this.queryRange.getEndPosition());
+      dataOutput.writeInt(queryRangeList.size());
+      for(GenomicsDBQueryInfo q: this.queryRangeList) {
+        dataOutput.writeLong(q.getBeginPosition());
+        dataOutput.writeLong(q.getEndPosition());
+      }
     }
     else {
       // write dummy value of -1 if we're using the posix fs
@@ -99,7 +104,13 @@ public class GenomicsDBInputSplit extends InputSplit implements Writable, Genomi
       if (_vcfOutput != null && _vcfOutput.equals("null"))
         _vcfOutput = null;
       partition = new GenomicsDBPartitionInfo(_begin, _workspace, _array, _vcfOutput);
-      queryRange = new GenomicsDBQueryInfo(dataInput.readLong(), dataInput.readLong());
+      int qListLength = dataInput.readInt();
+      queryRangeList = new ArrayList<GenomicsDBQueryInfo>(qListLength);
+      for(int i=0; i<qListLength; i++) {
+        long begin = dataInput.readLong();
+        long end = dataInput.readLong();
+        queryRangeList.add(new GenomicsDBQueryInfo(begin, end));
+      }
     }
     length = dataInput.readLong();
   }
@@ -112,8 +123,8 @@ public class GenomicsDBInputSplit extends InputSplit implements Writable, Genomi
     return partition;
   }
 
-  public GenomicsDBQueryInfo getQueryInfo() {
-    return queryRange;
+  public ArrayList<GenomicsDBQueryInfo> getQueryInfoList() {
+    return queryRangeList;
   }
 
   public void setHost(String loc) {
@@ -142,7 +153,7 @@ public class GenomicsDBInputSplit extends InputSplit implements Writable, Genomi
     partition = p;
   }
 
-  public void setQueryInfo(GenomicsDBQueryInfo q) {
-    queryRange = q;
+  public void setQueryInfoList(ArrayList<GenomicsDBQueryInfo> q) {
+    queryRangeList = new ArrayList<>(q);
   }
 }
