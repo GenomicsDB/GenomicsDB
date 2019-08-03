@@ -459,10 +459,11 @@ if(BUILD_JAVA)
     )
     add_dependencies(mvn_central_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
 
-    add_test(NAME CI_tests
-      COMMAND python2 ${CMAKE_SOURCE_DIR}/tests/run.py
-      ${CMAKE_BINARY_DIR}
-      ${CMAKE_INSTALL_PREFIX}
-      ${CMAKE_BUILD_TYPE})
-
+    if(NOT DISABLE_MPI)
+        add_test(NAME CI_tests
+            COMMAND python2 ${CMAKE_SOURCE_DIR}/tests/run.py
+            ${CMAKE_BINARY_DIR}
+            ${CMAKE_INSTALL_PREFIX}
+            ${CMAKE_BUILD_TYPE})
+    endif()
 endif()
