@@ -31,7 +31,9 @@ import htsjdk.variant.bcf2.BCF2Codec;
 import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
+import javax.validation.constraints.NotNull;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -193,7 +195,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
     }
 
     @Override
-    public GenomicsDBFeatureIterator iterator() {
+    public Iterator<T> iterator() {
         return this;
     }
 

@@ -323,10 +323,10 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
             JSONObject currDict = (JSONObject) currDictObj;
             assert currDict.size() == 1; //1 entry
             for (Object currEntryObj : currDict.entrySet()) {
-                Map.Entry<String, JSONArray> currEntry = (Map.Entry<String, JSONArray>) currEntryObj;
-                JSONArray currValue = currEntry.getValue();
+                Map.Entry<?, ?> currEntry = (Map.Entry<?, ?>)currEntryObj;
+                JSONArray currValue = (JSONArray)currEntry.getValue();
                 assert currValue.size() == 2;
-                chromosomeIntervals.add(new ChromosomeInterval(currEntry.getKey(), (Long) (currValue.get(0)),
+                chromosomeIntervals.add(new ChromosomeInterval((String)currEntry.getKey(), (Long) (currValue.get(0)),
                         (Long) (currValue.get(1))));
             }
         }
