@@ -77,8 +77,10 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
       genomicsDBConfiguration.setQueryJsonFile(
         configuration.get(GenomicsDBConfiguration.QUERYJSON));
     }
-    genomicsDBConfiguration.setHostFile(
-      configuration.get(GenomicsDBConfiguration.MPIHOSTFILE));
+    if (configuration.get(GenomicsDBConfiguration.MPIHOSTFILE) != null) {
+      genomicsDBConfiguration.setHostFile(
+        configuration.get(GenomicsDBConfiguration.MPIHOSTFILE));
+    }
 
     input.setGenomicsDBConfiguration(genomicsDBConfiguration);
     return input.divideInput();
@@ -131,7 +133,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
       exportConfiguration = 
               GenomicsDBInput.createTargetExportConfigurationPB(queryJson, 
               gSplit.getPartitionInfo(),
-              gSplit.getQueryInfo(), isPB);
+              gSplit.getQueryInfoList(), isPB);
     }
     catch (ParseException e) {
       e.printStackTrace();

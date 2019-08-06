@@ -158,9 +158,10 @@ public final class GenomicsDBTestUtils {
     String loaderEpilogue = "\n],\n\"vid_mapping_file\" : \"tests/inputs/vid.json\"\n}";
     String loaderPartEpilogue = "\"workspace\": \"hdfs://tmp/ws\", \"vcf_output_filename\": \"/tmp/test0.vcf.gz\"}";
 
-    String queryCol = "\"query_column_ranges\" : [ [ [ 500, 25000]";
+    String queryConfig = "\"query_block_size\" : 5000, \"query_block_size_margin\" : 500,\n";
+    String queryCol = "\"query_column_ranges\" : [ [ 100, 200, [ 500, 25000]";
     String loaderPart = "{\"begin\": 0, \"array\": \"part\","+loaderPartEpilogue;
-    String query = queryPreamble + queryCol + " ] ]\n}"; 
+    String query = queryPreamble + queryConfig + queryCol + " ] ]\n}";
     String loader = loaderPreamble + loaderPart + loaderEpilogue;
     File tmpQFile = File.createTempFile("query", ".json");
     tmpQFile.deleteOnExit();
@@ -224,6 +225,42 @@ public final class GenomicsDBTestUtils {
        loaderPart += "{\"begin\": "+String.valueOf(i*10000)+", \"array\": \"part"+i+"\","+loaderPartEpilogue;
        if (i<2) {
          loaderPart += ",\n";
+       }
+    }
+    String query = queryPreamble + queryCol + " ] ]\n}"; 
+    String loader = loaderPreamble + loaderPart + loaderEpilogue;
+    File tmpQFile = File.createTempFile("query", ".json");
+    tmpQFile.deleteOnExit();
+    FileWriter fQ = new FileWriter(tmpQFile);
+    fQ.write(query);
+    fQ.close();
+    File tmpLFile = File.createTempFile("loader", ".json");
+    tmpLFile.deleteOnExit();
+    FileWriter fL = new FileWriter(tmpLFile);
+    fL.write(loader);
+    fL.close();
+    File tmpHFile = File.createTempFile("hostfile", "");
+    tmpHFile.deleteOnExit();
+    FileWriter fH = new FileWriter(tmpHFile);
+    fH.write("localhost");
+    fH.close();
+
+    return new Object[][] { { tmpQFile.getAbsolutePath(), tmpLFile.getAbsolutePath(), tmpHFile.getAbsolutePath() } };
+  }
+
+  @DataProvider(name="loaderQueryHostFilesTest5")
+  public static Object[][] loaderQueryHostFilesTest5() throws IOException {
+    String queryPreamble = "{\n\"workspace\": \"hdfs://tmp/ws\",\n\"array\": \"part\",\n";
+    String loaderPreamble = "{\n\"row_based_partitioning\": false,\n\"column_partitions\" : [\n";
+    String loaderEpilogue = "\n],\n\"vid_mapping_file\" : \"tests/inputs/vid.json\"\n}";
+    String loaderPartEpilogue = "\"workspace\": \"hdfs://tmp/ws\", \"vcf_output_filename\": \"/tmp/test0.vcf.gz\"}";
+
+    String queryCol = "\"query_column_ranges\" : [ [ ";
+    String loaderPart = "{\"begin\": 0, \"array\": \"part\","+loaderPartEpilogue;
+    for(int i=0; i<3; i++) {
+       queryCol += String.valueOf(i*2000);
+       if (i<2) {
+         queryCol += ",";
        }
     }
     String query = queryPreamble + queryCol + " ] ]\n}"; 
