@@ -286,7 +286,7 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
             */
             rowObjectArray[i++] =
                 ArrayData.toArrayData(
-                    ((List) (g.getAnyAttribute(fName)))
+                    ((List<?>) (g.getAnyAttribute(fName)))
                         .toArray((Object[]) Array.newInstance(field.getFieldClass(), 0)));
           } else {
             rowObjectArray[i++] = null;

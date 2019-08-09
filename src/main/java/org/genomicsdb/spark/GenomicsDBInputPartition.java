@@ -65,10 +65,12 @@ public class GenomicsDBInputPartition
     this.schema = schema;
   }
 
-  public InputPartitionReader createPartitionReader() {
+  @Override
+  public InputPartitionReader<InternalRow> createPartitionReader() {
     return new GenomicsDBInputPartitionReader(this);
   }
 
+  @Override
   public String[] preferredLocations() {
     if (hosts == null) {
       return new String[] {};
