@@ -6,7 +6,7 @@
 INSTALL_DIR=${INSTALL_DIR:-/usr}
 USER=`whoami`
 
-HADOOP=hadoop-${HADOOP_VER:-2.7.6}
+HADOOP=hadoop-${HADOOP_VER:-2.7.7}
 HADOOP_DIR=${INSTALL_DIR}/$HADOOP
 
 install_prereqs() {
