@@ -435,9 +435,9 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     try {
       JSONParser parser = new JSONParser();
       FileReader queryJsonReader = new FileReader(queryFile);
-      JSONObject obj = null;
+      HashMap<?,?> obj = null;
       try {
-        obj = (JSONObject)parser.parse(queryJsonReader);
+        obj = (HashMap<?,?>)parser.parse(queryJsonReader);
       }
       catch(ParseException | IOException e) {
         queryJsonReader.close();
@@ -564,24 +564,24 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
           case "query_block_size":
             {
               if(exportConfigurationBuilder.hasSparkConfig()) {
-                exportConfigurationBuilder.getSparkConfigBuilder().setQueryBlockSize((long)val);
+                exportConfigurationBuilder.getSparkConfigBuilder().setQueryBlockSize((long)((Object)val));
               }
               else {
                 GenomicsDBExportConfiguration.SparkConfig.Builder configBuilder = 
                         GenomicsDBExportConfiguration.SparkConfig.newBuilder();
-                exportConfigurationBuilder.setSparkConfig(configBuilder.setQueryBlockSize((long)val).build());
+                exportConfigurationBuilder.setSparkConfig(configBuilder.setQueryBlockSize((long)((Object)val)).build());
               }
             }
             break;
           case "query_block_size_margin":
             {
               if(exportConfigurationBuilder.hasSparkConfig()) {
-                exportConfigurationBuilder.getSparkConfigBuilder().setQueryBlockSizeMargin((long)val);
+                exportConfigurationBuilder.getSparkConfigBuilder().setQueryBlockSizeMargin((long)((Object)val));
               }
               else {
                 GenomicsDBExportConfiguration.SparkConfig.Builder configBuilder = 
                         GenomicsDBExportConfiguration.SparkConfig.newBuilder();
-                exportConfigurationBuilder.setSparkConfig(configBuilder.setQueryBlockSizeMargin((long)val).build());
+                exportConfigurationBuilder.setSparkConfig(configBuilder.setQueryBlockSizeMargin((long)((Object)val)).build());
               }
             }
             break;

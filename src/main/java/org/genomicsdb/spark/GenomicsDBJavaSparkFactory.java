@@ -40,6 +40,7 @@ import java.util.List;
  */
 public final class GenomicsDBJavaSparkFactory {
 
+  @SuppressWarnings("unchecked")
   public static void usingNewAPIHadoopRDD(String[] args) {
     
     String loaderJsonFile = args[0];
@@ -56,8 +57,7 @@ public final class GenomicsDBJavaSparkFactory {
     hadoopConf.set(GenomicsDBConfiguration.MPIHOSTFILE, hostfile);
 
     JavaPairRDD variants;
-    Class gformatClazz = GenomicsDBInputFormat.class;
-    variants = sc.newAPIHadoopRDD(hadoopConf, gformatClazz, String.class, VariantContext.class);
+    variants = sc.newAPIHadoopRDD(hadoopConf, GenomicsDBInputFormat.class, String.class, VariantContext.class);
 
     System.out.println("Number of variants "+variants.count());
     List variantList = variants.collect();
