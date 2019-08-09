@@ -22,8 +22,6 @@
 
 package org.genomicsdb.reader;
 
-import com.googlecode.protobuf.format.JsonFormat;
-
 import htsjdk.tribble.*;
 import htsjdk.variant.bcf2.BCF2Codec;
 import htsjdk.variant.vcf.VCFContigHeaderLine;
@@ -32,8 +30,6 @@ import htsjdk.variant.vcf.VCFHeader;
 import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
@@ -112,14 +108,14 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
      */
     public CloseableTribbleIterator<T> iterator() {
         if (this.exportConfiguration.hasArrayName()) {
-            return new GenomicsDBFeatureIterator(this.loaderJSONFile, 
+            return new GenomicsDBFeatureIterator<>(this.loaderJSONFile,
                     this.exportConfiguration, Optional.empty(), 
                     this.featureCodecHeader, this.codec);
         }
         else {
             List<String> chromosomeIntervalArraysPaths = 
                     resolveChromosomeArrayFolderList(Optional.empty());
-            return new GenomicsDBFeatureIterator(this.loaderJSONFile, 
+            return new GenomicsDBFeatureIterator<>(this.loaderJSONFile,
                     this.exportConfiguration, Optional.of(chromosomeIntervalArraysPaths),
                     this.featureCodecHeader, this.codec);
         }
@@ -136,7 +132,7 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
      */
     public CloseableTribbleIterator<T> query(final String chr, final int start, final int end) {
         if (this.exportConfiguration.hasArrayName()) {
-            return new GenomicsDBFeatureIterator(this.loaderJSONFile, 
+            return new GenomicsDBFeatureIterator<>(this.loaderJSONFile,
                     this.exportConfiguration, Optional.empty(), 
                     this.featureCodecHeader, this.codec, chr, OptionalInt.of(start), OptionalInt.of(end));
         }
@@ -145,7 +141,7 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
                     Coordinates.ContigInterval.newBuilder().setContig(chr).setBegin(start).setEnd(end).build());
             List<String> chromosomeIntervalArraysPaths = 
                     resolveChromosomeArrayFolderList(contigInterval);
-            return new GenomicsDBFeatureIterator(this.loaderJSONFile, 
+            return new GenomicsDBFeatureIterator<>(this.loaderJSONFile,
                     this.exportConfiguration, Optional.of(chromosomeIntervalArraysPaths),
                     this.featureCodecHeader, this.codec, chr, OptionalInt.of(start), OptionalInt.of(end));
         }

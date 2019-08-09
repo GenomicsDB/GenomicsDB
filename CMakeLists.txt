@@ -424,7 +424,11 @@ if(BUILD_JAVA)
         COMMAND mvn package -DskipTests ${MAVEN_ARGS}
         DEPENDS tiledbgenomicsdb ${JAVA_SCALA_SOURCES} pom.xml
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
     install(FILES ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-allinone.jar DESTINATION bin)
+
+    execute_process(
+      COMMAND ln -sf ${CMAKE_SOURCE_DIR}/tests ${CMAKE_BINARY_DIR})
 
     add_test(NAME javatests
         COMMAND mvn test
@@ -455,10 +459,11 @@ if(BUILD_JAVA)
     )
     add_dependencies(mvn_central_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
 
-    add_test(NAME CI_tests
-      COMMAND python2 ${CMAKE_SOURCE_DIR}/tests/run.py
-      ${CMAKE_BINARY_DIR}
-      ${CMAKE_INSTALL_PREFIX}
-      ${CMAKE_BUILD_TYPE})
-
+    if(NOT DISABLE_MPI)
+        add_test(NAME CI_tests
+            COMMAND python2 ${CMAKE_SOURCE_DIR}/tests/run.py
+            ${CMAKE_BINARY_DIR}
+            ${CMAKE_INSTALL_PREFIX}
+            ${CMAKE_BUILD_TYPE})
+    endif()
 endif()
