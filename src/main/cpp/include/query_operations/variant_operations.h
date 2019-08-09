@@ -684,6 +684,8 @@ class SingleCellOperatorBase {
                                         const VariantArraySchema& schema) {
     throw VariantOperationException("Sub-classes should override operate_on_columnar_cell()");
   }
+  //Iterator will pause if subclass function returns true
+  virtual bool overflow() const { return false; }
   virtual void finalize() { ; } //do nothing
 };
 
@@ -762,6 +764,7 @@ class AlleleCountOperator : public SingleCellOperatorBase {
   //Avoid memory allocation
   std::vector<size_t> m_cell_ALT_offsets;
 };
+
 /*
  * If the call's column is before the current_start_position, then REF is not valid, set it to "N" (unknown/don't care)
  */

@@ -22,6 +22,7 @@
 
 #include "genomicsdb_columnar_field.h"
 #include "variant_field_data.h"
+#include "common.pb.h"
 
 GenomicsDBColumnarField::GenomicsDBColumnarField(const std::type_index element_type, const int length_descriptor,
     const unsigned fixed_length_field_length, const size_t num_bytes)
@@ -56,6 +57,7 @@ void GenomicsDBColumnarField::copy_simple_members(const GenomicsDBColumnarField&
   m_check_tiledb_valid_element = other.m_check_tiledb_valid_element;
   m_print = other.m_print;
   m_print_csv = other.m_print_csv;
+  m_fill_ga4gh_attribute = other.m_fill_ga4gh_attribute;
   m_buffer_size = other.m_buffer_size;
   m_curr_index_in_live_buffer_list_tail = other.m_curr_index_in_live_buffer_list_tail;
   m_free_buffer_list_length = other.m_free_buffer_list_length;
@@ -93,6 +95,51 @@ GenomicsDBColumnarField::~GenomicsDBColumnarField() {
   clear();
 }
 
+//Return singleton ga4gh AttributeValue
+template<typename T>
+void fill_singleton_ga4gh_attribute_value(ga4gh::AttributeValue& v, const T value);
+
+//Specialize
+template<>
+void fill_singleton_ga4gh_attribute_value<bool>(ga4gh::AttributeValue& v, const bool x) {
+  v.set_bool_value(x);
+}
+
+template<>
+void fill_singleton_ga4gh_attribute_value<char>(ga4gh::AttributeValue& v, const char x) {
+  v.set_int32_value(x);
+}
+
+template<>
+void fill_singleton_ga4gh_attribute_value<int>(ga4gh::AttributeValue& v, const int x) {
+  v.set_int32_value(x);
+}
+
+template<>
+void fill_singleton_ga4gh_attribute_value<unsigned>(ga4gh::AttributeValue& v, const unsigned x) {
+  v.set_int32_value(x);
+}
+
+template<>
+void fill_singleton_ga4gh_attribute_value<int64_t>(ga4gh::AttributeValue& v, const int64_t x) {
+  v.set_int64_value(x);
+}
+
+template<>
+void fill_singleton_ga4gh_attribute_value<uint64_t>(ga4gh::AttributeValue& v, const uint64_t x) {
+  v.set_int64_value(x);
+}
+
+template<>
+void fill_singleton_ga4gh_attribute_value<float>(ga4gh::AttributeValue& v, const float x) {
+  v.set_double_value(x);
+}
+
+template<>
+void fill_singleton_ga4gh_attribute_value<double>(ga4gh::AttributeValue& v, const double x) {
+  v.set_double_value(x);
+}
+
 //template specialization for printer
 template<typename T>
 class GenomicsDBColumnarFieldPrintOperator<T, true> {
@@ -122,6 +169,16 @@ class GenomicsDBColumnarFieldPrintOperator<T, true> {
         fptr.put(',');
     }
   }
+  static void fill_ga4gh_attribute(ga4gh::AttributeValueList* attr_list_wrapper, const uint8_t* ptr,
+      const size_t num_elements) {
+    attr_list_wrapper->mutable_values()->Clear();
+    attr_list_wrapper->mutable_values()->Reserve(num_elements);
+    auto data = reinterpret_cast<const T*>(ptr);
+    for(auto i=0u;i<num_elements;++i) {
+      auto* attr = attr_list_wrapper->add_values();
+      fill_singleton_ga4gh_attribute_value<T>(*attr, data[i]);
+    }
+  }
 };
 
 template<typename T>
@@ -136,6 +193,13 @@ class GenomicsDBColumnarFieldPrintOperator<T, false> {
                         const bool is_variable_length_field, const bool is_valid) {
     if (is_valid)
       print(fptr, ptr, num_elements);
+  }
+  static void fill_ga4gh_attribute(ga4gh::AttributeValueList* attr_list_wrapper, const uint8_t* ptr,
+      const size_t num_elements) {
+    attr_list_wrapper->mutable_values()->Clear();
+    auto* attr = attr_list_wrapper->add_values();
+    auto data = reinterpret_cast<const T*>(ptr);
+    fill_singleton_ga4gh_attribute_value<T>(*attr, data[0]); //this is called only for single element fields
   }
 };
 
@@ -157,6 +221,12 @@ class GenomicsDBColumnarFieldPrintOperator<char*, false> {
       fptr.write(data, num_elements);
     }
   }
+  static void fill_ga4gh_attribute(ga4gh::AttributeValueList* attr_list_wrapper,
+      const uint8_t* ptr, const size_t num_elements) {
+    attr_list_wrapper->mutable_values()->Clear();
+    auto* attr = attr_list_wrapper->add_values();
+    attr->set_string_value(reinterpret_cast<const char*>(ptr), num_elements);
+  }
 };
 
 template<>
@@ -170,6 +240,12 @@ class GenomicsDBColumnarFieldPrintOperator<char*, true> {
     GenomicsDBColumnarFieldPrintOperator<char*, false>::print_csv(fptr, ptr, num_elements,
         is_variable_length_field, is_valid);
   }
+  static void fill_ga4gh_attribute(ga4gh::AttributeValueList* attr_list_wrapper,
+      const uint8_t* ptr, const size_t num_elements) {
+    attr_list_wrapper->mutable_values()->Clear();
+    auto* attr = attr_list_wrapper->add_values();
+    attr->set_string_value(reinterpret_cast<const char*>(ptr), num_elements);
+  }
 };
 
 template<bool print_as_list>
@@ -178,38 +254,47 @@ void GenomicsDBColumnarField::assign_print_function_pointers(const int bcf_ht_ty
   case BCF_HT_FLAG:
     m_print = GenomicsDBColumnarFieldPrintOperator<bool, print_as_list>::print;
     m_print_csv = GenomicsDBColumnarFieldPrintOperator<bool, print_as_list>::print_csv;
+    m_fill_ga4gh_attribute = GenomicsDBColumnarFieldPrintOperator<bool, print_as_list>::fill_ga4gh_attribute;
     break;
   case BCF_HT_INT:
     m_print = GenomicsDBColumnarFieldPrintOperator<int, print_as_list>::print;
     m_print_csv = GenomicsDBColumnarFieldPrintOperator<int, print_as_list>::print_csv;
+    m_fill_ga4gh_attribute = GenomicsDBColumnarFieldPrintOperator<int, print_as_list>::fill_ga4gh_attribute;
     break;
   case BCF_HT_UINT:
     m_print = GenomicsDBColumnarFieldPrintOperator<unsigned, print_as_list>::print;
     m_print_csv = GenomicsDBColumnarFieldPrintOperator<unsigned, print_as_list>::print_csv;
+    m_fill_ga4gh_attribute = GenomicsDBColumnarFieldPrintOperator<unsigned, print_as_list>::fill_ga4gh_attribute;
     break;
   case BCF_HT_INT64:
     m_print = GenomicsDBColumnarFieldPrintOperator<int64_t, print_as_list>::print;
     m_print_csv = GenomicsDBColumnarFieldPrintOperator<int64_t, print_as_list>::print_csv;
+    m_fill_ga4gh_attribute = GenomicsDBColumnarFieldPrintOperator<int64_t, print_as_list>::fill_ga4gh_attribute;
     break;
   case BCF_HT_UINT64:
     m_print = GenomicsDBColumnarFieldPrintOperator<uint64_t, print_as_list>::print;
     m_print_csv = GenomicsDBColumnarFieldPrintOperator<uint64_t, print_as_list>::print_csv;
+    m_fill_ga4gh_attribute = GenomicsDBColumnarFieldPrintOperator<uint64_t, print_as_list>::fill_ga4gh_attribute;
     break;
   case BCF_HT_REAL:
     m_print = GenomicsDBColumnarFieldPrintOperator<float, print_as_list>::print;
     m_print_csv = GenomicsDBColumnarFieldPrintOperator<float, print_as_list>::print_csv;
+    m_fill_ga4gh_attribute = GenomicsDBColumnarFieldPrintOperator<float, print_as_list>::fill_ga4gh_attribute;
     break;
   case BCF_HT_DOUBLE:
     m_print = GenomicsDBColumnarFieldPrintOperator<double, print_as_list>::print;
     m_print_csv = GenomicsDBColumnarFieldPrintOperator<double, print_as_list>::print_csv;
+    m_fill_ga4gh_attribute = GenomicsDBColumnarFieldPrintOperator<double, print_as_list>::fill_ga4gh_attribute;
     break;
   case BCF_HT_CHAR:
     m_print = GenomicsDBColumnarFieldPrintOperator<char, print_as_list>::print;
     m_print_csv = GenomicsDBColumnarFieldPrintOperator<char, print_as_list>::print_csv;
+    m_fill_ga4gh_attribute = GenomicsDBColumnarFieldPrintOperator<char, print_as_list>::fill_ga4gh_attribute;
     break;
   case BCF_HT_STR:
     m_print = GenomicsDBColumnarFieldPrintOperator<char*, false>::print;
     m_print_csv = GenomicsDBColumnarFieldPrintOperator<char*, print_as_list>::print_csv;
+    m_fill_ga4gh_attribute = GenomicsDBColumnarFieldPrintOperator<char*, print_as_list>::fill_ga4gh_attribute;
     break;
   default:
     throw GenomicsDBColumnarFieldException(std::string("Unhandled type ")+m_element_type.name());
@@ -380,4 +465,10 @@ void GenomicsDBColumnarField::print_data_in_buffer_at_index_as_csv(std::ostream&
   m_print_csv(fptr, get_pointer_to_data_in_buffer_at_index(buffer_ptr, index),
               get_length_of_data_in_buffer_at_index(buffer_ptr, index),
               m_length_descriptor != BCF_VL_FIXED, buffer_ptr->is_valid(index));
+}
+
+void GenomicsDBColumnarField::fill_ga4gh_attribute(ga4gh::AttributeValueList* attr,
+    const GenomicsDBBuffer* buffer_ptr, const size_t index) const {
+  m_fill_ga4gh_attribute(attr, get_pointer_to_data_in_buffer_at_index(buffer_ptr, index),
+              get_length_of_data_in_buffer_at_index(buffer_ptr, index));
 }

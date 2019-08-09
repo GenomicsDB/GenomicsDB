@@ -30,6 +30,7 @@
 #include "query_variants.h"
 #include "broad_combined_gvcf.h"
 #include "vid_mapper_pb.h"
+#include "ga4gh_operations.h"
 
 #ifdef USE_BIGMPI
 #include "bigmpi.h"
@@ -49,7 +50,8 @@ enum ArgsEnum {
   ARGS_IDX_PRINT_CSV,
   ARGS_IDX_VERSION,
   ARGS_IDX_PRODUCE_INTERESTING_POSITIONS,
-  ARGS_IDX_PRINT_ALT_ALLELE_COUNTS
+  ARGS_IDX_PRINT_ALT_ALLELE_COUNTS,
+  ARGS_IDX_PRINT_GA4GH_CALLS
 };
 
 enum CommandsEnum {
@@ -58,7 +60,8 @@ enum CommandsEnum {
   COMMAND_PRODUCE_HISTOGRAM,
   COMMAND_PRINT_CALLS,
   COMMAND_PRINT_CSV,
-  COMMAND_PRINT_ALT_ALLELE_COUNTS
+  COMMAND_PRINT_ALT_ALLELE_COUNTS,
+  COMMAND_PRINT_GA4GH_CALLS
 };
 
 enum ProduceBroadGVCFSubOperation {
@@ -345,7 +348,8 @@ void scan_and_produce_Broad_GVCF(const VariantQueryProcessor& qp, const VariantQ
   delete op_ptr;
 }
 
-void print_calls(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, int command_idx, const VidMapper& id_mapper) {
+void print_calls(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, int command_idx,
+    const VidMapper& id_mapper) {
   switch (command_idx) {
   case COMMAND_PRINT_CALLS: {
     std::string indent_prefix = "    ";
@@ -353,20 +357,25 @@ void print_calls(const VariantQueryProcessor& qp, const VariantQueryConfig& quer
     //variant_calls is an array of dictionaries
     std::cout << indent_prefix << "\"variant_calls\": [\n";
     VariantCallPrintOperator printer(std::cout, indent_prefix+indent_prefix, &id_mapper);
-    qp.iterate_over_cells(qp.get_array_descriptor(), query_config, printer, true);
+    qp.iterate_over_cells(qp.get_array_descriptor(), query_config, printer, true, 0);
     std::cout << "\n" << indent_prefix << "]\n";
     std::cout << "}\n";
     break;
   }
   case COMMAND_PRINT_CSV: {
     VariantCallPrintCSVOperator printer(std::cout);
-    qp.iterate_over_cells(qp.get_array_descriptor(), query_config, printer, true);
+    qp.iterate_over_cells(qp.get_array_descriptor(), query_config, printer, true, 0);
     break;
   }
   case COMMAND_PRINT_ALT_ALLELE_COUNTS: {
     AlleleCountOperator AC_counter(id_mapper, query_config);
-    qp.iterate_over_cells(qp.get_array_descriptor(), query_config, AC_counter, true);
+    qp.iterate_over_cells(qp.get_array_descriptor(), query_config, AC_counter, true, 0);
     AC_counter.print_allele_counts();
+    break;
+  }
+  case COMMAND_PRINT_GA4GH_CALLS: {
+    GA4GHCallCreator op(id_mapper, std::cout, true);
+    qp.iterate_over_cells(qp.get_array_descriptor(), query_config, op, true, 0);
     break;
   }
   default:
@@ -378,7 +387,7 @@ void print_calls(const VariantQueryProcessor& qp, const VariantQueryConfig& quer
 void produce_column_histogram(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, uint64_t bin_size,
                               const std::vector<uint64_t>& num_equi_load_bins) {
   ColumnHistogramOperator histogram_op(0, 4000000000ull, bin_size);
-  qp.iterate_over_cells(qp.get_array_descriptor(), query_config, histogram_op, true);
+  qp.iterate_over_cells(qp.get_array_descriptor(), query_config, histogram_op, true, 0);
   for (auto val : num_equi_load_bins)
     histogram_op.equi_partition_and_print_bins(val);
 }
@@ -464,6 +473,7 @@ int main(int argc, char *argv[]) {
     {"print-calls",0,0,ARGS_IDX_PRINT_CALLS},
     {"print-csv",0,0,ARGS_IDX_PRINT_CSV},
     {"print-AC",0,0,ARGS_IDX_PRINT_ALT_ALLELE_COUNTS},
+    {"print-GA4GH-calls",0,0,ARGS_IDX_PRINT_GA4GH_CALLS},
     {"array",1,0,'A'},
     {"version",0,0,ARGS_IDX_VERSION},
     {"help",0,0,'h'},
@@ -529,6 +539,9 @@ int main(int argc, char *argv[]) {
       break;
     case ARGS_IDX_PRINT_ALT_ALLELE_COUNTS:
       command_idx = COMMAND_PRINT_ALT_ALLELE_COUNTS;
+      break;
+    case ARGS_IDX_PRINT_GA4GH_CALLS:
+      command_idx = COMMAND_PRINT_GA4GH_CALLS;
       break;
     case 'l':
       loader_json_config_file = std::move(std::string(optarg));
@@ -612,6 +625,7 @@ int main(int argc, char *argv[]) {
       case COMMAND_PRINT_CALLS:
       case COMMAND_PRINT_CSV:
       case COMMAND_PRINT_ALT_ALLELE_COUNTS:
+      case COMMAND_PRINT_GA4GH_CALLS:
         print_calls(qp, query_config, command_idx, query_config.get_vid_mapper());
         break;
     }

@@ -1,6 +1,7 @@
 set(GenomicsDB_library_sources 
     cpp/src/query_operations/variant_operations.cc
     cpp/src/query_operations/broad_combined_gvcf.cc
+    cpp/src/query_operations/ga4gh_operations.cc
     cpp/src/genomicsdb/variant_cell.cc
     cpp/src/genomicsdb/variant_storage_manager.cc
     cpp/src/genomicsdb/variant_field_data.cc

@@ -10,6 +10,11 @@ set(PROTOBUF_PROTO_FILES
 set(CXX_SRCS_DIR "${CMAKE_SOURCE_DIR}/protobuf-generated/cpp/src")
 set(CXX_HDRS_DIR "${CMAKE_SOURCE_DIR}/protobuf-generated/cpp/include")
 
+#Python
+file(WRITE "${CMAKE_BINARY_DIR}/python/__init__.py" "#blank")
+set(PROTOBUF_GENERATED_PYTHON_DIR "${CMAKE_BINARY_DIR}/python/genomicsdb")
+file(WRITE "${PROTOBUF_GENERATED_PYTHON_DIR}/__init__.py" "#blank")
+
 GET_PROTOBUF_GENERATED_FILES(${PROTOBUF_REGENERATE} CXX_SRCS CXX_HDRS
   CXX_SRCS_DIR CXX_HDRS_DIR
   ${PROTOBUF_PROTO_FILES})
