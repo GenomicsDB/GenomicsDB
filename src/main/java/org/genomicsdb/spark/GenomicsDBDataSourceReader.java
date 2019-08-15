@@ -42,7 +42,7 @@ import java.util.Map;
 
 public class GenomicsDBDataSourceReader implements DataSourceReader {
 
-  GenomicsDBInput input;
+  GenomicsDBInput<GenomicsDBInputPartition> input;
 
   public GenomicsDBDataSourceReader() {}
 
@@ -92,10 +92,12 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
       throw new RuntimeException("Must specify either "+GenomicsDBConfiguration.QUERYJSON+
               " or "+GenomicsDBConfiguration.QUERYPB);
     }
-    try {
-      genomicsDBConfiguration.setHostFile(options.get(GenomicsDBConfiguration.MPIHOSTFILE).get());
-    } catch (FileNotFoundException e) {
-      e.printStackTrace();
+    if(options.get(GenomicsDBConfiguration.MPIHOSTFILE).isPresent()) {
+      try {
+        genomicsDBConfiguration.setHostFile(options.get(GenomicsDBConfiguration.MPIHOSTFILE).get());
+      } catch (FileNotFoundException e) {
+        e.printStackTrace();
+      }
     }
     Map<String, GenomicsDBVidSchema> vMap = buildVidSchemaMap(options.get(GenomicsDBConfiguration.LOADERJSON).get());
 
@@ -148,7 +150,7 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
                     sf.name(), DataType.fromDDL(dtypeDDL), sf.nullable(), sf.metadata()));
       }
     }
-    input = new GenomicsDBInput<GenomicsDBInputPartition>(
+    input = new GenomicsDBInput<>(
             genomicsDBConfiguration,
             finalSchema,
             vMap,
@@ -171,11 +173,11 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
       FileReader vidReader = new FileReader(vidMapping);
       JSONObject objVid = (JSONObject) parser.parse(vidReader);
 
-      JSONObject fields = (JSONObject) objVid.get("fields");
+      HashMap<?,?> fields = (HashMap<?,?>) objVid.get("fields");
       fields.forEach(
           (k, vObj) -> {
             // ignore fields without vcf_field_class
-            JSONObject v = (JSONObject) vObj;
+            HashMap<?,?> v = (HashMap<?,?>) vObj;
             JSONArray fieldClass = (JSONArray) v.get("vcf_field_class");
             if (fieldClass != null) {
               Class<?> clazz;
@@ -199,7 +201,12 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
                 default:
                   throw new RuntimeException("Unsupported type " + vType + " in vid mapping");
               }
-              String length = (String) v.getOrDefault("length", "1").toString();
+              String length;
+              if(v.get("length") == null) {
+                length = "1";
+              } else {
+                length = v.get("length").toString();
+              }
               // if field is INFO or FORMAT
               if (fieldClass.size() == 1) {
                 vMap.put((String) k, new GenomicsDBVidSchema(fieldClass.get(0).equals("INFO"), clazz, length));
@@ -221,10 +228,13 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
     return vMap;
   }
 
+  @Override
+  @SuppressWarnings("unchecked")
   public List<InputPartition<InternalRow>> planInputPartitions() {
-    return input.divideInput();
+    return (List)input.divideInput();
   }
 
+  @Override
   public StructType readSchema() {
     return input.getSchema();
   }

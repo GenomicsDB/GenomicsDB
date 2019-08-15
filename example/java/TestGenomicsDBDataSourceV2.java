@@ -21,6 +21,7 @@ import gnu.getopt.LongOpt;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.*;
 import org.apache.spark.sql.types.DataTypes.*;
@@ -130,10 +131,11 @@ public final class TestGenomicsDBDataSourceV2 {
     longopts[4] = new LongOpt("spark_master", LongOpt.REQUIRED_ARGUMENT, null, 's');
     longopts[5] = new LongOpt("use-query-protobuf", LongOpt.NO_ARGUMENT, null, 'p');
 
-    if (args.length < 10) {
+    if (args.length < 8) {
       System.err.println(
           "Usage:\n\t--loader <loader.json> --query <query.json> --vid <vid.json> "
-              + "--hostfile <hostfile> --spark_master <sparkMaster> --use-query-protobuf");
+              + "--spark_master <sparkMaster>"
+              +"\nOptional args:\n--hostfile <hostfile> --use-query-protobuf");
       System.exit(-1);
     }
     String loaderFile, queryFile, hostfile, vidMapping, sparkMaster, jarDir;
@@ -199,31 +201,25 @@ public final class TestGenomicsDBDataSourceV2 {
     }
 
     Dataset<Row> variants;
-    if (!useQueryProtobuf) {
-      variants =
-          spark.read()
-              .format("org.genomicsdb.spark.GenomicsDBDataSourceV2")
-              .schema(schema)
-              .option("genomicsdb.input.loaderjsonfile", lDstFile.getName())
-              .option("genomicsdb.input.queryjsonfile", qDstFile.getName())
-              .option("genomicsdb.input.mpi.hostfile", hostfile)
-              .load();
+    DataFrameReader reader = spark.read()
+            .format("org.genomicsdb.spark.GenomicsDBDataSourceV2")
+            .schema(schema)
+            .option("genomicsdb.input.loaderjsonfile", lDstFile.getName());
+    if (!hostfile.isEmpty()) {
+      reader = reader.option("genomicsdb.input.mpi.hostfile", hostfile);
     }
-    else {
+    if (useQueryProtobuf) {
       GenomicsDBExportConfiguration.ExportConfiguration.Builder builder =
-          GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
+      GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
       String jsonString = readFile(queryFile, Charset.defaultCharset());
       JsonFormat.merge(jsonString, builder);
       String pbString = JsonFormat.printToString(builder.build());
-      variants =
-          spark.read()
-              .format("org.genomicsdb.spark.GenomicsDBDataSourceV2")
-              .schema(schema)
-              .option("genomicsdb.input.loaderjsonfile", lDstFile.getName())
-              .option("genomicsdb.input.queryprotobuf", pbString)
-              .option("genomicsdb.input.mpi.hostfile", hostfile)
-              .load();
+
+      reader = reader.option("genomicsdb.input.queryprotobuf", pbString);
+    } else {
+      reader = reader.option("genomicsdb.input.queryjsonfile", qDstFile.getName());
     }
+    variants = reader.load();
 
     String tempDir = "./" + UUID.randomUUID().toString();
 

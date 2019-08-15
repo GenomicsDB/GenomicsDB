@@ -51,7 +51,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
   extends InputFormat<String, VCONTEXT> implements Configurable {
 
   private Configuration configuration;
-  private GenomicsDBInput input;
+  private GenomicsDBInput<GenomicsDBInputSplit> input;
 
   Logger logger = Logger.getLogger(GenomicsDBInputFormat.class);
 
@@ -64,6 +64,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
    * @return  Returns a list of input splits
    * @throws FileNotFoundException  Thrown if creaing configuration object fails
    */
+  @SuppressWarnings("unchecked")
   public List<InputSplit> getSplits(JobContext jobContext) throws FileNotFoundException {
 
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(configuration);
@@ -77,11 +78,13 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
       genomicsDBConfiguration.setQueryJsonFile(
         configuration.get(GenomicsDBConfiguration.QUERYJSON));
     }
-    genomicsDBConfiguration.setHostFile(
-      configuration.get(GenomicsDBConfiguration.MPIHOSTFILE));
+    if (configuration.get(GenomicsDBConfiguration.MPIHOSTFILE) != null) {
+      genomicsDBConfiguration.setHostFile(
+        configuration.get(GenomicsDBConfiguration.MPIHOSTFILE));
+    }
 
     input.setGenomicsDBConfiguration(genomicsDBConfiguration);
-    return input.divideInput();
+    return (List)input.divideInput();
   }
 
   public RecordReader<String, VCONTEXT>
@@ -131,7 +134,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
       exportConfiguration = 
               GenomicsDBInput.createTargetExportConfigurationPB(queryJson, 
               gSplit.getPartitionInfo(),
-              gSplit.getQueryInfo(), isPB);
+              gSplit.getQueryInfoList(), isPB);
     }
     catch (ParseException e) {
       e.printStackTrace();
@@ -142,21 +145,31 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     //GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration = exportConfigurationBuilder
             //.setWorkspace("").setReferenceGenome("").build();
 
-    featureReader = new GenomicsDBFeatureReader<>(exportConfiguration,
-            (FeatureCodec<VCONTEXT, SOURCE>) new BCF2Codec(), Optional.of(loaderJson));
+    //featureReader = new GenomicsDBFeatureReader<>(exportConfiguration,
+    //        (FeatureCodec<VCONTEXT,SOURCE>) new BCF2Codec(), Optional.of(loaderJson));
+    featureReader = getGenomicsDBFeatureReader(exportConfiguration, loaderJson);
     recordReader = new GenomicsDBRecordReader<>(featureReader);
     return recordReader;
+  }
+
+  // create helper function so we can limit scope of SuppressWarnings
+  @SuppressWarnings("unchecked")
+  private GenomicsDBFeatureReader<VCONTEXT,SOURCE> getGenomicsDBFeatureReader(
+          GenomicsDBExportConfiguration.ExportConfiguration pb, String loaderJson)
+          throws IOException {
+    return new GenomicsDBFeatureReader<>(pb, 
+            (FeatureCodec<VCONTEXT,SOURCE>) new BCF2Codec(), Optional.of(loaderJson));
   }
 
   /**
    * default constructor
    */
   public GenomicsDBInputFormat() {
-    input = new GenomicsDBInput<GenomicsDBInputSplit>(null, null, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
+    input = new GenomicsDBInput<>(null, null, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
   }
 
   public GenomicsDBInputFormat(GenomicsDBConfiguration conf) {
-    input = new GenomicsDBInput<GenomicsDBInputSplit>(conf, null, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
+    input = new GenomicsDBInput<>(conf, null, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
   }
 
   /**

@@ -66,10 +66,10 @@ public final class TestGenomicsDBSparkHDFS {
     longopts[5] = new LongOpt("jar_dir", LongOpt.REQUIRED_ARGUMENT, null, 'j');
     longopts[6] = new LongOpt("use-query-protobuf", LongOpt.NO_ARGUMENT, null, 'p');
 
-    if (args.length < 12) {
+    if (args.length < 10) {
       System.err.println("Usage:\n\t--loader <loader.json> --query <query.json> --hostfile <hostfile>"
             +" --template_vcf_header <templateVCFHeader> --spark_master <sparkMaster> --jar_dir <jar_dir>"
-            +" --use-query-protobuf");
+            +"\nOptional args:\n --hostfile <hostfile> --use-query-protobuf");
       System.exit(-1);
     }
     String loaderFile, queryFile, hostfile, templateVCFHeader, sparkMaster, jarDir;
@@ -142,7 +142,9 @@ public final class TestGenomicsDBSparkHDFS {
       String pbString = JsonFormat.printToString(builder.build());
       hadoopConf.set(GenomicsDBConfiguration.QUERYPB, pbString);
     }
-    hadoopConf.set(GenomicsDBConfiguration.MPIHOSTFILE, hostfile);
+    if(!hostfile.isEmpty()) {
+      hadoopConf.set(GenomicsDBConfiguration.MPIHOSTFILE, hostfile);
+    }
 
     JavaPairRDD<String, VariantContext> variants;
     Class gformatClazz = GenomicsDBInputFormat.class;

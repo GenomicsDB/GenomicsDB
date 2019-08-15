@@ -65,7 +65,7 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
       exportConfiguration =
           GenomicsDBInput.createTargetExportConfigurationPB(
               query, inputPartition.getPartitionInfo(), 
-              inputPartition.getQueryInfo(), inputPartition.getQueryIsPB());
+              inputPartition.getQueryInfoList(), inputPartition.getQueryIsPB());
     } catch (ParseException | IOException e) {
       e.printStackTrace();
       exportConfiguration = null;
@@ -286,7 +286,7 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
             */
             rowObjectArray[i++] =
                 ArrayData.toArrayData(
-                    ((List) (g.getAnyAttribute(fName)))
+                    ((List<?>) (g.getAnyAttribute(fName)))
                         .toArray((Object[]) Array.newInstance(field.getFieldClass(), 0)));
           } else {
             rowObjectArray[i++] = null;

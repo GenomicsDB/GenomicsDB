@@ -25,6 +25,7 @@ package org.genomicsdb.spark;
 import org.apache.spark.sql.types.StructType;
 
 import java.util.Map;
+import java.util.ArrayList;
 
 /**
  * This interface declares some methods to be used by classes that define quantums of data that are
@@ -42,5 +43,5 @@ interface GenomicsDBInputInterface {
 
   default void setPartitionInfo(GenomicsDBPartitionInfo p) {}
 
-  default void setQueryInfo(GenomicsDBQueryInfo q) {}
+  default void setQueryInfoList(ArrayList<GenomicsDBQueryInfo> q) {}
 }

@@ -188,7 +188,7 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     JSONArray colPar = (JSONArray)obj.get("column_partitions");
     if(colPar == null)
       throw new RuntimeException("Could not find attribute \"column_partitions\" in the JSON configuration");
-    Iterator<JSONObject> it = colPar.iterator();
+    Iterator it = colPar.iterator();
     while (it.hasNext()) {
       JSONObject obj0 = (JSONObject)it.next();
       String workspace = null, array = null, vcf_output_filename = null;
