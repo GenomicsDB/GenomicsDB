@@ -98,6 +98,7 @@ void initialize(JNIEnv *env) {
 }
 
 void JNI_OnUnload(JavaVM *vm, void *reserved) {
+  return;
   std::lock_guard<std::mutex> guard(initializing_mutex_);
   if (is_initialized_) {
     JNIEnv *env;
@@ -260,14 +261,9 @@ class VariantCallProcessor : public GenomicsDBVariantCallProcessor {
   }
   ~VariantCallProcessor() {
     finalize_interval();
-    env_->DeleteLocalRef(intervals_list_);
   }
   jobject get_intervals_list() {
-    if (intervals_list_) {
-      return env_->NewGlobalRef(intervals_list_);
-    } else {
-      return NULL;
-    }
+    return intervals_list_;
   }
   void process(interval_t interval) {
     finalize_interval();

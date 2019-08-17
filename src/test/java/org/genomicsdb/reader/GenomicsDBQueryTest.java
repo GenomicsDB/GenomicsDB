@@ -140,11 +140,11 @@ public class GenomicsDBQueryTest {
     List<Pair>rowRanges = new ArrayList<>();
     rowRanges.add(new Pair(0L, 3L));
     calls = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
-    //assert(calls.size() == columnRanges.size());
+    assert(calls.size() == columnRanges.size());
 
     query.disconnect(genomicsDBHandle);
   }
-/*
+
   @Test
   void testGenomicsDBVariantCallQueryWithSegmentSize() {
     GenomicsDBQuery query = new GenomicsDBQuery();
@@ -176,5 +176,5 @@ public class GenomicsDBQueryTest {
     assert(calls.size() == 1);
 
     query.disconnect(genomicsDBHandle);
-  }*/
+  }
 }
