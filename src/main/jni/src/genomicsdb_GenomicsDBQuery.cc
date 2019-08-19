@@ -25,47 +25,47 @@
 
 #include <mutex>
 
-bool is_initialized_ = false;
-std::mutex initializing_mutex_;
-
 //java.util.ArrayList
-jclass java_ArrayList_ ;
-jmethodID java_ArrayList_init_;
-jmethodID java_ArrayList_size_;
-jmethodID java_ArrayList_get_;
-jmethodID java_ArrayList_add_;
+static jclass java_ArrayList_ ;
+static jmethodID java_ArrayList_init_;
+static jmethodID java_ArrayList_size_;
+static jmethodID java_ArrayList_get_;
+static jmethodID java_ArrayList_add_;
 
 //java.util.Hashmap
-jclass java_HashMap_;
-jmethodID java_HashMap_init_;
-jmethodID java_HashMap_put_;
+static jclass java_HashMap_;
+static jmethodID java_HashMap_init_;
+static jmethodID java_HashMap_put_;
 
 //org.genomicsdb.reader.GenomicsDBQuery$VariantCalls
-jclass java_VariantCalls_;
-jmethodID java_VariantCalls_init_default_;
-jmethodID java_VariantCalls_init_;
+static jclass java_VariantCalls_;
+static jmethodID java_VariantCalls_init_default_;
+static jmethodID java_VariantCalls_init_;
 
 //org.genomicsdb.reader.GenomicsDBQuery$VariantCall
-jclass java_VariantCall_;
-jmethodID java_VariantCall_init_;
+static jclass java_VariantCall_;
+static jmethodID java_VariantCall_init_;
 
 //org.genomicsdb.reader.GenomicsDBQuery$Pair
-jclass java_Pair_;
-jmethodID java_Pair_init_;
-jmethodID java_Pair_getStart_;
-jmethodID java_Pair_getEnd_;
+static jclass java_Pair_;
+static jmethodID java_Pair_init_;
+static jmethodID java_Pair_getStart_;
+static jmethodID java_Pair_getEnd_;
 
 #define INIT(VAR,CODE)                                                                                 \
   do {                                                                                                 \
     VAR = CODE;                                                                                        \
     if (VAR == NULL) {                                                                                 \
-      throw GenomicsDBException("genomicsdb_GenomicsDBQuery.cc#initialize:"+std::to_string(__LINE__)); \
+      throw GenomicsDBException("genomicsdb_GenomicsDBQuery.cc#JNI_OnLoad:"+std::to_string(__LINE__)); \
     }                                                                                                  \
   } while (false)
 
-void initialize(JNIEnv *env) {
-  std::lock_guard<std::mutex> guard(initializing_mutex_);
-  if (!is_initialized_) {
+#define GENOMICSDB_JNI_VERSION JNI_VERSION_1_8
+
+jint JNI_OnLoad(JavaVM* vm, void *reserved) {
+  JNIEnv *env;
+  int status = vm->GetEnv(reinterpret_cast<void**>(&env), GENOMICSDB_JNI_VERSION);
+  if (status == JNI_OK) {
     //java.util.ArrayList
     INIT(java_ArrayList_, static_cast<jclass>(env->NewGlobalRef(env->FindClass("java/util/ArrayList"))));
     INIT(java_ArrayList_init_, env->GetMethodID(java_ArrayList_, "<init>", "()V"));
@@ -92,25 +92,20 @@ void initialize(JNIEnv *env) {
     INIT(java_Pair_init_, env->GetMethodID(java_Pair_, "<init>", "(JJ)V"));
     INIT(java_Pair_getStart_, env->GetMethodID(java_Pair_, "getStart", "()J"));
     INIT(java_Pair_getEnd_, env->GetMethodID(java_Pair_, "getEnd", "()J"));
-    
-    is_initialized_ = true;
+  } else {
+    throw GenomicsDBException("genomicsdb_GenomicsDBQuery could not be intialized. JNI_ERROR="+std::to_string(status));
   }
+  return GENOMICSDB_JNI_VERSION;
 }
 
 void JNI_OnUnload(JavaVM *vm, void *reserved) {
-  return;
-  std::lock_guard<std::mutex> guard(initializing_mutex_);
-  if (is_initialized_) {
-    JNIEnv *env;
-    if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8) == JNI_OK) {
-      env->DeleteGlobalRef(java_Pair_);
-      env->DeleteGlobalRef(java_VariantCall_);
-      env->DeleteGlobalRef(java_VariantCalls_);
-      env->DeleteGlobalRef(java_HashMap_);
-      env->DeleteGlobalRef(java_ArrayList_);
-
-      is_initialized_ = false;
-    }
+  JNIEnv *env;
+  if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8) == JNI_OK) {
+    env->DeleteGlobalRef(java_Pair_);
+    env->DeleteGlobalRef(java_VariantCall_);
+    env->DeleteGlobalRef(java_VariantCalls_);
+    env->DeleteGlobalRef(java_HashMap_);
+    env->DeleteGlobalRef(java_ArrayList_);
   }
 }
 
@@ -131,7 +126,6 @@ void get_class_name(JNIEnv *env, jobject obj) {
 #endif
 
 std::vector<std::string> to_string_vector(JNIEnv *env, jobject arrayList) {
-  initialize(env);
   jint size = env->CallIntMethod(arrayList, java_ArrayList_size_);
   std::vector<std::string> result;
   result.reserve(size);
@@ -142,7 +136,7 @@ std::vector<std::string> to_string_vector(JNIEnv *env, jobject arrayList) {
     env->ReleaseStringUTFChars(element, element_cstr);
     env->DeleteLocalRef(element);
   }
-  return std::move(result);
+  return result;
 }
 
 genomicsdb_ranges_t to_genomicsdb_ranges_vector(JNIEnv *env, jobject arrayList) {
