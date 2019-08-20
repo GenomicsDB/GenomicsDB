@@ -62,10 +62,8 @@ static jmethodID java_Pair_getEnd_;
 
 #define GENOMICSDB_JNI_VERSION JNI_VERSION_1_8
 
-jint JNI_OnLoad(JavaVM* vm, void *reserved) {
-  JNIEnv *env;
-  int status = vm->GetEnv(reinterpret_cast<void**>(&env), GENOMICSDB_JNI_VERSION);
-  if (status == JNI_OK) {
+JNIEXPORT void JNICALL
+Java_org_genomicsdb_reader_GenomicsDBQuery_jniInitialize(JNIEnv *env, jclass cls) {
     //java.util.ArrayList
     INIT(java_ArrayList_, static_cast<jclass>(env->NewGlobalRef(env->FindClass("java/util/ArrayList"))));
     INIT(java_ArrayList_init_, env->GetMethodID(java_ArrayList_, "<init>", "()V"));
@@ -92,15 +90,11 @@ jint JNI_OnLoad(JavaVM* vm, void *reserved) {
     INIT(java_Pair_init_, env->GetMethodID(java_Pair_, "<init>", "(JJ)V"));
     INIT(java_Pair_getStart_, env->GetMethodID(java_Pair_, "getStart", "()J"));
     INIT(java_Pair_getEnd_, env->GetMethodID(java_Pair_, "getEnd", "()J"));
-  } else {
-    throw GenomicsDBException("genomicsdb_GenomicsDBQuery could not be intialized. JNI_ERROR="+std::to_string(status));
-  }
-  return GENOMICSDB_JNI_VERSION;
 }
 
 void JNI_OnUnload(JavaVM *vm, void *reserved) {
   JNIEnv *env;
-  if (vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_8) == JNI_OK) {
+  if (vm->GetEnv(reinterpret_cast<void**>(&env), GENOMICSDB_JNI_VERSION) == JNI_OK) {
     env->DeleteGlobalRef(java_Pair_);
     env->DeleteGlobalRef(java_VariantCall_);
     env->DeleteGlobalRef(java_VariantCalls_);

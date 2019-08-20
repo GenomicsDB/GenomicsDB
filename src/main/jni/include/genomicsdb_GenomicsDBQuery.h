@@ -11,6 +11,14 @@ extern "C" {
 #define org_genomicsdb_reader_GenomicsDBQuery_defaultSegmentSize 10485760LL
 /*
  * Class:     org_genomicsdb_reader_GenomicsDBQuery
+ * Method:    jniInitialize
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniInitialize
+  (JNIEnv *, jclass);
+
+/*
+ * Class:     org_genomicsdb_reader_GenomicsDBQuery
  * Method:    jniVersion
  * Signature: ()Ljava/lang/String;
  */

@@ -31,12 +31,16 @@ public class GenomicsDBQuery {
 
   static {
     try {
-      boolean loaded = GenomicsDBLibLoader.loadLibrary();
-      if(!loaded) {
+      if (!GenomicsDBLibLoader.loadLibrary()) {
         throw new GenomicsDBException("Could not load genomicsdb native library");
       }
     } catch(UnsatisfiedLinkError ule) {
       throw new GenomicsDBException("Could not load genomicsdb native library", ule);
+    }
+    try {
+      jniInitialize();
+    } catch(Exception e) {
+      throw new GenomicsDBException("Could not initialize GenomicsDBQuery native bindings");
     }
   }
 
@@ -144,6 +148,8 @@ public class GenomicsDBQuery {
   }
 
   // Native Bindings
+  private static native void jniInitialize();
+
   private static native String jniVersion();
 
   private static native long jniConnect(final String workspace,
