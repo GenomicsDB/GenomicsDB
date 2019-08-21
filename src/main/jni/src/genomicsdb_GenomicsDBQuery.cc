@@ -37,10 +37,11 @@ static jclass java_HashMap_;
 static jmethodID java_HashMap_init_;
 static jmethodID java_HashMap_put_;
 
-//org.genomicsdb.reader.GenomicsDBQuery$VariantCalls
-static jclass java_VariantCalls_;
-static jmethodID java_VariantCalls_init_default_;
-static jmethodID java_VariantCalls_init_;
+//org.genomicsdb.reader.GenomicsDBQuery$Interval
+static jclass java_Interval_;
+static jmethodID java_Interval_init_default_;
+static jmethodID java_Interval_init_;
+static jmethodID java_Interval_addCall_;
 
 //org.genomicsdb.reader.GenomicsDBQuery$VariantCall
 static jclass java_VariantCall_;
@@ -76,10 +77,11 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniInitialize(JNIEnv *env, jclass cls
     INIT(java_HashMap_init_, env->GetMethodID(java_HashMap_, "<init>", "()V"));
     INIT(java_HashMap_put_, env->GetMethodID(java_HashMap_, "put", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"));
     
-    //org.genomicsdb.reader.GenomicsDBQuery$VariantCalls
-    INIT(java_VariantCalls_, static_cast<jclass>(env->NewGlobalRef(env->FindClass("org/genomicsdb/reader/GenomicsDBQuery$VariantCalls"))));
-    INIT(java_VariantCalls_init_default_,  env->GetMethodID(java_VariantCalls_, "<init>", "()V"));
-    INIT(java_VariantCalls_init_,  env->GetMethodID(java_VariantCalls_, "<init>", "(JJ)V"));
+    //org.genomicsdb.reader.GenomicsDBQuery$Interval
+    INIT(java_Interval_, static_cast<jclass>(env->NewGlobalRef(env->FindClass("org/genomicsdb/reader/GenomicsDBQuery$Interval"))));
+    INIT(java_Interval_init_default_,  env->GetMethodID(java_Interval_, "<init>", "()V"));
+    INIT(java_Interval_init_,  env->GetMethodID(java_Interval_, "<init>", "(JJ)V"));
+    INIT(java_Interval_addCall_, env->GetMethodID(java_Interval_, "addCall", "(Lorg/genomicsdb/reader/GenomicsDBQuery$VariantCall;)V"));
 
     //org.genomicsdb.reader.GenomicDBQuery$VariantCall
     INIT(java_VariantCall_, static_cast<jclass>(env->NewGlobalRef(env->FindClass("org/genomicsdb/reader/GenomicsDBQuery$VariantCall"))));
@@ -97,7 +99,7 @@ void JNI_OnUnload(JavaVM *vm, void *reserved) {
   if (vm->GetEnv(reinterpret_cast<void**>(&env), GENOMICSDB_JNI_VERSION) == JNI_OK) {
     env->DeleteGlobalRef(java_Pair_);
     env->DeleteGlobalRef(java_VariantCall_);
-    env->DeleteGlobalRef(java_VariantCalls_);
+    env->DeleteGlobalRef(java_Interval_);
     env->DeleteGlobalRef(java_HashMap_);
     env->DeleteGlobalRef(java_ArrayList_);
   }
@@ -163,22 +165,22 @@ jobject to_java_map(JNIEnv *env, jobject obj, std::vector<genomic_field_t> genom
 
 #if(0)
 // TODO: Some version of this will be needed when we implement java bindings for GenomicsDB::query_variants()
-jobject to_java_VariantCalls(JNIEnv *env, jclass cls, const char *array_name, GenomicsDB *genomicsdb, GenomicsDBVariantCalls variant_calls) {
+jobject to_java_Interval(JNIEnv *env, jclass cls, const char *array_name, GenomicsDB *genomicsdb, GenomicsDBVariantCalls variant_calls) {
   get_class_name(env, cls);
-  auto java_VariantCalls =  env->NewObject(java_VariantCalls_, java_VariantCalls_init_default_);
+  auto java_Interval =  env->NewObject(java_Interval_, java_Interval_init_default_);
   for (auto i=0ul; i<variant_calls.size(); i++) {
     const genomicsdb_variant_call_t* variant_call = variant_calls.at(i);
     genomic_interval_t genomic_interval = genomicsdb->get_genomic_interval(variant_call);
     jstring java_contigName = env->NewStringUTF(genomic_interval.contig_name.c_str());
     jobject java_genomicFields = to_java_map(env, cls, genomicsdb->get_genomic_fields(array_name, variant_call));
-    env->CallObjectMethod(java_VariantCalls_, java_VariantCalls_init_, cls,
+    env->CallObjectMethod(java_Interval_, java_Interval_init_, cls,
                    java_contigName,
                    genomic_interval.interval.first,
                    genomic_interval.interval.second,
                    java_genomicFields);
     env->DeleteLocalRef(java_contigName);
   }
-  return java_VariantCalls;
+  return java_Interval;
 }
 #endif
 
@@ -255,19 +257,26 @@ class VariantCallProcessor : public GenomicsDBVariantCallProcessor {
   }
   void process(interval_t interval) {
     finalize_interval();
-    current_calls_list_ =  env_->NewObject(java_VariantCalls_, java_VariantCalls_init_, (jlong)interval.first, (jlong)interval.second);
+    current_calls_list_ =  env_->NewObject(java_Interval_, java_Interval_init_, (jlong)interval.first, (jlong)interval.second);
   }
   void process(uint32_t row, genomic_interval_t interval, std::vector<genomic_field_t> fields) {
     jstring java_contigName = env_->NewStringUTF(interval.contig_name.c_str());
     jobject java_fields = to_java_map(env_, cls_, fields);
-    env_->CallObjectMethod(current_calls_list_, java_VariantCall_init_,
-                          row,
-                          java_contigName,
-                          (jlong)interval.interval.first,
-                          (jlong)interval.interval.second,
-                          java_fields);
+    jobject java_variant_call = env_->NewObject(java_VariantCall_, java_VariantCall_init_,
+                                                row,
+                                                java_contigName,
+                                                (jlong)interval.interval.first,
+                                                (jlong)interval.interval.second,
+                                                java_fields);
     env_->DeleteLocalRef(java_contigName);
     env_->DeleteLocalRef(java_fields);
+    if (java_variant_call) {
+      assert(current_calls_list_);
+      env_->CallObjectMethod(current_calls_list_, java_Interval_addCall_, java_variant_call);
+      env_->DeleteLocalRef(java_variant_call);
+    } else {
+      throw GenomicsDBException("Could not create Java VariantCall via JNI: "+std::to_string(__LINE__));
+    }
   }
  private:
   void finalize_interval() {
@@ -300,7 +309,10 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniQueryVariantCalls(JNIEnv *env,
                                                                          to_genomicsdb_ranges_vector(env, column_ranges),
                                                                          to_genomicsdb_ranges_vector(env, row_ranges));
 
-  // auto result = to_java_VariantCalls(env, cls, array_name_cstr, genomicsdb, variant_calls);
+  if (variant_calls.size() > 0) {
+    // auto result = to_java_Interval(env, cls, array_name_cstr, genomicsdb, variant_calls);
+    throw GenomicsDBException("NYI: processing results of genomicsdb_GenomicsDBQuery.cc#jniQueryInterval :"+std::to_string(__LINE__));
+  }
   
   env->ReleaseStringUTFChars(array_name, array_name_cstr);
   return processor.get_intervals_list();

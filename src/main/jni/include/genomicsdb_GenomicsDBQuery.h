@@ -53,10 +53,10 @@ JNIEXPORT jobject JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniQueryVar
 }
 #endif
 #endif
-/* Header for class org_genomicsdb_reader_GenomicsDBQuery_VariantCalls */
+/* Header for class org_genomicsdb_reader_GenomicsDBQuery_Interval */
 
-#ifndef _Included_org_genomicsdb_reader_GenomicsDBQuery_VariantCalls
-#define _Included_org_genomicsdb_reader_GenomicsDBQuery_VariantCalls
+#ifndef _Included_org_genomicsdb_reader_GenomicsDBQuery_Interval
+#define _Included_org_genomicsdb_reader_GenomicsDBQuery_Interval
 #ifdef __cplusplus
 extern "C" {
 #endif

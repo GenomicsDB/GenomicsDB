@@ -19,18 +19,17 @@
 package org.genomicsdb.reader;
 
 import org.genomicsdb.exception.GenomicsDBException;
-import org.genomicsdb.reader.GenomicsDBQuery.*;
+import org.genomicsdb.reader.GenomicsDBQuery.Interval;
+import org.genomicsdb.reader.GenomicsDBQuery.Pair;
+import org.genomicsdb.reader.GenomicsDBQuery.VariantCall;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.io.File;
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.StringTokenizer;
 
 public class GenomicsDBQueryTest {
 
@@ -124,23 +123,40 @@ public class GenomicsDBQueryTest {
     query.disconnect(genomicsDBHandle);
   }
 
+  void checkVariantCall(VariantCall variantCall) {
+    assert(variantCall != null);
+    assert(variantCall.getRow() >= 0 && variantCall.getRow() <=2);
+    assert(!variantCall.getContigName().isEmpty());
+    assert(variantCall.getGenomic_interval().getStart() > 0);
+    assert(variantCall.getGenomic_interval().getEnd() > 0);
+    assert(variantCall.getGenomicFields().size() > 1);
+
+  }
+
   @Test
   void testGenomicsDBVariantCallQuery() {
     GenomicsDBQuery query = new GenomicsDBQuery();
     long genomicsDBHandle = connectWithDPAttribute();
 
-    List<VariantCalls> calls = query.queryVariantCalls(genomicsDBHandle, arrayName);
-    assert(calls.size() == 0);
+    List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName);
+    assert(intervals.size() == 0);
 
     List<Pair>columnRanges = new ArrayList<>();
     columnRanges.add(new Pair(0L, 1000000000L));
-    calls = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges);
-    assert(calls.size() == 0);
+    intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges);
+    assert(intervals.size() == 0);
 
     List<Pair>rowRanges = new ArrayList<>();
     rowRanges.add(new Pair(0L, 3L));
-    calls = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
-    assert(calls.size() == columnRanges.size());
+    intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
+    assert(intervals.size() == 1);
+
+    Interval interval = intervals.get(0);
+    assert(interval.getInterval().getStart() == 0L);
+    assert(interval.getInterval().getEnd() == 1000000000L);
+    assert(interval.getCalls().size() == 5);
+
+    checkVariantCall(interval.getCalls().get(0));
 
     query.disconnect(genomicsDBHandle);
   }
@@ -155,8 +171,9 @@ public class GenomicsDBQueryTest {
     List<Pair>rowRanges = new ArrayList<>();
     rowRanges.add(new Pair(0L, 3L));
 
-    List<VariantCalls> calls = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
-    assert(calls.size() == 1);
+    List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
+    assert(intervals.size() == 1);
+    checkVariantCall(intervals.get(0).getCalls().get(0));
 
     query.disconnect(genomicsDBHandle);
   }
@@ -172,8 +189,14 @@ public class GenomicsDBQueryTest {
     List<Pair>rowRanges = new ArrayList<>();
     rowRanges.add(new Pair(0L, 3L));
 
-    List<VariantCalls> calls = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
-    assert(calls.size() == 1);
+    List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
+    assert(intervals.size() == 1);
+
+    Interval interval = intervals.get(0);
+    assert(interval.getInterval().getStart() == 0);
+    assert(interval.getInterval().getEnd() == 50000L);
+    assert(interval.getCalls().size() == 5);
+    checkVariantCall(interval.getCalls().get(0));
 
     query.disconnect(genomicsDBHandle);
   }

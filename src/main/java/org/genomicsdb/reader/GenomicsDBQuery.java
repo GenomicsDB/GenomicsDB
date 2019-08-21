@@ -84,11 +84,11 @@ public class GenomicsDBQuery {
     }
   }
 
-  public static class VariantCalls {
+  public static class Interval {
     Pair interval = null;
     List<VariantCall> calls = new ArrayList<>();
-    VariantCalls() {}
-    VariantCalls(long start, long end) {
+    Interval() {}
+    Interval(long start, long end) {
       interval = new Pair(start, end);
     }
     public List<VariantCall> getCalls() {
@@ -129,21 +129,21 @@ public class GenomicsDBQuery {
     jniDisconnect(handle);
   }
 
-  public List<VariantCalls> queryVariantCalls(long handle,
-                                        final String arrayName) {
+  public List<Interval> queryVariantCalls(long handle,
+                                          final String arrayName) {
     return jniQueryVariantCalls(handle, arrayName, new ArrayList<>(), new ArrayList<>());
   }
 
-  public List<VariantCalls> queryVariantCalls(long handle,
-                                        final String arrayName,
-                                        final List<Pair> columnRanges) {
+  public List<Interval> queryVariantCalls(long handle,
+                                          final String arrayName,
+                                          final List<Pair> columnRanges) {
     return jniQueryVariantCalls(handle, arrayName, columnRanges, new ArrayList<>());
   }
 
-  public List<VariantCalls> queryVariantCalls(long handle,
-                                        final String arrayName,
-                                        final List<Pair> columnRanges,
-                                        final List<Pair> rowRanges) {
+  public List<Interval> queryVariantCalls(long handle,
+                                          final String arrayName,
+                                          final List<Pair> columnRanges,
+                                          final List<Pair> rowRanges) {
     return jniQueryVariantCalls(handle, arrayName, columnRanges, rowRanges);
   }
 
@@ -161,9 +161,9 @@ public class GenomicsDBQuery {
 
   private static native void jniDisconnect(long handle);
 
-  private static native List<VariantCalls> jniQueryVariantCalls(long handle,
-                                           final String arrayName,
-                                           final List<Pair> columnRanges,
-                                           final List<Pair> rowRanges);
+  private static native List<Interval> jniQueryVariantCalls(long handle,
+                                                            final String arrayName,
+                                                            final List<Pair> columnRanges,
+                                                            final List<Pair> rowRanges);
 
 }
