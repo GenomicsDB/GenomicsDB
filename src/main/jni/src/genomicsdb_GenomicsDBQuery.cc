@@ -23,6 +23,7 @@
 #include "genomicsdb_GenomicsDBQuery.h"
 #include "genomicsdb.h"
 
+#include <assert.h>
 #include <mutex>
 
 //java.util.ArrayList
