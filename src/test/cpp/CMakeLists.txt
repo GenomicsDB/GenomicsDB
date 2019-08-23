@@ -41,28 +41,20 @@ if(LIBDBI_FOUND)
     src/test_mapping_data_loader.cc)
 endif()
 
-function(target_link_libraries_for_GenomicsDB_tests target)
-  build_GenomicsDB_links(${target})
-  # Need to explicitly add in pthread/dl libs for static linkage
-  if(BUILD_DISTRIBUTABLE_LIBRARY)
-    target_link_libraries(${target} pthread ${CMAKE_DL_LIBS})
-  endif()
-endfunction()
-
 add_executable(ctests ${CPP_TEST_SOURCES})
-target_link_libraries_for_GenomicsDB_tests(ctests)
+build_GenomicsDB_links(ctests)
 add_test(ctests ctests -d yes)
 
 add_executable(api_tests
   src/ctest_main.cc
   src/test_genomicsdb_api.cc)
-target_link_libraries_for_GenomicsDB_tests(api_tests)
+build_GenomicsDB_links(api_tests)
 target_compile_definitions(api_tests PRIVATE -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/")
 add_test(api_tests api_tests -d yes)
 
 add_custom_command(TARGET api_tests
-  COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/inputs/test.tgz
+  COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/../inputs/test.tgz
   WORKING_DRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/inputs/test.tgz)
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../inputs/test.tgz)
 
 add_custom_target(all_ctests COMMAND ${CMAKE_CTEST_COMMAND} -V DEPENDS ctests api_tests)

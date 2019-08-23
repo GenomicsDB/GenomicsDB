@@ -38,7 +38,7 @@ public class GenomicsDBLibLoader {
     public static synchronized boolean loadLibrary() {
         if (mIsLibraryLoaded) return true;
 
-        //try loading from outside the JAR - on GNU/Linux, if the LD_LIBRARY_PATH variable is set, then the library will be loaded
+        //Try loading from outside the JAR - on GNU/Linux, if the LD_LIBRARY_PATH variable is set, then the library will be loaded
         try {
             System.loadLibrary(GENOMICSDB_LIBRARY_NAME);
         } catch (UnsatisfiedLinkError ule) {
