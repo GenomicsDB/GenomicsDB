@@ -33,6 +33,17 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.spark.sql.sources.v2.reader.InputPartition;
 
 import java.io.IOException;
+import org.genomicsdb.reader.GenomicsDBFeatureReader;
+import htsjdk.tribble.CloseableTribbleIterator;
+import htsjdk.tribble.Feature;
+import org.apache.hadoop.classification.InterfaceAudience;
+import org.apache.hadoop.classification.InterfaceStability;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.spark.sql.sources.v2.reader.InputPartition;
+
+import java.io.IOException;
 
 @InterfaceAudience.Public
 @InterfaceStability.Stable

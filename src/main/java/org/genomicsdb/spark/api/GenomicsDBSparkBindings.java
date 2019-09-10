@@ -1,14 +1,13 @@
-package org.genomicsdb.spark;
+package org.genomicsdb.spark.api;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.NullWritable;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.genomicsdb.reader.GenomicsDBQuery;
-import org.genomicsdb.reader.GenomicsDBQuery.*;
+import org.genomicsdb.reader.GenomicsDBQuery.Interval;
+import org.genomicsdb.reader.GenomicsDBQuery.VariantCall;
+import org.genomicsdb.spark.GenomicsDBConfiguration;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -31,9 +30,10 @@ public class GenomicsDBSparkBindings {
 
   @SuppressWarnings("unchecked")
   public static void main(String[] args) {
+    System.out.println("Args Length="+args.length);
+
     String loaderJsonFile = args[0];
     String queryJsonFile = args[1];
-    String hostfile = args[2];
 
     SparkConf conf = new SparkConf();
     conf.setAppName("GenomicsDB API Experimental Bindings");
@@ -42,7 +42,6 @@ public class GenomicsDBSparkBindings {
     Configuration hadoopConf = sc.hadoopConfiguration();
     hadoopConf.set(GenomicsDBConfiguration.LOADERJSON, loaderJsonFile);
     hadoopConf.set(GenomicsDBConfiguration.QUERYJSON, queryJsonFile);
-    hadoopConf.set(GenomicsDBConfiguration.MPIHOSTFILE, hostfile);
 
     Class variantCallListClass;
     try {
