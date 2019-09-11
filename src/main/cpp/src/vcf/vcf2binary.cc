@@ -90,7 +90,7 @@ void VCFBufferReader::read_and_advance() {
     //Parsed or made progress
     assert(new_offset > BufferReaderBase::m_offset);
     BufferReaderBase::m_offset = new_offset;
-    m_is_record_valid = true;
+    m_is_record_valid = m_line->errcode == 0;
   }
 }
 
