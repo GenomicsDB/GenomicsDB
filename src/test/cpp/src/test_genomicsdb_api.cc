@@ -29,6 +29,7 @@
 
 #include "genomicsdb.h"
 #include "genomicsdb_config_base.h"
+#include "genomicsdb_export_config.pb.h"
 
 #include <iostream>
 #include <string>
@@ -48,14 +49,19 @@ TEST_CASE("api empty_args", "[empty_args]") {
   CHECK_THROWS_AS(new GenomicsDB("ws", "callset", empty_string, empty_string), std::exception);
   CHECK_THROWS_AS(new GenomicsDB("ws", "callset", "vid", empty_string), std::exception);
 
-  // Constructor that allows json files for configuration
-  CHECK_THROWS_AS(new GenomicsDB(empty_string), std::exception);
-  CHECK_THROWS_AS(new GenomicsDB(empty_string, empty_string), std::exception);
-  CHECK_THROWS_AS(new GenomicsDB(empty_string, "loader_config.json"), std::exception);
+  // Constructor that allows configuration via json files
+  CHECK_THROWS_AS(new GenomicsDB(JSON_FILE, empty_string), std::exception);
+  CHECK_THROWS_AS(new GenomicsDB(JSON_FILE, empty_string, empty_string), std::exception);
+  CHECK_THROWS_AS(new GenomicsDB(JSON_FILE, empty_string, "loader_config.json"), std::exception);
+
+  // Constructor that allows configuration via pb strings
+  CHECK_THROWS_AS(new GenomicsDB(PB_STRING, empty_string), std::exception);
+  CHECK_THROWS_AS(new GenomicsDB(PB_STRING, empty_string, empty_string), std::exception);
+  CHECK_THROWS_AS(new GenomicsDB(PB_STRING, empty_string, "loader_config.json"), std::exception);
 
   // Check if there is an error message
   try {
-    new GenomicsDB(empty_string);
+    new GenomicsDB(JSON_FILE, empty_string);
     FAIL();
   } catch (GenomicsDBException& e) {
     REQUIRE(e.what());
@@ -123,15 +129,15 @@ TEST_CASE("api query_variants direct", "[query_variants]") {
 }
 
 TEST_CASE("api query_variants with json", "[query_variants") {
-  GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
+  GenomicsDB* gdb = new GenomicsDB(JSON_FILE, query_json, loader_json);
   check_query_variants_results(gdb, array, gdb->query_variants());
   delete gdb;
 
-  gdb = new GenomicsDB(query_json, loader_json, 0);
+  gdb = new GenomicsDB(JSON_FILE, query_json, loader_json, 0);
   check_query_variants_results(gdb, array, gdb->query_variants());
   delete gdb;
   
-  CHECK_THROWS_AS(new GenomicsDB(query_json, loader_json, 1), GenomicsDBConfigException);
+  CHECK_THROWS_AS(new GenomicsDB(JSON_FILE, query_json, loader_json, 1), GenomicsDBConfigException);
 }
 
 class NullVariantCallProcessor : public GenomicsDBVariantCallProcessor {
@@ -238,7 +244,7 @@ TEST_CASE("api query_variant_calls direct", "[query_variant_calls_direct]") {
 }
 
 TEST_CASE("api query_variant_calls with json", "[query_variant_calls_with_json]") {
-  GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
+  GenomicsDB* gdb = new GenomicsDB(JSON_FILE, query_json, loader_json);
   gdb->query_variant_calls();
 
   OneQueryIntervalProcessor one_query_interval_processor;
@@ -246,9 +252,31 @@ TEST_CASE("api query_variant_calls with json", "[query_variant_calls_with_json]"
   delete gdb;
 
   OneQueryIntervalProcessor another_query_interval_processor;
-  gdb = new GenomicsDB(query_json, loader_json, 0);
+  gdb = new GenomicsDB(JSON_FILE, query_json, loader_json, 0);
   gdb->query_variant_calls(another_query_interval_processor);
   delete gdb;
 
-  CHECK_THROWS_AS(new GenomicsDB(query_json, loader_json, 1), GenomicsDBConfigException);
+  CHECK_THROWS_AS(new GenomicsDB(JSON_FILE, query_json, loader_json, 1), GenomicsDBConfigException);
 }
+
+/*TEST_CASE("api query_variant_calls with protobuf config", "[query_variant_calls_with_protobuf]") {
+  genomicsdb_pb::ExportConfiguration export_config;
+  GenomicsDBConfigBase::get_pb_fromp_query_json_file(&export_config, query_json);
+
+  std::string query_pb_string;
+  CHECK(export_config.SerializeToString(&query_pb_string));
+  
+  GenomicsDB* gdb = new GenomicsDB(PB_STRING, query_pb_string, loader_json);
+  gdb->query_variant_calls();
+
+  OneQueryIntervalProcessor one_query_interval_processor;
+  gdb->query_variant_calls(one_query_interval_processor);
+  delete gdb;
+
+  OneQueryIntervalProcessor another_query_interval_processor;
+  gdb = new GenomicsDB(PB_STRING, query_pb_string, loader_json, 0);
+  gdb->query_variant_calls(another_query_interval_processor);
+  delete gdb;
+
+  CHECK_THROWS_AS(new GenomicsDB(PB_STRING, query_pb_string, loader_json, 1), GenomicsDBConfigException);
+  }*/

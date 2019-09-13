@@ -104,6 +104,11 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
                        std::vector<genomic_field_t> genomic_fields);
 };
 
+typedef enum { 
+    JSON_FILE = 0,
+    PB_STRING = 1
+} genomicsdb_query_config_enum_t;
+
 // Forward Declarations for keeping Variant* classes opaque
 class Variant;
 class VariantCall;
@@ -117,6 +122,7 @@ class VariantQueryConfig;
  */
 class GenomicsDB {
  public:
+
   /**
    * Constructor to the GenomicsDB Query API
    *   workspace
@@ -135,17 +141,19 @@ class GenomicsDB {
              const uint64_t segment_size = DEFAULT_SEGMENT_SIZE);
 
   /**
-   * Constructor to the GenomicsDB Query API with configuration json files
-   *   query_config_json_file
+   * Constructor to the GenomicsDB Query API with configuration json/pb files/strings
+   *   query_config_type, can be JSON_FILE or PB_STRING
+   *   query_config
    *   loader_config_json_file, optional
-   *   concurrency_rank, optional - if greater than 0, 
+   *   concurrency_rank, optional 
    *           the constraints(workspace, array, column and row ranges) are surmised
    *           using the rank as an index into their corresponding vectors.
    * Throws GenomicsDBException
    */
-  GENOMICSDB_EXPORT GenomicsDB(const std::string& query_config_json_file,
-             const std::string& loader_config_json_file = std::string(),
-             const int concurrency_rank=0);
+  GENOMICSDB_EXPORT GenomicsDB(const genomicsdb_query_config_enum_t query_config_type,
+                               const std::string& query_config,
+                               const std::string& loader_config_json_file = std::string(),
+                               const int concurrency_rank=0);
 
   /**
    * Destructor

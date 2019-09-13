@@ -29,7 +29,7 @@ import htsjdk.variant.variantcontext.VariantContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.genomicsdb.reader.GenomicsDBQuery.{Interval, VariantCall}
-import org.genomicsdb.spark.api.GenomicsDBAPIInputFormat
+import org.genomicsdb.spark.api.GenomicsDBQueryInputFormat
 
 /**
   * This factory class exposes multiple ways of retrieving RDD of either variant contexts (htsjdk)
@@ -107,7 +107,7 @@ object GenomicsDBScalaSparkFactory {
     hadoopConf.set(GenomicsDBConfiguration.QUERYJSON, queryJsonFile)
 
     val intervalRDDs: RDD[(Interval, List[VariantCall])] = sc.newAPIHadoopRDD(hadoopConf,
-      classOf[GenomicsDBAPIInputFormat], classOf[Interval], classOf[List[VariantCall]])
+      classOf[GenomicsDBQueryInputFormat], classOf[Interval], classOf[List[VariantCall]])
 
     val count = intervalRDDs.count()
     System.out.println("Count=" + count)

@@ -52,7 +52,7 @@ public class GenomicsDBSparkBindings {
       throw new RuntimeException(e.getLocalizedMessage());
     }
     JavaPairRDD<Interval, List<VariantCall>> variants = sc.newAPIHadoopRDD(hadoopConf,
-            GenomicsDBAPIInputFormat.class, Interval.class, variantCallListClass);
+            GenomicsDBQueryInputFormat.class, Interval.class, variantCallListClass);
 
 
     System.out.println("Number of variants "+variants.count());
