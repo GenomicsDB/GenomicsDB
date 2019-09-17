@@ -100,7 +100,8 @@ std::unordered_map<std::string, int>({
   {"element_wise_sum", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_ELEMENT_WISE_SUM},
   {"elementwise_sum", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_ELEMENT_WISE_SUM},
   {"concatenate", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_CONCATENATE},
-  {"histogram_sum", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_HISTOGRAM_SUM}
+  {"histogram_sum", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_HISTOGRAM_SUM},
+  {"ignore", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_IGNORE}
 });
 
 auto g_FORMAT_suffix = "_FORMAT";
@@ -1236,6 +1237,11 @@ void FileBasedVidMapper::common_constructor_initialization(
         //Map
         m_field_name_to_idx[field_name] = field_idx;
         m_field_idx_to_info[field_idx].set_info(field_name, field_idx);
+	//Field renamed due to collision in the VCF header
+	if(field_info_dict.HasMember("vcf_name")) {
+	  VERIFY_OR_THROW(field_info_dict["vcf_name"].IsString());
+	  m_field_idx_to_info[field_idx].m_vcf_name = field_info_dict["vcf_name"].GetString();
+	}
         if (field_info_dict.HasMember("vcf_field_class")) {
           //Array which specifies whether field if INFO, FORMAT, FILTER etc
           const auto& vcf_field_class_array = field_info_dict["vcf_field_class"];

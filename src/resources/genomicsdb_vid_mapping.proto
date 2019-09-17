@@ -48,6 +48,9 @@ message GenomicsDBFieldInfo {
   repeated FieldLengthDescriptorComponentPB length = 5;
   repeated string vcf_delimiter = 6;
   optional string VCF_field_combine_operation = 7;
+  //useful when multiple fields of different types/length with the same
+  //name (FILTER, FORMAT, INFO)  are defined in the VCF header
+  optional string vcf_name = 8;
 }
 
 message Chromosome {
