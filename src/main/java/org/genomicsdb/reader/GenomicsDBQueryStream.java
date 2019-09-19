@@ -59,7 +59,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param queryPB GenomicsDB query protobuf
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
-            final GenomicsDBExportConfiguration.ExportConfiguration queryPB) {
+            final GenomicsDBExportConfiguration.ExportConfiguration queryPB) throws IOException {
         this(loaderJSONFile, queryPB, "", 0, 0);
     }
 
@@ -70,7 +70,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param readAsBCF serialize-deserialize VCF records as BCF2 records
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
-            final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final boolean readAsBCF) {
+            final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final boolean readAsBCF) throws IOException {
         this(loaderJSONFile, queryPB, readAsBCF, false);
     }
 
@@ -83,7 +83,7 @@ public class GenomicsDBQueryStream extends InputStream {
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final boolean readAsBCF,
-                                 final boolean produceHeaderOnly) {
+                                 final boolean produceHeaderOnly) throws IOException {
         this(loaderJSONFile, queryPB, "", 0, 0, 0, 10485760,10485760,
                 readAsBCF, produceHeaderOnly);
     }
@@ -98,7 +98,7 @@ public class GenomicsDBQueryStream extends InputStream {
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
-                                 final int start, final int end) {
+                                 final int start, final int end) throws IOException {
         this(loaderJSONFile, queryPB, chr, start, end, 0);
     }
 
@@ -113,7 +113,7 @@ public class GenomicsDBQueryStream extends InputStream {
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
            final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
-           final int start, final int end, final boolean readAsBCF) {
+           final int start, final int end, final boolean readAsBCF) throws IOException {
         this(loaderJSONFile, queryPB, chr, start, end, 0, 10485760, 10485760,
                 readAsBCF, false);
     }
@@ -129,7 +129,7 @@ public class GenomicsDBQueryStream extends InputStream {
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
-            final int start, final int end, final int rank) {
+            final int start, final int end, final int rank) throws IOException {
         this(loaderJSONFile, queryPB, chr, start, end, rank, 10485760, 10485760);
     }
 
@@ -148,7 +148,7 @@ public class GenomicsDBQueryStream extends InputStream {
     public GenomicsDBQueryStream(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
             final int start, final int end, final int rank, final long bufferCapacity,
-            final long segmentSize) {
+            final long segmentSize) throws IOException {
         this(loaderJSONFile, queryPB, chr, start, end, rank, bufferCapacity, segmentSize, DEFAULT_READ_AS_BCF, false);
     }
 
@@ -169,7 +169,7 @@ public class GenomicsDBQueryStream extends InputStream {
     public GenomicsDBQueryStream(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
             final int start, final int end, final int rank, final long bufferCapacity,
-            final long segmentSize, final boolean readAsBCF, final boolean produceHeaderOnly) {
+            final long segmentSize, final boolean readAsBCF, final boolean produceHeaderOnly) throws IOException {
         this(loaderJSONFile, queryPB, chr, start, end, rank, bufferCapacity, segmentSize, readAsBCF,
                 produceHeaderOnly, DEFAULT_USE_MISSING_ONLY_NOT_VECTOR_END, DEFAULT_KEEP_IDX_FIELDS_IN_HEADER);
     }
@@ -190,14 +190,21 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param useMissingValuesOnlyNotVectorEnd don't add BCF2.2 vector end values
      * @param keepIDXFieldsInHeader keep BCF IDX fields in header
      */
-    public GenomicsDBQueryStream(final String loaderJSONFile, 
-            final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
-            final int start, final int end, final int rank, final long bufferCapacity,
-            final long segmentSize, final boolean readAsBCF, final boolean produceHeaderOnly,
-            final boolean useMissingValuesOnlyNotVectorEnd, final boolean keepIDXFieldsInHeader) {
-        readStateHandle = jniGenomicsDBInit(loaderJSONFile, queryPB.toByteArray(), chr, start, end, rank,
-                bufferCapacity, segmentSize, readAsBCF, produceHeaderOnly, useMissingValuesOnlyNotVectorEnd,
-                keepIDXFieldsInHeader);
+    public GenomicsDBQueryStream(final String loaderJSONFile,
+                                 final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
+                                 final int start, final int end, final int rank, final long bufferCapacity,
+                                 final long segmentSize, final boolean readAsBCF, final boolean produceHeaderOnly,
+                                 final boolean useMissingValuesOnlyNotVectorEnd, final boolean keepIDXFieldsInHeader) throws IOException {
+        if (queryPB.isInitialized()) {
+            readStateHandle = jniGenomicsDBInit(loaderJSONFile, queryPB.toByteArray(), chr, start, end, rank,
+                    bufferCapacity, segmentSize, readAsBCF, produceHeaderOnly, useMissingValuesOnlyNotVectorEnd,
+                    keepIDXFieldsInHeader);
+            if (readStateHandle == 0L) {
+                throw new IOException("GenomicsDBQueryStream jniGenomicsDBInit error");
+            }
+        } else {
+            throw new IOException("GenomicsDBQueryStream export configuration input argument is not initialized and/or validated");
+        }
     }
 
     /*
@@ -207,7 +214,7 @@ public class GenomicsDBQueryStream extends InputStream {
     private native long jniGenomicsDBInit(String loaderJSONFile, byte[] queryConfigPBBuffer, String chr, int start, int end,
                                           int rank, long bufferCapacity, long segmentSize, boolean readAsBCF,
                                           boolean produceHeaderOnly, boolean useMissingValuesOnlyNotVectorEnd,
-                                          boolean keepIDXFieldsInHeader);
+                                          boolean keepIDXFieldsInHeader) throws IOException;
 
     private native long jniGenomicsDBClose(long handle);
  
