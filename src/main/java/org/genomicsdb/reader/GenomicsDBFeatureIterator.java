@@ -1,6 +1,7 @@
 /*
  * The MIT License (MIT)
  * Copyright (c) 2016-2018 Intel Corporation
+ * Copyright (c) 2018-2019 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -27,15 +28,11 @@ import htsjdk.tribble.Feature;
 import htsjdk.tribble.FeatureCodec;
 import htsjdk.tribble.FeatureCodecHeader;
 import htsjdk.variant.bcf2.BCF2Codec;
-
-import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
-import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
@@ -92,7 +89,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB,
             final Optional<List<String>> arrayNames, 
             final FeatureCodecHeader featureCodecHeader, 
-            final FeatureCodec<T, SOURCE> codec) {
+            final FeatureCodec<T, SOURCE> codec) throws IOException {
         this(loaderJSONFile, queryPB, arrayNames, featureCodecHeader, codec, "", OptionalInt.empty(),
                 OptionalInt.empty());
     }
@@ -114,7 +111,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB,
             final Optional<List<String>> arrayNames,
             final FeatureCodecHeader featureCodecHeader, final FeatureCodec<T, SOURCE> codec,
-            final String chr, final OptionalInt start, final OptionalInt end) {
+            final String chr, final OptionalInt start, final OptionalInt end) throws IOException {
         this.featureCodecHeader = featureCodecHeader;
         this.codec = codec;
         if (arrayNames.isPresent()) {
@@ -160,17 +157,21 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
         this.closedBefore = false;
     }
 
-
-    @Override
-    public boolean hasNext() {
-        //While loop since the next source might not return any data, but subsequent sources might
-        while(this.codec.isDone(this.currentSource)
-                && this.currentIndexInQueryParamsList < this.queryParamsList.size())
-            setNextSourceAsCurrent();
-        boolean isDone = (this.codec.isDone(this.currentSource));
-        if (isDone) close();
-        return !isDone;
+  @Override
+  public boolean hasNext() {
+    // While loop since the next source might not return any data, but subsequent sources might
+    while (this.codec.isDone(this.currentSource)
+        && this.currentIndexInQueryParamsList < this.queryParamsList.size()) {
+      try {
+        setNextSourceAsCurrent();
+      } catch (IOException e) {
+        throw new RuntimeException(e.getLocalizedMessage());
+      }
     }
+    boolean isDone = (this.codec.isDone(this.currentSource));
+    if (isDone) close();
+    return !isDone;
+  }
 
     @Override
     public T next() {
@@ -204,7 +205,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
         throw new UnsupportedOperationException("Remove is not supported in Iterators");
     }
 
-    private void setNextSourceAsCurrent() {
+    private void setNextSourceAsCurrent() throws IOException {
         if(this.currentSource != null)
             this.codec.close(this.currentSource);
         ++(this.currentIndexInQueryParamsList);
@@ -214,19 +215,15 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
             GenomicsDBQueryStream queryStream = new GenomicsDBQueryStream(currParams.loaderJSONFile, currParams.queryPB,
                     currParams.contig, currParams.begin, currParams.end, readAsBCF);
             this.currentSource = this.codec.makeSourceFromStream(queryStream);
-            try {
-                if (readAsBCF) { //BCF2 codec provides size of header 
-                    long numByteToSkip = this.featureCodecHeader.getHeaderEnd();
-                    long numBytesSkipped = queryStream.skip(numByteToSkip);
-                    if(numBytesSkipped != numByteToSkip)
-                      throw new IOException("Could not skip header in GenomicsDBQueryStream - header is "
-                          +numByteToSkip+" bytes long but skip() could only bypass "+numBytesSkipped+" bytes");
-                }
-                else //VCF Codec must parse out header again since getHeaderEnd() returns 0
-                    this.codec.readHeader(this.currentSource); //no need to store header anywhere
-            } catch (IOException ex) {
-                throw new RuntimeException(ex);
+            if (readAsBCF) { //BCF2 codec provides size of header
+                long numByteToSkip = this.featureCodecHeader.getHeaderEnd();
+                long numBytesSkipped = queryStream.skip(numByteToSkip);
+                if(numBytesSkipped != numByteToSkip)
+                    throw new IOException("Could not skip header in GenomicsDBQueryStream - header is "
+                            +numByteToSkip+" bytes long but skip() could only bypass "+numBytesSkipped+" bytes");
             }
+            else //VCF Codec must parse out header again since getHeaderEnd() returns 0
+                this.codec.readHeader(this.currentSource); //no need to store header anywhere
         }
     }
 }

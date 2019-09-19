@@ -1,6 +1,7 @@
 /*
  * The MIT License (MIT)
  * Copyright (c) 2016-2018 Intel Corporation
+ * Copyright (c) 2018-2019 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -106,7 +107,7 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
      *
      * @return iterator over {@link htsjdk.variant.variantcontext.VariantContext} objects
      */
-    public CloseableTribbleIterator<T> iterator() {
+    public CloseableTribbleIterator<T> iterator() throws IOException {
         if (this.exportConfiguration.hasArrayName()) {
             return new GenomicsDBFeatureIterator<>(this.loaderJSONFile,
                     this.exportConfiguration, Optional.empty(), 
@@ -130,7 +131,7 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
      * @param end   end position, inclusive (1-based)
      * @return iterator over {@link htsjdk.variant.variantcontext.VariantContext} objects
      */
-    public CloseableTribbleIterator<T> query(final String chr, final int start, final int end) {
+    public CloseableTribbleIterator<T> query(final String chr, final int start, final int end) throws IOException {
         if (this.exportConfiguration.hasArrayName()) {
             return new GenomicsDBFeatureIterator<>(this.loaderJSONFile,
                     this.exportConfiguration, Optional.empty(), 

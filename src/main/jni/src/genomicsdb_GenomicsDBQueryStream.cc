@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2018-2019 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -24,8 +25,21 @@
 #include "genomicsdb_bcf_generator.h"
 #include "genomicsdb_export_config.pb.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBJNIException(#X);
 #define GET_BCF_READER_FROM_HANDLE(X) (reinterpret_cast<GenomicsDBBCFGenerator*>(static_cast<std::uintptr_t>(X)))
+
+void handleJNIException(JNIEnv *env, std::exception& exception) {
+  std::string msg = std::string("GenomicsDB JNI Error: ") + exception.what();
+  jclass io_exception_class = env->FindClass("java/io/IOException");
+  if (io_exception_class) {
+    jboolean flag = env->ExceptionCheck();
+    if (flag) {
+      env->ExceptionClear();
+    }
+    env->ThrowNew(io_exception_class, msg.c_str());
+  } else {
+    throw std::runtime_error(msg);
+  }
+}
 
 JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQueryStream_jniGenomicsDBInit
   (JNIEnv* env, jobject curr_obj, jstring loader_configuration_file, 
@@ -36,9 +50,7 @@ JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQueryStream_jniGeno
 {
   //Java string to char*
   auto loader_configuration_file_cstr = env->GetStringUTFChars(loader_configuration_file, NULL);
-  VERIFY_OR_THROW(loader_configuration_file_cstr);
   auto chr_cstr = env->GetStringUTFChars(chr, NULL);
-  VERIFY_OR_THROW(chr_cstr);
   // protobuf stuff from: https://askldjd.com/2013/02/19/protobuf-over-jni/
   genomicsdb_pb::ExportConfiguration query_config_pb;
   jbyte *bufferElems = env->GetByteArrayElements(query_buffer, 0);
@@ -53,8 +65,8 @@ JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQueryStream_jniGeno
         rank, buffer_capacity, segment_size, output_format,
         produce_header_only,
         is_bcf && use_missing_values_only_not_vector_end, is_bcf && keep_idx_fields_in_bcf_header);
-  }
-  catch (...) {
+  } catch (std::exception &exception) {
+    handleJNIException(env, exception);
     bcf_reader_obj = NULL;
   }
   //Cleanup

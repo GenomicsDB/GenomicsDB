@@ -1,4 +1,28 @@
-# - Find curl
+#
+# cmake/Modules/FindCURL.cmake
+#
+# The MIT License
+#
+# Copyright (c) 2019 Omics Data Automation, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 # Find the native CURL headers and libraries.
 #
 #  CURL_INCLUDE_DIRS   - where to find curl/curl.h, etc.
@@ -6,37 +30,18 @@
 #  CURL_FOUND          - True if curl found.
 #  CURL_VERSION_STRING - the version of curl found (since CMake 2.8.8)
 
-#=============================================================================
-# Copyright 2006-2009 Kitware, Inc.
-# Copyright 2012 Rolf Eike Beer <eike@sf-mail.de>
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
-
 # Look for the header file.
 find_path(CURL_INCLUDE_DIR NAMES curl/curl.h HINTS ${CURL_PREFIX_DIR} ${CURL_PREFIX_DIR}/include)
 mark_as_advanced(CURL_INCLUDE_DIR)
 
-# Look for the library (sorted from most current/relevant entry to least).
-find_library(CURL_LIBRARY NAMES
-    curl
-  # Windows MSVC prebuilts:
-    curllib
-    libcurl_imp
-    curllib_static
-  # Windows older "Win32 - MSVC" prebuilts (libcurl.lib, e.g. libcurl-7.15.5-win32-msvc.zip):
-    libcurl
-    HINTS ${CURL_PREFIX_DIR} ${CURL_PREFIX_DIR}/lib64 ${CURL_PREFIX_DIR}/lib
-)
-find_library(CURL_STATIC_LIBRARY NAMES libcurl.a 
+if(BUILD_DISTRIBUTABLE_LIBRARY AND NOT APPLE)
+  find_library(CURL_LIBRARY NAMES libcurl.a
     HINTS ${CURL_PREFIX_DIR} ${CURL_PREFIX_DIR}/lib64 ${CURL_PREFIX_DIR}/lib)
+else()
+  find_library(CURL_LIBRARY NAMES curl libcurl
+    HINTS ${CURL_PREFIX_DIR} ${CURL_PREFIX_DIR}/lib64 ${CURL_PREFIX_DIR}/lib
+    )
+endif()
 mark_as_advanced(CURL_LIBRARY)
 
 if(CURL_INCLUDE_DIR)
@@ -51,10 +56,8 @@ if(CURL_INCLUDE_DIR)
   endforeach()
 endif()
 
-# handle the QUIETLY and REQUIRED arguments and set CURL_FOUND to TRUE if
-# all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
-FIND_PACKAGE_HANDLE_STANDARD_ARGS(CURL
+find_package_handle_standard_args(CURL
                                   REQUIRED_VARS CURL_LIBRARY CURL_INCLUDE_DIR
                                   VERSION_VAR CURL_VERSION_STRING)
 
