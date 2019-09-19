@@ -384,7 +384,6 @@ if(BUILD_JAVA)
         ./src/main/java/org/genomicsdb/model/BatchCompletionCallbackFunctionArgument.java
         ./src/main/java/org/genomicsdb/reader/GenomicsDBFeatureIterator.java
         ./src/main/java/org/genomicsdb/reader/GenomicsDBFeatureReader.java
-        ./src/main/java/org/genomicsdb/reader/GenomicsDBFeatureReaderJni.java
         ./src/main/java/org/genomicsdb/reader/GenomicsDBQueryStream.java
         ./src/main/java/org/genomicsdb/reader/GenomicsDBTimer.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBConfiguration.java
