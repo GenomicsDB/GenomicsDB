@@ -30,8 +30,13 @@ import htsjdk.variant.bcf2.BCF2Codec;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.stream.Collectors;
+import java.util.Collections;
+import java.lang.RuntimeException;
 
 import static org.genomicsdb.Constants.CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX;
 
