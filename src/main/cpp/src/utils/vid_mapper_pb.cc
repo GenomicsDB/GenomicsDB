@@ -199,16 +199,15 @@ int VidMapper::parse_contigs_from_vidmap(
         std::string("Duplicate contigs found: ")
         + contig_name);
     }
-
-    std::sort(
-      m_contig_begin_2_idx.begin(),
-      m_contig_begin_2_idx.end(),
-      contig_offset_idx_pair_cmp);
-    std::sort(
-      m_contig_end_2_idx.begin(),
-      m_contig_end_2_idx.end(),
-      contig_offset_idx_pair_cmp);
   }
+  std::sort(
+    m_contig_begin_2_idx.begin(),
+    m_contig_begin_2_idx.end(),
+    contig_offset_idx_pair_cmp);
+  std::sort(
+    m_contig_end_2_idx.begin(),
+    m_contig_end_2_idx.end(),
+    contig_offset_idx_pair_cmp);
 
   // Check that there are no spurious overlaps.
   // If found, throw an exception
