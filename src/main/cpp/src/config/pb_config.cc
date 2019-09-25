@@ -249,15 +249,15 @@ void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_availa
   }
 }
 
-void GenomicsDBConfigBase::get_pb_from_query_json_file(
-        genomicsdb_pb::ExportConfiguration *export_config,
+void GenomicsDBConfigBase::get_pb_from_json_file(
+        google::protobuf::Message *pb_config,
         const std::string& json_file) {
   char *json_buffer = 0;
   size_t json_buffer_length;
   if (TileDBUtils::read_entire_file(json_file, (void **)&json_buffer, &json_buffer_length) != TILEDB_OK
         || !json_buffer || json_buffer_length == 0) { 
     free(json_buffer);
-    std::cerr << "Could not open query JSON file "+json_file+"\n";
+    std::cerr << "Could not open JSON file "+json_file+"\n";
     exit(-1);
   }
   std::string json_to_binary_output;
@@ -268,16 +268,16 @@ void GenomicsDBConfigBase::get_pb_from_query_json_file(
   google::protobuf::util::TypeResolver* resolver= google::protobuf::util::NewTypeResolverForDescriptorPool(
       "", google::protobuf::DescriptorPool::generated_pool());
   auto status = google::protobuf::util::JsonToBinaryString(resolver,
-      "/"+export_config->GetDescriptor()->full_name(), json_buffer,
+      "/"+pb_config->GetDescriptor()->full_name(), json_buffer,
       &json_to_binary_output);
   if (!status.ok()) {
     std::cerr << "Error converting JSON to binary string\n";
     exit(-1);
   }
   delete resolver;
-  auto success = export_config->ParseFromString(json_to_binary_output);
+  auto success = pb_config->ParseFromString(json_to_binary_output);
   if(!success) {
-    std::cerr << "Could not parse query JSON file to protobuf\n";
+    std::cerr << "Could not parse JSON file to protobuf\n";
     exit(-1);
   }
 }
