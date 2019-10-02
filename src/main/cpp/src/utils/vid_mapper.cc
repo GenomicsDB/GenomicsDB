@@ -92,6 +92,7 @@ std::unordered_map<std::string, int>({
 
 std::unordered_map<std::string, int> VidMapper::m_INFO_field_operation_name_to_enum =
 std::unordered_map<std::string, int>({
+  {"none", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_NONE},
   {"sum", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_SUM},
   {"mean", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_MEAN},
   {"median", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_MEDIAN},
