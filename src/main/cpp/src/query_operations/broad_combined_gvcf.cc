@@ -133,7 +133,7 @@ inline void encode_GT_vector<false, false>(int* inout_vec, const uint64_t input_
 BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, const VidMapper& id_mapper,
     const VariantQueryConfig& query_config,
     const bool use_missing_values_only_not_vector_end)
-  : GA4GHOperator(query_config, id_mapper) {
+  : GA4GHOperator(query_config, id_mapper, false) {
   clear();
   if (!id_mapper.is_initialized())
     throw BroadCombinedGVCFException("Id mapper is not initialized");
@@ -397,90 +397,6 @@ bool BroadCombinedGVCFOperator::handle_VCF_field_combine_operation(const Variant
   return valid_result_found;
 }
 
-template<class T1, class T2>
-bool BroadCombinedGVCFOperator::compute_valid_histogram_sum_2D_vector_and_stringify(const Variant& variant,
-    const VariantQueryConfig& query_config,
-    const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str) {
-  auto num_valid_elements = 0ull;
-  auto num_calls_with_field = 0ull;
-  assert(query_config.get_length_descriptor_for_query_attribute_idx(query_idx_bin).get_num_dimensions() == 2u);
-  assert(query_config.get_length_descriptor_for_query_attribute_idx(query_idx_count).get_num_dimensions() == 2u);
-  auto vid_field_info_bin = query_config.get_field_info_for_query_attribute_idx(query_idx_bin);
-  auto vid_field_info_count = query_config.get_field_info_for_query_attribute_idx(query_idx_count);
-  assert(vid_field_info_bin->get_genomicsdb_type().get_tuple_element_type_index(0u) == std::type_index(typeid(T1)));
-  assert(vid_field_info_count->get_genomicsdb_type().get_tuple_element_type_index(0u) == std::type_index(typeid(T2)));
-  std::vector<std::map<T1, T2>> histogram_map_vec;
-  //Iterate over valid calls
-  for (auto iter=variant.begin(), end_iter = variant.end(); iter != end_iter; ++iter) {
-    auto& curr_call = *iter;
-    auto& field_ptr_bin = curr_call.get_field(query_idx_bin);
-    auto& field_ptr_count = curr_call.get_field(query_idx_count);
-    //Either both valid or both invalid
-    assert((field_ptr_bin.get() && field_ptr_bin->is_valid()
-            && field_ptr_count.get() && field_ptr_count->is_valid())
-           || (!(field_ptr_bin.get() && field_ptr_bin->is_valid())
-               && !(field_ptr_count.get() && field_ptr_count->is_valid())
-              )
-          );
-    //Valid field
-    if (field_ptr_bin.get() && field_ptr_bin->is_valid()) {
-      //Must always be vector<uint8_t>
-      auto* cast_ptr_bin = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_bin.get());
-      assert(cast_ptr_bin);
-      auto* cast_ptr_count = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_count.get());
-      assert(cast_ptr_count);
-      GenomicsDBMultiDVectorIdx index_bin(&(cast_ptr_bin->get()[0u]), vid_field_info_bin, 0u);
-      GenomicsDBMultiDVectorIdx index_count(&(cast_ptr_count->get()[0u]), vid_field_info_count, 0u);
-      assert(index_bin.get_num_entries_in_current_dimension() == index_count.get_num_entries_in_current_dimension());
-      if (index_bin.get_num_entries_in_current_dimension() > histogram_map_vec.size())
-        histogram_map_vec.resize(index_bin.get_num_entries_in_current_dimension());
-      for (auto dim0_idx=0ull; dim0_idx<index_bin.get_num_entries_in_current_dimension();
-           ++dim0_idx) {
-        auto num_elements = index_bin.get_size_of_current_index()/sizeof(T1);
-        assert(num_elements == index_count.get_size_of_current_index()/sizeof(T2));
-        auto data_ptr_bin = index_bin.get_ptr<T1>();
-        auto data_ptr_count = index_count.get_ptr<T2>();
-        auto& histogram_map = histogram_map_vec[dim0_idx];
-        for (auto i=0ull; i<num_elements; ++i) {
-          auto val_bin = data_ptr_bin[i];
-          auto val_count = data_ptr_count[i];
-          if (is_bcf_valid_value<T1>(val_bin) && is_bcf_valid_value<T2>(val_count)) {
-            auto iter_flag_pair = histogram_map.insert(std::pair<T1, T2>(val_bin, val_count));
-            //Existing key
-            if (!(iter_flag_pair.second))
-              (*(iter_flag_pair.first)).second += val_count;
-            ++num_valid_elements;
-          }
-        }
-        index_bin.advance_index_in_current_dimension();
-        index_count.advance_index_in_current_dimension();
-      }
-      ++num_calls_with_field;
-    }
-  }
-  if (num_calls_with_field == 0u)
-    return false;
-  auto& length_descriptor = vid_field_info_bin->m_length_descriptor;
-  assert(length_descriptor.get_num_dimensions() == 2u);
-  auto first_outer_index = true;
-  std::stringstream s;
-  for (auto i=0ull; i<histogram_map_vec.size(); ++i) {
-    if (!first_outer_index)
-      s << length_descriptor.get_vcf_delimiter(0u);
-    auto& histogram_map = histogram_map_vec[i];
-    auto first_inner_index = true;
-    for (auto& pair : histogram_map) {
-      if (!first_inner_index)
-        s << length_descriptor.get_vcf_delimiter(1u);
-      s << std::fixed << std::setprecision(3) << pair.first << length_descriptor.get_vcf_delimiter(1u) << pair.second;
-      first_inner_index = false;
-    }
-    first_outer_index = false;
-  }
-  result_str = std::move(s.str());
-  return true;
-}
-
 void BroadCombinedGVCFOperator::handle_INFO_fields(const Variant& variant) {
   //interval variant, add END tag
   if (m_remapped_variant.get_column_end() > m_remapped_variant.get_column_begin()) {
@@ -527,19 +443,19 @@ void BroadCombinedGVCFOperator::handle_INFO_fields(const Variant& variant) {
                         ? m_remapped_variant : variant;
     switch (switch_mask) {
     case 0u: //both int
-      valid_result_found = BroadCombinedGVCFOperator::compute_valid_histogram_sum_2D_vector_and_stringify<int, int>(src_variant,
+      valid_result_found = VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<int, int>(src_variant,
                            *m_query_config, query_idx_bin, query_idx_count, result_str);
       break;
     case 11u: //both float
-      valid_result_found = BroadCombinedGVCFOperator::compute_valid_histogram_sum_2D_vector_and_stringify<float, float>(src_variant,
+      valid_result_found = VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<float, float>(src_variant,
                            *m_query_config, query_idx_bin, query_idx_count, result_str);
       break;
     case 10u: //float, int
-      valid_result_found = BroadCombinedGVCFOperator::compute_valid_histogram_sum_2D_vector_and_stringify<float, int>(src_variant,
+      valid_result_found = VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<float, int>(src_variant,
                            *m_query_config, query_idx_bin, query_idx_count, result_str);
       break;
     case 1u: //int, float
-      valid_result_found = BroadCombinedGVCFOperator::compute_valid_histogram_sum_2D_vector_and_stringify<int, float>(src_variant,
+      valid_result_found = VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<int, float>(src_variant,
                            *m_query_config, query_idx_bin, query_idx_count, result_str);
       break;
     }

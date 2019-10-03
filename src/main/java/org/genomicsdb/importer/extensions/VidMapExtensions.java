@@ -262,11 +262,12 @@ public interface VidMapExtensions {
 	else {
 	    //Why 3? VCF header can have FILTER/INFO/FORMAT fields of the same name
 	    List<DuplicateFieldInfoTrackClass> init = new ArrayList(3);
-	    for(int i=0;i<init.size();++i)
-		init.set(i, new DuplicateFieldInfoTrackClass());
+	    for(int i=0;i<3;++i)
+		init.add(new DuplicateFieldInfoTrackClass());
 	    fieldNameToDuplicateCheckInfo.put(vcfFieldName, init);
 	    currList = init;
 	}
+	assert (currList.size() == 3);
 	DuplicateFieldInfoTrackClass currObj = currList.get(vcfHeaderLineTypeIdx);
 	if(currObj.isInitialized) {
 	    System.err.println("GenomicsDB: "+VidMapExtensions.class.getName()+

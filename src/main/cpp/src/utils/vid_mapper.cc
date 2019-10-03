@@ -156,7 +156,7 @@ void FieldLengthDescriptor::set_length_descriptor(const int length_dim_idx, cons
                                  || KnownFieldInfo::is_length_descriptor_ploidy_dependent(length_descriptor);
 }
 
-size_t FieldLengthDescriptor::get_num_elements(const unsigned num_ALT_alleles, const unsigned ploidy, const unsigned num_elements) {
+size_t FieldLengthDescriptor::get_num_elements(const unsigned num_ALT_alleles, const unsigned ploidy, const unsigned num_elements) const {
   assert(get_num_dimensions() == 1u);
   return KnownFieldInfo::get_num_elements_given_length_descriptor(get_length_descriptor(0u),
          num_ALT_alleles, ploidy, num_elements);

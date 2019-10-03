@@ -400,7 +400,7 @@ void GenotypeForMinValueTracker<DataType>::determine_allele_combination_and_geno
 
 template<class DataType>
 GenotypeForMinValueResultTuple VariantFieldHandler<DataType>::determine_allele_combination_and_genotype_index_for_min_value(
-  std::unique_ptr<VariantFieldBase>& orig_field_ptr,
+  const std::unique_ptr<VariantFieldBase>& orig_field_ptr,
   unsigned num_merged_alleles, bool non_ref_exists, const unsigned ploidy) {
   m_min_genotype_tracker.reset();
   if (!(orig_field_ptr.get() && orig_field_ptr->is_valid()))
@@ -453,7 +453,8 @@ GenotypeForMinValueResultTuple VariantFieldHandler<DataType>::determine_allele_c
 
 //Variant handler functions
 template<class DataType>
-void VariantFieldHandler<DataType>::remap_vector_data(std::unique_ptr<VariantFieldBase>& orig_field_ptr, uint64_t curr_call_idx_in_variant,
+void VariantFieldHandler<DataType>::remap_vector_data(const std::unique_ptr<VariantFieldBase>& orig_field_ptr,
+    uint64_t curr_call_idx_in_variant,
     const CombineAllelesLUT& alleles_LUT,
     unsigned num_merged_alleles, bool non_ref_exists, const unsigned ploidy,
     const FieldLengthDescriptor& length_descriptor, unsigned num_merged_elements, RemappedVariant& remapper_variant) {
@@ -520,19 +521,8 @@ bool VariantFieldHandler<DataType>::get_valid_sum(const Variant& variant, const 
   //Iterate over valid calls
   for (auto iter=variant.begin(), end_iter = variant.end(); iter != end_iter; ++iter) {
     auto& curr_call = *iter;
-    auto& field_ptr = curr_call.get_field(query_idx);
-    //Valid field
-    if (field_ptr.get() && field_ptr->is_valid()) {
-      //Must always be vector<DataType>
-      auto* ptr = dynamic_cast<VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
-      assert(ptr);
-      assert((ptr->get()).size() > 0u);
-      auto val = ptr->get()[0u];
-      if (is_bcf_valid_value<DataType>(val)) {
-        sum += val;
-        ++valid_idx;
-      }
-    }
+    auto is_valid = get_valid_sum(curr_call.get_field(query_idx), sum);
+    valid_idx += (is_valid ? 1u : 0u);
   }
   num_valid_elements = valid_idx;
   if (valid_idx == 0u)  //no valid fields found
@@ -542,6 +532,24 @@ bool VariantFieldHandler<DataType>::get_valid_sum(const Variant& variant, const 
   return true;
 }
 
+template<class DataType>
+bool VariantFieldHandler<DataType>::get_valid_sum(const std::unique_ptr<VariantFieldBase>& field_ptr,
+    DataType& sum) {
+  auto is_valid = false;
+  //Valid field
+  if (field_ptr.get() && field_ptr->is_valid()) {
+    //Must always be vector<DataType>
+    const auto* ptr = dynamic_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
+    assert(ptr);
+    assert((ptr->get()).size() > 0u);
+    auto val = ptr->get()[0u];
+    if (is_bcf_valid_value<DataType>(val)) {
+      sum += val;
+      is_valid = true;
+    }
+  }
+  return is_valid;
+}
 
 template<class DataType>
 bool VariantFieldHandler<DataType>::get_valid_mean(const Variant& variant, const VariantQueryConfig& query_config,
@@ -563,44 +571,56 @@ bool VariantFieldHandler<std::string>::get_valid_mean(const Variant& variant, co
 }
 
 template<class DataType>
+void VariantFieldHandler<DataType>::compute_valid_element_wise_sum(
+    const std::unique_ptr<VariantFieldBase>& field_ptr,
+    const bool reset_accumulator) {
+  if(reset_accumulator)
+    m_element_wise_operations_result.clear();
+  const auto prev_num_elements = m_element_wise_operations_result.size();
+  //Valid field
+  if (field_ptr.get() && field_ptr->is_valid()) {
+    //Must always be vector<DataType>
+    const auto* ptr = dynamic_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
+    assert(ptr);
+    const auto& vec = ptr->get();
+    if (vec.size() > m_element_wise_operations_result.size())
+      m_element_wise_operations_result.resize(vec.size(), get_bcf_missing_value<DataType>());
+    for (auto i=0ull; i<std::min(vec.size(), prev_num_elements); ++i) {
+      auto old_value = m_element_wise_operations_result[i];
+      auto new_value = vec[i];
+      auto is_old_value_valid = is_bcf_valid_value<DataType>(old_value);
+      auto is_new_value_valid = is_bcf_valid_value<DataType>(new_value);
+      auto updated_val = get_zero_value<DataType>();
+      if(!is_old_value_valid && !is_new_value_valid)
+	updated_val = new_value;
+      else {
+	if(is_old_value_valid)
+	  updated_val += old_value;
+	if(is_new_value_valid)
+	  updated_val += new_value;
+      }
+      m_element_wise_operations_result[i] = updated_val;
+    }
+    if(prev_num_elements < vec.size()) {
+      auto num_bytes = (vec.size()-prev_num_elements)*sizeof(DataType); 
+      memcpy_s(&(m_element_wise_operations_result[prev_num_elements]), num_bytes,
+	  &(vec[prev_num_elements]), num_bytes);
+    }
+  }
+}
+
+template<class DataType>
 bool VariantFieldHandler<DataType>::compute_valid_element_wise_sum(const Variant& variant, const VariantQueryConfig& query_config,
     unsigned query_idx, const void** output_ptr, unsigned& num_elements) {
-  auto num_valid_elements = 0u;
+  m_element_wise_operations_result.clear();
   //Iterate over valid calls
   for (auto iter=variant.begin(), end_iter = variant.end(); iter != end_iter; ++iter) {
     auto& curr_call = *iter;
-    auto& field_ptr = curr_call.get_field(query_idx);
-    //Valid field
-    if (field_ptr.get() && field_ptr->is_valid()) {
-      //Must always be vector<DataType>
-      auto* ptr = dynamic_cast<VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
-      assert(ptr);
-      auto& vec = ptr->get();
-      if (vec.size() > m_element_wise_operations_result.size())
-        m_element_wise_operations_result.resize(vec.size());
-      for (auto i=0ull; i<vec.size(); ++i) {
-        auto val = vec[i];
-        if (is_bcf_valid_value<DataType>(val)) {
-          if (i < num_valid_elements && is_bcf_valid_value<DataType>(m_element_wise_operations_result[i]))
-            m_element_wise_operations_result[i] += val;
-          else {
-            m_element_wise_operations_result[i] = val;
-            if (i >= num_valid_elements) {
-              //Set all elements after the last valid value upto i to missing
-              for (auto j=num_valid_elements; j<i; ++j)
-                m_element_wise_operations_result[j] = get_bcf_missing_value<DataType>();
-              num_valid_elements = i+1u;
-            }
-          }
-        }
-      }
-    }
+    compute_valid_element_wise_sum(curr_call.get_field(query_idx));
   }
-  if (num_valid_elements > 0u)
-    m_element_wise_operations_result.resize(num_valid_elements);
   (*output_ptr) = &(m_element_wise_operations_result[0]);
-  num_elements = num_valid_elements;
-  return (num_valid_elements > 0u);
+  num_elements = m_element_wise_operations_result.size();
+  return (m_element_wise_operations_result.size() > 0u);
 }
 
 template<class DataType>
@@ -614,37 +634,49 @@ bool VariantFieldHandler<DataType>::compute_valid_element_wise_sum_2D_vector(con
   //Iterate over valid calls
   for (auto iter=variant.begin(), end_iter = variant.end(); iter != end_iter; ++iter) {
     auto& curr_call = *iter;
-    auto& field_ptr = curr_call.get_field(query_idx);
-    //Valid field
-    if (field_ptr.get() && field_ptr->is_valid()) {
-      //Must always be vector<uint8_t>
-      auto* ptr = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr.get());
-      assert(ptr);
-      auto& vec = ptr->get();
-      GenomicsDBMultiDVectorIdx curr_field_index(&(vec[0u]), vid_field_info, 0u);
-      if (curr_field_index.get_num_entries_in_current_dimension() > m_2D_element_wise_operations_result.size())
-        m_2D_element_wise_operations_result.resize(curr_field_index.get_num_entries_in_current_dimension());
-      for (auto dim0_idx=0ull; dim0_idx<curr_field_index.get_num_entries_in_current_dimension();
-           ++dim0_idx) {
-        auto num_elements = curr_field_index.get_size_of_current_index()/sizeof(DataType);
-        if (num_elements > m_2D_element_wise_operations_result[dim0_idx].size())
-          m_2D_element_wise_operations_result[dim0_idx].resize(num_elements, get_bcf_missing_value<DataType>());
-        auto data_ptr = curr_field_index.get_ptr<DataType>();
-        for (auto i=0ull; i<num_elements; ++i) {
-          auto val = data_ptr[i];
-          if (is_bcf_valid_value<DataType>(val)) {
-            if (is_bcf_valid_value<DataType>(m_2D_element_wise_operations_result[dim0_idx][i]))
-              m_2D_element_wise_operations_result[dim0_idx][i] += val;
-            else
-              m_2D_element_wise_operations_result[dim0_idx][i] = val;
-            ++num_valid_elements;
-          }
-        }
-        curr_field_index.advance_index_in_current_dimension();
-      }
-    }
+    auto is_valid = compute_valid_element_wise_sum_2D_vector(curr_call.get_field(query_idx), *vid_field_info);
+    num_valid_elements += (is_valid ? 1u : 0u);
   }
   return (num_valid_elements > 0u);
+}
+
+template<class DataType>
+bool VariantFieldHandler<DataType>::compute_valid_element_wise_sum_2D_vector(
+    const std::unique_ptr<VariantFieldBase>& field_ptr, const FieldInfo& vid_field_info,
+    const bool reset_accumulator) {
+  assert(vid_field_info.get_genomicsdb_type().get_tuple_element_type_index(0u) == std::type_index(typeid(DataType)));
+  if(reset_accumulator)
+    m_2D_element_wise_operations_result.clear();
+  auto is_valid = false;
+  //Valid field
+  if (field_ptr.get() && field_ptr->is_valid()) {
+    //Must always be vector<uint8_t>
+    auto* ptr = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr.get());
+    assert(ptr);
+    auto& vec = ptr->get();
+    GenomicsDBMultiDVectorIdx curr_field_index(&(vec[0u]), &vid_field_info, 0u);
+    if (curr_field_index.get_num_entries_in_current_dimension() > m_2D_element_wise_operations_result.size())
+      m_2D_element_wise_operations_result.resize(curr_field_index.get_num_entries_in_current_dimension());
+    for (auto dim0_idx=0ull; dim0_idx<curr_field_index.get_num_entries_in_current_dimension();
+	++dim0_idx) {
+      auto num_elements = curr_field_index.get_size_of_current_index()/sizeof(DataType);
+      if (num_elements > m_2D_element_wise_operations_result[dim0_idx].size())
+	m_2D_element_wise_operations_result[dim0_idx].resize(num_elements, get_bcf_missing_value<DataType>());
+      auto data_ptr = curr_field_index.get_ptr<DataType>();
+      for (auto i=0ull; i<num_elements; ++i) {
+	auto val = data_ptr[i];
+	if (is_bcf_valid_value<DataType>(val)) {
+	  if (is_bcf_valid_value<DataType>(m_2D_element_wise_operations_result[dim0_idx][i]))
+	    m_2D_element_wise_operations_result[dim0_idx][i] += val;
+	  else
+	    m_2D_element_wise_operations_result[dim0_idx][i] = val;
+	  is_valid = true;
+	}
+      }
+      curr_field_index.advance_index_in_current_dimension();
+    }
+  }
+  return is_valid;
 }
 
 template<class DataType>
@@ -788,6 +820,109 @@ bool VariantFieldHandler<DataType>::collect_and_extend_fields(const Variant& var
   num_elements = extended_field_vector_idx;
   return true;
 }
+
+template<class T1, class T2>
+bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector(
+    const std::unique_ptr<VariantFieldBase>& field_ptr_bin,
+    const std::unique_ptr<VariantFieldBase>& field_ptr_count,
+    const FieldInfo* vid_field_info_bin,
+    const FieldInfo* vid_field_info_count,
+    std::vector<std::map<T1, T2>>& histogram_map_vec) {
+  auto num_valid_elements = 0ull;
+  auto num_calls_with_field = 0ull;
+  assert(vid_field_info_bin->get_genomicsdb_type().get_tuple_element_type_index(0u) == std::type_index(typeid(T1)));
+  assert(vid_field_info_count->get_genomicsdb_type().get_tuple_element_type_index(0u) == std::type_index(typeid(T2)));
+  //Either both valid or both invalid
+  assert((field_ptr_bin.get() && field_ptr_bin->is_valid()
+	&& field_ptr_count.get() && field_ptr_count->is_valid())
+      || (!(field_ptr_bin.get() && field_ptr_bin->is_valid())
+	&& !(field_ptr_count.get() && field_ptr_count->is_valid())
+	)
+      );
+  //Valid field
+  if (field_ptr_bin.get() && field_ptr_bin->is_valid()) {
+    //Must always be vector<uint8_t>
+    auto* cast_ptr_bin = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_bin.get());
+    assert(cast_ptr_bin);
+    auto* cast_ptr_count = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_count.get());
+    assert(cast_ptr_count);
+    GenomicsDBMultiDVectorIdx index_bin(&(cast_ptr_bin->get()[0u]), vid_field_info_bin, 0u);
+    GenomicsDBMultiDVectorIdx index_count(&(cast_ptr_count->get()[0u]), vid_field_info_count, 0u);
+    assert(index_bin.get_num_entries_in_current_dimension() == index_count.get_num_entries_in_current_dimension());
+    if (index_bin.get_num_entries_in_current_dimension() > histogram_map_vec.size())
+      histogram_map_vec.resize(index_bin.get_num_entries_in_current_dimension());
+    for (auto dim0_idx=0ull; dim0_idx<index_bin.get_num_entries_in_current_dimension();
+	++dim0_idx) {
+      auto num_elements = index_bin.get_size_of_current_index()/sizeof(T1);
+      assert(num_elements == index_count.get_size_of_current_index()/sizeof(T2));
+      auto data_ptr_bin = index_bin.get_ptr<T1>();
+      auto data_ptr_count = index_count.get_ptr<T2>();
+      auto& histogram_map = histogram_map_vec[dim0_idx];
+      for (auto i=0ull; i<num_elements; ++i) {
+	auto val_bin = data_ptr_bin[i];
+	auto val_count = data_ptr_count[i];
+	if (is_bcf_valid_value<T1>(val_bin) && is_bcf_valid_value<T2>(val_count)) {
+	  auto iter_flag_pair = histogram_map.insert(std::pair<T1, T2>(val_bin, val_count));
+	  //Existing key
+	  if (!(iter_flag_pair.second))
+	    (*(iter_flag_pair.first)).second += val_count;
+	  ++num_valid_elements;
+	}
+      }
+      index_bin.advance_index_in_current_dimension();
+      index_count.advance_index_in_current_dimension();
+    }
+    ++num_calls_with_field;
+  }
+  if (num_calls_with_field == 0u)
+    return false;
+  return true;
+}
+
+template<class T1, class T2>
+bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify(const Variant& variant,
+    const VariantQueryConfig& query_config,
+    const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str) {
+  assert(query_config.get_length_descriptor_for_query_attribute_idx(query_idx_bin).get_num_dimensions() == 2u);
+  assert(query_config.get_length_descriptor_for_query_attribute_idx(query_idx_count).get_num_dimensions() == 2u);
+  auto vid_field_info_bin = query_config.get_field_info_for_query_attribute_idx(query_idx_bin);
+  auto vid_field_info_count = query_config.get_field_info_for_query_attribute_idx(query_idx_count);
+  assert(vid_field_info_bin->get_genomicsdb_type().get_tuple_element_type_index(0u) == std::type_index(typeid(T1)));
+  assert(vid_field_info_count->get_genomicsdb_type().get_tuple_element_type_index(0u) == std::type_index(typeid(T2)));
+  std::vector<std::map<T1, T2>> histogram_map_vec;
+  auto contains_one_valid_data = false;
+  //Iterate over valid calls
+  for (auto iter=variant.begin(), end_iter = variant.end(); iter != end_iter; ++iter) {
+    auto& curr_call = *iter;
+    auto& field_ptr_bin = curr_call.get_field(query_idx_bin);
+    auto& field_ptr_count = curr_call.get_field(query_idx_count);
+    contains_one_valid_data = compute_valid_histogram_sum_2D_vector(field_ptr_bin, field_ptr_count,
+	vid_field_info_bin, vid_field_info_count,
+	histogram_map_vec) || contains_one_valid_data;
+  }
+  if (!contains_one_valid_data)
+    return false;
+  auto& length_descriptor = vid_field_info_bin->m_length_descriptor;
+  assert(length_descriptor.get_num_dimensions() == 2u);
+  auto first_outer_index = true;
+  std::stringstream s;
+  for (auto i=0ull; i<histogram_map_vec.size(); ++i) {
+    if (!first_outer_index)
+      s << length_descriptor.get_vcf_delimiter(0u);
+    auto& histogram_map = histogram_map_vec[i];
+    auto first_inner_index = true;
+    for (auto& pair : histogram_map) {
+      if (!first_inner_index)
+        s << length_descriptor.get_vcf_delimiter(1u);
+      s << std::fixed << std::setprecision(3) << pair.first << length_descriptor.get_vcf_delimiter(1u) << pair.second;
+      first_inner_index = false;
+    }
+    first_outer_index = false;
+  }
+  result_str = std::move(s.str());
+  return true;
+}
+
 //Explicit template instantiation
 template class VariantFieldHandler<int>;
 template class VariantFieldHandler<unsigned>;
@@ -797,6 +932,23 @@ template class VariantFieldHandler<float>;
 template class VariantFieldHandler<double>;
 template class VariantFieldHandler<std::string>;
 template class VariantFieldHandler<char>;
+
+template
+bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<int, int>(const Variant& variant,
+    const VariantQueryConfig& query_config,
+    const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
+template
+bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<int, float>(const Variant& variant,
+    const VariantQueryConfig& query_config,
+    const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
+template
+bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<float, int>(const Variant& variant,
+    const VariantQueryConfig& query_config,
+    const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
+template
+bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<float, float>(const Variant& variant,
+    const VariantQueryConfig& query_config,
+    const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
 
 //The following function is called in variant_operations.cc also. For some compilers, explicit instantiation
 //of VariantFieldHandler is insufficient. The following function must also be instantiated, else weird link time
