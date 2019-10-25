@@ -35,7 +35,7 @@ typedef std::tuple<unsigned, unsigned, const FieldInfo*> INFO_tuple_type;
 //known_field_enum, query_idx, const FieldInfo*
 typedef std::tuple<unsigned, unsigned, const FieldInfo*> FORMAT_tuple_type;
 //query field idxs corresponding to flattened fields
-typedef std::tuple<unsigned, unsigned> INFO_histogram_field_tuple_type;
+typedef std::tuple<unsigned, unsigned, HistogramFieldHandlerBase*> INFO_histogram_field_tuple_type;
 
 //Exceptions thrown
 class BroadCombinedGVCFException : public std::exception {
@@ -60,13 +60,7 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, const VidMapper& id_mapper,
       const VariantQueryConfig& query_config,
       const bool use_missing_values_only_not_vector_end=false);
-  virtual ~BroadCombinedGVCFOperator() {
-    bcf_destroy(m_bcf_out);
-    clear();
-#ifdef DO_PROFILING
-    m_bcf_t_creation_timer.print("bcf_t creation time", std::cerr);
-#endif
-  }
+  virtual ~BroadCombinedGVCFOperator();
   void clear();
   void switch_contig();
   virtual void operate(Variant& variant, const VariantQueryConfig& query_config);
@@ -75,6 +69,16 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   }
   bool handle_VCF_field_combine_operation(const Variant& variant,
                                           const INFO_tuple_type& curr_tuple, void*& result_ptr, unsigned& num_result_elements);
+  //Memory saving version of combine operation for allele specific annotations
+  //Remap and combine is done immediately for each CallSet/Sample rather than
+  //remapping the data for all samples and then combining. This saves a significant
+  //amount of memory for locations with large number of ALT alleles (~2 GB) in some
+  //cases
+  //Note: this function only works if the combine operation is associative and commutative
+  //(sum) and not if the combine is a median operation for example.
+  bool remap_if_needed_and_combine(const Variant& variant,
+    const unsigned query_field_idxs[],
+    const VCFFieldCombineOperationEnum combine_op);
   void handle_INFO_fields(const Variant& variant);
   void handle_FORMAT_fields(const Variant& variant);
   void handle_deletions(Variant& variant, const VariantQueryConfig& query_config);

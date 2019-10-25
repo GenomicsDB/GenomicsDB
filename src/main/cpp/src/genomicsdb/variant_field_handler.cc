@@ -516,25 +516,28 @@ bool VariantFieldHandler<DataType>::get_valid_median(const Variant& variant, con
 template<class DataType>
 bool VariantFieldHandler<DataType>::get_valid_sum(const Variant& variant, const VariantQueryConfig& query_config,
     unsigned query_idx, void* output_ptr, unsigned& num_valid_elements) {
-  DataType sum = get_zero_value<DataType>();
   auto valid_idx = 0u;
+  auto is_first_iter = true;
   //Iterate over valid calls
   for (auto iter=variant.begin(), end_iter = variant.end(); iter != end_iter; ++iter) {
     auto& curr_call = *iter;
-    auto is_valid = get_valid_sum(curr_call.get_field(query_idx), sum);
+    auto is_valid = get_valid_sum(curr_call.get_field(query_idx), is_first_iter);
     valid_idx += (is_valid ? 1u : 0u);
+    is_first_iter = false;
   }
   num_valid_elements = valid_idx;
   if (valid_idx == 0u)  //no valid fields found
     return false;
   auto result_ptr = reinterpret_cast<DataType*>(output_ptr);
-  *result_ptr = sum;
+  *result_ptr = m_sum;
   return true;
 }
 
 template<class DataType>
 bool VariantFieldHandler<DataType>::get_valid_sum(const std::unique_ptr<VariantFieldBase>& field_ptr,
-    DataType& sum) {
+    const bool reset_accumulator) {
+  if(reset_accumulator)
+    m_sum = get_zero_value<DataType>();
   auto is_valid = false;
   //Valid field
   if (field_ptr.get() && field_ptr->is_valid()) {
@@ -544,7 +547,7 @@ bool VariantFieldHandler<DataType>::get_valid_sum(const std::unique_ptr<VariantF
     assert((ptr->get()).size() > 0u);
     auto val = ptr->get()[0u];
     if (is_bcf_valid_value<DataType>(val)) {
-      sum += val;
+      m_sum += val;
       is_valid = true;
     }
   }
@@ -571,7 +574,7 @@ bool VariantFieldHandler<std::string>::get_valid_mean(const Variant& variant, co
 }
 
 template<class DataType>
-void VariantFieldHandler<DataType>::compute_valid_element_wise_sum(
+bool VariantFieldHandler<DataType>::compute_valid_element_wise_sum(
     const std::unique_ptr<VariantFieldBase>& field_ptr,
     const bool reset_accumulator) {
   if(reset_accumulator)
@@ -607,6 +610,7 @@ void VariantFieldHandler<DataType>::compute_valid_element_wise_sum(
 	  &(vec[prev_num_elements]), num_bytes);
     }
   }
+  return (m_element_wise_operations_result.size() > 0u);
 }
 
 template<class DataType>
@@ -821,8 +825,25 @@ bool VariantFieldHandler<DataType>::collect_and_extend_fields(const Variant& var
   return true;
 }
 
+template<class DataType1, class DataType2>
+bool HistogramFieldHandler<DataType1, DataType2>::compute_valid_histogram_sum_2D_vector(
+    const std::unique_ptr<VariantFieldBase>& field_ptr_bin,
+    const std::unique_ptr<VariantFieldBase>& field_ptr_count,
+    const FieldInfo* vid_field_info_bin,
+    const FieldInfo* vid_field_info_count,
+    const bool reset_accumulator) {
+  if(reset_accumulator)
+    m_histogram_map_vec.clear();
+  return HistogramFieldHandlerBase::compute_valid_histogram_sum_2D_vector<DataType1, DataType2>(
+      field_ptr_bin,
+      field_ptr_count,
+      vid_field_info_bin,
+      vid_field_info_count,
+      m_histogram_map_vec);
+}
+
 template<class T1, class T2>
-bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector(
+bool HistogramFieldHandlerBase::compute_valid_histogram_sum_2D_vector(
     const std::unique_ptr<VariantFieldBase>& field_ptr_bin,
     const std::unique_ptr<VariantFieldBase>& field_ptr_count,
     const FieldInfo* vid_field_info_bin,
@@ -880,7 +901,7 @@ bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector(
 }
 
 template<class T1, class T2>
-bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify(const Variant& variant,
+bool HistogramFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify(const Variant& variant,
     const VariantQueryConfig& query_config,
     const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str) {
   assert(query_config.get_length_descriptor_for_query_attribute_idx(query_idx_bin).get_num_dimensions() == 2u);
@@ -904,23 +925,38 @@ bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringif
     return false;
   auto& length_descriptor = vid_field_info_bin->m_length_descriptor;
   assert(length_descriptor.get_num_dimensions() == 2u);
-  auto first_outer_index = true;
+  result_str = std::move(HistogramFieldHandlerBase::stringify_histogram<T1, T2>(histogram_map_vec,
+	length_descriptor.get_vcf_delimiter(0u), length_descriptor.get_vcf_delimiter(1u)));
+  return true;
+}
+
+template<class T1, class T2>
+std::string HistogramFieldHandlerBase::stringify_histogram(
+    const std::vector<std::map<T1, T2>>& histogram_map_vec,
+    const char delim1, const char delim2) {
   std::stringstream s;
+  auto first_outer_index = true;
   for (auto i=0ull; i<histogram_map_vec.size(); ++i) {
     if (!first_outer_index)
-      s << length_descriptor.get_vcf_delimiter(0u);
+      s << delim1;
     auto& histogram_map = histogram_map_vec[i];
     auto first_inner_index = true;
     for (auto& pair : histogram_map) {
       if (!first_inner_index)
-        s << length_descriptor.get_vcf_delimiter(1u);
-      s << std::fixed << std::setprecision(3) << pair.first << length_descriptor.get_vcf_delimiter(1u) << pair.second;
+	s << delim2;
+      s << std::fixed << std::setprecision(3) << pair.first << delim2 << pair.second;
       first_inner_index = false;
     }
     first_outer_index = false;
   }
-  result_str = std::move(s.str());
-  return true;
+  return s.str();
+}
+
+template<class DataType1, class DataType2>
+std::string HistogramFieldHandler<DataType1, DataType2>::stringify_histogram(
+    const char delim1, const char delim2) const {
+  return HistogramFieldHandlerBase::stringify_histogram<DataType1, DataType2>(
+      m_histogram_map_vec, delim1, delim2);
 }
 
 //Explicit template instantiation
@@ -934,21 +970,26 @@ template class VariantFieldHandler<std::string>;
 template class VariantFieldHandler<char>;
 
 template
-bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<int, int>(const Variant& variant,
+bool HistogramFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<int, int>(const Variant& variant,
     const VariantQueryConfig& query_config,
     const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
 template
-bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<int, float>(const Variant& variant,
+bool HistogramFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<int, float>(const Variant& variant,
     const VariantQueryConfig& query_config,
     const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
 template
-bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<float, int>(const Variant& variant,
+bool HistogramFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<float, int>(const Variant& variant,
     const VariantQueryConfig& query_config,
     const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
 template
-bool VariantFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<float, float>(const Variant& variant,
+bool HistogramFieldHandlerBase::compute_valid_histogram_sum_2D_vector_and_stringify<float, float>(const Variant& variant,
     const VariantQueryConfig& query_config,
     const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
+
+template class HistogramFieldHandler<int, int>;
+template class HistogramFieldHandler<int, float>;
+template class HistogramFieldHandler<float, int>;
+template class HistogramFieldHandler<float, float>;
 
 //The following function is called in variant_operations.cc also. For some compilers, explicit instantiation
 //of VariantFieldHandler is insufficient. The following function must also be instantiated, else weird link time

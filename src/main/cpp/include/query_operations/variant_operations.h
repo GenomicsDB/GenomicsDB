@@ -499,10 +499,14 @@ class VariantFieldHandlerBase {
                                 unsigned query_idx, void* output_ptr, unsigned& num_valid_elements) = 0;
   virtual bool get_valid_sum(const Variant& variant, const VariantQueryConfig& query_config,
                              unsigned query_idx, void* output_ptr, unsigned& num_valid_elements) = 0;
+  //incremental sum update
+  virtual bool get_valid_sum(const std::unique_ptr<VariantFieldBase>& field_ptr, const bool reset_accumulator) = 0;
   virtual bool get_valid_mean(const Variant& variant, const VariantQueryConfig& query_config,
                               unsigned query_idx, void* output_ptr, unsigned& num_valid_elements) = 0;
   virtual bool compute_valid_element_wise_sum(const Variant& variant, const VariantQueryConfig& query_config,
       unsigned query_idx, const void** output_ptr, unsigned& num_elements) = 0;
+  virtual bool compute_valid_element_wise_sum(const std::unique_ptr<VariantFieldBase>& field_ptr,
+      const bool reset_accumulator=false) = 0;
   virtual bool concatenate_field(const Variant& variant, const VariantQueryConfig& query_config,
                                  unsigned query_idx, const void** output_ptr, unsigned& num_elements) = 0;
   /*
@@ -510,23 +514,14 @@ class VariantFieldHandlerBase {
    */
   virtual bool compute_valid_element_wise_sum_2D_vector(const Variant& variant, const VariantQueryConfig& query_config,
       unsigned query_idx) = 0;
+  virtual bool compute_valid_element_wise_sum_2D_vector(const std::unique_ptr<VariantFieldBase>& field_ptr,
+      const FieldInfo& field_info, const bool reset_accumulator=false) = 0;
   virtual bool collect_and_extend_fields(const Variant& variant, const VariantQueryConfig& query_config,
                                          unsigned query_idx, const void ** output_ptr, uint64_t& num_elements,
                                          const bool use_missing_values_only_not_vector_end=false, const bool use_vector_end_only=false,
                                          const bool is_GT_field = false) = 0;
   virtual std::string stringify_2D_vector(const FieldInfo& field_info) = 0;
 
-  template<class T1, class T2>
-  static bool compute_valid_histogram_sum_2D_vector_and_stringify(const Variant& variant,
-      const VariantQueryConfig& query_config,
-      const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
-  template<class T1, class T2>
-  static bool compute_valid_histogram_sum_2D_vector(
-      const std::unique_ptr<VariantFieldBase>& field_ptr_bin,
-      const std::unique_ptr<VariantFieldBase>& field_ptr_count,
-      const FieldInfo* vid_field_info_bin,
-      const FieldInfo* vid_field_info_count,
-      std::vector<std::map<T1, T2>>& histogram_map_vec);
 };
 
 //Big bag handler functions useful for handling different types of fields (int, char etc)
@@ -576,7 +571,7 @@ class VariantFieldHandler : public VariantFieldHandlerBase {
   /*
    * Update sum using field_ptr
    */
-  bool get_valid_sum(const std::unique_ptr<VariantFieldBase>& field_ptr, DataType& sum);
+  bool get_valid_sum(const std::unique_ptr<VariantFieldBase>& field_ptr, const bool reset_accumulator);
   /*
    * Computes mean for a given field over all Calls (only considers calls with valid field and with valid elements in the field)
    */
@@ -596,7 +591,7 @@ class VariantFieldHandler : public VariantFieldHandlerBase {
   /*
    * Updates sum using the data in field_ptr
    */
-  void compute_valid_element_wise_sum(const std::unique_ptr<VariantFieldBase>& field_ptr,
+  bool compute_valid_element_wise_sum(const std::unique_ptr<VariantFieldBase>& field_ptr,
       const bool reset_accumulator=false);
   /*
    * Computes element-wise sum for 2D fields over all Calls (only considers calls with valid field data)
@@ -626,11 +621,13 @@ class VariantFieldHandler : public VariantFieldHandlerBase {
   std::vector<DataType> m_median_compute_vector;
   //Vector to hold extended vector to use in BCF format fields
   std::vector<DataType> m_extended_field_vector;
+  //Datatype to hold sum
+  DataType m_sum;
   //Vector to hold data for element wise operations
   std::vector<DataType> m_element_wise_operations_result;
   //For 2D data - avoid dynamic reallocations
   std::vector<std::vector<DataType>> m_2D_element_wise_operations_result;
-  std::string m_vcf_string_for_2D_vector;
+  std::string m_vcf_string_for_2D_vector; 
   //Data structures for iterating over genotypes in the non-diploid and non-haploid
   //ploidy. Avoids dynamic memory re-allocation
   //Vector storing allele indexes for current genotype
@@ -647,6 +644,63 @@ class VariantFieldHandler : public VariantFieldHandlerBase {
   CombineAllelesLUT m_alleles_identity_LUT;
   //used in determine_allele_combination_and_genotype_index_for_min_value, avoid memory reallocations
   GenotypeForMinValueTracker<DataType> m_min_genotype_tracker;
+};
+
+class HistogramFieldHandlerBase {
+  public:
+    HistogramFieldHandlerBase() { }
+    virtual ~HistogramFieldHandlerBase() = default;
+    /*
+     * For computing histogram used for allele specific annotations
+     */
+    virtual bool compute_valid_histogram_sum_2D_vector(
+	const std::unique_ptr<VariantFieldBase>& field_ptr_bin,
+	const std::unique_ptr<VariantFieldBase>& field_ptr_count,
+	const FieldInfo* vid_field_info_bin,
+	const FieldInfo* vid_field_info_count,
+	const bool reset_accumulator) = 0;
+
+    virtual std::string stringify_histogram(
+	const char delim1, const char delim2) const = 0;
+
+    template<class T1, class T2>
+    static bool compute_valid_histogram_sum_2D_vector_and_stringify(const Variant& variant,
+	const VariantQueryConfig& query_config,
+	const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
+    template<class T1, class T2>
+    static bool compute_valid_histogram_sum_2D_vector(
+	const std::unique_ptr<VariantFieldBase>& field_ptr_bin,
+	const std::unique_ptr<VariantFieldBase>& field_ptr_count,
+	const FieldInfo* vid_field_info_bin,
+	const FieldInfo* vid_field_info_count,
+	std::vector<std::map<T1, T2>>& histogram_map_vec);
+    template<class T1, class T2>
+    static std::string stringify_histogram(
+	const std::vector<std::map<T1, T2>>& histogram_map_vec,
+	const char delim1, const char delim2);
+};
+
+template<class DataType1, class DataType2>
+class HistogramFieldHandler : public HistogramFieldHandlerBase {
+  public:
+    HistogramFieldHandler() : HistogramFieldHandlerBase() { }
+
+    ~HistogramFieldHandler() = default;
+    /*
+     * For computing histogram used for allele specific annotations
+     */
+    bool compute_valid_histogram_sum_2D_vector(
+	const std::unique_ptr<VariantFieldBase>& field_ptr_bin,
+	const std::unique_ptr<VariantFieldBase>& field_ptr_count,
+	const FieldInfo* vid_field_info_bin,
+	const FieldInfo* vid_field_info_count,
+	const bool reset_accumulator);
+
+    std::string stringify_histogram(
+	const char delim1, const char delim2) const;
+  private:
+    std::vector<std::map<DataType1, DataType2>> m_histogram_map_vec;
+    std::string m_vcf_string_for_histogram;
 };
 
 void remap_allele_specific_annotations(
