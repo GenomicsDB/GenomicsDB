@@ -51,7 +51,7 @@ void* RemappedMatrix<DataType>::put_address(uint64_t input_call_idx, unsigned al
 }
 
 void* RemappedVariant::put_address(uint64_t input_call_idx, unsigned allele_or_gt_idx) {
-  auto& curr_call = m_variant->get_call(input_call_idx);
+  auto& curr_call = m_variant->get_call(m_only_write_to_first_call ? 0u : input_call_idx);
   assert(curr_call.is_valid());
   auto& field = curr_call.get_field(m_queried_field_idx);
   assert(field.get());  //not null

@@ -81,13 +81,15 @@ class RemappedMatrix : public RemappedDataWrapperBase {
  */
 class RemappedVariant : public RemappedDataWrapperBase {
  public:
-  RemappedVariant(Variant& variant, unsigned queried_field_idx)
-    : RemappedDataWrapperBase(), m_variant(&variant), m_queried_field_idx(queried_field_idx)
+  RemappedVariant(Variant& variant, unsigned queried_field_idx, const bool only_write_to_first_call=false)
+    : RemappedDataWrapperBase(), m_variant(&variant), m_queried_field_idx(queried_field_idx),
+    m_only_write_to_first_call(only_write_to_first_call)
   {}
   virtual void* put_address(uint64_t input_call_idx, unsigned allele_or_gt_idx);
  private:
   Variant* m_variant;
   unsigned m_queried_field_idx;
+  bool m_only_write_to_first_call;
 };
 
 /*
@@ -522,6 +524,8 @@ class VariantFieldHandlerBase {
                                          const bool is_GT_field = false) = 0;
   virtual std::string stringify_2D_vector(const FieldInfo& field_info) = 0;
 
+  virtual const void* get_pointer_to_sum() const = 0;
+  virtual void get_pointer_to_element_wise_sum(const void** output_ptr, unsigned& num_elements) const = 0;
 };
 
 //Big bag handler functions useful for handling different types of fields (int, char etc)
@@ -614,6 +618,19 @@ class VariantFieldHandler : public VariantFieldHandlerBase {
                                  unsigned query_idx, const void ** output_ptr, uint64_t& num_elements,
                                  const bool use_missing_values_only_not_vector_end=false, const bool use_vector_end_only=false,
                                  const bool is_GT_field=false);
+  const void* get_pointer_to_sum() const {
+    return reinterpret_cast<const void*>(&m_sum);
+  }
+  void get_pointer_to_element_wise_sum(const void** output_ptr, unsigned& num_elements) const {
+    if(m_element_wise_operations_result.size() > 0u) {
+      *output_ptr = reinterpret_cast<const void*>(&(m_element_wise_operations_result[0u]));
+      num_elements = m_element_wise_operations_result.size();
+    }
+    else {
+      *output_ptr = 0;
+      num_elements = 0u;
+    }
+  }
  private:
   std::vector<uint64_t> m_num_calls_with_valid_data;
   DataType m_bcf_missing_value;

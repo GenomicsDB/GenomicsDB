@@ -78,7 +78,9 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   //(sum) and not if the combine is a median operation for example.
   bool remap_if_needed_and_combine(const Variant& variant,
     const unsigned query_field_idxs[],
-    const VCFFieldCombineOperationEnum combine_op);
+    const VCFFieldCombineOperationEnum combine_op,
+    const void** output_idx,
+    unsigned& num_result_elements);
   void handle_INFO_fields(const Variant& variant);
   void handle_FORMAT_fields(const Variant& variant);
   void handle_deletions(Variant& variant, const VariantQueryConfig& query_config);
