@@ -100,8 +100,7 @@ std::unordered_map<std::string, int>({
   {"element_wise_sum", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_ELEMENT_WISE_SUM},
   {"elementwise_sum", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_ELEMENT_WISE_SUM},
   {"concatenate", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_CONCATENATE},
-  {"histogram_sum", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_HISTOGRAM_SUM},
-  {"ignore", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_IGNORE}
+  {"histogram_sum", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_HISTOGRAM_SUM}
 });
 
 auto g_FORMAT_suffix = "_FORMAT";

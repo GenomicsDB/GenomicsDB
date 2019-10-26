@@ -29,11 +29,15 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 import htsjdk.variant.vcf.VCFUtils;
+import htsjdk.variant.vcf.VCFHeaderLineType;
+import htsjdk.variant.vcf.VCFFormatHeaderLine;
+import htsjdk.variant.vcf.VCFInfoHeaderLine;
 
 import org.apache.commons.io.FileUtils;
 
 import org.genomicsdb.GenomicsDBTestUtils;
 import org.genomicsdb.importer.extensions.CallSetMapExtensions;
+import org.genomicsdb.importer.extensions.VidMapExtensions;
 import org.genomicsdb.importer.model.ChromosomeInterval;
 import org.genomicsdb.model.CommandLineImportConfig;
 import org.genomicsdb.model.Coordinates;
@@ -41,6 +45,7 @@ import org.genomicsdb.model.GenomicsDBCallsetsMapProto;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
 import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.model.GenomicsDBVidMapProto;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -61,7 +66,7 @@ import java.util.*;
 import static org.genomicsdb.Constants.CHROMOSOME_INTERVAL_FOLDER;
 import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBFragments;
 
-public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
+public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMapExtensions {
     private static final String TEST_CHROMOSOME_NAME = "1";
     private static final File WORKSPACE = new File("__workspace");
     private File tempVidJsonFile;
@@ -601,5 +606,113 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions {
                 inputVCF).split(" ");
         CommandLineImportConfig config = new CommandLineImportConfig("TestGenomicsDBImporterWithMergedVCFHeader", args);
         return new GenomicsDBImporter(config);
+    }
+
+    @Test(testName = "Test duplicate field names in VCF header while generating vid")
+    public void testDuplicateFieldNamesinVcfHeaderWhenGeneratingVid() {
+	final VCFFormatHeaderLine h1 = new VCFFormatHeaderLine("test_field", 2, VCFHeaderLineType.Float, "");
+	final VCFFormatHeaderLine h2 = new VCFFormatHeaderLine("test_field", 3, VCFHeaderLineType.Float, "");
+	final VCFFormatHeaderLine h3 = new VCFFormatHeaderLine("test_field", 2, VCFHeaderLineType.Integer, "");
+	final VCFInfoHeaderLine h4 = new VCFInfoHeaderLine("test_field", 2, VCFHeaderLineType.Float, "");
+	final VCFInfoHeaderLine h5 = new VCFInfoHeaderLine("test_field", 3, VCFHeaderLineType.Float, "");
+	final VCFInfoHeaderLine h6 = new VCFInfoHeaderLine("test_field", 2, VCFHeaderLineType.Integer, "");
+
+	{
+	    final Set<VCFHeaderLine> s = new LinkedHashSet<>(Arrays.asList(h1, h2));
+	    final GenomicsDBVidMapProto.VidMappingPB pb = generateVidMapFromMergedHeader(s);
+	    //first field is ID field
+	    final GenomicsDBVidMapProto.GenomicsDBFieldInfo fieldInfo = pb.getFieldsList().get(1);
+	    Assert.assertEquals(fieldInfo.getVcfFieldClassCount(), 1);
+	    Assert.assertEquals(fieldInfo.getVcfFieldClass(0), "FORMAT");
+	    Assert.assertEquals(fieldInfo.getTypeCount(), 1);
+	    Assert.assertEquals(fieldInfo.getType(0), "Float");
+	    final GenomicsDBVidMapProto.FieldLengthDescriptorComponentPB lengthDescriptor = fieldInfo.getLength(0);
+	    Assert.assertTrue(lengthDescriptor.hasVariableLengthDescriptor());
+	    Assert.assertEquals(lengthDescriptor.getVariableLengthDescriptor(), "2");
+	}
+	{
+	    final Set<VCFHeaderLine> s = new LinkedHashSet<>(Arrays.asList(h1, h3));
+	    final GenomicsDBVidMapProto.VidMappingPB pb = generateVidMapFromMergedHeader(s);
+	    //first field is ID field
+	    final GenomicsDBVidMapProto.GenomicsDBFieldInfo fieldInfo = pb.getFieldsList().get(1);
+	    Assert.assertEquals(fieldInfo.getVcfFieldClassCount(), 1);
+	    Assert.assertEquals(fieldInfo.getVcfFieldClass(0), "FORMAT");
+	    Assert.assertEquals(fieldInfo.getTypeCount(), 1);
+	    Assert.assertEquals(fieldInfo.getType(0), "Float");
+	    final GenomicsDBVidMapProto.FieldLengthDescriptorComponentPB lengthDescriptor = fieldInfo.getLength(0);
+	    Assert.assertTrue(lengthDescriptor.hasVariableLengthDescriptor());
+	    Assert.assertEquals(lengthDescriptor.getVariableLengthDescriptor(), "2");
+	}
+	{
+	    final Set<VCFHeaderLine> s = new LinkedHashSet<>(Arrays.asList(h1, h4));
+	    final GenomicsDBVidMapProto.VidMappingPB pb = generateVidMapFromMergedHeader(s);
+	    //first field is ID field
+	    Assert.assertEquals(pb.getFieldsCount(), 2);
+	    final GenomicsDBVidMapProto.GenomicsDBFieldInfo fieldInfo = pb.getFieldsList().get(1);
+	    Assert.assertEquals(fieldInfo.getVcfFieldClassCount(), 2);
+	    Assert.assertEquals(fieldInfo.getVcfFieldClass(0), "FORMAT");
+	    Assert.assertEquals(fieldInfo.getVcfFieldClass(1), "INFO");
+	    Assert.assertEquals(fieldInfo.getTypeCount(), 1);
+	    Assert.assertEquals(fieldInfo.getType(0), "Float");
+	    final GenomicsDBVidMapProto.FieldLengthDescriptorComponentPB lengthDescriptor = fieldInfo.getLength(0);
+	    Assert.assertTrue(lengthDescriptor.hasVariableLengthDescriptor());
+	    Assert.assertEquals(lengthDescriptor.getVariableLengthDescriptor(), "2");
+	}
+	{
+	    final Set<VCFHeaderLine> s = new LinkedHashSet<>(Arrays.asList(h1, h5));
+	    final GenomicsDBVidMapProto.VidMappingPB pb = generateVidMapFromMergedHeader(s);
+	    //first field is ID field
+	    Assert.assertEquals(pb.getFieldsCount(), 3);
+	    {
+		final GenomicsDBVidMapProto.GenomicsDBFieldInfo fieldInfo = pb.getFieldsList().get(1);
+		Assert.assertEquals(fieldInfo.getName(), "test_field");
+		Assert.assertEquals(fieldInfo.getVcfFieldClassCount(), 1);
+		Assert.assertEquals(fieldInfo.getVcfFieldClass(0), "FORMAT");
+		Assert.assertEquals(fieldInfo.getTypeCount(), 1);
+		Assert.assertEquals(fieldInfo.getType(0), "Float");
+		final GenomicsDBVidMapProto.FieldLengthDescriptorComponentPB lengthDescriptor = fieldInfo.getLength(0);
+		Assert.assertTrue(lengthDescriptor.hasVariableLengthDescriptor());
+		Assert.assertEquals(lengthDescriptor.getVariableLengthDescriptor(), "2");
+	    }
+	    {
+		final GenomicsDBVidMapProto.GenomicsDBFieldInfo fieldInfo = pb.getFieldsList().get(2);
+		Assert.assertEquals(fieldInfo.getName(), "test_field_INFO");
+		Assert.assertEquals(fieldInfo.getVcfFieldClassCount(), 1);
+		Assert.assertEquals(fieldInfo.getVcfFieldClass(0), "INFO");
+		Assert.assertEquals(fieldInfo.getTypeCount(), 1);
+		Assert.assertEquals(fieldInfo.getType(0), "Float");
+		final GenomicsDBVidMapProto.FieldLengthDescriptorComponentPB lengthDescriptor = fieldInfo.getLength(0);
+		Assert.assertTrue(lengthDescriptor.hasVariableLengthDescriptor());
+		Assert.assertEquals(lengthDescriptor.getVariableLengthDescriptor(), "3");
+	    }
+	}
+	{
+	    final Set<VCFHeaderLine> s = new LinkedHashSet<>(Arrays.asList(h1, h6));
+	    final GenomicsDBVidMapProto.VidMappingPB pb = generateVidMapFromMergedHeader(s);
+	    //first field is ID field
+	    Assert.assertEquals(pb.getFieldsCount(), 3);
+	    {
+		final GenomicsDBVidMapProto.GenomicsDBFieldInfo fieldInfo = pb.getFieldsList().get(1);
+		Assert.assertEquals(fieldInfo.getName(), "test_field");
+		Assert.assertEquals(fieldInfo.getVcfFieldClassCount(), 1);
+		Assert.assertEquals(fieldInfo.getVcfFieldClass(0), "FORMAT");
+		Assert.assertEquals(fieldInfo.getTypeCount(), 1);
+		Assert.assertEquals(fieldInfo.getType(0), "Float");
+		final GenomicsDBVidMapProto.FieldLengthDescriptorComponentPB lengthDescriptor = fieldInfo.getLength(0);
+		Assert.assertTrue(lengthDescriptor.hasVariableLengthDescriptor());
+		Assert.assertEquals(lengthDescriptor.getVariableLengthDescriptor(), "2");
+	    }
+	    {
+		final GenomicsDBVidMapProto.GenomicsDBFieldInfo fieldInfo = pb.getFieldsList().get(2);
+		Assert.assertEquals(fieldInfo.getName(), "test_field_INFO");
+		Assert.assertEquals(fieldInfo.getVcfFieldClassCount(), 1);
+		Assert.assertEquals(fieldInfo.getVcfFieldClass(0), "INFO");
+		Assert.assertEquals(fieldInfo.getTypeCount(), 1);
+		Assert.assertEquals(fieldInfo.getType(0), "Integer");
+		final GenomicsDBVidMapProto.FieldLengthDescriptorComponentPB lengthDescriptor = fieldInfo.getLength(0);
+		Assert.assertTrue(lengthDescriptor.hasVariableLengthDescriptor());
+		Assert.assertEquals(lengthDescriptor.getVariableLengthDescriptor(), "2");
+	    }
+	}
     }
 }
