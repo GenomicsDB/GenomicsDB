@@ -151,12 +151,23 @@ public interface VidMapExtensions {
                 infoFields.add(infoField);
             } else if (headerLine instanceof VCFFilterHeaderLine) {
                 VCFFilterHeaderLine filterHeaderLine = (VCFFilterHeaderLine) headerLine;
-                infoBuilder.setName(filterHeaderLine.getID());
-                if (!filterHeaderLine.getValue().isEmpty()) {
-                    infoBuilder.addType(filterHeaderLine.getValue());
-                } else {
-                    infoBuilder.addType("int");
-                }
+		final String filterFieldName = filterHeaderLine.getID();
+		final DuplicateVcfFieldNamesCheckResult dupCheck = checkForDuplicateVcfFieldNames(
+			filterFieldName,
+			vcfHeaderLineFilterIdx,
+			"Integer",
+			"1",
+			infoFields,
+			fieldNameToDuplicateCheckInfo
+			);
+		if(dupCheck.skipCreatingNewEntry)
+		    continue;
+                infoBuilder.setName(dupCheck.fieldName);
+		if(!filterFieldName.equals(dupCheck.fieldName)) //field renamed due to collisions
+		    infoBuilder.setVcfName(filterFieldName);
+		lengthDescriptorComponentBuilder.setVariableLengthDescriptor("1");
+		infoBuilder.addType("Integer")
+                            .addLength(lengthDescriptorComponentBuilder.build());
                 infoBuilder.addVcfFieldClass("FILTER");
                 GenomicsDBVidMapProto.GenomicsDBFieldInfo filterField = infoBuilder.build();
                 infoFields.add(filterField);

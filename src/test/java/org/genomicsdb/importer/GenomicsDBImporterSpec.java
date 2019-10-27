@@ -32,6 +32,7 @@ import htsjdk.variant.vcf.VCFUtils;
 import htsjdk.variant.vcf.VCFHeaderLineType;
 import htsjdk.variant.vcf.VCFFormatHeaderLine;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
+import htsjdk.variant.vcf.VCFFilterHeaderLine;
 
 import org.apache.commons.io.FileUtils;
 
@@ -616,6 +617,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
 	final VCFInfoHeaderLine h4 = new VCFInfoHeaderLine("test_field", 2, VCFHeaderLineType.Float, "");
 	final VCFInfoHeaderLine h5 = new VCFInfoHeaderLine("test_field", 3, VCFHeaderLineType.Float, "");
 	final VCFInfoHeaderLine h6 = new VCFInfoHeaderLine("test_field", 2, VCFHeaderLineType.Integer, "");
+	final VCFFilterHeaderLine h7 = new VCFFilterHeaderLine("test_field");
 
 	{
 	    final Set<VCFHeaderLine> s = new LinkedHashSet<>(Arrays.asList(h1, h2));
@@ -659,6 +661,38 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
 	    Assert.assertEquals(lengthDescriptor.getVariableLengthDescriptor(), "2");
 	}
 	{
+	    final Set<VCFHeaderLine> s = new LinkedHashSet<>(Arrays.asList(h1, h4, h7));
+	    final GenomicsDBVidMapProto.VidMappingPB pb = generateVidMapFromMergedHeader(s);
+	    //first field is ID field
+	    Assert.assertEquals(pb.getFieldsCount(), 3);
+	    {
+	      final GenomicsDBVidMapProto.GenomicsDBFieldInfo fieldInfo = pb.getFieldsList().get(1);
+	      Assert.assertEquals(fieldInfo.getName(), "test_field");
+	      Assert.assertEquals(fieldInfo.getVcfFieldClassCount(), 2);
+	      Assert.assertEquals(fieldInfo.getVcfFieldClass(0), "FORMAT");
+	      Assert.assertEquals(fieldInfo.getVcfFieldClass(1), "INFO");
+	      Assert.assertEquals(fieldInfo.getTypeCount(), 1);
+	      Assert.assertEquals(fieldInfo.getType(0), "Float");
+	      final GenomicsDBVidMapProto.FieldLengthDescriptorComponentPB lengthDescriptor = fieldInfo.getLength(0);
+	      Assert.assertTrue(lengthDescriptor.hasVariableLengthDescriptor());
+	      Assert.assertEquals(lengthDescriptor.getVariableLengthDescriptor(), "2");
+	    }
+	    {
+	      final GenomicsDBVidMapProto.GenomicsDBFieldInfo fieldInfo = pb.getFieldsList().get(2);
+	      Assert.assertEquals(fieldInfo.getName(), "test_field_FILTER");
+	      Assert.assertTrue(fieldInfo.hasVcfName());
+	      Assert.assertEquals(fieldInfo.getVcfName(), "test_field");
+	      Assert.assertEquals(fieldInfo.getVcfFieldClassCount(), 1);
+	      Assert.assertEquals(fieldInfo.getVcfFieldClass(0), "FILTER");
+	      Assert.assertEquals(fieldInfo.getTypeCount(), 1);
+	      Assert.assertEquals(fieldInfo.getType(0), "Integer");
+	      Assert.assertEquals(fieldInfo.getLengthCount(), 1);
+	      final GenomicsDBVidMapProto.FieldLengthDescriptorComponentPB lengthDescriptor = fieldInfo.getLength(0);
+	      Assert.assertTrue(lengthDescriptor.hasVariableLengthDescriptor());
+	      Assert.assertEquals(lengthDescriptor.getVariableLengthDescriptor(), "1");
+	    }
+	}
+	{
 	    final Set<VCFHeaderLine> s = new LinkedHashSet<>(Arrays.asList(h1, h5));
 	    final GenomicsDBVidMapProto.VidMappingPB pb = generateVidMapFromMergedHeader(s);
 	    //first field is ID field
@@ -677,6 +711,8 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
 	    {
 		final GenomicsDBVidMapProto.GenomicsDBFieldInfo fieldInfo = pb.getFieldsList().get(2);
 		Assert.assertEquals(fieldInfo.getName(), "test_field_INFO");
+		Assert.assertTrue(fieldInfo.hasVcfName());
+		Assert.assertEquals(fieldInfo.getVcfName(), "test_field");
 		Assert.assertEquals(fieldInfo.getVcfFieldClassCount(), 1);
 		Assert.assertEquals(fieldInfo.getVcfFieldClass(0), "INFO");
 		Assert.assertEquals(fieldInfo.getTypeCount(), 1);
@@ -705,6 +741,8 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
 	    {
 		final GenomicsDBVidMapProto.GenomicsDBFieldInfo fieldInfo = pb.getFieldsList().get(2);
 		Assert.assertEquals(fieldInfo.getName(), "test_field_INFO");
+		Assert.assertTrue(fieldInfo.hasVcfName());
+		Assert.assertEquals(fieldInfo.getVcfName(), "test_field");
 		Assert.assertEquals(fieldInfo.getVcfFieldClassCount(), 1);
 		Assert.assertEquals(fieldInfo.getVcfFieldClass(0), "INFO");
 		Assert.assertEquals(fieldInfo.getTypeCount(), 1);
