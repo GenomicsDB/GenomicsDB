@@ -17,3 +17,24 @@ if(PROTOBUF_FOUND)
     set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_INCLUDE_DIRS})
 endif()
 include(FindProtobuf)
+
+include(CheckCXXSourceCompiles)
+function(CHECK_IF_USING_PROTOBUF_V_3_0_0_BETA_1 FLAG_VAR_NAME)
+  set(PB_test_source
+    "
+    #include <google/protobuf/util/json_util.h>
+    int main() {
+      google::protobuf::util::JsonParseOptions parse_opt;
+      parse_opt.ignore_unknown_fields = true;
+      return 0;
+    }
+    "
+    )
+  set(CMAKE_REQUIRED_INCLUDES ${PROTOBUF_INCLUDE_DIRS})
+  check_cxx_source_compiles("${PB_test_source}" PROTOBUF_V3_STABLE_FOUND)
+  if(PROTOBUF_V3_STABLE_FOUND)
+    set(${FLAG_VAR_NAME} False PARENT_SCOPE)
+  else()
+    set(${FLAG_VAR_NAME} True PARENT_SCOPE)
+  endif()
+endfunction()

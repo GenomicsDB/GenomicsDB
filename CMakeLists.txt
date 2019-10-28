@@ -190,6 +190,11 @@ else()
   set(PROTOBUF_JAVA_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/src/main/java")
 endif()
 include_directories(${PROTOBUF_INCLUDE_DIRS})
+CHECK_IF_USING_PROTOBUF_V_3_0_0_BETA_1(USE_PROTOBUF_V_3_0_0_BETA_1)
+if(USE_PROTOBUF_V_3_0_0_BETA_1)
+  add_definitions(-DUSE_PROTOBUF_V_3_0_0_BETA_1)
+  message(STATUS "Using Protobuf v3.0.0-beta-1")
+endif()
 
 #JNI
 if(BUILD_JAVA)

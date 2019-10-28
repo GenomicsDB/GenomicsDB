@@ -260,8 +260,10 @@ void GenomicsDBConfigBase::get_pb_from_json_file(
     throw GenomicsDBConfigException(std::string("Could not open query JSON file ")+json_file);
   }
   std::string json_to_binary_output;
+#ifndef USE_PROTOBUF_V_3_0_0_BETA_1
   google::protobuf::util::JsonParseOptions parse_opt;
   parse_opt.ignore_unknown_fields = true;
+#endif
   //The function JsonStringToMessage was made available in Protobuf version 3.0.0. However,
   //to maintain compatibility with GATK-4, we need to use 3.0.0-beta-1. This version doesn't have
   //the JsonStringToMessage method. A workaround is as follows.
@@ -270,7 +272,11 @@ void GenomicsDBConfigBase::get_pb_from_json_file(
       "", google::protobuf::DescriptorPool::generated_pool());
   auto status = google::protobuf::util::JsonToBinaryString(resolver,
       "/"+pb_config->GetDescriptor()->full_name(), json_buffer,
-      &json_to_binary_output, parse_opt);
+      &json_to_binary_output
+#ifndef USE_PROTOBUF_V_3_0_0_BETA_1
+      , parse_opt
+#endif
+      );
   if (!status.ok()) {
     delete resolver;
     free(json_buffer);
