@@ -41,6 +41,7 @@ if(HTSLIB_SOURCE_DIR)
             ${HTSLIB_CURL_FLAGS}
         BUILD_COMMAND ${CMAKE_COMMAND} -E make_directory cram
             COMMAND ${CMAKE_COMMAND} -E make_directory test
+            COMMAND ${CMAKE_COMMAND} -E make_directory test/fuzz
             COMMAND ${CMAKE_COMMAND} -E copy ${HTSLIB_SOURCE_DIR}/version.sh .
             COMMAND $(MAKE) -f ${HTSLIB_SOURCE_DIR}/Makefile VPATH=${HTSLIB_SOURCE_DIR} SOURCE_DIR=${HTSLIB_SOURCE_DIR}
             AR=${CMAKE_AR}

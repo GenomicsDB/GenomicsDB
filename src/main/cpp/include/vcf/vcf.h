@@ -80,12 +80,12 @@ inline unsigned get_bcf_missing_value<unsigned>() {
 
 template<>
 inline int64_t get_bcf_missing_value<int64_t>() {
-  return bcf_int32_missing;
+  return bcf_int64_missing;
 }
 
 template<>
 inline uint64_t get_bcf_missing_value<uint64_t>() {
-  return bcf_int32_missing;
+  return bcf_int64_missing;
 }
 
 template<>
@@ -139,12 +139,12 @@ inline unsigned get_bcf_vector_end_value<unsigned>() {
 
 template<>
 inline int64_t get_bcf_vector_end_value<int64_t>() {
-  return bcf_int32_vector_end;
+  return bcf_int64_vector_end;
 }
 
 template<>
 inline uint64_t get_bcf_vector_end_value<uint64_t>() {
-  return bcf_int32_vector_end;
+  return bcf_int64_vector_end;
 }
 
 template<>

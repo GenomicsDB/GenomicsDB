@@ -180,7 +180,7 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
     with open(outfilename, "w") as out_fd:
         out_fd.write(outfile_string)
     bcf_cmd = bcftools_path+' view -Oz -o '+outfilename+'.gz '+outfilename+' && '+bcftools_path+' index -f -t '+outfilename+'.gz'
-    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE)
+    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     bcf_stdout = pid.communicate()[0]
     if(pid.returncode != 0):
         sys.stderr.write('Call to bcftools failed. Cmd: '+bcf_cmd+'\n')
@@ -190,7 +190,7 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
     with open(outfilename_golden, "w") as out_golden_fd:
         out_golden_fd.write(golden_string)
     bcf_cmd = bcftools_path+' view -Oz -o '+outfilename_golden+'.gz '+outfilename_golden+' && '+bcftools_path+' index -f -t '+outfilename_golden+'.gz'
-    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE)
+    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     bcf_stdout = pid.communicate()[0]
     if(pid.returncode != 0):
         sys.stderr.write('Call to bcftools failed. Cmd: '+bcf_cmd+'\n')
@@ -198,7 +198,7 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
         return True
 
     vcfdiff_cmd = exe_path+os.path.sep+'vcfdiff '+outfilename+'.gz '+outfilename_golden+'.gz'
-    pid = subprocess.Popen(vcfdiff_cmd, shell=True, stdout=subprocess.PIPE)
+    pid = subprocess.Popen(vcfdiff_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     vcfdiff_stdout = pid.communicate()[0]
     if(pid.returncode != 0):
         sys.stderr.write('vcfdiff cmd failed. Cmd: '+vcfdiff_cmd+'\n')
@@ -355,7 +355,7 @@ def main():
     test_pb_configs(tmpdir, ctest_dir)
     common.setup_classpath(build_dir)
     jacoco, jacoco_report_cmd = common.setup_jacoco(build_dir, build_type)
-    loader_tests0 = [
+    loader_tests0 = [ 
             { "name" : "t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
                 "query_params": [
@@ -1305,6 +1305,11 @@ def main():
                         "vcf"      : "golden_outputs/t6_7_8_asa_vcf_at_8029500",
                         } },
                     ]
+            },
+	    { "name" : "test_info_combine_bigint", 'golden_output' : 'golden_outputs/bigint.vcf',
+                'callset_mapping_file': 'inputs/callsets/bigint.json',
+                'vid_mapping_file': 'inputs/vid_bigint.json',
+		'size_per_column_partition': 4096
             },
     ];
     if(len(sys.argv) < 5):
