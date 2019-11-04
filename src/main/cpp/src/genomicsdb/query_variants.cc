@@ -507,19 +507,34 @@ void VariantQueryProcessor::iterate_over_cells(
   const int ad,
   const VariantQueryConfig& query_config,
   SingleCellOperatorBase& variant_operator,
-  const bool use_common_array_object) const {
+  const bool use_common_array_object,
+  SingleCellTileDBIterator** resume_iterator) const {
   assert(query_config.is_bookkeeping_done());
   //Initialize forward scan iterators
-  SingleCellTileDBIterator* columnar_forward_iter = get_storage_manager()->begin_columnar_iterator(ad, query_config,
+  SingleCellTileDBIterator* columnar_forward_iter = 0;
+  if(resume_iterator && *resume_iterator)
+    columnar_forward_iter = *resume_iterator;
+  else
+    columnar_forward_iter = get_storage_manager()->begin_columnar_iterator(ad, query_config,
       use_common_array_object);
   for (; !(columnar_forward_iter->end()); ++(*columnar_forward_iter)) {
     auto& cell = **columnar_forward_iter;
     auto coords = cell.get_coordinates();
-    if (query_config.is_queried_array_row_idx(coords[0]))      //If row is part of query, process cell
+    if (query_config.is_queried_array_row_idx(coords[0])) {      //If row is part of query, process cell
       variant_operator.operate_on_columnar_cell(cell, query_config, get_array_schema());
+      if(variant_operator.overflow())
+	break;
+    }
   }
-  variant_operator.finalize();
-  delete columnar_forward_iter;
+  if(columnar_forward_iter->end() || resume_iterator == 0) {
+    variant_operator.finalize();
+    if(resume_iterator == 0) {
+      delete columnar_forward_iter;
+      columnar_forward_iter = 0;
+    }
+  }
+  if(resume_iterator)
+    *resume_iterator = columnar_forward_iter;
 }
 
 void VariantQueryProcessor::do_query_bookkeeping(const VariantArraySchema& array_schema,

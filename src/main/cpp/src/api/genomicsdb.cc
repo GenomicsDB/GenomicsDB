@@ -340,7 +340,7 @@ void print_variant_calls(const VariantQueryConfig& query_config,
   //variant_calls is an array of dictionaries
   std::cout << indent_prefix << "\"variant_calls\": [\n";
   VariantCallPrintOperator printer(std::cout, indent_prefix+indent_prefix, &vid_mapper);
-  query_processor.iterate_over_cells(query_processor.get_array_descriptor(), query_config, printer, true);
+  query_processor.iterate_over_cells(query_processor.get_array_descriptor(), query_config, printer, true, 0);
   std::cout << "\n" << indent_prefix << "]\n";
   std::cout << "}\n";
 }
@@ -371,7 +371,8 @@ std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& arr
     vid_mapper = const_cast<VidMapper *>(&query_config->get_vid_mapper());
   }
   GatherVariantCalls gather_variant_calls(processor, get_vid_mapper(m_vid_mapper, query_config));
-  query_processor->iterate_over_cells(query_processor->get_array_descriptor(), *query_config, gather_variant_calls, true);
+  query_processor->iterate_over_cells(query_processor->get_array_descriptor(), *query_config, gather_variant_calls,
+      true, 0);
 
   delete query_processor;
 

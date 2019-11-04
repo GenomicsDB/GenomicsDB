@@ -449,6 +449,12 @@ class VidMapper {
    * Returns true if valid contig found, false otherwise
    */
   bool get_contig_location(const int64_t position, std::string& contig_name, int64_t& contig_position) const;
+/*
+   * Given a position in a flattened 'address' space [TileDB column idx], get the ContigInfo 
+   * corresponding to the column
+   * Returns true if valid contig found, false otherwise
+   */
+  bool get_contig_info(const int64_t position, ContigInfo& contig_info) const;
   /*
    * Given a position in a flattened 'address' space [TileDB column idx], get the next contig_name and starting
    * location of the contig in the flattened space

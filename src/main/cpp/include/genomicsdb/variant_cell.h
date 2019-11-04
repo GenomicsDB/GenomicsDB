@@ -183,6 +183,7 @@ class GenomicsDBColumnarCell {
   inline uint64_t get_current_query_column_interval_idx() const {
     return m_iterator->get_current_query_column_interval_idx();
   }
+  void fill_ga4gh_attribute(ga4gh::AttributeValueList* attr, const unsigned query_idx) const;
  private:
   const SingleCellTileDBIterator* m_iterator;
 };

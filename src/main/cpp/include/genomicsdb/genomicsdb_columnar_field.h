@@ -272,6 +272,11 @@ class GenomicsDBVariableSizeFieldBuffer: public GenomicsDBBuffer {
   }
 };
 
+namespace ga4gh {
+  class AttributeValue;
+  class AttributeValueList;
+}
+
 //Printer
 //Partial class specialization is allowed, but partial function template specialization isn't
 template<typename T, bool print_as_list>
@@ -280,6 +285,7 @@ class GenomicsDBColumnarFieldPrintOperator {
   static void print(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements);
   static void print_csv(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
                         const bool is_variable_length_field, const bool is_valid);
+  static void fill_ga4gh_attribute(ga4gh::AttributeValueList* attr, const uint8_t* ptr, const size_t num_elements);
 };
 
 /*
@@ -440,6 +446,11 @@ class GenomicsDBColumnarField {
    */
   void print_data_in_buffer_at_index_as_csv(std::ostream& fptr,
       const GenomicsDBBuffer* buffer_ptr, const size_t index) const;
+  /*
+   * Fill out a GA4GH attribute value object
+   */
+  void fill_ga4gh_attribute(ga4gh::AttributeValueList* attr,
+      const GenomicsDBBuffer* buffer_ptr, const size_t index) const;
   //Get list lengths
   size_t get_free_buffer_list_length() const {
     return m_free_buffer_list_length;
@@ -479,6 +490,7 @@ class GenomicsDBColumnarField {
   void (*m_print)(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements);
   void (*m_print_csv)(std::ostream& fptr, const uint8_t* ptr, const size_t num_elements,
                       const bool is_variable_length_field, const bool is_valid);
+  void (*m_fill_ga4gh_attribute)(ga4gh::AttributeValueList* attr, const uint8_t* ptr, const size_t num_elements);
   size_t m_buffer_size;
   //Head of list containing free buffers - can be used in invocation of tiledb_array_read()
   GenomicsDBBuffer* m_free_buffer_list_head_ptr;

@@ -223,7 +223,7 @@ void VidMapper::clear() {
   m_owner_idx_to_file_idx_vec.clear();
 }
 
-bool VidMapper::get_contig_location(int64_t query_position, std::string& contig_name, int64_t& contig_position) const {
+bool VidMapper::get_contig_info(int64_t query_position, ContigInfo& contig_info) const {
   int idx = -1;
   std::pair<int64_t, int> query_pair;
   query_pair.first = query_position;
@@ -251,11 +251,20 @@ bool VidMapper::get_contig_location(int64_t query_position, std::string& contig_
   auto contig_offset = m_contig_idx_to_info[idx].m_tiledb_column_offset;
   auto contig_length = m_contig_idx_to_info[idx].m_length;
   if ((query_position >= contig_offset) && (query_position < contig_offset+contig_length)) {
-    contig_name = m_contig_idx_to_info[idx].m_name;
-    contig_position = query_position - contig_offset;
+    contig_info = m_contig_idx_to_info[idx];
     return true;
   }
   return false;
+}
+
+bool VidMapper::get_contig_location(int64_t query_position, std::string& contig_name, int64_t& contig_position) const {
+  ContigInfo contig_info;
+  auto status = get_contig_info(query_position, contig_info);
+  if(!status)
+    return false;
+  contig_name = contig_info.m_name;
+  contig_position = query_position - contig_info.m_tiledb_column_offset;
+  return true;
 }
 
 bool VidMapper::get_next_contig_location(int64_t query_position, std::string& next_contig_name, int64_t& next_contig_offset) const {

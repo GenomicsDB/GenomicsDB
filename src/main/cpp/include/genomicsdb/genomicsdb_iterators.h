@@ -227,6 +227,7 @@ class SingleCellTileDBIterator {
   void print(const int query_idx, std::ostream& fptr=std::cout) const;
   void print_ALT(const int query_idx, std::ostream& fptr=std::cout) const;
   void print_csv(const int query_idx, std::ostream& fptr=std::cout) const;
+  void fill_ga4gh_attribute(ga4gh::AttributeValueList* attr, const int query_idx) const;
   inline bool end() const {
     return m_done_reading_from_TileDB && m_PQ_live_cell_markers.empty();
   }

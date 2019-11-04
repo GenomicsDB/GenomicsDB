@@ -167,3 +167,7 @@ void GenomicsDBColumnarCell::print_csv(std::ostream& fptr, const VariantQueryCon
   }
   fptr << "\n";
 }
+
+void GenomicsDBColumnarCell::fill_ga4gh_attribute(ga4gh::AttributeValueList* attr, const unsigned query_idx) const {
+  m_iterator->fill_ga4gh_attribute(attr, query_idx);
+}
