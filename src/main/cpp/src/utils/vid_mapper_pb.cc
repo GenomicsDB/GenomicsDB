@@ -280,6 +280,9 @@ int VidMapper::parse_infofields_from_vidmap(
     m_field_idx_to_info[field_idx].set_info(field_name, field_idx);
     auto& ref = m_field_idx_to_info[field_idx];
 
+    if(vid_map_protobuf->fields(pb_field_idx).has_vcf_name())
+      ref.m_vcf_name = vid_map_protobuf->fields(pb_field_idx).vcf_name();
+
     // VCF class type can be an array of values: INFO, FORMAT and FILTER
     auto class_type_size =
       vid_map_protobuf->fields(pb_field_idx).vcf_field_class_size();

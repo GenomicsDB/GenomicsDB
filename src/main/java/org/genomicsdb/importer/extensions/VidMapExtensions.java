@@ -9,11 +9,37 @@ import org.genomicsdb.GenomicsDBUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.Map;
+import java.util.HashMap;
 
 import static com.googlecode.protobuf.format.JsonFormat.*;
 import static org.genomicsdb.GenomicsDBUtils.readEntireFile;
 
 public interface VidMapExtensions {
+
+    public static String[] vcfHeaderLineTypeString = new String[] {
+      "FILTER", "INFO", "FORMAT" };
+    public static int vcfHeaderLineFilterIdx = 0;
+    public static int vcfHeaderLineInfoIdx = 1;
+    public static int vcfHeaderLineFormatIdx = 2;
+
+    public class DuplicateFieldInfoTrackClass {
+      public String vcfType;
+      public String vcfLengthDescriptor;
+      public boolean isInitialized = false;
+      public int idxInGenomicsDBFieldInfoList;
+    }
+
+    public class DuplicateVcfFieldNamesCheckResult {
+	public boolean skipCreatingNewEntry = false;
+	public String fieldName;
+
+	public DuplicateVcfFieldNamesCheckResult(final boolean b, final String s) {
+	    skipCreatingNewEntry = b;
+	    fieldName = s;
+	}
+    }
+
     /**
      * Generate the ProtoBuf data structure for vid mapping
      * Also remember, contigs are 1-based which means
@@ -36,41 +62,65 @@ public interface VidMapExtensions {
         IDFieldBuilder.setName("ID").addType("char").addLength(lengthDescriptorComponentBuilder.build());
         infoFields.add(IDFieldBuilder.build());
 
-        int dpIndex = -1;
         long columnOffset = 0L;
+
+	Map<String, List<DuplicateFieldInfoTrackClass>> fieldNameToDuplicateCheckInfo =
+	    new HashMap<String,List<DuplicateFieldInfoTrackClass>>();
 
         for (VCFHeaderLine headerLine : mergedHeader) {
             GenomicsDBVidMapProto.GenomicsDBFieldInfo.Builder infoBuilder = GenomicsDBVidMapProto.GenomicsDBFieldInfo.newBuilder();
             if (headerLine instanceof VCFFormatHeaderLine) {
                 VCFFormatHeaderLine formatHeaderLine = (VCFFormatHeaderLine) headerLine;
+
+		final String formatFieldName = formatHeaderLine.getID();
                 boolean isGT = formatHeaderLine.getID().equals(VCFConstants.GENOTYPE_KEY);
                 String genomicsDBType = isGT ? "int" : formatHeaderLine.getType().toString();
                 String genomicsDBLength = isGT ? "PP" : (formatHeaderLine.getType() == VCFHeaderLineType.String)
-                        ? "VAR" : getVcfHeaderLength(formatHeaderLine);
+                        ? "var" : getVcfHeaderLength(formatHeaderLine);
                 lengthDescriptorComponentBuilder.setVariableLengthDescriptor(genomicsDBLength);
 
-                infoBuilder.setName(formatHeaderLine.getID())
+		final DuplicateVcfFieldNamesCheckResult dupCheck = checkForDuplicateVcfFieldNames(
+			formatFieldName,
+			vcfHeaderLineFormatIdx,
+			genomicsDBType, genomicsDBLength,
+			infoFields,
+			fieldNameToDuplicateCheckInfo
+			);
+		if(dupCheck.skipCreatingNewEntry)
+		    continue;
+
+                infoBuilder.setName(dupCheck.fieldName)
                         .addType(genomicsDBType)
                         .addLength(lengthDescriptorComponentBuilder.build());
+		if(!formatFieldName.equals(dupCheck.fieldName)) //field renamed due to collisions
+		    infoBuilder.setVcfName(formatFieldName);
 
-                if (formatHeaderLine.getID().equals("DP") && dpIndex != -1) {
-                    GenomicsDBVidMapProto.GenomicsDBFieldInfo prevDPField = removeInfoFields(infoFields, dpIndex);
-                    infoBuilder.addVcfFieldClass(prevDPField.getVcfFieldClass(0)).addVcfFieldClass("FORMAT");
-                } else {
-                    infoBuilder.addVcfFieldClass("FORMAT");
-                }
+		infoBuilder.addVcfFieldClass("FORMAT");
 
                 GenomicsDBVidMapProto.GenomicsDBFieldInfo formatField = infoBuilder.build();
                 infoFields.add(formatField);
-                if (formatHeaderLine.getID().equals("DP")) dpIndex = infoFields.indexOf(formatField);
             } else if (headerLine instanceof VCFInfoHeaderLine) {
                 VCFInfoHeaderLine infoHeaderLine = (VCFInfoHeaderLine) headerLine;
                 final String infoFieldName = infoHeaderLine.getID();
-                infoBuilder.setName(infoFieldName);
+		final String genomicsDBLength = infoHeaderLine.getType() == VCFHeaderLineType.String ?
+		    "var" : getVcfHeaderLength(infoHeaderLine);
+		final DuplicateVcfFieldNamesCheckResult dupCheck = checkForDuplicateVcfFieldNames(
+			infoFieldName,
+			vcfHeaderLineInfoIdx,
+			infoHeaderLine.getType().toString(),
+			genomicsDBLength,
+			infoFields,
+			fieldNameToDuplicateCheckInfo
+			);
+		if(dupCheck.skipCreatingNewEntry)
+		    continue;
+                infoBuilder.setName(dupCheck.fieldName);
+		if(!infoFieldName.equals(dupCheck.fieldName)) //field renamed due to collisions
+		    infoBuilder.setVcfName(infoFieldName);
                 //allele specific annotations
-                if (Constants.R_LENGTH_HISTOGRAM_FIELDS_FLOAT_BINS.contains(infoFieldName)
-                        || Constants.R_LENGTH_TWO_DIM_FLOAT_VECTOR_FIELDS.contains(infoFieldName)
-                        || Constants.R_LENGTH_TWO_DIM_INT_VECTOR_FIELDS.contains(infoFieldName)
+                if (Constants.R_LENGTH_HISTOGRAM_FIELDS_FLOAT_BINS.contains(dupCheck.fieldName)
+                        || Constants.R_LENGTH_TWO_DIM_FLOAT_VECTOR_FIELDS.contains(dupCheck.fieldName)
+                        || Constants.R_LENGTH_TWO_DIM_INT_VECTOR_FIELDS.contains(dupCheck.fieldName)
                         ) {
                     lengthDescriptorComponentBuilder.setVariableLengthDescriptor("R");
                     infoBuilder.addLength(lengthDescriptorComponentBuilder.build());
@@ -78,43 +128,46 @@ public interface VidMapExtensions {
                     infoBuilder.addLength(lengthDescriptorComponentBuilder.build());
                     infoBuilder.addVcfDelimiter("|");
                     infoBuilder.addVcfDelimiter(",");
-                    if (Constants.R_LENGTH_HISTOGRAM_FIELDS_FLOAT_BINS.contains(infoFieldName)) {
+                    if (Constants.R_LENGTH_HISTOGRAM_FIELDS_FLOAT_BINS.contains(dupCheck.fieldName)) {
                         //Each element of the vector is a tuple <float, int>
                         infoBuilder.addType("float");
                         infoBuilder.addType("int");
                         infoBuilder.setVCFFieldCombineOperation("histogram_sum");
                     } else {
                         infoBuilder.setVCFFieldCombineOperation("element_wise_sum");
-                        if (Constants.R_LENGTH_TWO_DIM_FLOAT_VECTOR_FIELDS.contains(infoFieldName)) {
+                        if (Constants.R_LENGTH_TWO_DIM_FLOAT_VECTOR_FIELDS.contains(dupCheck.fieldName)) {
                             infoBuilder.addType("float");
-                        } else if (Constants.R_LENGTH_TWO_DIM_INT_VECTOR_FIELDS.contains(infoFieldName)) {
+                        } else if (Constants.R_LENGTH_TWO_DIM_INT_VECTOR_FIELDS.contains(dupCheck.fieldName)) {
                             infoBuilder.addType("int");
                         }
                     }
                 } else {
-                    lengthDescriptorComponentBuilder.setVariableLengthDescriptor(
-                            infoHeaderLine.getType() == VCFHeaderLineType.String ? "var" : getVcfHeaderLength(infoHeaderLine));
-
+                    lengthDescriptorComponentBuilder.setVariableLengthDescriptor(genomicsDBLength);
                     infoBuilder.addType(infoHeaderLine.getType().toString())
                             .addLength(lengthDescriptorComponentBuilder.build());
                 }
-                if (infoHeaderLine.getID().equals("DP") && dpIndex != -1) {
-                    GenomicsDBVidMapProto.GenomicsDBFieldInfo prevDPield = removeInfoFields(infoFields, dpIndex);
-                    infoBuilder.addVcfFieldClass(prevDPield.getVcfFieldClass(0)).addVcfFieldClass("INFO");
-                } else {
-                    infoBuilder.addVcfFieldClass("INFO");
-                }
+		infoBuilder.addVcfFieldClass("INFO");
                 GenomicsDBVidMapProto.GenomicsDBFieldInfo infoField = infoBuilder.build();
                 infoFields.add(infoField);
-                if (infoHeaderLine.getID().equals("DP")) dpIndex = infoFields.indexOf(infoField);
             } else if (headerLine instanceof VCFFilterHeaderLine) {
                 VCFFilterHeaderLine filterHeaderLine = (VCFFilterHeaderLine) headerLine;
-                infoBuilder.setName(filterHeaderLine.getID());
-                if (!filterHeaderLine.getValue().isEmpty()) {
-                    infoBuilder.addType(filterHeaderLine.getValue());
-                } else {
-                    infoBuilder.addType("int");
-                }
+		final String filterFieldName = filterHeaderLine.getID();
+		final DuplicateVcfFieldNamesCheckResult dupCheck = checkForDuplicateVcfFieldNames(
+			filterFieldName,
+			vcfHeaderLineFilterIdx,
+			"Integer",
+			"1",
+			infoFields,
+			fieldNameToDuplicateCheckInfo
+			);
+		if(dupCheck.skipCreatingNewEntry)
+		    continue;
+                infoBuilder.setName(dupCheck.fieldName);
+		if(!filterFieldName.equals(dupCheck.fieldName)) //field renamed due to collisions
+		    infoBuilder.setVcfName(filterFieldName);
+		lengthDescriptorComponentBuilder.setVariableLengthDescriptor("1");
+		infoBuilder.addType("Integer")
+                            .addLength(lengthDescriptorComponentBuilder.build());
                 infoBuilder.addVcfFieldClass("FILTER");
                 GenomicsDBVidMapProto.GenomicsDBFieldInfo filterField = infoBuilder.build();
                 infoFields.add(filterField);
@@ -190,13 +243,6 @@ public interface VidMapExtensions {
         return length;
     }
 
-    default GenomicsDBVidMapProto.GenomicsDBFieldInfo removeInfoFields(List<GenomicsDBVidMapProto.GenomicsDBFieldInfo> infoFields,
-                                                             final int dpIndex) {
-        GenomicsDBVidMapProto.GenomicsDBFieldInfo dpFormatField = infoFields.get(dpIndex);
-        infoFields.remove(dpIndex);
-        return dpFormatField;
-    }
-
     /**
      * Generate the ProtoBuf data structure for vid mapping
      * from the existing vid file
@@ -215,4 +261,63 @@ public interface VidMapExtensions {
         return vidMapBuilder.build();
     }
 
+    public static DuplicateVcfFieldNamesCheckResult checkForDuplicateVcfFieldNames(final String vcfFieldName,
+	    final int vcfHeaderLineTypeIdx,
+	    final String vcfType, final String vcfLengthDescriptor,
+	    List<GenomicsDBVidMapProto.GenomicsDBFieldInfo> infoFields,
+	    Map<String, List<DuplicateFieldInfoTrackClass>> fieldNameToDuplicateCheckInfo
+	    ) {
+	List<DuplicateFieldInfoTrackClass> currList = null;
+	if(fieldNameToDuplicateCheckInfo.containsKey(vcfFieldName))
+	    currList = fieldNameToDuplicateCheckInfo.get(vcfFieldName);
+	else {
+	    //Why 3? VCF header can have FILTER/INFO/FORMAT fields of the same name
+	    List<DuplicateFieldInfoTrackClass> init = new ArrayList(3);
+	    for(int i=0;i<3;++i)
+		init.add(new DuplicateFieldInfoTrackClass());
+	    fieldNameToDuplicateCheckInfo.put(vcfFieldName, init);
+	    currList = init;
+	}
+	assert (currList.size() == 3);
+	DuplicateFieldInfoTrackClass currObj = currList.get(vcfHeaderLineTypeIdx);
+	if(currObj.isInitialized) {
+	    System.err.println("GenomicsDB: "+VidMapExtensions.class.getName()+
+		" VCF header has 2 lines with the same field name "+vcfFieldName
+		    +" and header line type <"+vcfHeaderLineTypeString[vcfHeaderLineTypeIdx]+">"
+		    +" -- only the first line is considered by GenomicsDB");
+	    return new DuplicateVcfFieldNamesCheckResult(true, null);
+	}
+	currObj.vcfType = vcfType;
+	currObj.vcfLengthDescriptor = vcfLengthDescriptor;
+	//Check if there are other lines of a different type (FILTER, INFO, FORMAT) with the same name
+	for(int i=0;i<3;++i) {
+	    DuplicateFieldInfoTrackClass otherObj = currList.get(i);
+	    if(otherObj.isInitialized) {
+		//Check if the other line is of same type and length
+		if(otherObj.vcfType.equals(currObj.vcfType) &&
+			otherObj.vcfLengthDescriptor.equals(currObj.vcfLengthDescriptor)) {
+		    //Simply update the PB object corresponding to the field
+		    GenomicsDBVidMapProto.GenomicsDBFieldInfo fieldInfo =
+			infoFields.get(otherObj.idxInGenomicsDBFieldInfoList);
+		    infoFields.set(otherObj.idxInGenomicsDBFieldInfoList,
+			    fieldInfo.toBuilder().
+			    addVcfFieldClass(vcfHeaderLineTypeString[vcfHeaderLineTypeIdx])
+			    .build());
+		    currObj.isInitialized = true;
+		    currObj.idxInGenomicsDBFieldInfoList = otherObj.idxInGenomicsDBFieldInfoList;
+		    return new DuplicateVcfFieldNamesCheckResult(true, null);
+		}
+		else { //this is a different type of field, rename
+		    currObj.isInitialized = true;
+		    currObj.idxInGenomicsDBFieldInfoList = infoFields.size();
+		    return new DuplicateVcfFieldNamesCheckResult(false, vcfFieldName+"_"
+			    +vcfHeaderLineTypeString[vcfHeaderLineTypeIdx]);
+		}
+	    }
+	}
+	currObj.isInitialized = true;
+	currObj.idxInGenomicsDBFieldInfoList = infoFields.size();
+	//Fields of the same name doesn't exist
+	return new DuplicateVcfFieldNamesCheckResult(false, vcfFieldName);
+    }
 }

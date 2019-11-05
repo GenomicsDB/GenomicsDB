@@ -155,7 +155,7 @@ void FieldLengthDescriptor::set_length_descriptor(const int length_dim_idx, cons
                                  || KnownFieldInfo::is_length_descriptor_ploidy_dependent(length_descriptor);
 }
 
-size_t FieldLengthDescriptor::get_num_elements(const unsigned num_ALT_alleles, const unsigned ploidy, const unsigned num_elements) {
+size_t FieldLengthDescriptor::get_num_elements(const unsigned num_ALT_alleles, const unsigned ploidy, const unsigned num_elements) const {
   assert(get_num_dimensions() == 1u);
   return KnownFieldInfo::get_num_elements_given_length_descriptor(get_length_descriptor(0u),
          num_ALT_alleles, ploidy, num_elements);
@@ -1236,6 +1236,11 @@ void FileBasedVidMapper::common_constructor_initialization(
         //Map
         m_field_name_to_idx[field_name] = field_idx;
         m_field_idx_to_info[field_idx].set_info(field_name, field_idx);
+	//Field renamed due to collision in the VCF header
+	if(field_info_dict.HasMember("vcf_name")) {
+	  VERIFY_OR_THROW(field_info_dict["vcf_name"].IsString());
+	  m_field_idx_to_info[field_idx].m_vcf_name = field_info_dict["vcf_name"].GetString();
+	}
         if (field_info_dict.HasMember("vcf_field_class")) {
           //Array which specifies whether field if INFO, FORMAT, FILTER etc
           const auto& vcf_field_class_array = field_info_dict["vcf_field_class"];

@@ -239,7 +239,7 @@ class FieldLengthDescriptor {
     assert(m_is_length_ploidy_dependent);
     return (get_length_descriptor(0u) == BCF_VL_Phased_Ploidy);
   }
-  size_t get_num_elements(const unsigned num_ALT_alleles, const unsigned ploidy, const unsigned num_elements);
+  size_t get_num_elements(const unsigned num_ALT_alleles, const unsigned ploidy, const unsigned num_elements) const;
   void set_vcf_delimiter(const size_t dim_idx, const char* vcf_delim) {
     assert(vcf_delim);
     assert(dim_idx < m_vcf_delimiter_vec.size());
