@@ -802,6 +802,7 @@ void BroadCombinedGVCFOperator::operate(Variant& variant, const VariantQueryConf
   //GATK combined GVCF does not care about QUAL value
   m_bcf_out->qual = get_bcf_missing_value<float>();
   if (BCF_INFO_GET_FIELD_INFO_PTR(m_vcf_qual_tuple)
+      && m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_QUAL_IDX)
       && (BCF_INFO_GET_VCF_FIELD_COMBINE_OPERATION(m_vcf_qual_tuple)
           != VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_UNKNOWN_OPERATION)) {
     unsigned num_result_elements = 1u;
