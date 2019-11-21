@@ -530,7 +530,7 @@ class VariantFieldHandlerBase {
 
 //Big bag handler functions useful for handling different types of fields (int, char etc)
 //Helps avoid writing a whole bunch of switch statements
-template<class DataType>
+template<class DataType, class CombineResultType=DataType>
 class VariantFieldHandler : public VariantFieldHandlerBase {
  public:
   VariantFieldHandler() : VariantFieldHandlerBase() {
@@ -639,12 +639,14 @@ class VariantFieldHandler : public VariantFieldHandlerBase {
   //Vector to hold extended vector to use in BCF format fields
   std::vector<DataType> m_extended_field_vector;
   //Datatype to hold sum
-  DataType m_sum;
+  CombineResultType m_sum;
   //Vector to hold data for element wise operations
-  std::vector<DataType> m_element_wise_operations_result;
+  std::vector<CombineResultType> m_element_wise_operations_result;
   //For 2D data - avoid dynamic reallocations
-  std::vector<std::vector<DataType>> m_2D_element_wise_operations_result;
-  std::string m_vcf_string_for_2D_vector; 
+  std::vector<std::vector<CombineResultType>> m_2D_element_wise_operations_result;
+  std::string m_vcf_string_for_2D_vector;
+  //Concatenation results - avoid dynamic reallocations
+  std::vector<DataType> m_concatenation_result;
   //Data structures for iterating over genotypes in the non-diploid and non-haploid
   //ploidy. Avoids dynamic memory re-allocation
   //Vector storing allele indexes for current genotype
@@ -680,24 +682,24 @@ class HistogramFieldHandlerBase {
     virtual std::string stringify_histogram(
 	const char delim1, const char delim2) const = 0;
 
-    template<class T1, class T2>
+    template<class T1, class T2, class CombineResultType=T2>
     static bool compute_valid_histogram_sum_2D_vector_and_stringify(const Variant& variant,
 	const VariantQueryConfig& query_config,
 	const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
-    template<class T1, class T2>
+    template<class T1, class T2, class CombineResultType=T2>
     static bool compute_valid_histogram_sum_2D_vector(
 	const std::unique_ptr<VariantFieldBase>& field_ptr_bin,
 	const std::unique_ptr<VariantFieldBase>& field_ptr_count,
 	const FieldInfo* vid_field_info_bin,
 	const FieldInfo* vid_field_info_count,
-	std::vector<std::map<T1, T2>>& histogram_map_vec);
-    template<class T1, class T2>
+	std::vector<std::map<T1, CombineResultType>>& histogram_map_vec);
+    template<class T1, class T2, class CombineResultType=T2>
     static std::string stringify_histogram(
-	const std::vector<std::map<T1, T2>>& histogram_map_vec,
+	const std::vector<std::map<T1, CombineResultType>>& histogram_map_vec,
 	const char delim1, const char delim2);
 };
 
-template<class DataType1, class DataType2>
+template<class DataType1, class DataType2, class CombineResultType=DataType2>
 class HistogramFieldHandler : public HistogramFieldHandlerBase {
   public:
     HistogramFieldHandler() : HistogramFieldHandlerBase() { }
@@ -716,7 +718,7 @@ class HistogramFieldHandler : public HistogramFieldHandlerBase {
     std::string stringify_histogram(
 	const char delim1, const char delim2) const;
   private:
-    std::vector<std::map<DataType1, DataType2>> m_histogram_map_vec;
+    std::vector<std::map<DataType1, CombineResultType>> m_histogram_map_vec;
     std::string m_vcf_string_for_histogram;
 };
 

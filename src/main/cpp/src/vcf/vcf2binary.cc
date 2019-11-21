@@ -445,19 +445,27 @@ bool VCF2Binary::convert_record_to_binary(std::vector<uint8_t>& buffer, File2Til
         assert(j < vcf_partition.m_vcf_get_buffer_vec[i].size());
         auto& curr_vcf_get_buffer_wrapper = vcf_partition.m_vcf_get_buffer_vec[i][j];
         const auto& field_name = (*m_vcf_fields)[field_type_idx][j];
+	const auto* field_info_ptr = m_vid_mapper->get_field_info(field_name);
+	assert(field_info_ptr);
         //FIXME: avoid strings
         if (field_type_idx == BCF_HL_INFO && field_name == "END")  //ignore END field
           continue;
         auto field_idx = bcf_hdr_id2int(hdr, BCF_DT_ID, field_name.c_str());
         //Should always pass - left in for safety
         VERIFY_OR_THROW(field_idx >= 0 && bcf_hdr_idinfo_exists(hdr, field_type_idx, field_idx));
-        auto field_ht_type = bcf_hdr_id2type(hdr, field_type_idx, field_idx);
+	//auto field_ht_type = bcf_hdr_id2type(hdr, field_type_idx, field_idx);
+        auto field_ht_type = field_info_ptr->get_vcf_type().get_tuple_element_bcf_ht_type(0u);
         //Because GT is encoded type string in VCF - total nonsense
         //FIXME: avoid strings
         field_ht_type = (field_type_idx == BCF_HL_FMT && field_name == "GT") ? BCF_HT_INT : field_ht_type;
         switch (field_ht_type) {
         case BCF_HT_INT:
           fetch_field_from_vcf_record<int>(curr_vcf_get_buffer_wrapper,
+                                           hdr, line,
+                                           field_name, field_type_idx, field_ht_type);
+          break;
+        case BCF_HT_INT64:
+          fetch_field_from_vcf_record<int64_t>(curr_vcf_get_buffer_wrapper,
                                            hdr, line,
                                            field_name, field_type_idx, field_ht_type);
           break;
@@ -1015,13 +1023,21 @@ bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer,
       auto field_idx = bcf_hdr_id2int(hdr, BCF_DT_ID, field_name.c_str());
       //Should always pass - left in for safety
       VERIFY_OR_THROW(field_idx >= 0 && bcf_hdr_idinfo_exists(hdr, field_type_idx, field_idx));
-      auto field_ht_type = bcf_hdr_id2type(hdr, field_type_idx, field_idx);
+      const auto field_info_ptr = m_vid_mapper->get_field_info(field_name);
+      assert(field_info_ptr);
+      //auto field_ht_type = bcf_hdr_id2type(hdr, field_type_idx, field_idx);
+      auto field_ht_type = field_info_ptr->get_vcf_type().get_tuple_element_bcf_ht_type(0u);
       //Because GT is encoded type string in VCF - total nonsense
       //FIXME: avoid strings
       field_ht_type = (field_type_idx == BCF_HL_FMT && field_name == "GT") ? BCF_HT_INT : field_ht_type;
       switch (field_ht_type) {
       case BCF_HT_INT:
         buffer_full = buffer_full || convert_field_to_tiledb<int>(buffer, vcf_partition, buffer_offset, buffer_offset_limit, local_callset_idx,
+                      field_name, field_type_idx, j);
+        if (buffer_full) return true;
+        break;
+      case BCF_HT_INT64:
+        buffer_full = buffer_full || convert_field_to_tiledb<int64_t>(buffer, vcf_partition, buffer_offset, buffer_offset_limit, local_callset_idx,
                       field_name, field_type_idx, j);
         if (buffer_full) return true;
         break;

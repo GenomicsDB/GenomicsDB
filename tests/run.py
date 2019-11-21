@@ -62,6 +62,7 @@ asa_vcf_attributes = [ "END", "REF", "ALT", "BaseQRankSum", "ClippingRankSum", "
 attributes_with_DS_ID = [ "REF", "ALT", "BaseQRankSum", "MQ", "RAW_MQ", "MQ0", "ClippingRankSum", "MQRankSum", "ReadPosRankSum", "DP", "GT", "GQ", "SB", "AD", "PL", "DP_FORMAT", "MIN_DP", "PID", "PGT", "DS", "ID" ];
 attributes_with_PL_only = [ "PL" ]
 attributes_with_MLEAC_only = [ "MLEAC" ]
+attributes_with_bigint = [ "big_field1", "big_field2", "AS_big_field3", "big_field4", "AS_big_field5", "DP", "GT" ]
 default_segment_size = 40
 
 def create_query_json(ws_dir, test_name, query_param_dict):
@@ -77,7 +78,7 @@ def create_query_json(ws_dir, test_name, query_param_dict):
     if("callset_mapping_file" in query_param_dict):
         test_dict["callset_mapping_file"] = query_param_dict["callset_mapping_file"];
     if("attributes" in query_param_dict):
-        test_dict["attributes"] = query_param_dict["attributes"];
+        test_dict["attributes"] = query_param_dict["attributes"]
     if('segment_size' in query_param_dict):
         test_dict['segment_size'] = query_param_dict['segment_size'];
     else:
@@ -180,7 +181,7 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
     with open(outfilename, "w") as out_fd:
         out_fd.write(outfile_string)
     bcf_cmd = bcftools_path+' view -Oz -o '+outfilename+'.gz '+outfilename+' && '+bcftools_path+' index -f -t '+outfilename+'.gz'
-    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE)
+    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     bcf_stdout = pid.communicate()[0]
     if(pid.returncode != 0):
         sys.stderr.write('Call to bcftools failed. Cmd: '+bcf_cmd+'\n')
@@ -190,7 +191,7 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
     with open(outfilename_golden, "w") as out_golden_fd:
         out_golden_fd.write(golden_string)
     bcf_cmd = bcftools_path+' view -Oz -o '+outfilename_golden+'.gz '+outfilename_golden+' && '+bcftools_path+' index -f -t '+outfilename_golden+'.gz'
-    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE)
+    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     bcf_stdout = pid.communicate()[0]
     if(pid.returncode != 0):
         sys.stderr.write('Call to bcftools failed. Cmd: '+bcf_cmd+'\n')
@@ -198,7 +199,7 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
         return True
 
     vcfdiff_cmd = exe_path+os.path.sep+'vcfdiff '+outfilename+'.gz '+outfilename_golden+'.gz'
-    pid = subprocess.Popen(vcfdiff_cmd, shell=True, stdout=subprocess.PIPE)
+    pid = subprocess.Popen(vcfdiff_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     vcfdiff_stdout = pid.communicate()[0]
     if(pid.returncode != 0):
         sys.stderr.write('vcfdiff cmd failed. Cmd: '+vcfdiff_cmd+'\n')
@@ -1306,6 +1307,26 @@ def main():
                         } },
                     ]
             },
+	    { "name" : "test_info_combine_bigint", 'golden_output' : 'golden_outputs/bigint.vcf',
+	      'callset_mapping_file': 'inputs/callsets/bigint.json',
+	      'vid_mapping_file': 'inputs/vid_bigint.json',
+	      'size_per_column_partition': 4096,
+	      "query_params": [
+		  {
+		    'attributes': attributes_with_bigint,
+		    "force_override": True,
+		    'segment_size': 4096,
+		    'pass_as_vcf': True,
+		    "query_column_ranges": [{
+		      "range_list": [{
+			  "low": 0,
+			  "high": 1000000000
+		      }]
+		  }], "golden_output": {
+		      "java_vcf"   : "golden_outputs/bigint_java.vcf",
+		      } },
+	       ],
+	  },
     ];
     if(len(sys.argv) < 5):
         loader_tests = loader_tests0 + loader_tests1
@@ -1436,6 +1457,8 @@ def main():
                                 misc_args += ('--chromosome '+query_contig_interval_dict['contig'] \
                                         + ' --begin %d --end %d')%(query_contig_interval_dict['begin'],
                                                 query_contig_interval_dict['end'])
+			    if('pass_as_vcf' in query_param_dict and query_param_dict['pass_as_vcf']):
+				misc_args += ' --pass_as_vcf '
                             query_command = 'java'+jacoco+' -ea TestGenomicsDB --query -l '+loader_argument+' '+query_json_filename \
                                 + ' ' + misc_args;
                             pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE);

@@ -216,13 +216,13 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
 	      ? 1 : 0;
 	    switch((is_bin_real << 1) | is_count_real) {
 	      case 0: //both int
-		ptr = new HistogramFieldHandler<int, int>();
+		ptr = new HistogramFieldHandler<int, int, int64_t>();
 		break;
 	      case 1: //int, float
 		ptr = new HistogramFieldHandler<int, float>();
 		break;
 	      case 2: //float, int
-		ptr = new HistogramFieldHandler<float, int>();
+		ptr = new HistogramFieldHandler<float, int, int64_t>();
 		break;
 	      case 3: //both float
 		ptr = new HistogramFieldHandler<float, float>();
@@ -563,18 +563,22 @@ void BroadCombinedGVCFOperator::handle_INFO_fields(const Variant& variant) {
   }
   for (auto i=0u; i<m_INFO_fields_vec.size(); ++i) {
     auto& curr_tuple = m_INFO_fields_vec[i];
-    //Just need a 4-byte value, the contents could be a float or int (determined by the templated median function)
-    int32_t result = -1;
+    //Just need a 8-byte value, the contents could be a float or int (determined by the templated median function)
+    int64_t result = 0;
     void* result_ptr = reinterpret_cast<void*>(&result);
     //For element wise operations
     auto num_result_elements = 1u;
     auto valid_result_found = handle_VCF_field_combine_operation(variant, curr_tuple, result_ptr, num_result_elements);
     if (valid_result_found) {
       auto bcf_ht_type = BCF_INFO_GET_BCF_HT_TYPE(curr_tuple);
+      auto combined_result_bcf_ht_type = (bcf_ht_type == BCF_HT_INT
+	  && BCF_INFO_GET_FIELD_INFO_PTR(curr_tuple)->is_VCF_field_combine_operation_sum()) ? BCF_HT_INT64
+	: bcf_ht_type;
       if (BCF_INFO_GET_FIELD_INFO_PTR(curr_tuple)->m_length_descriptor.get_num_dimensions() == 1u) {
-        bcf_update_info(m_vcf_hdr, m_bcf_out, BCF_INFO_GET_VCF_FIELD_NAME(curr_tuple).c_str(), result_ptr, num_result_elements,
-                        bcf_ht_type);
-        m_bcf_record_size += num_result_elements*VariantFieldTypeUtil::size(bcf_ht_type);
+        bcf_update_info(m_vcf_hdr, m_bcf_out, BCF_INFO_GET_VCF_FIELD_NAME(curr_tuple).c_str(),
+	    result_ptr, num_result_elements,
+	    combined_result_bcf_ht_type);
+        m_bcf_record_size += num_result_elements*VariantFieldTypeUtil::size(combined_result_bcf_ht_type);
       } else {
         auto stringified = std::move(m_field_handlers[bcf_ht_type]->stringify_2D_vector(*(BCF_INFO_GET_FIELD_INFO_PTR(curr_tuple))));
         bcf_update_info(m_vcf_hdr, m_bcf_out, BCF_INFO_GET_VCF_FIELD_NAME(curr_tuple).c_str(), stringified.c_str(), stringified.length(),
@@ -692,7 +696,7 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
   }
   //Update DP fields
   if (valid_DP_found || valid_DP_FORMAT_found) {
-    int sum_INFO_DP = 0;
+    int64_t sum_INFO_DP = 0;
     auto found_one_valid_DP_FORMAT = false;
     for (auto j=0ull; j<m_remapped_variant.get_num_calls(); ++j) {
       int dp_info_val = valid_DP_found ? int_vec[j] : get_bcf_missing_value<int>();
@@ -719,8 +723,8 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
     }
     //If at least one valid DP value found from (DP or DP_FORMAT or MIN_DP), add DP to INFO
     if (sum_INFO_DP > 0 && !m_is_reference_block_only) {
-      bcf_update_info_int32(m_vcf_hdr, m_bcf_out, "DP", &sum_INFO_DP, 1);
-      m_bcf_record_size += sizeof(int);
+      bcf_update_info(m_vcf_hdr, m_bcf_out, "DP", &sum_INFO_DP, 1, BCF_HT_INT64);
+      m_bcf_record_size += sizeof(int64_t);
     }
   }
 }
@@ -798,6 +802,7 @@ void BroadCombinedGVCFOperator::operate(Variant& variant, const VariantQueryConf
   //GATK combined GVCF does not care about QUAL value
   m_bcf_out->qual = get_bcf_missing_value<float>();
   if (BCF_INFO_GET_FIELD_INFO_PTR(m_vcf_qual_tuple)
+      && m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_QUAL_IDX)
       && (BCF_INFO_GET_VCF_FIELD_COMBINE_OPERATION(m_vcf_qual_tuple)
           != VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_UNKNOWN_OPERATION)) {
     unsigned num_result_elements = 1u;

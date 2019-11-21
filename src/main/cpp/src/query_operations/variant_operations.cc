@@ -397,10 +397,12 @@ GA4GHOperator::GA4GHOperator(const VariantQueryConfig& query_config,
     assert(m_field_handlers[bcf_ht_type].get() == 0);
     switch (bcf_ht_type) {
     case BCF_HT_INT:
-      m_field_handlers[bcf_ht_type] = std::move(std::unique_ptr<VariantFieldHandlerBase>(new VariantFieldHandler<int>()));
+      m_field_handlers[bcf_ht_type] = std::move(std::unique_ptr<VariantFieldHandlerBase>(
+	    new VariantFieldHandler<int, int64_t>()));
       break;
     case BCF_HT_UINT:
-      m_field_handlers[bcf_ht_type] = std::move(std::unique_ptr<VariantFieldHandlerBase>(new VariantFieldHandler<unsigned>()));
+      m_field_handlers[bcf_ht_type] = std::move(std::unique_ptr<VariantFieldHandlerBase>(
+	    new VariantFieldHandler<unsigned, uint64_t>()));
       break;
     case BCF_HT_INT64:
       m_field_handlers[bcf_ht_type] = std::move(std::unique_ptr<VariantFieldHandlerBase>(new VariantFieldHandler<int64_t>()));

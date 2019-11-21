@@ -36,14 +36,14 @@ void ReferenceGenomeInfo::initialize(const std::string& reference_genome) {
   m_buffer.resize(32768u+8);     //32KB
 }
 
-char ReferenceGenomeInfo::get_reference_base_at_position(const char* contig, int pos) {
+char ReferenceGenomeInfo::get_reference_base_at_position(const char* contig, const int64_t pos) {
   //See if pos is within the last buffer read
   if (strcmp(m_reference_last_seq_read.c_str(), contig) == 0 && m_reference_last_read_pos <= pos) {
     int offset = pos - m_reference_last_read_pos;
     if (offset < m_reference_num_bases_read)
       return m_buffer[offset];
   }
-  int length = 0;
+  hts_pos_t length = 0;
   faidx_fetch_seq_into_buffer(m_reference_faidx, contig, pos, pos+m_buffer.size()-8u, &(m_buffer[0]), &length);
   assert(length > 0);
   m_reference_last_seq_read = contig;
@@ -154,6 +154,7 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
             header_line += "Flag";
             break;
           case BCF_HT_INT:
+          case BCF_HT_INT64:
             header_line += "Integer";
             break;
           case BCF_HT_REAL:
@@ -224,7 +225,7 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
       //Check for compatible field types
       auto compatible_types = std::unordered_map<int, std::unordered_set<int>> {
         { BCF_HT_FLAG, { BCF_HT_FLAG } },
-        { BCF_HT_INT, { BCF_HT_INT } },
+        { BCF_HT_INT, { BCF_HT_INT, BCF_HT_INT64 } },
         { BCF_HT_REAL, { BCF_HT_REAL } },
         { BCF_HT_INT64, { BCF_HT_INT64 } },
         { BCF_HT_VOID, { BCF_HT_VOID } },
