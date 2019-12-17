@@ -8,7 +8,8 @@
 GenomicsDB, originally from [Intel Health and Lifesciences](https://github.com/Intel-HLS/GenomicsDB), is built on top of a fork of [htslib](https://github.com/samtools/htslib) and a tile-based array storage system for importing, querying and transforming variant data. Variant data is sparse by nature (sparse relative to the whole genome) and using sparse array data stores is a perfect fit for storing such data. GenomicsDB is highly performant data storage written in C++ for importing, querying and transforming variant data.
 * Supported platforms : Linux and MacOS.
 * Supported filesystems : Posix, HDFS, S3, GCS and Azure.
-Include are
+
+Included are
 * JVM/Spark wrappers that allow for streaming VariantContext buffers to/from the C++ layer among other functions. GenomicsDB jars included with native libraries and with only zlib dependencies are regularly published on [Maven Central](https://repo1.maven.org/maven2/org/genomicsdb/genomicsdb).
 * Native tools for incremental ingestion of variants in the form of VCF/BCF/CSV into GenomicsDB for performance.
 * MPI and Spark support for distributing query processes.
