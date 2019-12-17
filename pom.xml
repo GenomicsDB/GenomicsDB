@@ -195,7 +195,7 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.2</version>
+        <version>0.8.5</version>
         <executions>
           <!--
             Prepares the property pointing to the JaCoCo runtime agent which
@@ -338,6 +338,7 @@
         <configuration>
           <show>private</show>
           <nohelp>true</nohelp>
+          <source>8</source>
           <sourceFileExcludes>
             <exclude>**/Coordinates.java</exclude>
             <exclude>**/GenomicsDBVidMapProto.java</exclude>

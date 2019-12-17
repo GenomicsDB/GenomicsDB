@@ -24,6 +24,7 @@ matrix:
 
       - name: "Basic build OSX - 1"
         os: osx
+        osx_image: xcode9.3
         language: generic
         env: TOXENV=py34 INSTALL_TYPE=basic OSX_PHASE=1 PROTOBUF_VERSION=3.0.0-beta-1 PROTOBUF_HOME=$TRAVIS_BUILD_DIR/dependencies/protobuf
         cache:
@@ -31,6 +32,7 @@ matrix:
 
       - name: "Basic build OSX - 2"
         os: osx
+        osx_image: xcode9.3
         language: generic
         env: TOXENV=py34 INSTALL_TYPE=basic OSX_PHASE=2 PROTOBUF_VERSION=3.0.0-beta-1 PROTOBUF_HOME=$TRAVIS_BUILD_DIR/dependencies/protobuf
         cache:
@@ -65,7 +67,11 @@ install:
         mkdir -p $CACHE_DIR;
       fi
     # Install dependencies
-    - pip install -r requirements.txt
+    - if [[ $TRAVIS_OS_NAME == linux ]]; then
+        pip install -r requirements.txt;
+      elif [[ $TRAVIS_OS_NAME == osx ]]; then
+        pip install --user -r requirements.txt;
+      fi
     - sudo pip2 install jsondiff
     - if [[ $TRAVIS_OS_NAME == linux ]]; then
         sudo apt-get -y install lcov mpich zlib1g-dev libssl-dev rsync cmake uuid-dev libcurl4-openssl-dev;
@@ -118,7 +124,7 @@ before_script:
 
 script:
     #- pylint $TRAVIS_BUILD_DIR/docker/vcf_combiner/usr/bin/combine_vcf.py
-    - pytest $TRAVIS_BUILD_DIR/docker/vcf_combiner/usr/bin/combine_vcf.py
+    - python -m pytest $TRAVIS_BUILD_DIR/docker/vcf_combiner/usr/bin/combine_vcf.py
     - cd $GENOMICSDB_BUILD_DIR
     - if [[ $TRAVIS_OS_NAME == linux ]]; then
         cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True;

@@ -84,6 +84,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
      * @param featureCodecHeader htsjdk Feature codec header
      * @param codec              FeatureCodec, currently only {@link htsjdk.variant.bcf2.BCF2Codec}
      *                           and {@link htsjdk.variant.vcf.VCFCodec} are tested
+     * @throws IOException       when data cannot be read from the stream
      */
     GenomicsDBFeatureIterator(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB,
@@ -106,6 +107,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
      * @param chr                contig name
      * @param start              start position (1-based)
      * @param end                end position, inclusive (1-based)
+     * @throws IOException       when data cannot be read from the stream
      */
     GenomicsDBFeatureIterator(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB,
