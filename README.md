@@ -13,6 +13,7 @@ Included are
 * JVM/Spark wrappers that allow for streaming [VariantContext](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) buffers to/from the C++ layer among other functions. GenomicsDB jars included with native libraries and with only zlib dependencies are regularly published on [Maven Central](https://repo1.maven.org/maven2/org/genomicsdb/genomicsdb).
 * Native tools for incremental ingestion of variants in the form of VCF/BCF/CSV into GenomicsDB for performance.
 * MPI and Spark support for parallel querying of GenomicsDB.
+
 GenomicsDB is packaged into [gatk4](https://software.broadinstitute.org/gatk/documentation/article?id=11091) and benefits qualitatively from the advantages of a large user base.
 
 The GenomicsDB documentation for users is hosted as a Github wiki:
