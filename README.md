@@ -10,7 +10,7 @@ GenomicsDB, originally from [Intel Health and Lifesciences](https://github.com/I
 * Supported filesystems : Posix, HDFS, S3, GCS and Azure.
 
 Included are
-* JVM/Spark wrappers that allow for streaming VariantContext buffers to/from the C++ layer among other functions. GenomicsDB jars included with native libraries and with only zlib dependencies are regularly published on [Maven Central](https://repo1.maven.org/maven2/org/genomicsdb/genomicsdb).
+* JVM/Spark wrappers that allow for streaming [VariantContext](https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html) buffers to/from the C++ layer among other functions. GenomicsDB jars included with native libraries and with only zlib dependencies are regularly published on [Maven Central](https://repo1.maven.org/maven2/org/genomicsdb/genomicsdb).
 * Native tools for incremental ingestion of variants in the form of VCF/BCF/CSV into GenomicsDB for performance.
 * MPI and Spark support for distributing query processes.
 GenomicsDB is packaged into [gatk4](https://software.broadinstitute.org/gatk/documentation/article?id=11091) and benefits qualitatively from the advantages of a large user base.
