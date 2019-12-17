@@ -14,7 +14,7 @@ Included are
 * Native tools for incremental ingestion of variants in the form of VCF/BCF/CSV into GenomicsDB for performance.
 * MPI and Spark support for parallel querying of GenomicsDB.
 
-GenomicsDB is packaged into [gatk4](https://software.broadinstitute.org/gatk/documentation/article?id=11091) and benefits qualitatively from the advantages of a large user base.
+GenomicsDB is packaged into [gatk4](https://software.broadinstitute.org/gatk/documentation/article?id=11091) and benefits qualitatively from a large user base.
 
 The GenomicsDB documentation for users is hosted as a Github wiki:
 https://github.com/GenomicsDB/GenomicsDB/wiki
