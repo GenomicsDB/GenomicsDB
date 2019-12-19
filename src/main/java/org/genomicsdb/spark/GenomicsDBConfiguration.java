@@ -44,11 +44,9 @@ import java.lang.RuntimeException;
 
 /**
  * The configuration class enables users to use Java/Scala
- * to populate the input parameters of GenomicsDB. The first
- * version of the input format are JSON files. Through this
- * class, we provide a programmable interface. Note, that once
- * fully coded, this configuration object can be directly
- * passed from GATK4.0
+ * to populate the input parameters of GenomicsDB. 
+ * Input parameters can be passed in as json files or 
+ * base64 encoded protobuf byte data
  */
 public class GenomicsDBConfiguration extends Configuration implements Serializable {
 

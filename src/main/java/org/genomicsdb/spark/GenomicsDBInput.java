@@ -356,7 +356,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
    * Creates export configuration protobuf object 
    * based on partition, query and existing query file or protobuf
    *
-   * @param queryFileOrPB Existing query json file or protobuf 
+   * @param queryFileOrPB Existing query json file or base64 encoded protobuf byte data
    * @param partition used to populate array
    * @param queryList used to bound query column ranges
    * @param isPB boolean parameter that denotes if queryFileOrPB is protobuf
