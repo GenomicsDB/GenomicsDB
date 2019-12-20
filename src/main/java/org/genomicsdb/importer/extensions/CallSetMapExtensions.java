@@ -157,7 +157,6 @@ public interface CallSetMapExtensions {
      * @param validateSampleToReaderMap If True, check i) whether sample names are consistent
      *                                  with headers and ii) feature readers are valid
      *                                  in sampleToReaderMap
-     * @param useSamplesInOrderProvided use samples in order provided in the map
      * @return Mappings of callset (sample) names to TileDB rows
      */
     default GenomicsDBCallsetsMapProto.CallsetMappingPB generateSortedCallSetMap(

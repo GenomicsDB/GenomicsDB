@@ -213,7 +213,8 @@ public final class TestGenomicsDBDataSourceV2 {
       GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
       String jsonString = readFile(queryFile, Charset.defaultCharset());
       JsonFormat.merge(jsonString, builder);
-      String pbString = JsonFormat.printToString(builder.build());
+      byte[] pb = builder.build().toByteArray();
+      String pbString = Base64.getEncoder().encodeToString(pb);
 
       reader = reader.option("genomicsdb.input.queryprotobuf", pbString);
     } else {

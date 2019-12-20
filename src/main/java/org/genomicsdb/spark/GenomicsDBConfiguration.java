@@ -39,17 +39,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import java.util.Iterator;
+import java.util.Base64;
 import java.lang.RuntimeException;
-
-import com.googlecode.protobuf.format.JsonFormat;
 
 /**
  * The configuration class enables users to use Java/Scala
- * to populate the input parameters of GenomicsDB. The first
- * version of the input format are JSON files. Through this
- * class, we provide a programmable interface. Note, that once
- * fully coded, this configuration object can be directly
- * passed from GATK4.0
+ * to populate the input parameters of GenomicsDB. 
+ * Input parameters can be passed in as json files or 
+ * base64 encoded protobuf byte data
  */
 public class GenomicsDBConfiguration extends Configuration implements Serializable {
 
@@ -267,10 +264,11 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   }
 
   private void readColumnPartitionsPB(String pb) throws
-        com.googlecode.protobuf.format.JsonFormat.ParseException {
+        com.google.protobuf.InvalidProtocolBufferException {
     GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder = 
              GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
-    JsonFormat.merge(pb, importConfigurationBuilder);
+    byte[] pbDecoded = Base64.getDecoder().decode(pb);
+    importConfigurationBuilder.mergeFrom(pbDecoded);
     GenomicsDBImportConfiguration.ImportConfiguration loaderPB = importConfigurationBuilder.build();
 
     if (partitionInfoList==null) {
@@ -291,10 +289,11 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   }
 
   private void readQueryRangesPB(String pb) throws 
-        com.googlecode.protobuf.format.JsonFormat.ParseException {
+        com.google.protobuf.InvalidProtocolBufferException {
     GenomicsDBExportConfiguration.ExportConfiguration.Builder exportConfigurationBuilder = 
              GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
-    JsonFormat.merge(pb, exportConfigurationBuilder);
+    byte[] pbDecoded = Base64.getDecoder().decode(pb);
+    exportConfigurationBuilder.mergeFrom(pbDecoded);
     GenomicsDBExportConfiguration.ExportConfiguration queryPB = exportConfigurationBuilder.build();
 
     if (queryInfoList==null) {

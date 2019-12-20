@@ -58,6 +58,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * Constructor
      * @param loaderJSONFile GenomicsDB loader JSON configuration file
      * @param queryPB GenomicsDB query protobuf
+     * @throws IOException when data cannot be read from the stream
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB) throws IOException {
@@ -69,6 +70,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param loaderJSONFile GenomicsDB loader JSON configuration file
      * @param queryPB GenomicsDB query protobuf
      * @param readAsBCF serialize-deserialize VCF records as BCF2 records
+     * @throws IOException when data cannot be read from the stream
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final boolean readAsBCF) throws IOException {
@@ -81,6 +83,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param queryPB GenomicsDB query protobuf
      * @param readAsBCF serialize-deserialize VCF records as BCF2 records
      * @param produceHeaderOnly produce only the header
+     * @throws IOException when data cannot be read from the stream
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final boolean readAsBCF,
@@ -96,6 +99,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param chr contig name
      * @param start start position (1-based)
      * @param end end position, inclusive (1-based)
+     * @throws IOException when data cannot be read from the stream
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
@@ -111,6 +115,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param start start position (1-based)
      * @param end end position, inclusive (1-based)
      * @param readAsBCF serialize-deserialize VCF records as BCF2 records
+     * @throws IOException when data cannot be read from the stream
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
            final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
@@ -127,6 +132,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param start start position (1-based)
      * @param end end position, inclusive (1-based)
      * @param rank rank of this object if launched from within an MPI context (not used)
+     * @throws IOException when data cannot be read from the stream
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
@@ -145,6 +151,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param bufferCapacity size of buffer in bytes to be used by the native layer
      *                       to store combined BCF2 records
      * @param segmentSize buffer to be used for querying TileDB
+     * @throws IOException when data cannot be read from the stream
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
@@ -166,6 +173,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param segmentSize buffer to be used for querying TileDB
      * @param readAsBCF serialize-deserialize VCF records as BCF2 records
      * @param produceHeaderOnly produce VCF/BCF header only - no records (minor optimization)
+     * @throws IOException when data cannot be read from the stream
      */
     public GenomicsDBQueryStream(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
@@ -190,6 +198,7 @@ public class GenomicsDBQueryStream extends InputStream {
      * @param produceHeaderOnly produce VCF/BCF header only - no records (minor optimization)
      * @param useMissingValuesOnlyNotVectorEnd don't add BCF2.2 vector end values
      * @param keepIDXFieldsInHeader keep BCF IDX fields in header
+     * @throws IOException when data cannot be read from the stream
      */
     public GenomicsDBQueryStream(final String loaderJSONFile,
                                  final GenomicsDBExportConfiguration.ExportConfiguration queryPB, final String chr,
