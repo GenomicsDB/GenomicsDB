@@ -54,9 +54,9 @@ class GenomicsDBLiveCellMarker {
     m_row.resize(num_markers);
     m_begin.resize(num_markers);
     m_end.resize(num_markers);
-    for (auto i=0ull; i<num_markers; ++i) {
-      m_buffer_ptr_vec.emplace_back(num_fields, static_cast<GenomicsDBBuffer*>(0));
-      m_indexes.emplace_back(num_fields);
+    for (auto i=0ull; i<num_fields; ++i) {
+      m_buffer_ptr_vec.emplace_back(num_markers, static_cast<GenomicsDBBuffer*>(0));
+      m_indexes.emplace_back(num_markers);
     }
     reset();
   }
@@ -97,25 +97,28 @@ class GenomicsDBLiveCellMarker {
   }
   inline void set_field_marker(const size_t idx, const unsigned field_idx,
                                GenomicsDBBuffer* buffer_ptr, const size_t index) {
-    assert(idx < m_buffer_ptr_vec.size() && idx < m_indexes.size());
-    assert(field_idx < m_buffer_ptr_vec[idx].size() && field_idx < m_indexes[idx].size());
-    m_buffer_ptr_vec[idx][field_idx] = buffer_ptr;
-    m_indexes[idx][field_idx] = index;
+    assert(field_idx < m_buffer_ptr_vec.size() && field_idx < m_indexes.size());
+    assert(idx < m_buffer_ptr_vec[field_idx].size() && idx < m_indexes[field_idx].size());
+    m_buffer_ptr_vec[field_idx][idx] = buffer_ptr;
+    m_indexes[field_idx][idx] = index;
   }
   inline GenomicsDBBuffer* get_buffer_pointer(const size_t idx, const unsigned field_idx) {
     assert(m_initialized[idx] && m_valid[idx]);
-    assert(idx < m_buffer_ptr_vec.size() && field_idx < m_buffer_ptr_vec[idx].size());
-    return m_buffer_ptr_vec[idx][field_idx];
+    assert(field_idx < m_buffer_ptr_vec.size() && field_idx < m_indexes.size());
+    assert(idx < m_buffer_ptr_vec[field_idx].size() && idx < m_indexes[field_idx].size());
+    return m_buffer_ptr_vec[field_idx][idx];
   }
   inline const GenomicsDBBuffer* get_buffer_pointer(const size_t idx, const unsigned field_idx) const {
     assert(m_initialized[idx] && m_valid[idx]);
-    assert(idx < m_buffer_ptr_vec.size() && field_idx < m_buffer_ptr_vec[idx].size());
-    return m_buffer_ptr_vec[idx][field_idx];
+    assert(field_idx < m_buffer_ptr_vec.size() && field_idx < m_indexes.size());
+    assert(idx < m_buffer_ptr_vec[field_idx].size() && idx < m_indexes[field_idx].size());
+    return m_buffer_ptr_vec[field_idx][idx];
   }
   inline size_t get_index(const size_t idx, const unsigned field_idx) const {
     assert(m_initialized[idx] && m_valid[idx]);
-    assert(idx < m_indexes.size() && field_idx < m_indexes[idx].size());
-    return m_indexes[idx][field_idx];
+    assert(field_idx < m_buffer_ptr_vec.size() && field_idx < m_indexes.size());
+    assert(idx < m_buffer_ptr_vec[field_idx].size() && idx < m_indexes[field_idx].size());
+    return m_indexes[field_idx][idx];
   }
   inline bool column_major_compare_for_PQ(const size_t a, const size_t b) const {
     assert(a < m_row.size() && b < m_row.size());
@@ -131,8 +134,10 @@ class GenomicsDBLiveCellMarker {
   std::vector<int64_t> m_row;
   std::vector<int64_t> m_begin;
   std::vector<int64_t> m_end;
-  std::vector<std::vector<GenomicsDBBuffer*> > m_buffer_ptr_vec; //inner vector - 1 per field
-  std::vector<std::vector<size_t> >m_indexes; //inner vector 1 per field
+  //Outer vector - per field
+  //Inner vector - per sample/CallSet
+  std::vector<std::vector<GenomicsDBBuffer*> > m_buffer_ptr_vec;
+  std::vector<std::vector<size_t> >m_indexes;
 };
 
 class GenomicsDBLiveCellMarkerColumnMajorComparator {
