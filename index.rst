@@ -15,7 +15,7 @@ Supported platforms and filesystems:
 Included are
 -------------
 
-* JVM/Spark wrappers that allow for streaming VariantContext_ buffers to/from the C++ layer among other functions. GenomicsDB jars with native libraries and only zlib dependencies are regularly published on Maven_Central_.
+* JVM/Spark wrappers that allow for streaming VariantContext_ buffers to/from the C++ layer among other functions. GenomicsDB jars with native libraries and only zlib dependencies are regularly published on `Maven Central`_.
 * Native tools for incremental ingestion of variants in the form of VCF/BCF/CSV into GenomicsDB for performance.
 * MPI and Spark support for parallel querying of GenomicsDB.
 
@@ -32,4 +32,4 @@ the `guidelines <contrib/README.md>`__ to help with contributions.
 .. |License: MIT| image:: https://img.shields.io/badge/License-MIT-yellow.svg
    :target: https://opensource.org/licenses/MIT
 .. _VariantContext: https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html
-.. _Maven_Central: https://repo1.maven.org/maven2/org/genomicsdb/genomicsdb
+.. _Maven Central: https://repo1.maven.org/maven2/org/genomicsdb/genomicsdb
