@@ -32,4 +32,4 @@ the `guidelines <contrib/README.md>`__ to help with contributions.
 .. |License: MIT| image:: https://img.shields.io/badge/License-MIT-yellow.svg
    :target: https://opensource.org/licenses/MIT
 .. _VariantContext: https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html
-.. _Central: <https://repo1.maven.org/maven2/org/genomicsdb/genomicsdb>`
+.. _Central: https://repo1.maven.org/maven2/org/genomicsdb/genomicsdb
