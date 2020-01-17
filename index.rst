@@ -15,11 +15,13 @@ variant data.
 
 Supported platforms and filesystems: 
 -------------------------------------
-Linux and MacOS. 
-POSIX, HDFS, EMRFS(S3), GCS and Azure Blob.
+
+* Linux and MacOS. 
+* POSIX, HDFS, EMRFS(S3), GCS and Azure Blob.
 
 Included are
 -------------
+
 * JVM/Spark wrappers that allow for streaming
 `VariantContext <https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html>`
 buffers to/from the C++ layer among other functions. GenomicsDB jars
