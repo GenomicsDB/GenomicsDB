@@ -19,17 +19,27 @@ variant data. Variant data is sparse by nature (sparse relative to the
 whole genome) and using sparse array data stores is a perfect fit for
 storing such data. GenomicsDB is a highly performant scalable data
 storage written in C++ for importing, querying and transforming genomic
-variant data. \* Supported platforms : Linux and MacOS. \* Supported
-filesystems : POSIX, HDFS, EMRFS(S3), GCS and Azure Blob.
+variant data. 
 
-Included are \* JVM/Spark wrappers that allow for streaming
+Supported platforms : 
+======================
+Linux and MacOS. 
+
+Supported filesystems :
+========================
+POSIX, HDFS, EMRFS(S3), GCS and Azure Blob.
+
+Included are
+=============
+1. JVM/Spark wrappers that allow for streaming
 `VariantContext <https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html>`__
 buffers to/from the C++ layer among other functions. GenomicsDB jars
 with native libraries and only zlib dependencies are regularly published
 on `Maven
 Central <https://repo1.maven.org/maven2/org/genomicsdb/genomicsdb>`__.
-\* Native tools for incremental ingestion of variants in the form of
-VCF/BCF/CSV into GenomicsDB for performance. \* MPI and Spark support
+2. Native tools for incremental ingestion of variants in the form of
+VCF/BCF/CSV into GenomicsDB for performance.
+3. MPI and Spark support
 for parallel querying of GenomicsDB.
 
 GenomicsDB is packaged into
