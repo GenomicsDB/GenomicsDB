@@ -3,14 +3,7 @@ Documentation WORK-IN-PROGRESS
 
 |License: MIT|
 
-GenomicsDB, originally from `Intel Health and
-Lifesciences <https://github.com/Intel-HLS/GenomicsDB>`__, is built on
-top of a fork of `htslib <https://github.com/samtools/htslib>`__ and a
-tile-based array storage system for importing, querying and transforming
-variant data. Variant data is sparse by nature (sparse relative to the
-whole genome) and using sparse array data stores is a perfect fit for
-storing such data. GenomicsDB is a highly performant scalable data
-storage written in C++ for importing, querying and transforming genomic
+GenomicsDB is a highly performant scalable data storage written in C++ for importing, querying and transforming genomic
 variant data. 
 
 Supported platforms and filesystems: 
