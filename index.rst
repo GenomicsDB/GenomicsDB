@@ -20,17 +20,15 @@ POSIX, HDFS, EMRFS(S3), GCS and Azure Blob.
 
 Included are
 -------------
-1. JVM/Spark wrappers that allow for streaming
+* JVM/Spark wrappers that allow for streaming
 `VariantContext <https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html>`
 buffers to/from the C++ layer among other functions. GenomicsDB jars
 with native libraries and only zlib dependencies are regularly published
 on `Maven
 Central <https://repo1.maven.org/maven2/org/genomicsdb/genomicsdb>`.
-
-2. Native tools for incremental ingestion of variants in the form of
+* Native tools for incremental ingestion of variants in the form of
 VCF/BCF/CSV into GenomicsDB for performance.
-
-3. MPI and Spark support
+* MPI and Spark support
 for parallel querying of GenomicsDB.
 
 GenomicsDB is packaged into
