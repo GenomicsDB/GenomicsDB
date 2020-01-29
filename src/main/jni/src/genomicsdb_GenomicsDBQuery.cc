@@ -86,7 +86,7 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniInitialize(JNIEnv *env, jclass cls
 
     //org.genomicsdb.reader.GenomicDBQuery$VariantCall
     INIT(java_VariantCall_, static_cast<jclass>(env->NewGlobalRef(env->FindClass("org/genomicsdb/reader/GenomicsDBQuery$VariantCall"))));
-    INIT(java_VariantCall_init_, env->GetMethodID(java_VariantCall_, "<init>", "(ILjava/lang/String;JJLjava/util/Map;)V"));
+    INIT(java_VariantCall_init_, env->GetMethodID(java_VariantCall_, "<init>", "(JJLjava/lang/String;Ljava/lang/String;JJLjava/util/Map;)V"));
 
     //org.genomicsdb.reader.GenomicsDBQuery$Pair<L, R>
     INIT(java_Pair_, static_cast<jclass>(env->NewGlobalRef(env->FindClass("org/genomicsdb/reader/GenomicsDBQuery$Pair"))));
@@ -151,12 +151,17 @@ genomicsdb_ranges_t to_genomicsdb_ranges_vector(JNIEnv *env, jobject arrayList) 
   return result;
 }
 
-jobject to_java_map(JNIEnv *env, jobject obj, std::vector<genomic_field_t> genomic_fields) {
+jobject to_java_map(JNIEnv *env, jobject obj, std::vector<genomic_field_t> genomic_fields, const std::shared_ptr<std::map<std::string, genomic_field_type_t>> genomic_field_types) {
   jobject java_Map = env->NewObject(java_HashMap_, java_HashMap_init_);
   for (std::vector<genomic_field_t>::iterator it = genomic_fields.begin() ; it != genomic_fields.end(); ++it) {
     genomic_field_t field = *it;
-    jstring key = env->NewStringUTF(field.first.c_str());
-    jstring value = env->NewStringUTF(field.second.c_str());
+    jstring key = env->NewStringUTF(field.name.c_str());
+    if (genomic_field_types->find(field.name) == genomic_field_types->end()) {
+      throw GenomicsDBException("Genomic Field="+field.name+" does not seem to have an associated type");
+    }
+    // TODO: Return appropriate objects based on type
+    const genomic_field_type_t field_type =  genomic_field_types->at(field.name);
+    jstring value = env->NewStringUTF(field.to_string(field_type).c_str());
     env->CallObjectMethod(java_Map, java_HashMap_put_, key, value);
     env->DeleteLocalRef(key);
     env->DeleteLocalRef(value);
@@ -256,20 +261,28 @@ class VariantCallProcessor : public GenomicsDBVariantCallProcessor {
   jobject get_intervals_list() {
     return intervals_list_;
   }
-  void process(interval_t interval) {
+  void process(const interval_t& interval) {
     finalize_interval();
     current_calls_list_ =  env_->NewObject(java_Interval_, java_Interval_init_, (jlong)interval.first, (jlong)interval.second);
   }
-  void process(uint32_t row, genomic_interval_t interval, std::vector<genomic_field_t> fields) {
-    jstring java_contigName = env_->NewStringUTF(interval.contig_name.c_str());
-    jobject java_fields = to_java_map(env_, cls_, fields);
+  void process(const std::string& sample_name,
+               const int64_t* coordinates,
+               const genomic_interval_t& interval,
+               const std::vector<genomic_field_t>& fields) {
+    int64_t row = coordinates[0];
+    int64_t col = coordinates[1];
+    jstring java_sample_name = env_->NewStringUTF(sample_name.c_str());
+    jstring java_contig_name = env_->NewStringUTF(interval.contig_name.c_str());
+    jobject java_fields = to_java_map(env_, cls_, fields, get_genomic_field_types());
     jobject java_variant_call = env_->NewObject(java_VariantCall_, java_VariantCall_init_,
-                                                row,
-                                                java_contigName,
+                                                (jlong)row, (jlong)col,
+                                                java_sample_name,
+                                                java_contig_name,
                                                 (jlong)interval.interval.first,
                                                 (jlong)interval.interval.second,
                                                 java_fields);
-    env_->DeleteLocalRef(java_contigName);
+    env_->DeleteLocalRef(java_sample_name);
+    env_->DeleteLocalRef(java_contig_name);
     env_->DeleteLocalRef(java_fields);
     if (java_variant_call) {
       assert(current_calls_list_);

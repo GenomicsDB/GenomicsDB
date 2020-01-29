@@ -60,18 +60,28 @@ public class GenomicsDBQuery {
   }
 
   public static class VariantCall {
-    int row;
+    long rowIndex;
+    long colIndex;
+    String sampleName;
     String contigName;
     Pair genomic_interval;
     Map<String, Object> genomicFields;
-    public VariantCall(int row, String contigName, long start, long end, Map<String, Object> genomicFields) {
-      this.row = row;
+    public VariantCall(long rowIndex, long colIndex, String sampleName, String contigName, long start, long end, Map<String, Object> genomicFields) {
+      this.rowIndex = rowIndex;
+      this.colIndex = colIndex;
+      this.sampleName = sampleName;
       this.contigName = contigName;
       this.genomic_interval = new Pair(start, end);
       this.genomicFields = genomicFields;
     }
-    public int getRow() {
-      return row;
+    public long getRowIndex() {
+      return rowIndex;
+    }
+    public long getColIndex() {
+      return colIndex;
+    }
+    public String getSampleName() {
+      return sampleName;
     }
     public String getContigName() {
       return contigName;

@@ -125,12 +125,11 @@ public class GenomicsDBQueryTest {
 
   void checkVariantCall(VariantCall variantCall) {
     assert(variantCall != null);
-    assert(variantCall.getRow() >= 0 && variantCall.getRow() <=2);
+    assert(variantCall.getRowIndex() >= 0 && variantCall.getRowIndex() <=2);
     assert(!variantCall.getContigName().isEmpty());
     assert(variantCall.getGenomic_interval().getStart() > 0);
     assert(variantCall.getGenomic_interval().getEnd() > 0);
     assert(variantCall.getGenomicFields().size() > 1);
-
   }
 
   @Test
