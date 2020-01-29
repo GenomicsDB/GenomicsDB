@@ -486,11 +486,25 @@ std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, co
   auto index = 0u;
   for (const auto& field: get_fields(variant_or_variant_call)) {
     if (field && field->is_valid()) {
-      std::stringstream field_value_stream;
-      field->print(field_value_stream);
       std::string name = get_query_attribute_name(variant_or_variant_call, query_config, index);
+      void* ptr = const_cast<void *>(field->get_raw_pointer());
+      if (name.compare(ALT) == 0) {
+        void *p;
+        unsigned size;
+        bool allocated;
+        std::type_index type_idx= field->get_C_pointers(size, &p, allocated);
+        if (allocated) {
+          if (type_idx == std::type_index(typeid(int))) {
+            ptr = *(reinterpret_cast<int **>(p));
+          } else if (type_idx == std::type_index(typeid(float))) {
+            ptr = *(reinterpret_cast<float **>(p));
+          } else  if (type_idx == std::type_index(typeid(char))) {
+            ptr = *(reinterpret_cast<char **>(p));
+          }
+        }
+      }
       genomic_field_t field_vec(name,
-                                name.compare(ALT)?field->get_raw_pointer():((char *)field->get_raw_pointer())+1,
+                                ptr,
                                 field->length());
       fields.push_back(field_vec);
     }
