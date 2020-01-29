@@ -124,7 +124,7 @@ TEST_CASE("api query_variants direct", "[query_variants]") {
   delete gdb;
 }
 
-TEST_CASE("api query_variants with json", "[query_variants") {
+TEST_CASE("api query_variants with json", "[query_variants_json]") {
   GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
   check_query_variants_results(gdb, array, gdb->query_variants());
   delete gdb;
