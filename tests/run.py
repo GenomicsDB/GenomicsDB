@@ -1387,7 +1387,7 @@ def main():
                 import_cmd_incremental = 'java'+jacoco+' -ea TestGenomicsDBImporterWithMergedVCFHeader --size_per_column_partition 16384 ' \
                                                '--segment_size 10485760 --incremental '+str(count)+arg_list+file_list
         else:
-            import_cmd = exe_path+os.path.sep+'vcf2tiledb '+loader_json_filename
+            import_cmd = exe_path+os.path.sep+'vcf2genomicsdb '+loader_json_filename
         pid = subprocess.Popen(import_cmd, shell=True, stdout=subprocess.PIPE);
         stdout_string = pid.communicate()[0]
         if(pid.returncode != 0):
@@ -1464,7 +1464,7 @@ def main():
                             pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE);
                         else:
                             if(query_type == 'consolidate_and_vcf'):
-                                retcode = subprocess.call(exe_path+os.path.sep+'consolidate_tiledb_array '+ws_dir+' '+test_name,
+                                retcode = subprocess.call(exe_path+os.path.sep+'consolidate_genomicsdb_array '+ws_dir+' '+test_name,
                                         shell=True)
                                 if(retcode != 0):
                                     sys.stderr.write('TileDB array consolidation failed '+ws_dir+' '+test_name+'\n');

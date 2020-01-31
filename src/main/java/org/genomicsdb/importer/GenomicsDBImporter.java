@@ -67,7 +67,7 @@ import static org.genomicsdb.GenomicsDBUtils.writeToFile;
 import static org.genomicsdb.GenomicsDBUtils.getMaxValidRowIndex;
 
 /**
- * Java wrapper for vcf2tiledb - imports VCFs into TileDB/GenomicsDB.
+ * Java wrapper for vcf2genomicsdb - imports VCFs into GenomicsDB.
  * All vid information is assumed to be set correctly by the user (JSON files)
  */
 public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFileExtensions, CallSetMapExtensions,
