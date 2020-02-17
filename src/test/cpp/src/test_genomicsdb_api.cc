@@ -264,3 +264,20 @@ TEST_CASE("api query_variant_calls with json", "[query_variant_calls_with_json]"
 
   CHECK_THROWS_AS(new GenomicsDB(query_json, loader_json, 1), GenomicsDBConfigException);
 }
+
+TEST_CASE("api generate_vcf direct", "[query_generate_vcf_direct]") {
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+
+  gdb->generate_vcf(array, {{0,1000000000}}, {{0,3}}, "1.vcf.gz", "z", true);
+  gdb->generate_vcf(array, {{0,13000}, {13000, 1000000000}}, {{0,3}}, "3.vcf.gz", "z", true);
+
+  delete gdb;
+}
+
+TEST_CASE("api generate_vcf with json", "[query_generate_with_json]") {
+  GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
+
+  gdb->generate_vcf("2.vcf.gz", "z", true);
+
+  delete gdb;
+}

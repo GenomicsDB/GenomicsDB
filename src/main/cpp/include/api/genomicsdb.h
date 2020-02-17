@@ -70,7 +70,6 @@ typedef struct genomic_interval_t {
 } genomic_interval_t;
 
 typedef struct genomic_field_type_t {
-  std::string name;
   std::type_index type_idx = std::type_index(typeid(char));
   bool is_fixed_num_elements = true;
   size_t num_elements;
@@ -335,6 +334,17 @@ class GenomicsDB {
    */
   GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls(GenomicsDBVariantCallProcessor& processor);
 
+  GENOMICSDB_EXPORT void generate_vcf(const std::string& array,
+                                 genomicsdb_ranges_t column_ranges,
+                                 genomicsdb_ranges_t row_ranges,
+                                 const std::string& output = "",
+                                 const std::string& output_format = "",
+                                 bool overwrite = false);
+
+  GENOMICSDB_EXPORT void generate_vcf(const std::string& output = "",
+                                      const std::string& output_format = "",
+                                      bool overwrite = false);
+
   /**
    * Utility template functions to extract information from Variant and VariantCall classes
    */
@@ -352,8 +362,16 @@ class GenomicsDB {
   GENOMICSDB_EXPORT int64_t get_row(const genomicsdb_variant_call_t* variant_call);
   
  private:
-  std::vector<Variant>*  query_variants(const std::string& array, VariantQueryConfig *query_config);
-  std::vector<VariantCall>* query_variant_calls(const std::string& array, VariantQueryConfig *query_config, GenomicsDBVariantCallProcessor& processor);
+  std::vector<Variant>*  query_variants(const std::string& array,
+                                        VariantQueryConfig *query_config);
+  std::vector<VariantCall>* query_variant_calls(const std::string& array,
+                                                VariantQueryConfig *query_config,
+                                                GenomicsDBVariantCallProcessor& processor);
+  void generate_vcf(const std::string& array,
+                    VariantQueryConfig* query_config,
+                    const std::string& output,
+                    const std::string& output_format,
+                    bool overwrite);
 
   VariantQueryConfig* get_query_config_for(const std::string& array);
 

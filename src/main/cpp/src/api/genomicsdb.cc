@@ -34,11 +34,14 @@
 
 #include <iostream>
 #include <string>
+
+#include "broad_combined_gvcf.h"
 #include "query_variants.h"
 #include "timer.h"
 #include "variant_field_data.h"
 #include "variant_operations.h"
 #include "variant_query_config.h"
+#include "vcf_adapter.h"
 #include "vid_mapper_pb.h"
 
 #define TO_VARIANT_QUERY_CONFIG(X) (reinterpret_cast<VariantQueryConfig *>(static_cast<void *>(X)))
@@ -178,6 +181,7 @@ std::map<std::string, genomic_field_type_t> create_genomic_field_types(const Var
 GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
                                                genomicsdb_ranges_t column_ranges,
                                                genomicsdb_ranges_t row_ranges) {
+  
   // Create Variant Config for given concurrency_rank
   VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   VariantQueryConfig query_config(*base_query_config);
@@ -413,6 +417,65 @@ std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& arr
 #endif
 
   return pvariant_calls;
+}
+
+void GenomicsDB::generate_vcf(const std::string& array,
+                              genomicsdb_ranges_t column_ranges,
+                              genomicsdb_ranges_t row_ranges,
+                              const std::string& output,
+                              const std::string& output_format,
+                              bool overwrite) {
+  // Create Variant Config for given concurrency_rank
+  VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
+  VariantQueryConfig query_config(*base_query_config);
+  query_config.set_array_name(array);
+  if (column_ranges.size() > 0) {
+    query_config.set_query_column_ranges(column_ranges);
+  }
+  if (row_ranges.size() > 0) {
+    query_config.set_query_row_ranges(row_ranges);
+  }
+
+  query_config.validate();
+
+  generate_vcf(array, &query_config, output, output_format, overwrite); 
+}
+
+void GenomicsDB::generate_vcf(const std::string& output, const std::string& output_format, bool overwrite) {
+  VariantQueryConfig* query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
+  const std::string& array = query_config->get_array_name(m_concurrency_rank);
+  generate_vcf(array, query_config, output, output_format, overwrite);
+
+}
+
+void GenomicsDB::generate_vcf(const std::string& array, VariantQueryConfig* query_config, const std::string& output, const std::string& output_format, bool overwrite) {
+  if (output.length()) {
+    query_config->set_vcf_output_filename(output);
+  }
+  if (output_format.length()) {
+    query_config->set_vcf_output_format(output_format);
+  }
+  query_config->set_index_output_VCF(true);
+  // TODO: If file exists and overwrite set, delete file otherwise throw exception
+
+  // Get a Variant Query Processor
+  VariantQueryProcessor *query_processor = new VariantQueryProcessor(
+      TO_VARIANT_STORAGE_MANAGER(m_storage_manager), array, query_config->get_vid_mapper());
+  query_processor->do_query_bookkeeping(query_processor->get_array_schema(),
+                                        *query_config, query_config->get_vid_mapper(), true);
+
+  // Get a VCF Adapter
+  VCFAdapter vcf_adapter;
+  vcf_adapter.initialize(*query_config);
+  auto *gvcf_operator = new BroadCombinedGVCFOperator(vcf_adapter, query_config->get_vid_mapper(), *query_config);
+
+  for (auto i=0u; i<query_config->get_num_column_intervals(); i++) {
+    query_processor->scan_and_operate(query_processor->get_array_descriptor(),
+                                      *query_config, *gvcf_operator, i, true);
+  }
+
+  delete gvcf_operator;
+  delete query_processor;
 }
 
 // Template to get the mapped interval from the GenomicsDB array for the Variant(Call)

@@ -135,6 +135,14 @@ public class GenomicsDBQuery {
     return jniConnect(workspace, vidMappingFile, callsetMappingFile, referenceGenome, attributes, segmentSize);
   }
 
+  public long connect(final String queryJSONFile) {
+    return connect(queryJSONFile, "");
+  }
+
+  public long connect(final String queryJSONFile, final String loaderJSONFile) {
+    return jniConnect(queryJSONFile, loaderJSONFile);
+  }
+
   public void disconnect(long handle) {
     jniDisconnect(handle);
   }
@@ -157,6 +165,8 @@ public class GenomicsDBQuery {
     return jniQueryVariantCalls(handle, arrayName, columnRanges, rowRanges);
   }
 
+
+
   // Native Bindings
   private static native void jniInitialize();
 
@@ -168,6 +178,9 @@ public class GenomicsDBQuery {
                                  final String referenceGenome,
                                  final List<String> attributes,
                                  final long segmentSize) throws GenomicsDBException;
+
+  private static native long jniConnect(final String queryJSONFile,
+                                        final String loaderJSONFile);
 
   private static native void jniDisconnect(long handle);
 

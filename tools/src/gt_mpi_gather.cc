@@ -574,8 +574,9 @@ int main(int argc, char *argv[]) {
     //Command line overrides
     if (page_size > 0u)
       query_config.set_combined_vcf_records_buffer_size_limit(page_size);
-    if (command_idx == COMMAND_PRODUCE_BROAD_GVCF)
+    if (command_idx == COMMAND_PRODUCE_BROAD_GVCF) {
       query_config.set_vcf_output_format(output_format);
+    }
     vcf_adapter.initialize(query_config);
     workspace = query_config.get_workspace(my_world_mpi_rank);
     array_name = query_config.get_array_name(my_world_mpi_rank);
