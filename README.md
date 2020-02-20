@@ -1,4 +1,5 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Maven Central](https://img.shields.io/maven-central/v/org.genomicsdb/genomicsdb.svg)](https://mvnrepository.com/artifact/org.genomicsdb)
 
 | Master | Develop |
 | --- | --- |
