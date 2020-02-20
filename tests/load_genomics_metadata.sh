@@ -24,15 +24,15 @@
 
 # -----------------------------------------------------------------------------
 
-create_load_tiledb_cfg() {
-    outfile="${INITDIR}/load_to_tiledb.cfg"
+create_load_genomicsdb_cfg() {
+    outfile="${INITDIR}/load_to_genomicsdb.cfg"
     rm ${outfile}
     touch ${outfile}
     if [ 0 ]
     then
         echo "[loader]"
         echo "num_processes = 1"
-        echo "executable = ${GDBDIR}/bin/vcf2tiledb"
+        echo "executable = ${GDBDIR}/bin/vcf2genomicsdb"
         echo "tile_loader_json = ${INITDIR}/tile_loader.json"
     fi >> ${outfile}
 }
@@ -42,7 +42,7 @@ create_load_tiledb_cfg() {
 create_work_space() {
     rm -rf "${INITDIR}"
     cp -r ${OLD_INITDIR} ${INITDIR}
-    create_tiledb_workspace "${INITDIR}/workspace"
+    create_genomicsdb_workspace "${INITDIR}/workspace"
     mkdir -p "${INITDIR}/outputs"
     (
         cd ${INITDIR}/inputs/vcfs
@@ -177,7 +177,7 @@ then
     fi
 
     create_work_space
-    create_load_tiledb_cfg
+    create_load_genomicsdb_cfg
     create_vcf_import_cfg
 fi
 
