@@ -32,6 +32,7 @@
 
 #include <iostream>
 #include <string>
+#include <thread>
 #include <utility>
 
 TEST_CASE("api get_version", "[get_version]") {
@@ -265,6 +266,23 @@ TEST_CASE("api query_variant_calls with json", "[query_variant_calls_with_json]"
   CHECK_THROWS_AS(new GenomicsDB(query_json, loader_json, 1), GenomicsDBConfigException);
 }
 
+TEST_CASE("api query_variant_calls parallel", "[query_variant_calls_parallel]") {
+  GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
+  gdb->query_variant_calls();
+
+  OneQueryIntervalProcessor one_query_interval_processor;
+  gdb->query_variant_calls(one_query_interval_processor);
+  delete gdb;
+
+  OneQueryIntervalProcessor another_query_interval_processor;
+  gdb = new GenomicsDB(query_json, loader_json, 0);
+  gdb->query_variant_calls(another_query_interval_processor);
+  delete gdb;
+
+  CHECK_THROWS_AS(new GenomicsDB(query_json, loader_json, 1), GenomicsDBConfigException);
+}
+
+// TODO: Use TileDBUtils to create a temp dir and temp file to check the files out...
 TEST_CASE("api generate_vcf direct", "[query_generate_vcf_direct]") {
   GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
 
@@ -277,7 +295,29 @@ TEST_CASE("api generate_vcf direct", "[query_generate_vcf_direct]") {
 TEST_CASE("api generate_vcf with json", "[query_generate_with_json]") {
   GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
 
-  gdb->generate_vcf("2.vcf.gz", "z", true);
-
+  gdb->generate_vcf("1111.vcf", "z", true);
   delete gdb;
+}
+
+
+TEST_CASE("api generate_vcf with json multiple threads", "[query_generate_with_json_multiple_threads]") {
+   // Define a lambda expression
+  auto test_genomicsdb_fn = [](int i) {
+    GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
+    gdb->generate_vcf(std::to_string(i)+".vcf.gz", "z", true);
+    delete gdb;
+  };
+
+  int num_threads = 8;
+  std::vector<std::thread> threads;
+  for (auto i=0; i<num_threads; i++) {
+    std::thread thread_object(test_genomicsdb_fn, i);
+    threads.push_back(std::move(thread_object));
+  }
+
+  CHECK(num_threads == threads.size());
+
+  for (auto i=0; i<num_threads; i++) {
+    threads[i].join();
+  }
 }

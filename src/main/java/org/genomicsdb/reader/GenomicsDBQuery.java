@@ -135,12 +135,12 @@ public class GenomicsDBQuery {
     return jniConnect(workspace, vidMappingFile, callsetMappingFile, referenceGenome, attributes, segmentSize);
   }
 
-  public long connect(final String queryJSONFile) {
-    return connect(queryJSONFile, "");
+  public long connectJSON(final String queryJSONFile) {
+    return connectJSON(queryJSONFile, "");
   }
 
-  public long connect(final String queryJSONFile, final String loaderJSONFile) {
-    return jniConnect(queryJSONFile, loaderJSONFile);
+  public long connectJSON(final String queryJSONFile, final String loaderJSONFile) {
+    return jniConnectJSON(queryJSONFile, loaderJSONFile);
   }
 
   public void disconnect(long handle) {
@@ -149,13 +149,13 @@ public class GenomicsDBQuery {
 
   public List<Interval> queryVariantCalls(long handle,
                                           final String arrayName) {
-    return jniQueryVariantCalls(handle, arrayName, new ArrayList<>(), new ArrayList<>());
+    return jniQueryVariantCalls(handle, arrayName, Collections.EMPTY_LIST, Collections.EMPTY_LIST);
   }
 
   public List<Interval> queryVariantCalls(long handle,
                                           final String arrayName,
                                           final List<Pair> columnRanges) {
-    return jniQueryVariantCalls(handle, arrayName, columnRanges, new ArrayList<>());
+    return jniQueryVariantCalls(handle, arrayName, columnRanges, Collections.EMPTY_LIST);
   }
 
   public List<Interval> queryVariantCalls(long handle,
@@ -165,7 +165,37 @@ public class GenomicsDBQuery {
     return jniQueryVariantCalls(handle, arrayName, columnRanges, rowRanges);
   }
 
+  public void generateVCF(long handle,
+                          final String arrayName,
+                          final List<Pair> columnRanges,
+                          final List<Pair> rowRanges,
+                          final String outputFilename,
+                          final String outputFormat) {
+    jniGenerateVCF(handle, arrayName, columnRanges, rowRanges, outputFilename, outputFormat, false);
+  }
 
+  public void generateVCF(long handle,
+                          final String arrayName,
+                          final List<Pair> columnRanges,
+                          final List<Pair> rowRanges,
+                          final String outputFilename,
+                          final String outputFormat,
+                          final boolean overwrite) {
+    jniGenerateVCF(handle, arrayName, columnRanges, rowRanges, outputFilename, outputFormat, overwrite);
+  }
+
+  public void generateVCF(long handle,
+                          final String outputFilename,
+                          final String outputFormat) {
+    jniGenerateVCF1(handle, outputFilename, outputFormat, false);
+  }
+
+  public void generateVCF(long handle,
+                          final String outputFilename,
+                          final String outputFormat,
+                          final boolean overwrite) {
+    jniGenerateVCF1(handle, outputFilename, outputFormat, overwrite);
+  }
 
   // Native Bindings
   private static native void jniInitialize();
@@ -179,8 +209,8 @@ public class GenomicsDBQuery {
                                  final List<String> attributes,
                                  final long segmentSize) throws GenomicsDBException;
 
-  private static native long jniConnect(final String queryJSONFile,
-                                        final String loaderJSONFile);
+  private static native long jniConnectJSON(final String queryJSONFile,
+                                            final String loaderJSONFile);
 
   private static native void jniDisconnect(long handle);
 
@@ -188,5 +218,18 @@ public class GenomicsDBQuery {
                                                             final String arrayName,
                                                             final List<Pair> columnRanges,
                                                             final List<Pair> rowRanges);
+
+  private static native void jniGenerateVCF(long handle,
+                                            final String arrayName,
+                                            final List<Pair> columnRanges,
+                                            final List<Pair> rowRanges,
+                                            final String outputFilename,
+                                            final String outputFormat,
+                                            final boolean overwrite);
+
+  private static native void jniGenerateVCF1(long handle,
+                                            final String outputFilename,
+                                            final String outputFormat,
+                                            final boolean overwrite);
 
 }

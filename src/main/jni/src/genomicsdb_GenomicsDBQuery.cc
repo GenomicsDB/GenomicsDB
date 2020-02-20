@@ -241,6 +241,31 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnect(JNIEnv *env,
   return static_cast<jlong>(reinterpret_cast<uintptr_t>(genomicsdb));
 }
 
+
+JNIEXPORT jlong JNICALL
+Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnectJSON(JNIEnv *env,
+                                                      jclass cls,
+                                                      jstring query_json_file,
+                                                      jstring loader_json_file) {
+  // Convert
+  auto query_json_file_cstr = env->GetStringUTFChars(query_json_file, NULL);
+  auto loader_json_file_cstr = env->GetStringUTFChars(loader_json_file, NULL);
+
+  GenomicsDB *genomicsdb = NULL;
+  try {
+    genomicsdb =  new GenomicsDB(query_json_file_cstr,
+                                 loader_json_file_cstr);
+  } catch (GenomicsDBException& e) {
+    handleJNIException(env, e);
+  }
+  
+  // Cleanup
+  env->ReleaseStringUTFChars(query_json_file, query_json_file_cstr);
+  env->ReleaseStringUTFChars(loader_json_file, loader_json_file_cstr);
+
+  return static_cast<jlong>(reinterpret_cast<uintptr_t>(genomicsdb));
+}
+
 JNIEXPORT void JNICALL
 Java_org_genomicsdb_reader_GenomicsDBQuery_jniDisconnect(JNIEnv *env,
                                                          jclass cls,
@@ -331,3 +356,49 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniQueryVariantCalls(JNIEnv *env,
   env->ReleaseStringUTFChars(array_name, array_name_cstr);
   return processor.get_intervals_list();
 }
+
+JNIEXPORT void JNICALL
+Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF(JNIEnv *env,
+                                                          jclass cls,
+                                                          jlong handle,
+                                                          jstring array_name,
+                                                          jobject column_ranges,
+                                                          jobject row_ranges,
+                                                          jstring output,
+                                                          jstring output_format,
+                                                          jboolean overwrite) {
+  // Convert
+  GenomicsDB *genomicsdb = reinterpret_cast<GenomicsDB *>(static_cast<uintptr_t>(handle));
+  auto array_name_cstr = env->GetStringUTFChars(array_name, NULL);
+  auto output_cstr =  env->GetStringUTFChars(output, NULL);
+  auto output_format_cstr = env->GetStringUTFChars(output_format, NULL);
+
+  genomicsdb->generate_vcf(array_name_cstr,
+                           to_genomicsdb_ranges_vector(env, column_ranges),
+                           to_genomicsdb_ranges_vector(env, row_ranges),
+                           output_cstr, output_format_cstr, overwrite);
+
+  // Cleanup
+  env->ReleaseStringUTFChars(array_name, array_name_cstr);
+  env->ReleaseStringUTFChars(output_format, output_format_cstr);
+  env->ReleaseStringUTFChars(output, output_cstr);
+}
+
+JNIEXPORT void JNICALL
+Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF1(JNIEnv *env,
+                                                          jclass cls,
+                                                          jlong handle,
+                                                          jstring output,
+                                                          jstring output_format,
+                                                          jboolean overwrite) {
+  // Convert
+  GenomicsDB *genomicsdb = reinterpret_cast<GenomicsDB *>(static_cast<uintptr_t>(handle));
+  auto output_cstr =  env->GetStringUTFChars(output, NULL);
+  auto output_format_cstr = env->GetStringUTFChars(output_format, NULL);
+
+  genomicsdb->generate_vcf(output_cstr, output_format_cstr, overwrite);
+
+  // Cleanup
+  env->ReleaseStringUTFChars(output_format, output_format_cstr);
+  env->ReleaseStringUTFChars(output, output_cstr);
+ }
