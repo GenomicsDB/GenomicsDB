@@ -66,10 +66,9 @@ set_property(TARGET GenomicsDB_library_object_files PROPERTY POSITION_INDEPENDEN
 if(NOT BUILD_DISTRIBUTABLE_LIBRARY)
   #Create static library only for local usage
   add_library(genomicsdb STATIC $<TARGET_OBJECTS:GenomicsDB_library_object_files>)
-else()
-  #Link in other libraries
-  add_library(tiledbgenomicsdb SHARED $<TARGET_OBJECTS:GenomicsDB_library_object_files>)
 endif()
+#Link in other libraries
+add_library(tiledbgenomicsdb SHARED $<TARGET_OBJECTS:GenomicsDB_library_object_files>)
 if(TILEDB_SOURCE_DIR)
     target_link_libraries(tiledbgenomicsdb tiledb_static)
 else()
