@@ -49,10 +49,13 @@ function(target_link_libraries_for_GenomicsDB_tests target)
    endif()
 endfunction()
 
-add_executable(ctests ${CPP_TEST_SOURCES})
-target_link_libraries_for_GenomicsDB_tests(ctests)
-target_compile_definitions(ctests PRIVATE -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/")
-add_test(ctests ctests -d yes)
+# Cannot run ctests when linked with distributable libraries
+if(NOT BUILD_DISTRIBUTABLE_LIBRARY)
+  add_executable(ctests ${CPP_TEST_SOURCES})
+  target_link_libraries_for_GenomicsDB_tests(ctests)
+  target_compile_definitions(ctests PRIVATE -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/")
+  add_test(ctests ctests -d yes)
+endif()
 
 add_executable(api_tests
   src/ctest_main.cc
@@ -66,4 +69,8 @@ add_custom_command(TARGET api_tests
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../inputs/test.tgz)
 
-add_custom_target(all_ctests COMMAND ${CMAKE_CTEST_COMMAND} -V DEPENDS ctests api_tests)
+if(BUILD_DISTRIBUTABLE_LIBRARY)
+  add_custom_target(all_ctests COMMAND ${CMAKE_CTEST_COMMAND} -V DEPENDS api_tests)
+else()
+  add_custom_target(all_ctests COMMAND ${CMAKE_CTEST_COMMAND} -V DEPENDS ctests api_tests)
+endif()
