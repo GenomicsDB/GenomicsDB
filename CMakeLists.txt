@@ -365,7 +365,9 @@ endfunction()
 
 function(build_GenomicsDB_executable target)
     add_executable(${target} src/${target}.cc)
-    set_target_properties(${target} PROPERTIES INSTALL_RPATH "$ORIGIN/../lib")
+    if (NOT APPLE)
+      set_target_properties(${target} PROPERTIES INSTALL_RPATH "$ORIGIN/../lib")
+    endif()
     build_GenomicsDB_executable_common(${target})
 endfunction()
 
