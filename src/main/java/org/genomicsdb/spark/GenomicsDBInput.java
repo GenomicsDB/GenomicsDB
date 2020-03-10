@@ -280,8 +280,9 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
   	    // can use the same ArrayList of queries since each inputsplit will only care
   	    // about the section that is relevant to its partition
             glomQuerys.add(queryRange);
-            partition = addSplitsIfQuerySpansPartitions(inputPartitions, pIndex, 
+            pIndex = addSplitsIfQuerySpansPartitions(inputPartitions, pIndex, 
                     queryRange.getEndPosition(), partitionsList, glomQuerys);
+            partition = (pIndex < partitionsList.size()) ? partitionsList.get(pIndex) : null;
             glomQuerys.clear();
           }
           else {
@@ -313,8 +314,9 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
   	    inputPartitions.add(getInputInstance(partition, glomQuerys));
   
   	    // if this queryBlock spans multiple partitions, need to add those as splits as well
-  	    partition = addSplitsIfQuerySpansPartitions(inputPartitions, pIndex,
+  	    pIndex = addSplitsIfQuerySpansPartitions(inputPartitions, pIndex,
                     queryBlockStart+blockSize-1, partitionsList, glomQuerys);
+            partition = (pIndex < partitionsList.size()) ? partitionsList.get(pIndex) : null;
             glomQuerys.clear();
   	    queryBlockStart += blockSize;
   	    queryBlockSize -= blockSize;
@@ -338,7 +340,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
             queryEnd >= list.get(index).getBeginPosition();
   }
 
-  private GenomicsDBPartitionInfo addSplitsIfQuerySpansPartitions(
+  private int addSplitsIfQuerySpansPartitions(
           ArrayList<T> list, int index,
           final long queryEnd,
           final ArrayList<GenomicsDBPartitionInfo> partitionList, 
@@ -349,7 +351,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       partition = partitionList.get(index);
       list.add(getInputInstance(partition, queryList));
     }
-    return partition;
+    return index;
   }
 
   /**
