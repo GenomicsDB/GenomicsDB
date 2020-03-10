@@ -226,6 +226,9 @@ void VariantQueryConfig::validate(const int rank) {
     if (m_vid_mapping_file.size() > 0) {
       m_vid_mapper = std::move(FileBasedVidMapper(m_vid_mapping_file));
     }
+    if (m_callset_mapping_file.size() > 0) {
+      m_vid_mapper.parse_callsets_json(m_callset_mapping_file, true);
+    }
   }
   
   //Query columns

@@ -1,5 +1,5 @@
 /**
- * The MIT License (MIT) Copyright (c) 2019 Omics Data Automation, Inc.
+ * The MIT License (MIT) Copyright (c) 2019-2020 Omics Data Automation, Inc.
  *
  * <p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -27,8 +27,11 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class GenomicsDBQueryTest {
@@ -40,8 +43,8 @@ public class GenomicsDBQueryTest {
   static String vidMapping = Paths.get(inputsDir, "vid.json").toAbsolutePath().toString();
   static String referenceGenome = Paths.get(inputsDir, "chr1_10MB.fasta.gz").toAbsolutePath().toString();
 
-  static String queryJSON = Paths.get(inputsDir, "query.json").toAbsolutePath().toString();
-  static String loaderJSON = Paths.get(inputsDir, "loader.json").toAbsolutePath().toString();
+  static String queryJSONFile = Paths.get(inputsDir, "query.json").toAbsolutePath().toString();
+  static String loaderJSONFile = Paths.get(inputsDir, "loader.json").toAbsolutePath().toString();
 
   static String arrayName = "t0_1_2";
 
@@ -110,6 +113,15 @@ public class GenomicsDBQueryTest {
     return handle;
   }
 
+  private long connectWithJson() {
+    GenomicsDBQuery query = new GenomicsDBQuery();
+    Assert.assertTrue(new File(queryJSONFile).exists());
+    Assert.assertTrue(new File(loaderJSONFile).exists());
+    long handle = query.connectJSON(queryJSONFile, loaderJSONFile);
+    Assert.assertTrue(handle > 0);
+    return handle;
+  }
+
   @Test
   void testGenomicsDBBasicConnectDisconnect() throws GenomicsDBException {
     GenomicsDBQuery query = new GenomicsDBQuery();
@@ -125,12 +137,11 @@ public class GenomicsDBQueryTest {
 
   void checkVariantCall(VariantCall variantCall) {
     assert(variantCall != null);
-    assert(variantCall.getRow() >= 0 && variantCall.getRow() <=2);
+    assert(variantCall.getRowIndex() >= 0 && variantCall.getRowIndex() <=2);
     assert(!variantCall.getContigName().isEmpty());
     assert(variantCall.getGenomic_interval().getStart() > 0);
     assert(variantCall.getGenomic_interval().getEnd() > 0);
     assert(variantCall.getGenomicFields().size() > 1);
-
   }
 
   @Test
@@ -188,16 +199,46 @@ public class GenomicsDBQueryTest {
     columnRanges.add(new Pair(50000L, 1000000000L));
     List<Pair>rowRanges = new ArrayList<>();
     rowRanges.add(new Pair(0L, 3L));
-
-    List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
-    assert(intervals.size() == 1);
-
-    Interval interval = intervals.get(0);
-    assert(interval.getInterval().getStart() == 0);
-    assert(interval.getInterval().getEnd() == 50000L);
-    assert(interval.getCalls().size() == 5);
-    checkVariantCall(interval.getCalls().get(0));
-
+    
     query.disconnect(genomicsDBHandle);
   }
+
+  @Test
+  void testGenomicsDBGenerateVCF() throws IOException {
+    GenomicsDBQuery query = new GenomicsDBQuery();
+    long genomicsDBHandle = connectWithSegmentSize();
+
+    List<Pair>columnRanges = new ArrayList<>();
+    columnRanges.add(new Pair(0L, 50000L));
+    columnRanges.add(new Pair(50000L, 1000000000L));
+    List<Pair>rowRanges = new ArrayList<>();
+
+    File vcfFile = File.createTempFile("GenomicsDBQueryTest", "");
+    File vcfIndexFile = new File(vcfFile+".tbi");
+
+    query.generateVCF(genomicsDBHandle, arrayName, columnRanges, new ArrayList<>(), vcfFile.toString(), "z", false);
+
+    Assert.assertTrue(vcfFile.exists());
+    Assert.assertTrue(vcfFile.length() > 0);
+    Assert.assertTrue(vcfIndexFile.exists());
+    Assert.assertTrue(vcfIndexFile.length() > 0);
+  }
+
+  /*
+  @Test
+  void testGenomicsDBGenerateVCFWithJson() throws IOException {
+    GenomicsDBQuery query = new GenomicsDBQuery();
+    long genomicsDBHandle = connectWithJson();
+
+    File vcfFile = File.createTempFile("GenomicsDBQueryTest", "");
+    File vcfIndexFile = new File(vcfFile+".tbi");
+
+    query.generateVCF(genomicsDBHandle, vcfFile.toString(), "z", false);
+
+    Assert.assertTrue(vcfFile.exists());
+    Assert.assertTrue(vcfFile.length() > 0);
+    Assert.assertTrue(vcfIndexFile.exists());
+    Assert.assertTrue(vcfIndexFile.length() > 0);
+  }
+  */
 }

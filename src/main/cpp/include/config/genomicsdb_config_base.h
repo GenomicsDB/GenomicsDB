@@ -90,12 +90,15 @@ class GenomicsDBConfigBase {
   const std::string& get_vcf_header_filename() const {
     return m_vcf_header_filename;
   }
+  const std::string& get_vcf_output_filename() const {
+    return m_vcf_output_filename;
+  }
+  void set_vcf_output_filename(const std::string& output_filename) {
+     m_vcf_output_filename = output_filename;
+  }
   void set_vcf_output_format(const std::string& output_format);
   const std::string& get_vcf_output_format() const {
     return m_vcf_output_format;
-  }
-  const std::string& get_vcf_output_filename() const {
-    return m_vcf_output_filename;
   }
   const std::string& get_reference_genome() const {
     return m_reference_genome;
@@ -114,6 +117,9 @@ class GenomicsDBConfigBase {
   }
   const bool index_output_VCF() const {
     return m_index_output_VCF;
+  }
+  void set_index_output_VCF(bool index_output_vcf) {
+    m_index_output_VCF = index_output_vcf;
   }
   const bool produce_GT_with_min_PL_value_for_spanning_deletions() const {
     return m_produce_GT_with_min_PL_value_for_spanning_deletions;

@@ -214,6 +214,7 @@ class VariantQueryProcessor {
    */
   VariantQueryProcessor(const VariantArraySchema& array_schema,
                         const VidMapper& vid_mapper);
+
   ~VariantQueryProcessor() {
     if (m_array_schema)
       delete m_array_schema;

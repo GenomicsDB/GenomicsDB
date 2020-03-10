@@ -2,7 +2,7 @@
  * src/test/cpp/src/test_genomicsdb_api.cc
  *
  * The MIT License (MIT)
- * Copyright (c) 2019 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -32,6 +32,7 @@
 
 #include <iostream>
 #include <string>
+#include <thread>
 #include <utility>
 
 TEST_CASE("api get_version", "[get_version]") {
@@ -92,7 +93,7 @@ void check_query_variants_results(GenomicsDB* gdb, const std::string& array, Gen
    CHECK(genomic_fields.size() == 0);
 
    // Check variant calls
-   auto variant_calls = gdb->get_variant_calls(variant);
+   auto variant_calls = gdb->get_variant_calls(array, variant);
    REQUIRE(variant_calls.size() == 1);
    CHECK(variant_calls.at(1) == nullptr);
    auto variant_call = variant_calls.next();
@@ -108,10 +109,12 @@ void check_query_variants_results(GenomicsDB* gdb, const std::string& array, Gen
    CHECK(call_genomic_interval.interval.second == 12295);   
    auto call_genomic_fields = gdb->get_genomic_fields(array, variant_call);
    CHECK(call_genomic_fields.size() == 2);
-   CHECK(call_genomic_fields[0].first == "REF");
-   CHECK(call_genomic_fields[0].second == "\"C\"");
-   CHECK(call_genomic_fields[1].first == "ALT");
-   CHECK(call_genomic_fields[1].second == "[ \"<NON_REF>\" ]");
+   CHECK(call_genomic_fields[0].name == "REF");
+   CHECK(variant_calls.get_genomic_field_type(call_genomic_fields[0].name).is_string());
+   CHECK(call_genomic_fields[0].str_value() == "C");
+   CHECK(call_genomic_fields[1].name == "ALT");
+   CHECK(variant_calls.get_genomic_field_type(call_genomic_fields[1].name).is_string());
+   CHECK(call_genomic_fields[1].str_value() == "&");
 }
 
 TEST_CASE("api query_variants direct", "[query_variants]") {
@@ -122,7 +125,7 @@ TEST_CASE("api query_variants direct", "[query_variants]") {
   delete gdb;
 }
 
-TEST_CASE("api query_variants with json", "[query_variants") {
+TEST_CASE("api query_variants with json", "[query_variants_json]") {
   GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
   check_query_variants_results(gdb, array, gdb->query_variants());
   delete gdb;
@@ -139,12 +142,13 @@ class NullVariantCallProcessor : public GenomicsDBVariantCallProcessor {
   NullVariantCallProcessor() {
   };
 
-  void process(interval_t interval) {
+  void process(const interval_t& interval) {
   };
 
-  void process(uint32_t row,
-               genomic_interval_t genomic_interval,
-               std::vector<genomic_field_t> genomic_fields){
+  void process(const std::string& sample_name,
+               const int64_t* coordinates,
+               const genomic_interval_t& genomic_interval,
+               const std::vector<genomic_field_t>& genomic_fields) {
   };
 };
 
@@ -157,28 +161,36 @@ class OneQueryIntervalProcessor : public GenomicsDBVariantCallProcessor {
     CHECK(m_processed_rows == 5);
   }
 
-  void process(interval_t interval) {
+  void process(const interval_t& interval) {
     m_num_query_intervals++;
     CHECK(interval.first == 0);
     CHECK(interval.second == 1000000000);
   };
 
-  void process(uint32_t row,
-               genomic_interval_t genomic_interval,
-               std::vector<genomic_field_t> genomic_fields){
+  void process(const std::string& sample_name,
+               const int64_t* coordinates,
+               const genomic_interval_t& genomic_interval,
+               const std::vector<genomic_field_t>& genomic_fields) {
     m_processed_rows++;
+    auto row = coordinates[0];
     CHECK(row <= 2);
     if (row == 2) {
+      CHECK(sample_name == "HG01530");
       CHECK(genomic_interval.contig_name == "1");
       CHECK(genomic_interval.interval.first == 17385);
       CHECK(genomic_interval.interval.second == 17385);
       CHECK(genomic_fields.size() == 3);
-      CHECK(genomic_fields[0].first == "REF");
-      CHECK(genomic_fields[0].second == "\"G\"");
-      CHECK(genomic_fields[1].first == "ALT");
-      CHECK(genomic_fields[1].second == "[ \"A\", \"<NON_REF>\" ]");
-      CHECK(genomic_fields[2].first == "DP");
-      CHECK(genomic_fields[2].second == "76");
+      CHECK(genomic_fields[0].name == "REF");
+      CHECK(get_genomic_field_type(genomic_fields[0].name).is_string());
+      CHECK(genomic_fields[0].str_value() == "G");
+      CHECK(genomic_fields[1].name == "ALT");
+      CHECK(get_genomic_field_type(genomic_fields[1].name).is_string());
+      CHECK(genomic_fields[1].str_value() == "A|&");
+      CHECK(genomic_fields[1].to_string(get_genomic_field_type(genomic_fields[1].name)) == "[A, <NON_REF>]");
+      CHECK(genomic_fields[2].name == "DP");
+      CHECK(get_genomic_field_type(genomic_fields[2].name).is_int());
+      CHECK(genomic_fields[2].int_value_at(0) == 76);
+      CHECK(genomic_fields[2].to_string(get_genomic_field_type(genomic_fields[2].name)) == "76");
     }
   };
 
@@ -195,7 +207,7 @@ class TwoQueryIntervalsProcessor : public GenomicsDBVariantCallProcessor {
     CHECK(m_processed_rows == 5);
   }
 
-  void process(interval_t interval) {
+  void process(const interval_t& interval) {
     m_num_query_intervals++;
     if (m_num_query_intervals == 1) {
       CHECK(interval.first == 0);
@@ -206,9 +218,10 @@ class TwoQueryIntervalsProcessor : public GenomicsDBVariantCallProcessor {
     }
   };
 
-  void process(uint32_t row,
-               genomic_interval_t genomic_interval,
-               std::vector<genomic_field_t> genomic_fields){
+  void process(const std::string& sample_name,
+               const int64_t* coordinates,
+               const genomic_interval_t& genomic_interval,
+               const std::vector<genomic_field_t>& genomic_fields) {
     m_processed_rows++;
   };
 
@@ -251,4 +264,60 @@ TEST_CASE("api query_variant_calls with json", "[query_variant_calls_with_json]"
   delete gdb;
 
   CHECK_THROWS_AS(new GenomicsDB(query_json, loader_json, 1), GenomicsDBConfigException);
+}
+
+TEST_CASE("api query_variant_calls parallel", "[query_variant_calls_parallel]") {
+  GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
+  gdb->query_variant_calls();
+
+  OneQueryIntervalProcessor one_query_interval_processor;
+  gdb->query_variant_calls(one_query_interval_processor);
+  delete gdb;
+
+  OneQueryIntervalProcessor another_query_interval_processor;
+  gdb = new GenomicsDB(query_json, loader_json, 0);
+  gdb->query_variant_calls(another_query_interval_processor);
+  delete gdb;
+
+  CHECK_THROWS_AS(new GenomicsDB(query_json, loader_json, 1), GenomicsDBConfigException);
+}
+
+// TODO: Use TileDBUtils to create a temp dir and temp file to check the files out...
+TEST_CASE("api generate_vcf direct", "[query_generate_vcf_direct]") {
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+
+  gdb->generate_vcf(array, {{0,1000000000}}, {{0,3}}, "1.vcf.gz", "z", true);
+  gdb->generate_vcf(array, {{0,13000}, {13000, 1000000000}}, {{0,3}}, "3.vcf.gz", "z", true);
+
+  delete gdb;
+}
+
+TEST_CASE("api generate_vcf with json", "[query_generate_with_json]") {
+  GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
+
+  gdb->generate_vcf("1111.vcf", "z", true);
+  delete gdb;
+}
+
+
+TEST_CASE("api generate_vcf with json multiple threads", "[query_generate_with_json_multiple_threads]") {
+   // Define a lambda expression
+  auto test_genomicsdb_fn = [](int i) {
+    GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
+    gdb->generate_vcf(std::to_string(i)+".vcf.gz", "z", true);
+    delete gdb;
+  };
+
+  int num_threads = 8;
+  std::vector<std::thread> threads;
+  for (auto i=0; i<num_threads; i++) {
+    std::thread thread_object(test_genomicsdb_fn, i);
+    threads.push_back(std::move(thread_object));
+  }
+
+  CHECK(num_threads == threads.size());
+
+  for (auto i=0; i<num_threads; i++) {
+    threads[i].join();
+  }
 }

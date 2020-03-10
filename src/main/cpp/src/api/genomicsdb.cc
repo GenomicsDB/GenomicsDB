@@ -5,7 +5,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2019 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -34,11 +34,14 @@
 
 #include <iostream>
 #include <string>
+
+#include "broad_combined_gvcf.h"
 #include "query_variants.h"
 #include "timer.h"
 #include "variant_field_data.h"
 #include "variant_operations.h"
 #include "variant_query_config.h"
+#include "vcf_adapter.h"
 #include "vid_mapper_pb.h"
 
 #define TO_VARIANT_QUERY_CONFIG(X) (reinterpret_cast<VariantQueryConfig *>(static_cast<void *>(X)))
@@ -107,6 +110,7 @@ GenomicsDB::GenomicsDB(const std::string& workspace,
 
   // Read in vid mapping information
   m_vid_mapper = new FileBasedVidMapper(vid_mapping_file);
+  TO_VID_MAPPER(m_vid_mapper)->parse_callsets_json(callset_mapping_file, true);
 }
 
 GenomicsDB::GenomicsDB(const std::string& query_configuration_json_file,
@@ -151,9 +155,33 @@ GenomicsDB::~GenomicsDB() {
   }
 }
 
+std::map<std::string, genomic_field_type_t> create_genomic_field_types(const VariantQueryConfig &query_config) {
+  std::map<std::string, genomic_field_type_t> genomic_field_types;
+  for (auto i=0u; i<query_config.get_num_queried_attributes(); i++) {
+    if (query_config.is_defined_known_field_enum_for_query_idx(i)) {
+      const std::string attribute_name = query_config.get_query_attribute_name(i);
+      const FieldInfo* field_info = query_config.get_vid_mapper().get_field_info(attribute_name);
+      if (field_info) {
+        const FieldElementTypeDescriptor descr = field_info->get_vcf_type();
+        assert(descr.get_num_elements_in_tuple() > 0);
+        const std::type_index type_index = descr.get_tuple_element_type_index(0);
+        const FieldLengthDescriptor length_descr = field_info->m_length_descriptor;
+        genomic_field_types.insert(std::make_pair(
+            attribute_name,
+            genomic_field_type_t(type_index,
+                                 length_descr.is_fixed_length_field(),
+                                 length_descr.is_fixed_length_field()?length_descr.get_num_elements():0,
+                                 length_descr.get_num_dimensions())));
+      }
+    }
+  }
+  return genomic_field_types;
+}
+
 GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
-					       genomicsdb_ranges_t column_ranges,
-					       genomicsdb_ranges_t row_ranges) {
+                                               genomicsdb_ranges_t column_ranges,
+                                               genomicsdb_ranges_t row_ranges) {
+  
   // Create Variant Config for given concurrency_rank
   VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   VariantQueryConfig query_config(*base_query_config);
@@ -167,14 +195,15 @@ GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
 
   query_config.validate();
 
-  return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_VECTOR(query_variants(array, &query_config)));
+  return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_VECTOR(query_variants(array, &query_config)),
+                            create_genomic_field_types(query_config));
 }
-
 
 GenomicsDBVariants GenomicsDB::query_variants() {
   VariantQueryConfig* query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   const std::string& array = query_config->get_array_name(m_concurrency_rank);
-  return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_VECTOR(query_variants(array, query_config)));
+  return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_VECTOR(query_variants(array, query_config)),
+                            create_genomic_field_types(*query_config));
 }
 
 
@@ -211,21 +240,21 @@ std::vector<Variant>* GenomicsDB::query_variants(const std::string& array, Varia
 
   // TODO: Should not need this map, but required for associating variant field names with indices in Variant
   m_query_configs_map.emplace(array, *query_config);
-
+  
   return pvariants;
 }
 
 GenomicsDBVariantCalls GenomicsDB::query_variant_calls(const std::string& array,
-						       genomicsdb_ranges_t column_ranges,
-						       genomicsdb_ranges_t row_ranges) {
+                                                       genomicsdb_ranges_t column_ranges,
+                                                       genomicsdb_ranges_t row_ranges) {
   GenomicsDBVariantCallProcessor processor;
   return query_variant_calls(processor, array, column_ranges, row_ranges);
 }
 
 GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProcessor& processor,
                                                        const std::string& array,
-						       genomicsdb_ranges_t column_ranges,
-						       genomicsdb_ranges_t row_ranges) {
+                                                       genomicsdb_ranges_t column_ranges,
+                                                       genomicsdb_ranges_t row_ranges) {
   // Create Variant Config for given concurrency_rank
   VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   VariantQueryConfig query_config(*base_query_config);
@@ -235,7 +264,8 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProc
 
   query_config.validate();
 
-  return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, &query_config, processor)));
+  return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, &query_config, processor)),
+                                create_genomic_field_types(query_config));
 }
 
 GenomicsDBVariantCalls GenomicsDB::query_variant_calls() {
@@ -248,7 +278,8 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProc
   const std::string& array = query_config->get_array_name(m_concurrency_rank);
   genomicsdb_ranges_t column_ranges = query_config->get_query_column_ranges(m_concurrency_rank);
   genomicsdb_ranges_t row_ranges = query_config->get_query_row_ranges(m_concurrency_rank);
-  return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, query_config, processor)));
+  return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, query_config, processor)),
+                                create_genomic_field_types(*query_config));
 }
 
 VidMapper* get_vid_mapper(void* vid_mapper, void* query_config) {
@@ -261,14 +292,22 @@ VidMapper* get_vid_mapper(void* vid_mapper, void* query_config) {
 
 class GatherVariantCalls : public SingleCellOperatorBase {
  public:
-  GatherVariantCalls(GenomicsDBVariantCallProcessor& variant_call_processor, VidMapper* vid_mapper )
-      : SingleCellOperatorBase(), m_variant_call_processor(variant_call_processor), m_vid_mapper(vid_mapper) {};
+  GatherVariantCalls(GenomicsDBVariantCallProcessor& variant_call_processor, const VariantQueryConfig& query_config) :
+      SingleCellOperatorBase(), m_variant_call_processor(variant_call_processor), m_vid_mapper(query_config.get_vid_mapper()) {
+    initialize(query_config);
+  }
   void operate(VariantCall& call, const VariantQueryConfig& query_config, const VariantArraySchema& schema);
   void operate_on_columnar_cell(const GenomicsDBColumnarCell& cell, const VariantQueryConfig& query_config,
                                 const VariantArraySchema& schema);
  private:
+  void initialize(const VariantQueryConfig& query_config);
   GenomicsDBVariantCallProcessor& m_variant_call_processor;
-  VidMapper *m_vid_mapper;
+  const VidMapper& m_vid_mapper;
+  std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
+};
+
+void GatherVariantCalls::initialize(const VariantQueryConfig& query_config) {
+  m_variant_call_processor.initialize(create_genomic_field_types(query_config));
 };
 
 void GatherVariantCalls::operate(VariantCall& variant_call,
@@ -281,54 +320,51 @@ void GatherVariantCalls::operate(VariantCall& variant_call,
 void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& cell,
                                                    const VariantQueryConfig& query_config,
                                                    const VariantArraySchema& schema) {
-   if (cell.at_new_query_column_interval()) {
-     auto curr_query_column_interval_idx = cell.get_current_query_column_interval_idx();
-     auto begin = std::max<int64_t>(query_config.get_column_begin(curr_query_column_interval_idx), 0);
-     auto end = std::min<int64_t>(query_config.get_column_end(curr_query_column_interval_idx), INT64_MAX-1);
-     // TODO: Change Column/RowRange to be uint64_t intervals instead of int64_t, so we don't have to typecast
-     m_variant_call_processor.process(std::make_pair<uint64_t, uint64_t>((uint64_t)begin, (uint64_t)end));
-   }
+  if (cell.at_new_query_column_interval()) {
+    auto curr_query_column_interval_idx = cell.get_current_query_column_interval_idx();
+    auto begin = std::max<int64_t>(query_config.get_column_begin(curr_query_column_interval_idx), 0);
+    auto end = std::min<int64_t>(query_config.get_column_end(curr_query_column_interval_idx), INT64_MAX-1);
+    // TODO: Change Column/RowRange to be uint64_t intervals instead of int64_t, so we don't have to typecast
+    m_variant_call_processor.process(std::make_pair<uint64_t, uint64_t>((uint64_t)begin, (uint64_t)end));
+  }
 
-   auto coords = cell.get_coordinates();
+  auto coords = cell.get_coordinates();
 
-   assert(query_config.is_defined_query_idx_for_known_field_enum(GVCF_END_IDX));
-   auto end_query_idx = query_config.get_query_idx_for_known_field_enum(GVCF_END_IDX);
-   auto end_position = *(reinterpret_cast<const int64_t*>(cell.get_field_ptr_for_query_idx(end_query_idx)));
+  assert(query_config.is_defined_query_idx_for_known_field_enum(GVCF_END_IDX));
+  auto end_query_idx = query_config.get_query_idx_for_known_field_enum(GVCF_END_IDX);
+  auto end_position = *(reinterpret_cast<const int64_t*>(cell.get_field_ptr_for_query_idx(end_query_idx)));
 
-   assert(m_vid_mapper);
+  std::string contig_name;
+  int64_t contig_position;
+  if (!m_vid_mapper.get_contig_location(coords[1], contig_name, contig_position)) {
+    std::cerr << "Could not find genomic interval associated with Variant(Call) at "
+              << coords[1] << std::endl;
+    return;
+  }
 
-   std::string contig_name;
-   int64_t contig_position;
-   if (!m_vid_mapper->get_contig_location(coords[1], contig_name, contig_position)) {
-     std::cerr << "Could not find genomic interval associated with Variant(Call) at "
-               << coords[1] << std::endl;
-     return;
-   }
+  contig_position++;
+  genomic_interval_t genomic_interval(std::move(contig_name),
+                                      std::make_pair(contig_position, contig_position+end_position-coords[1]));
+  auto ALT_query_idx = query_config.is_defined_query_idx_for_known_field_enum(GVCF_ALT_IDX)
+      ? query_config.get_query_idx_for_known_field_enum(GVCF_ALT_IDX) : UINT64_MAX;
 
-   contig_position++;
-   genomic_interval_t genomic_interval(std::move(contig_name),
-                                       std::make_pair(contig_position, contig_position+end_position-coords[1]));
+  std::vector<genomic_field_t> genomic_fields;
+  // Ignore first field as it is "END"
+  for (auto i=1u; i<query_config.get_num_queried_attributes(); i++) {
+    if (cell.is_valid(i) && query_config.is_defined_known_field_enum_for_query_idx(i)) {
+      genomic_field_t field_vec(query_config.get_query_attribute_name(i),
+                                cell.get_field_ptr_for_query_idx(i),
+                                cell.get_field_length(i));
+      genomic_fields.push_back(field_vec);
+    }
+  }
 
-   auto ALT_query_idx = query_config.is_defined_query_idx_for_known_field_enum(GVCF_ALT_IDX)
-       ? query_config.get_query_idx_for_known_field_enum(GVCF_ALT_IDX) : UINT64_MAX;
-
-   std::vector<genomic_field_t> genomic_fields;
-   // Ignore first field as it is "END"
-   for (auto i=1u; i<query_config.get_num_queried_attributes(); i++) {
-     if (cell.is_valid(i)) {
-       std::stringstream field_value_stream;
-       if (i == ALT_query_idx) {
-         cell.print_ALT(i, field_value_stream);
-       } else {
-         cell.print(i, field_value_stream);
-       }
-       genomic_field_t field_vec(query_config.get_query_attribute_name(i),
-                                 field_value_stream.str());
-       genomic_fields.push_back(field_vec);
-     }
-   }
-
-   m_variant_call_processor.process(coords[0], genomic_interval, genomic_fields);
+  std::string sample_name;
+  if (!m_vid_mapper.get_callset_name(coords[0], sample_name)) {
+    sample_name = "NONE";
+  }
+   
+  m_variant_call_processor.process(sample_name, coords, genomic_interval, genomic_fields);
 }
 
 #if(DEBUG)
@@ -370,7 +406,7 @@ std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& arr
   } else {
     vid_mapper = const_cast<VidMapper *>(&query_config->get_vid_mapper());
   }
-  GatherVariantCalls gather_variant_calls(processor, get_vid_mapper(m_vid_mapper, query_config));
+  GatherVariantCalls gather_variant_calls(processor, *query_config);
   query_processor->iterate_over_cells(query_processor->get_array_descriptor(), *query_config, gather_variant_calls, true);
 
   delete query_processor;
@@ -381,6 +417,65 @@ std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& arr
 #endif
 
   return pvariant_calls;
+}
+
+void GenomicsDB::generate_vcf(const std::string& array,
+                              genomicsdb_ranges_t column_ranges,
+                              genomicsdb_ranges_t row_ranges,
+                              const std::string& output,
+                              const std::string& output_format,
+                              bool overwrite) {
+  // Create Variant Config for given concurrency_rank
+  VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
+  VariantQueryConfig query_config(*base_query_config);
+  query_config.set_array_name(array);
+  if (column_ranges.size() > 0) {
+    query_config.set_query_column_ranges(column_ranges);
+  }
+  if (row_ranges.size() > 0) {
+    query_config.set_query_row_ranges(row_ranges);
+  }
+
+  query_config.validate();
+
+  generate_vcf(array, &query_config, output, output_format, overwrite); 
+}
+
+void GenomicsDB::generate_vcf(const std::string& output, const std::string& output_format, bool overwrite) {
+  VariantQueryConfig* query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
+  const std::string& array = query_config->get_array_name(m_concurrency_rank);
+  generate_vcf(array, query_config, output, output_format, overwrite);
+
+}
+
+void GenomicsDB::generate_vcf(const std::string& array, VariantQueryConfig* query_config, const std::string& output, const std::string& output_format, bool overwrite) {
+  if (output.length()) {
+    query_config->set_vcf_output_filename(output);
+  }
+  if (output_format.length()) {
+    query_config->set_vcf_output_format(output_format);
+  }
+  query_config->set_index_output_VCF(true);
+  // TODO: If file exists and overwrite set, delete file otherwise throw exception
+
+  // Get a Variant Query Processor
+  VariantQueryProcessor *query_processor = new VariantQueryProcessor(
+      TO_VARIANT_STORAGE_MANAGER(m_storage_manager), array, query_config->get_vid_mapper());
+  query_processor->do_query_bookkeeping(query_processor->get_array_schema(),
+                                        *query_config, query_config->get_vid_mapper(), true);
+
+  // Get a VCF Adapter
+  VCFAdapter vcf_adapter;
+  vcf_adapter.initialize(*query_config);
+  auto *gvcf_operator = new BroadCombinedGVCFOperator(vcf_adapter, query_config->get_vid_mapper(), *query_config);
+
+  for (auto i=0u; i<query_config->get_num_column_intervals(); i++) {
+    query_processor->scan_and_operate(query_processor->get_array_descriptor(),
+                                      *query_config, *gvcf_operator, i, true);
+  }
+
+  delete gvcf_operator;
+  delete query_processor;
 }
 
 // Template to get the mapped interval from the GenomicsDB array for the Variant(Call)
@@ -454,15 +549,30 @@ std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, co
   auto index = 0u;
   for (const auto& field: get_fields(variant_or_variant_call)) {
     if (field && field->is_valid()) {
-      std::stringstream field_value_stream;
-      field->print(field_value_stream);
-      genomic_field_t field_vec(get_query_attribute_name(variant_or_variant_call, query_config, index),
-                                field_value_stream.str());
+      std::string name = get_query_attribute_name(variant_or_variant_call, query_config, index);
+      void* ptr = const_cast<void *>(field->get_raw_pointer());
+      if (name.compare(ALT) == 0) {
+        void *p;
+        unsigned size;
+        bool allocated;
+        std::type_index type_idx= field->get_C_pointers(size, &p, allocated);
+        if (allocated) {
+          if (type_idx == std::type_index(typeid(int))) {
+            ptr = *(reinterpret_cast<int **>(p));
+          } else if (type_idx == std::type_index(typeid(float))) {
+            ptr = *(reinterpret_cast<float **>(p));
+          } else  if (type_idx == std::type_index(typeid(char))) {
+            ptr = *(reinterpret_cast<char **>(p));
+          }
+        }
+      }
+      genomic_field_t field_vec(name,
+                                ptr,
+                                field->length());
       fields.push_back(field_vec);
-   }
+    }
     index++;
   }
-
   return fields;
 }
 
@@ -483,9 +593,10 @@ std::vector<genomic_field_t> GenomicsDB::get_genomic_fields(const std::string& a
   return get_genomic_fields_for(array, TO_VARIANT_CALL(variant_call), get_query_config_for(array));
 }
 
-GenomicsDBVariantCalls GenomicsDB::get_variant_calls(const genomicsdb_variant_t* variant) {
+GenomicsDBVariantCalls GenomicsDB::get_variant_calls(const std::string& array, const genomicsdb_variant_t* variant) {
   std::vector<VariantCall>* variant_calls = const_cast<std::vector<VariantCall>*>(&(TO_VARIANT(variant)->get_calls()));
-  return GenomicsDBResults<genomicsdb_variant_call_t>(TO_GENOMICSDB_VARIANT_CALL_VECTOR(variant_calls));
+  return GenomicsDBResults<genomicsdb_variant_call_t>(TO_GENOMICSDB_VARIANT_CALL_VECTOR(variant_calls),
+                                                      create_genomic_field_types(*get_query_config_for(array)));
 }
 
 int64_t GenomicsDB::get_row(const genomicsdb_variant_call_t* variant_call) {
@@ -534,21 +645,24 @@ const genomicsdb_variant_call_t* GenomicsDBResults<genomicsdb_variant_call_t>::a
 
 template<>
 void GenomicsDBResults<genomicsdb_variant_call_t>::free() {
-  // NOP: free'ing is done at the Variant(genomicsdb_variant_t) levelx
+  // NOP: free'ing is done at the Variant(genomicsdb_variant_t) level
 }
 
-
-void GenomicsDBVariantCallProcessor::process(uint32_t row,
-                                             genomic_interval_t genomic_interval,
-                                             std::vector<genomic_field_t> genomic_fields) {
-  std::cout << "\t row=" << row << "\n\t genomic_interval=" << genomic_interval.contig_name
+void GenomicsDBVariantCallProcessor::process(const std::string& sample_name,
+                                             const int64_t* coords,
+                                             const genomic_interval_t& genomic_interval,
+                                             const std::vector<genomic_field_t>& genomic_fields) {
+  std::cout << "\t sample=" << sample_name << "\n";
+  std::cout << "\t row=" << coords[0] << " position=" << coords[1]
+            << "\n\t genomic_interval=" << genomic_interval.contig_name
             << ":" << genomic_interval.interval.first << "," << genomic_interval.interval.second << "\n";
   std::cout << "\t genomic_fields\n";
   for(auto genomic_field: genomic_fields) {
-    std::cout << "\t\t" << genomic_field.first << ":" << genomic_field.second << "\n";
+    std::cout << "\t\t" << genomic_field.name << ":" << genomic_field.to_string(get_genomic_field_type(genomic_field.name));
   }
+  std::cout << std::endl;
 }
 
-void GenomicsDBVariantCallProcessor::process(interval_t interval) {
+void GenomicsDBVariantCallProcessor::process(const interval_t& interval) {
   std::cout << "----------------\nInterval:[" << interval.first << "," << interval.second << "]\n\n";
 }
