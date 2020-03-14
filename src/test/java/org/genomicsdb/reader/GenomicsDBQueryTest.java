@@ -19,6 +19,7 @@
 package org.genomicsdb.reader;
 
 import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.genomicsdb.reader.GenomicsDBQuery.Interval;
 import org.genomicsdb.reader.GenomicsDBQuery.Pair;
 import org.genomicsdb.reader.GenomicsDBQuery.VariantCall;
@@ -28,10 +29,8 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class GenomicsDBQueryTest {
@@ -216,15 +215,23 @@ public class GenomicsDBQueryTest {
     File vcfFile = File.createTempFile("GenomicsDBQueryTest", "");
     File vcfIndexFile = new File(vcfFile+".tbi");
 
-    query.generateVCF(genomicsDBHandle, arrayName, columnRanges, new ArrayList<>(), vcfFile.toString(), "z", false);
+    query.generateVCF(genomicsDBHandle, arrayName, columnRanges, new ArrayList<>(), vcfFile.toString(), "z", true);
 
     Assert.assertTrue(vcfFile.exists());
     Assert.assertTrue(vcfFile.length() > 0);
     Assert.assertTrue(vcfIndexFile.exists());
     Assert.assertTrue(vcfIndexFile.length() > 0);
+
+    try {
+      query.generateVCF(genomicsDBHandle, arrayName, columnRanges, new ArrayList<>(), vcfFile.toString(), "z", false);
+      Assert.fail();
+    } catch (GenomicsDBException e) {
+      // Expected exception
+    }
+
+    vcfFile.delete();
   }
 
-  /*
   @Test
   void testGenomicsDBGenerateVCFWithJson() throws IOException {
     GenomicsDBQuery query = new GenomicsDBQuery();
@@ -233,12 +240,38 @@ public class GenomicsDBQueryTest {
     File vcfFile = File.createTempFile("GenomicsDBQueryTest", "");
     File vcfIndexFile = new File(vcfFile+".tbi");
 
-    query.generateVCF(genomicsDBHandle, vcfFile.toString(), "z", false);
+    query.generateVCF(genomicsDBHandle, vcfFile.toString(), "z", true);
 
     Assert.assertTrue(vcfFile.exists());
     Assert.assertTrue(vcfFile.length() > 0);
     Assert.assertTrue(vcfIndexFile.exists());
     Assert.assertTrue(vcfIndexFile.length() > 0);
   }
-  */
+
+  @Test
+  void testGenomicsDBGenerateVCFWithPBExportConfig() throws IOException {
+    GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder()
+            .setWorkspace(workspace)
+            .setVidMappingFile(vidMapping)
+            .setCallsetMappingFile(callsetMapping)
+            .setReferenceGenome(referenceGenome)
+            .setArrayName(arrayName)
+            .setSegmentSize(40)
+            .setScanFull(true)
+            .build();
+
+    GenomicsDBQuery query = new GenomicsDBQuery();
+    long genomicsDBHandle = query.connectExportConfiguration(exportConfiguration);
+    Assert.assertTrue(genomicsDBHandle > 0);
+
+    File vcfFile = File.createTempFile("GenomicsDBQueryTest", "");
+    File vcfIndexFile = new File(vcfFile+".tbi");
+
+    query.generateVCF(genomicsDBHandle, vcfFile.toString(), "z", true);
+
+    Assert.assertTrue(vcfFile.exists());
+    Assert.assertTrue(vcfFile.length() > 0);
+    Assert.assertTrue(vcfIndexFile.exists());
+    Assert.assertTrue(vcfIndexFile.length() > 0);
+  }
 }

@@ -186,6 +186,8 @@
                 <copy file="${test_source_directory}/../inputs/test.tgz" tofile="${genomicsdb_build_directory}/test/test.tar.gz" />
                 <gunzip src="${genomicsdb_build_directory}/test/test.tar.gz" />
                 <untar src="${genomicsdb_build_directory}/test/test.tar" dest="${genomicsdb_build_directory}/test/"/>
+                <replace file="${genomicsdb_build_directory}/test/inputs/query.json" token="inputs/" value="${genomicsdb_build_directory}/test/inputs/" />
+                <replace file="${genomicsdb_build_directory}/test/inputs/loader.json" token="inputs/" value="${genomicsdb_build_directory}/test/inputs/" />
               </target>
             </configuration>
             <goals>

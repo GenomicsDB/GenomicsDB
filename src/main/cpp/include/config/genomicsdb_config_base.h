@@ -143,8 +143,8 @@ class GenomicsDBConfigBase {
     m_vid_mapping_file = vid_mapping_file;
   }
   //Sometimes information is present in the loader - copy over
-  void update_from_loader(const GenomicsDBImportConfig& loader_config, const int rank);
-  void subset_query_column_ranges_based_on_partition(const GenomicsDBImportConfig& loader_config, const int rank);
+  void update_from_loader(const GenomicsDBImportConfig& loader_config, const int rank=0);
+  void subset_query_column_ranges_based_on_partition(const GenomicsDBImportConfig& loader_config, const int rank=0);
   inline TileDBRowRange get_row_bounds() const {
     return TileDBRowRange(m_lb_callset_row_idx, m_ub_callset_row_idx);
   }

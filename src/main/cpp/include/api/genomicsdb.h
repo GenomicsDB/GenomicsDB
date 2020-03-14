@@ -247,6 +247,8 @@ class VariantQueryConfig;
  */
 class GenomicsDB {
  public:
+  enum GENOMICSDB_EXPORT query_config_type_t { JSON_FILE=0, JSON_STRING=1, PROTOBUF_BINARY_STRING=2 };
+
   /**
    * Constructor to the GenomicsDB Query API
    *   workspace
@@ -266,17 +268,20 @@ class GenomicsDB {
 
   /**
    * Constructor to the GenomicsDB Query API with configuration json files
-   *   query_config_json_file
-   *   loader_config_json_file, optional
+   *   query_configuration - describe the query configuration in either a JSON file or string
+   *   query_configuration_type - type of query configuration, could be a JSON_FILE or JSON_STRING
+   *   loader_config_json_file, optional - describe the loader configuration in a JSON file.
+   *           If a configuration key exists in both the query and the loader configuration, the query
+   *           configuration takes precedence
    *   concurrency_rank, optional - if greater than 0, 
    *           the constraints(workspace, array, column and row ranges) are surmised
-   *           using the rank as an index into their corresponding vectors.
+   *           using the rank as an index into their corresponding vectors
    * Throws GenomicsDBException
    */
-  GENOMICSDB_EXPORT GenomicsDB(const std::string& query_config_json_file,
-             const std::string& loader_config_json_file = std::string(),
-             const int concurrency_rank=0);
-
+  GENOMICSDB_EXPORT GenomicsDB(const std::string& query_configuration,
+                               const query_config_type_t query_configuration_type = JSON_FILE,
+                               const std::string& loader_configuration_json_file = std::string(),
+                               const int concurrency_rank=0);
   /**
    * Destructor
    */

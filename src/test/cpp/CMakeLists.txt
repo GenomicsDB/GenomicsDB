@@ -30,6 +30,7 @@ include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})
 
 set(CPP_TEST_SOURCES
   src/ctest_main.cc
+  src/test_config.cc
   src/test_non_diploid_mapper.cc
   src/test_multid_vector.cc
   src/test_pb.cc

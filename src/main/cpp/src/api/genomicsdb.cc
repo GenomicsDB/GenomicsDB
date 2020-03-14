@@ -37,6 +37,7 @@
 
 #include "broad_combined_gvcf.h"
 #include "query_variants.h"
+#include "tiledb_utils.h"
 #include "timer.h"
 #include "variant_field_data.h"
 #include "variant_operations.h"
@@ -113,10 +114,11 @@ GenomicsDB::GenomicsDB(const std::string& workspace,
   TO_VID_MAPPER(m_vid_mapper)->parse_callsets_json(callset_mapping_file, true);
 }
 
-GenomicsDB::GenomicsDB(const std::string& query_configuration_json_file,
+GenomicsDB::GenomicsDB(const std::string& query_configuration,
+                       const query_config_type_t query_configuration_type,
                        const std::string& loader_configuration_json_file,
                        const int concurrency_rank) : m_concurrency_rank(concurrency_rank) {
-  VERIFY(!query_configuration_json_file.empty() && "Specified query configuration file cannot be empty");
+  VERIFY(!query_configuration.empty() && "Specified query configuration cannot be empty");
 
   // Create base query configuration
   m_query_config = new VariantQueryConfig();
@@ -129,7 +131,16 @@ GenomicsDB::GenomicsDB(const std::string& query_configuration_json_file,
     query_config->update_from_loader(loader_config, concurrency_rank);
   }
 
-  query_config->read_from_file(query_configuration_json_file, concurrency_rank);
+  switch (query_configuration_type) {
+    case JSON_FILE:
+      query_config->read_from_file(query_configuration, concurrency_rank); break;
+    case JSON_STRING:
+      query_config->read_from_JSON_string(query_configuration, concurrency_rank); break;
+    case PROTOBUF_BINARY_STRING:
+      query_config->read_from_PB_binary_string(query_configuration, concurrency_rank); break;
+    default:
+      throw GenomicsDBException("Unsupported query configuration type specified to the GenomicsDB constructor");
+  }
 
   check(query_config->get_workspace(concurrency_rank),
         query_config->get_segment_size(),
@@ -445,7 +456,6 @@ void GenomicsDB::generate_vcf(const std::string& output, const std::string& outp
   VariantQueryConfig* query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   const std::string& array = query_config->get_array_name(m_concurrency_rank);
   generate_vcf(array, query_config, output, output_format, overwrite);
-
 }
 
 void GenomicsDB::generate_vcf(const std::string& array, VariantQueryConfig* query_config, const std::string& output, const std::string& output_format, bool overwrite) {
@@ -456,7 +466,11 @@ void GenomicsDB::generate_vcf(const std::string& array, VariantQueryConfig* quer
     query_config->set_vcf_output_format(output_format);
   }
   query_config->set_index_output_VCF(true);
-  // TODO: If file exists and overwrite set, delete file otherwise throw exception
+
+  VERIFY(query_config->get_vcf_output_filename().length() && "VCF output filename not specified");
+  if (!overwrite && TileDBUtils::is_file(query_config->get_vcf_output_filename())) {
+      throw GenomicsDBException("VCF output file exists and overwrite set to false");
+  }
 
   // Get a Variant Query Processor
   VariantQueryProcessor *query_processor = new VariantQueryProcessor(

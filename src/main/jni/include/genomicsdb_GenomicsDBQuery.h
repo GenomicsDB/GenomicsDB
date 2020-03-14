@@ -36,10 +36,18 @@ JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnect
 /*
  * Class:     org_genomicsdb_reader_GenomicsDBQuery
  * Method:    jniConnectJSON
- * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;J)J
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)J
  */
 JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnectJSON
   (JNIEnv *, jclass, jstring, jstring);
+
+/*
+ * Class:     org_genomicsdb_reader_GenomicsDBQuery
+ * Method:    jniConnectPBBinaryString
+ * Signature: ([BLjava/lang/String;)J
+ */
+JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnectPBBinaryString
+  (JNIEnv *, jclass, jbyteArray, jstring);
 
 /*
  * Class:     org_genomicsdb_reader_GenomicsDBQuery
@@ -62,18 +70,16 @@ JNIEXPORT jobject JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniQueryVar
  * Method:    jniGenerateVCF
  * Signature: (JLjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Z)V
  */
-JNIEXPORT void JNICALL
-Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF
-(JNIEnv *, jclass, jlong, jstring, jobject, jobject, jstring, jstring, jboolean);
+JNIEXPORT void JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF
+  (JNIEnv *, jclass, jlong, jstring, jobject, jobject, jstring, jstring, jboolean);
 
 /*
  * Class:     org_genomicsdb_reader_GenomicsDBQuery
- * Method:    jniGenerateVCF
+ * Method:    jniGenerateVCF1
  * Signature: (JLjava/lang/String;Ljava/lang/String;Z)V
  */
-JNIEXPORT void JNICALL
-Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF1
-(JNIEnv *, jclass, jlong, jstring, jstring, jboolean);
+JNIEXPORT void JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF1
+  (JNIEnv *, jclass, jlong, jstring, jstring, jboolean);
 
 #ifdef __cplusplus
 }

@@ -29,6 +29,9 @@
 
 #include "genomicsdb.h"
 #include "genomicsdb_config_base.h"
+#include "tiledb_utils.h"
+
+#include "test_base.h"
 
 #include <iostream>
 #include <string>
@@ -51,8 +54,9 @@ TEST_CASE("api empty_args", "[empty_args]") {
 
   // Constructor that allows json files for configuration
   CHECK_THROWS_AS(new GenomicsDB(empty_string), std::exception);
-  CHECK_THROWS_AS(new GenomicsDB(empty_string, empty_string), std::exception);
-  CHECK_THROWS_AS(new GenomicsDB(empty_string, "loader_config.json"), std::exception);
+  CHECK_THROWS_AS(new GenomicsDB(empty_string, GenomicsDB::JSON_FILE), std::exception);
+  CHECK_THROWS_AS(new GenomicsDB(empty_string, GenomicsDB::JSON_STRING, "loader_config.json"), std::exception);
+  CHECK_THROWS_AS(new GenomicsDB(empty_string, GenomicsDB::PROTOBUF_BINARY_STRING, "loader_config.json"), std::exception);
 
   // Check if there is an error message
   try {
@@ -126,15 +130,33 @@ TEST_CASE("api query_variants direct", "[query_variants]") {
 }
 
 TEST_CASE("api query_variants with json", "[query_variants_json]") {
-  GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
+  GenomicsDB* gdb = new GenomicsDB(query_json, GenomicsDB::JSON_FILE, loader_json);
   check_query_variants_results(gdb, array, gdb->query_variants());
   delete gdb;
 
-  gdb = new GenomicsDB(query_json, loader_json, 0);
+  gdb = new GenomicsDB(query_json, GenomicsDB::JSON_FILE, loader_json, 0);
+  check_query_variants_results(gdb, array, gdb->query_variants());
+  delete gdb;
+
+  CHECK_THROWS_AS(new GenomicsDB(query_json, GenomicsDB::JSON_FILE, loader_json, 1), GenomicsDBConfigException);
+}
+
+TEST_CASE("api query variants with json string", "[query_variants_json_string]") {
+  char *query_json_buffer=NULL, *loader_json_buffer=NULL;
+  size_t query_json_buffer_length, loader_json_buffer_length;
+  CHECK(TileDBUtils::read_entire_file(query_json, (void **)&query_json_buffer, &query_json_buffer_length) == TILEDB_OK);
+  CHECK(query_json_buffer);
+  CHECK(query_json_buffer_length > 0);
+
+  GenomicsDB* gdb = new GenomicsDB(query_json_buffer, GenomicsDB::JSON_STRING, loader_json);
+  check_query_variants_results(gdb, array, gdb->query_variants());
+  delete gdb;
+
+  gdb = new GenomicsDB(query_json_buffer, GenomicsDB::JSON_STRING, loader_json, 0);
   check_query_variants_results(gdb, array, gdb->query_variants());
   delete gdb;
   
-  CHECK_THROWS_AS(new GenomicsDB(query_json, loader_json, 1), GenomicsDBConfigException);
+  CHECK_THROWS_AS(new GenomicsDB(query_json_buffer, GenomicsDB::JSON_STRING, loader_json, 1), GenomicsDBConfigException);
 }
 
 class NullVariantCallProcessor : public GenomicsDBVariantCallProcessor {
@@ -251,7 +273,7 @@ TEST_CASE("api query_variant_calls direct", "[query_variant_calls_direct]") {
 }
 
 TEST_CASE("api query_variant_calls with json", "[query_variant_calls_with_json]") {
-  GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
+  GenomicsDB* gdb = new GenomicsDB(query_json, GenomicsDB::JSON_FILE, loader_json);
   gdb->query_variant_calls();
 
   OneQueryIntervalProcessor one_query_interval_processor;
@@ -259,52 +281,58 @@ TEST_CASE("api query_variant_calls with json", "[query_variant_calls_with_json]"
   delete gdb;
 
   OneQueryIntervalProcessor another_query_interval_processor;
-  gdb = new GenomicsDB(query_json, loader_json, 0);
+  gdb = new GenomicsDB(query_json, GenomicsDB::JSON_FILE, loader_json, 0);
   gdb->query_variant_calls(another_query_interval_processor);
   delete gdb;
 
-  CHECK_THROWS_AS(new GenomicsDB(query_json, loader_json, 1), GenomicsDBConfigException);
+  CHECK_THROWS_AS(new GenomicsDB(query_json, GenomicsDB::JSON_FILE, loader_json, 1), GenomicsDBConfigException);
 }
 
-TEST_CASE("api query_variant_calls parallel", "[query_variant_calls_parallel]") {
-  GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
-  gdb->query_variant_calls();
-
-  OneQueryIntervalProcessor one_query_interval_processor;
-  gdb->query_variant_calls(one_query_interval_processor);
-  delete gdb;
-
-  OneQueryIntervalProcessor another_query_interval_processor;
-  gdb = new GenomicsDB(query_json, loader_json, 0);
-  gdb->query_variant_calls(another_query_interval_processor);
-  delete gdb;
-
-  CHECK_THROWS_AS(new GenomicsDB(query_json, loader_json, 1), GenomicsDBConfigException);
-}
-
-// TODO: Use TileDBUtils to create a temp dir and temp file to check the files out...
 TEST_CASE("api generate_vcf direct", "[query_generate_vcf_direct]") {
+  TempDir temp_dir;
   GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
 
-  gdb->generate_vcf(array, {{0,1000000000}}, {{0,3}}, "1.vcf.gz", "z", true);
-  gdb->generate_vcf(array, {{0,13000}, {13000, 1000000000}}, {{0,3}}, "3.vcf.gz", "z", true);
+  const std::string vcf_file1 = temp_dir.append("1.vcf.gz");
+  gdb->generate_vcf(array, {{0,1000000000}}, {{0,3}}, vcf_file1);
+  CHECK(TileDBUtils::is_file(vcf_file1));
+  CHECK(!TileDBUtils::is_file(vcf_file1+".tbi"));
+
+  gdb->generate_vcf(array, {{0,1000000000}}, {{0,3}}, vcf_file1, "z", true);
+  CHECK(TileDBUtils::is_file(vcf_file1));
+  CHECK(TileDBUtils::is_file(vcf_file1+".tbi"));
+
+  CHECK_THROWS_AS(gdb->generate_vcf(array, {{0,1000000000}}, {{0,3}}, vcf_file1, "z", false), std::exception);
+
+  const std::string vcf_file2 = temp_dir.append("3.vcf.gz");
+  gdb->generate_vcf(array, {{0,13000}, {13000, 1000000000}}, {{0,3}}, vcf_file2, "z", true);
+  CHECK(TileDBUtils::is_file(vcf_file2));
+  CHECK(TileDBUtils::is_file(vcf_file2+".tbi"));
 
   delete gdb;
 }
 
 TEST_CASE("api generate_vcf with json", "[query_generate_with_json]") {
-  GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
+  TempDir temp_dir;
+  GenomicsDB* gdb = new GenomicsDB(query_json, GenomicsDB::JSON_FILE, loader_json);
 
-  gdb->generate_vcf("1111.vcf", "z", true);
+  const std::string vcf_file = temp_dir.append("1.vcf.gz");
+  gdb->generate_vcf(vcf_file, "z", true);
+  CHECK(TileDBUtils::is_file(vcf_file));
+  CHECK(TileDBUtils::is_file(vcf_file+".tbi"));
+
   delete gdb;
 }
 
 
 TEST_CASE("api generate_vcf with json multiple threads", "[query_generate_with_json_multiple_threads]") {
-   // Define a lambda expression
+  // Define a lambda expression
   auto test_genomicsdb_fn = [](int i) {
-    GenomicsDB* gdb = new GenomicsDB(query_json, loader_json);
-    gdb->generate_vcf(std::to_string(i)+".vcf.gz", "z", true);
+    TempDir temp_dir;
+    GenomicsDB* gdb = new GenomicsDB(query_json, GenomicsDB::JSON_FILE, loader_json);
+    const std::string vcf_file = temp_dir.append(std::to_string(i)+".vcf.gz");
+    gdb->generate_vcf(vcf_file, "z", true);
+    CHECK(TileDBUtils::is_file(vcf_file));
+    CHECK(TileDBUtils::is_file(vcf_file+".tbi"));
     delete gdb;
   };
 
