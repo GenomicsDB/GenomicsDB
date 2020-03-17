@@ -24,6 +24,7 @@ package org.genomicsdb.reader;
 
 import org.genomicsdb.GenomicsDBLibLoader;
 import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
 import java.util.*;
 
@@ -143,6 +144,14 @@ public class GenomicsDBQuery {
     return jniConnectJSON(queryJSONFile, loaderJSONFile);
   }
 
+  public long connectExportConfiguration(GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration) {
+    return connectExportConfiguration(exportConfiguration, "");
+  }
+
+  public long connectExportConfiguration(GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration, final String loaderJSONFile) {
+    return jniConnectPBBinaryString(exportConfiguration.toByteArray(), loaderJSONFile);
+  }
+
   public void disconnect(long handle) {
     jniDisconnect(handle);
   }
@@ -211,6 +220,9 @@ public class GenomicsDBQuery {
 
   private static native long jniConnectJSON(final String queryJSONFile,
                                             final String loaderJSONFile);
+
+  private static native long jniConnectPBBinaryString(final byte[] pbBinaryString,
+                                                      final String loaderJSONFile);
 
   private static native void jniDisconnect(long handle);
 

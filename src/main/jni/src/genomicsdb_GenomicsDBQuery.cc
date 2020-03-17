@@ -1,6 +1,6 @@
 /**
  * The MIT License (MIT)
- * Copyright (c) 2019 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -191,13 +191,17 @@ jobject to_java_Interval(JNIEnv *env, jclass cls, const char *array_name, Genomi
 #endif
 
 void handleJNIException(JNIEnv *env, GenomicsDBException& exception) {
+  std::string msg = std::string("GenomicsDB JNI Error: ") + exception.what();
   jclass genomicsdb_java_exception_class = env->FindClass("org/genomicsdb/exception/GenomicsDBException");
-  jboolean flag = env->ExceptionCheck();
-  if (flag) {
-    env->ExceptionClear();
+  if (genomicsdb_java_exception_class) {
+    jboolean flag = env->ExceptionCheck();
+    if (flag) {
+      env->ExceptionClear();
+    }
+    env->ThrowNew(genomicsdb_java_exception_class, msg.c_str());
+  } else {
+    throw std::runtime_error(msg);
   }
-  std::string msg = std::string("JNI Error: ") + exception.what();
-  env->ThrowNew(genomicsdb_java_exception_class, msg.c_str());
 }
 
 JNIEXPORT jstring JNICALL
@@ -253,7 +257,7 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnectJSON(JNIEnv *env,
 
   GenomicsDB *genomicsdb = NULL;
   try {
-    genomicsdb =  new GenomicsDB(query_json_file_cstr,
+    genomicsdb = new GenomicsDB(query_json_file_cstr, GenomicsDB::JSON_FILE,
                                  loader_json_file_cstr);
   } catch (GenomicsDBException& e) {
     handleJNIException(env, e);
@@ -261,6 +265,30 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnectJSON(JNIEnv *env,
   
   // Cleanup
   env->ReleaseStringUTFChars(query_json_file, query_json_file_cstr);
+  env->ReleaseStringUTFChars(loader_json_file, loader_json_file_cstr);
+
+  return static_cast<jlong>(reinterpret_cast<uintptr_t>(genomicsdb));
+}
+
+JNIEXPORT jlong JNICALL
+Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnectPBBinaryString(JNIEnv *env,
+                                                                    jclass cls,
+                                                                    jbyteArray query_pb_byte_array,
+                                                                    jstring loader_json_file) {
+  //Convert
+  jbyte *query_pb_buffer = env->GetByteArrayElements(query_pb_byte_array, 0);
+  std::string query_pb_binary_str(reinterpret_cast<char *>(query_pb_buffer), env->GetArrayLength(query_pb_byte_array));
+  auto loader_json_file_cstr = env->GetStringUTFChars(loader_json_file, NULL);
+
+  GenomicsDB *genomicsdb = NULL;
+  try {
+    genomicsdb = new GenomicsDB(query_pb_binary_str, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json_file_cstr);
+  } catch (GenomicsDBException& e) {
+    handleJNIException(env, e);
+  }
+
+  //Cleanup
+  env->ReleaseByteArrayElements(query_pb_byte_array, query_pb_buffer, JNI_ABORT);
   env->ReleaseStringUTFChars(loader_json_file, loader_json_file_cstr);
 
   return static_cast<jlong>(reinterpret_cast<uintptr_t>(genomicsdb));
@@ -344,13 +372,16 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniQueryVariantCalls(JNIEnv *env,
   auto array_name_cstr = env->GetStringUTFChars(array_name, NULL);
 
   VariantCallProcessor processor(env, cls);
-  GenomicsDBVariantCalls variant_calls = genomicsdb->query_variant_calls(processor, array_name_cstr,
-                                                                         to_genomicsdb_ranges_vector(env, column_ranges),
-                                                                         to_genomicsdb_ranges_vector(env, row_ranges));
+  try {
+    GenomicsDBVariantCalls variant_calls = genomicsdb->query_variant_calls(processor, array_name_cstr,
+                                                                           to_genomicsdb_ranges_vector(env, column_ranges),
+                                                                           to_genomicsdb_ranges_vector(env, row_ranges));
 
-  if (variant_calls.size() > 0) {
-    // auto result = to_java_Interval(env, cls, array_name_cstr, genomicsdb, variant_calls);
-    throw GenomicsDBException("NYI: processing results of genomicsdb_GenomicsDBQuery.cc#jniQueryInterval :"+std::to_string(__LINE__));
+    if (variant_calls.size() > 0) {
+      // auto result = to_java_Interval(env, cls, array_name_cstr, genomicsdb, variant_calls);
+      throw GenomicsDBException("NYI: processing results of genomicsdb_GenomicsDBQuery.cc#jniQueryInterval :"+std::to_string(__LINE__));
+    }
+  } catch (GenomicsDBException& e) {
   }
   
   env->ReleaseStringUTFChars(array_name, array_name_cstr);
@@ -373,10 +404,14 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF(JNIEnv *env,
   auto output_cstr =  env->GetStringUTFChars(output, NULL);
   auto output_format_cstr = env->GetStringUTFChars(output_format, NULL);
 
-  genomicsdb->generate_vcf(array_name_cstr,
-                           to_genomicsdb_ranges_vector(env, column_ranges),
-                           to_genomicsdb_ranges_vector(env, row_ranges),
-                           output_cstr, output_format_cstr, overwrite);
+  try {
+    genomicsdb->generate_vcf(array_name_cstr,
+                             to_genomicsdb_ranges_vector(env, column_ranges),
+                             to_genomicsdb_ranges_vector(env, row_ranges),
+                             output_cstr, output_format_cstr, overwrite);
+  } catch (GenomicsDBException& e) {
+    handleJNIException(env, e);
+  }
 
   // Cleanup
   env->ReleaseStringUTFChars(array_name, array_name_cstr);
@@ -396,7 +431,11 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF1(JNIEnv *env,
   auto output_cstr =  env->GetStringUTFChars(output, NULL);
   auto output_format_cstr = env->GetStringUTFChars(output_format, NULL);
 
-  genomicsdb->generate_vcf(output_cstr, output_format_cstr, overwrite);
+  try {
+    genomicsdb->generate_vcf(output_cstr, output_format_cstr, overwrite);
+  } catch (GenomicsDBException& e) {
+    handleJNIException(env, e);
+  }
 
   // Cleanup
   env->ReleaseStringUTFChars(output_format, output_format_cstr);
