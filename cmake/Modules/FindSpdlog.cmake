@@ -1,5 +1,5 @@
 #
-# FindRapidJSON.cmake
+# FindSpdlog.cmake
 #
 # The MIT License
 #
@@ -23,30 +23,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 #
-# Determine compiler flags for RapidJSON
-# Once done this will define
-# RAPIDJSON_FOUND - RapidJSON found
-# RapidJSON_C_FLAGS
-# RapidJSON_CXX_FLAGS
+# Find SpdLog include files to include with GenomicsDB
+# Once done, this will define
+#    SPDLOG_FOUND
+#    SPDLOG_INCLUDE_DIR
 
 # Update git submodule if necessary
-if(NOT EXISTS "${RAPIDJSON_INCLUDE_DIR}")
-  MESSAGE(STATUS "Installing submodule RapidJSON at ${CMAKE_SOURCE_DIR}/dependencies")
+if(NOT EXISTS "${SPDLOG_INCLUDE_DIR}")
+  MESSAGE(STATUS "Installing submodule SpdLog at ${CMAKE_SOURCE_DIR}/dependencies")
   execute_process(
-    COMMAND git submodule update --init ${CMAKE_SOURCE_DIR}/dependencies/RapidJSON
+    COMMAND git submodule update --init ${CMAKE_SOURCE_DIR}/dependencies/spdlog
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     RESULT_VARIABLE submodule_update_exit_code)
   if(NOT(submodule_update_exit_code EQUAL 0))
-    message(FATAL_ERROR "Failure to update git submodule RapidJSON")
+    message(FATAL_ERROR "Failure to update git submodule spdlog")
   endif()
-  set(RAPIDJSON_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/dependencies/RapidJSON/include" CACHE PATH "Path to RapidJSON include directory" FORCE)
+  set(SPDLOG_INCLUDE_DIR  "${CMAKE_SOURCE_DIR}/dependencies/spdlog/include" CACHE PATH "Path to SpdLog include directory" FORCE)
 endif()
 
-find_path(RAPIDJSON_INCLUDE_DIR
-  NAMES rapidjson/rapidjson.h
-  PATHS "${RAPIDJSON_INCLUDE_DIR}"
+find_path(
+  SPDLOG_INCLUDE_DIR NAMES spdlog/spdlog.h
+  HINTS "${SPDLOG_INCLUDE_DIR}"
+  PATHS "${CMAKE_SOURCE_DIR}/dependencies/spdlog/include"
   CMAKE_FIND_ROOT_PATH_BOTH)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(RapidJSON "Could not find RapidJSON header: rapidjson/rapidjson.h - specify the variable RAPIDJSON_INCLUDE_DIR to point to the directory <RapidJSON>/include"
-  RAPIDJSON_INCLUDE_DIR)
+find_package_handle_standard_args(SpdLog "Could not find SpdLog header: spdlog/spdlog.h - specify the variable SPDLOG_INCLUDE_DIR to point to the directory <SpdLog>/include" SPDLOG_INCLUDE_DIR)

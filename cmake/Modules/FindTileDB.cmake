@@ -4,7 +4,7 @@
 # The MIT License
 #
 # Copyright (c) 2016 MIT and Intel Corporation
-# Copyright (c) 2019 Omics Data Automation, Inc.
+# Copyright (c) 2019-2020 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,19 @@
 # Determine compiler flags for TileDB
 # Once done this will define
 # TILEDB_FOUND - TileDB found
+
+# Update git submodule if necessary
+if((DEFINED TILEDB_SOURCE_DIR) AND (NOT "${TILEDB_SOURCE_DIR}" STREQUAL "") AND (NOT EXISTS "${TILEDB_SOURCE_DIR}/CMakeLists.txt"))
+  MESSAGE(STATUS "Installing submodule TileDB at ${CMAKE_SOURCE_DIR}/dependencies")
+  execute_process(
+    COMMAND git submodule update --recursive --init ${CMAKE_SOURCE_DIR}/dependencies/TileDB
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE submodule_update_exit_code)
+  if(NOT(submodule_update_exit_code EQUAL 0))
+    message(FATAL_ERROR "Failure to update git submodule TileDB")
+  endif()
+  set(TILEDB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/TileDB" CACHE PATH "Path to TileDB source directory" FORCE)
+endif()
 
 set(TILEDB_VERBOSE True)
 set(TILEDB_DISABLE_TESTING True)

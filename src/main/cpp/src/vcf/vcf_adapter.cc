@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -18,7 +19,7 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+ */
 
 #ifdef HTSDIR
 
@@ -26,6 +27,7 @@
 #include "vid_mapper.h"
 #include "htslib/tbx.h"
 #include "tiledb_utils.h"
+#include "logger.h"
 
 //ReferenceGenomeInfo functions
 void ReferenceGenomeInfo::initialize(const std::string& reference_genome) {
@@ -270,8 +272,9 @@ VCFAdapter::~VCFAdapter() {
     default:
       break; //do nothing
     }
-    if (status != 0)
-      std::cerr << "WARNING: error in creating index for output file "<<m_config_base_ptr->get_vcf_output_filename()<<"\n";
+    if (status != 0) {
+      logger.warn("error in creating index for output file {}", m_config_base_ptr->get_vcf_output_filename());
+    }
   }
   m_output_fptr = 0;
 #ifdef DO_PROFILING
@@ -322,7 +325,7 @@ void VCFAdapter::initialize(const GenomicsDBConfigBase& config_base) {
   if (m_open_output) {
     m_output_fptr = bcf_open(output_filename.c_str(), ("w"+output_format).c_str());
     if (m_output_fptr == 0) {
-      std::cerr << "Cannot write to output file "<< output_filename << ", exiting\n";
+      logger.error("Cannot write to output file {}, exiting", output_filename);
       exit(-1);
     }
     if (config_base.index_output_VCF() && !output_filename.empty()

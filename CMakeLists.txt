@@ -33,6 +33,12 @@ if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   message(FATAL_ERROR CMAKE_CXX_COMPILER_ID " Compiler not yet supported. Exiting.")
 endif()
 
+#External sources
+set(HTSLIB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/htslib" CACHE PATH "Path to htslib source directory")
+set(TILEDB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/TileDB" CACHE PATH "Path to TileDB source directory")
+set(RAPIDJSON_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/dependencies/RapidJSON/include" CACHE PATH "Path to RapidJSON include directory")
+set(SPDLOG_INCLUDE_DIR  "${CMAKE_SOURCE_DIR}/dependencies/spdlog/include" CACHE PATH "Path to SpdLog include directory")
+
 #git tag
 execute_process(
     COMMAND git log -1 --format=%h
@@ -48,14 +54,12 @@ set(DISABLE_MPI False CACHE BOOL "Disable use of any MPI compiler/libraries")
 set(DISABLE_OPENMP False CACHE BOOL "Disable OpenMP")
 set(BUILD_DISTRIBUTABLE_LIBRARY False CACHE BOOL "Build the TileDB/GenomicsDB library with minimal runtime dependencies")
 set(BUILD_JAVA False CACHE BOOL "Build Java/JNI interface for combined VCF records")
-set(HTSLIB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/htslib" CACHE PATH "Path to htslib source directory")
 set(HTSLIB_INSTALL_DIR "" CACHE PATH "Path to htslib install directory")
 set(OPENSSL_PREFIX_DIR "" CACHE PATH "OpenSSL installation prefix")
 set(GENOMICSDB_PROTOBUF_VERSION "3.0.2" CACHE STRING "Version of Google Protocol Buffer library")
 set(PROTOBUF_LIBRARY "" CACHE PATH "Path to protobuf headers and library")
 set(PROTOBUF_STATIC_LINKING True CACHE BOOL "Statically link Protobuf libraries")
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
-set(TILEDB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/TileDB" CACHE PATH "Path to TileDB source directory")
 set(USE_LIBCSV False CACHE BOOL "Disable library components that import data from csv files")
 set(LIBCSV_DIR "" CACHE PATH "Path to libcsv header and library")
 set(DO_PROFILING False CACHE BOOL "Collect some stats during execution - doesn't add much overhead")
@@ -149,6 +153,7 @@ add_definitions(-D_FILE_OFFSET_BITS=64)  #large file support
 add_definitions(-DHTSDIR=1) #htslib is a mandatory requirement
 add_definitions(-DDUPLICATE_CELL_AT_END=1) #mandatory
 add_definitions(-DGENOMICSDB_VERSION=\"${GENOMICSDB_VERSION}\")
+
 if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
   add_definitions(-D_FORTIFY_SOURCE=2)
 endif()
@@ -163,6 +168,10 @@ endif()
 #RapidJSON
 find_package(RapidJSON REQUIRED)
 include_directories(${RAPIDJSON_INCLUDE_DIR})
+
+#SpdLog
+find_package(Spdlog REQUIRED)
+include_directories(${SPDLOG_INCLUDE_DIR})
 
 #htslib
 find_package(htslib REQUIRED)
