@@ -325,8 +325,7 @@ void VCFAdapter::initialize(const GenomicsDBConfigBase& config_base) {
   if (m_open_output) {
     m_output_fptr = bcf_open(output_filename.c_str(), ("w"+output_format).c_str());
     if (m_output_fptr == 0) {
-      logger.error("Cannot write to output file {}, exiting", output_filename);
-      exit(-1);
+      logger.fatal(VCFAdapterException(logger.format("Cannot write to output file {}", output_filename)));
     }
     if (config_base.index_output_VCF() && !output_filename.empty()
         && !(output_filename.length() == 1u && output_filename[0] == '-')) {
