@@ -56,25 +56,30 @@ TEST_CASE("test logger" "[test_logger_basic]") {
   logger.warn(test_str);
   logger.error(test_str);
   logger.debug(test_str);
+  logger.debug_only(test_str);
 
   logger.info(std::string(TEST_STR_ONCE_ONLY), true);
   logger.info(std::string(TEST_STR_ONCE_ONLY), true);
-
-  GenomicsDBException exception("Test Exception");
-  CHECK_THROWS_AS(logger.fatal(exception, TEST_STR_FMT, 1, TEST_STR), std::exception);
 }
 
-TEST_CASE("test logger" "[test_logger_format]") {
+TEST_CASE("test logger format" "[test_logger_format]") {
   logger.info(TEST_STR_FMT, 1, TEST_STR);
   logger.warn(TEST_STR_FMT, 2, TEST_STR);
   logger.error(TEST_STR_FMT, 3, TEST_STR);
   logger.debug(TEST_STR_FMT, 4, TEST_STR);
+  logger.debug_only(TEST_STR_FMT, 5, TEST_STR);
 
-  logger.info_once(TEST_STR_FMT, 5, TEST_STR_ONCE_ONLY);
-  logger.info_once(TEST_STR_FMT, 5, TEST_STR_ONCE_ONLY);
+  logger.info_once(TEST_STR_FMT, 6, TEST_STR_ONCE_ONLY);
+  logger.info_once(TEST_STR_FMT, 6, TEST_STR_ONCE_ONLY);
 
-  logger.warn_once(TEST_STR_FMT, 6, TEST_STR_ONCE_ONLY);
-  logger.warn_once(TEST_STR_FMT, 6, TEST_STR_ONCE_ONLY);
+  logger.warn_once(TEST_STR_FMT, 7, TEST_STR_ONCE_ONLY);
+  logger.warn_once(TEST_STR_FMT, 7, TEST_STR_ONCE_ONLY);
+
+  CHECK(logger.format(TEST_STR_FMT, 0, TEST_STR).find(TEST_STR) != std::string::npos);
+
+  GenomicsDBException exception("Test Exception");
+  CHECK_THROWS_AS(logger.fatal(exception, TEST_STR_FMT, 1, TEST_STR), std::exception);
+  CHECK_THROWS_AS(logger.fatal(exception), std::exception);
 }
 
 #define CHECK_LOGGER(X, Y)                      \
@@ -107,7 +112,10 @@ TEST_CASE("test explicit logger", "[test_logger_explicit]") {
 
   CHECK_LOGGER(info, TEST_STR);
   CHECK_LOGGER(warn, TEST_STR);
+#ifdef DEBUG
   CHECK_LOGGER(debug, TEST_STR);
+  CHECK_LOGGER(debug_only, TEST_STR);
+#endif
   CHECK_LOGGER(error, TEST_STR);
 
   logger.info(TEST_STR_FMT, 1, TEST_STR);

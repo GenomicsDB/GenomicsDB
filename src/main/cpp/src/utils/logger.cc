@@ -82,6 +82,12 @@ void Logger::debug(const std::string& msg, bool once_only) {
   }
 }
 
+void Logger::debug_only(const std::string& msg, bool once_only) {
+#ifdef DEBUG
+  debug(msg, once_only);
+#endif
+}
+
 void Logger::warn(const std::string& msg, bool once_only) {
   if (!once_only || not_been_logged(msg)) { 
     m_string_logger->warn(msg.c_str());

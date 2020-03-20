@@ -33,6 +33,7 @@
 #ifndef GENOMICSDB_LOGGER
 #define GENOMICSDB_LOGGER
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/ostream_sink.h>
@@ -52,6 +53,7 @@ class Logger {
   /** Direct, formatless logging of messages */
   void info(const std::string& msg, bool once_only=false);
   void debug(const std::string& msg, bool once_only=false);
+  void debug_only(const std::string& msg, bool once_only=false);
   void warn(const std::string& msg, bool once_only=false);
   void error(const std::string& msg, bool once_only=false);
 
@@ -63,6 +65,12 @@ class Logger {
   template<typename... Args>
   void debug(const char* fmt, const Args &... args) {
     m_logger->debug(fmt, args...);
+  }
+  template<typename... Args>
+  void debug_only(const char* fmt, const Args &... args) {
+#ifdef DEBUG
+    m_logger->debug(fmt, args...);
+#endif
   }
   template<typename... Args>
   void warn(const char* fmt, const Args &... args) {
@@ -78,17 +86,27 @@ class Logger {
     throw exception;
   }
 
+  void fatal(const std::exception& exception) {
+    m_logger->error(exception.what());
+    throw exception;
+  }
+
   template<typename... Args>
   void info_once(const char* fmt, const Args &... args) {
-    if (not_been_logged(get_message(fmt, args...))) {
+    if (not_been_logged(format(fmt, args...))) {
       m_logger->info(fmt, args...);
     }
   }
   template<typename... Args>
   void warn_once(const char* fmt, const Args &... args) {
-    if (not_been_logged(get_message(fmt, args...))) {
+    if (not_been_logged(format(fmt, args...))) {
       m_logger->warn(fmt, args...);
     }
+  }
+
+  template<typename... Args>
+  const std::string format(const char* fmt, const Args &... args) {
+    return fmt::format(fmt, args...);
   }
   
  private:
@@ -97,18 +115,6 @@ class Logger {
   std::mutex m_once_only_mutex;
   std::list<std::string> m_once_only_list;
 
-  template<typename... Args>
-  const std::string get_message(const char* fmt, const Args &... args) {
-    std::ostringstream oss;
-    auto oss_sink = std::make_shared<spdlog::sinks::ostream_sink_mt>(oss);
-    
-    spdlog::logger oss_logger("oss", oss_sink);
-    oss_logger.set_level(spdlog::level::info);
-    oss_logger.set_pattern("%v");
-    oss_logger.info(fmt, args...);
-  
-    return oss.str().substr(0, oss.str().length() - strlen(spdlog::details::os::default_eol));
-  }
   void setup_string_logger();
   bool not_been_logged(const std::string& msg);
 };
