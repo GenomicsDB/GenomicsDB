@@ -33,10 +33,9 @@
 #ifndef GENOMICSDB_LOGGER
 #define GENOMICSDB_LOGGER
 
-#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/ostream_sink.h>
+#include <spdlog/fmt/fmt.h>
 
 #include <exception>
 #include <list>

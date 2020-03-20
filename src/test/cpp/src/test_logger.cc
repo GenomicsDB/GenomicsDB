@@ -39,6 +39,7 @@
 #include <string>
 #include <sstream>
 #include <streambuf>
+#include <spdlog/sinks/ostream_sink.h>
 
 #define TEST_STR "This is a test"
 #define TEST_STR_ONCE_ONLY "This is a once_only test"
