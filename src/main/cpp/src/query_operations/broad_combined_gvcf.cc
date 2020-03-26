@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2019 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -25,6 +25,7 @@
 
 #include "broad_combined_gvcf.h"
 #include "genomicsdb_multid_vector_field.h"
+#include "logger.h"
 
 #ifdef DO_MEMORY_PROFILING
 #include "memory_measure.h"
@@ -181,7 +182,7 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
         case VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_NONE:
           break;
         case VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_UNKNOWN_OPERATION:
-          std::cerr << "WARNING: No valid combination operation found for INFO field "<<field_info->m_vcf_name<<" - the field will NOT be part of INFO fields in the generated VCF records\n";
+          logger.info_once("No valid combination operation found for INFO field {}  - the field will NOT be part of INFO fields in the generated VCF records", field_info->m_vcf_name);
           break;
         case VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_HISTOGRAM_SUM: {
           m_INFO_fields_vec.emplace_back(MAKE_BCF_INFO_TUPLE(known_field_enum, i, field_info));

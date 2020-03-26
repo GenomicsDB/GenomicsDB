@@ -34,6 +34,7 @@ set(CPP_TEST_SOURCES
   src/test_non_diploid_mapper.cc
   src/test_multid_vector.cc
   src/test_pb.cc
+  src/test_logger.cc
   )
 
 if(LIBDBI_FOUND)

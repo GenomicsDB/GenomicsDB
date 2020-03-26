@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,6 +27,7 @@
 #include "htslib/bgzf.h"
 #include "vcf_adapter.h"
 #include "genomicsdb_multid_vector_field.h"
+#include "logger.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCF2BinaryException(#X);
 
@@ -60,8 +62,7 @@ void VCFReaderBase::initialize(const char* filename,
       for (auto j=0u; j<vcf_field_names[field_type_idx].size(); ++j)
         VCFAdapter::add_field_to_hdr_if_missing(m_hdr, id_mapper, vcf_field_names[field_type_idx][j], field_type_idx);
     } catch (const VCFAdapterException& e) {
-      std::cerr << "ERROR: conflicting field description in the vid JSON and the VCF header of file: "<<filename<<"\n";
-      throw e;
+      logger.fatal(e, "conflicting field description in the vid JSON and the VCF header of file: {}", filename);
     }
   }
 }
@@ -1139,8 +1140,9 @@ void VCF2Binary::close_partition_output_file(File2TileDBBinaryColumnPartitionBas
   default:
     break; //do nothing
   }
-  if (status != 0)
-    std::cerr << "WARNING: indexing of partition file "<< vcf_partition.m_split_filename <<" failed\n";
+  if (status != 0) {
+    logger.warn(" indexing of partition file {} failed", vcf_partition.m_split_filename);
+  }
 }
 
 #endif //ifdef HTSDIR
