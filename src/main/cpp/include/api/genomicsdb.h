@@ -53,10 +53,11 @@
 
 GENOMICSDB_EXPORT std::string genomicsdb_version();
 
+#define PHASED_ALLELE_SEPARATOR '|';
+#define UNPHASED_ALLELE_SEPARATOR '/';
 #define ALLELE_SEPARATOR '|'
 #define NON_REF_VARIANT "&"
 #define NON_REF "<NON_REF>"
-#define ALT "ALT"
 
 typedef std::pair<uint64_t, uint64_t> interval_t;
 
@@ -74,11 +75,13 @@ typedef struct genomic_field_type_t {
   bool is_fixed_num_elements = true;
   size_t num_elements;
   size_t num_dimensions;
-  genomic_field_type_t(std::type_index type_idx, bool is_fixed_num_elements, size_t num_elements, size_t num_dimensions) {
+  bool contains_phase_info;
+  genomic_field_type_t(std::type_index type_idx, bool is_fixed_num_elements, size_t num_elements, size_t num_dimensions, bool contains_phase_info) {
     this->type_idx = type_idx;
     this->is_fixed_num_elements = is_fixed_num_elements;
     this->num_elements = num_elements;
     this->num_dimensions = num_dimensions;
+    this->contains_phase_info = contains_phase_info;
   }
   inline bool is_int() const {
     return type_idx == std::type_index(typeid(int));
@@ -92,6 +95,9 @@ typedef struct genomic_field_type_t {
   inline bool is_string() const {
     return (type_idx == std::type_index(typeid(char))) && !is_fixed_num_elements;
   }
+  inline bool contains_phase_information() const {
+    return contains_phase_info;
+  }
 } genomic_field_type_t;
 
 typedef struct genomic_field_t {
@@ -103,19 +109,30 @@ typedef struct genomic_field_t {
     this->ptr = ptr;
     this->num_elements = num_elements;
   }
+  size_t get_num_elements() const {
+    return num_elements;
+  }
+  inline void check_offset(uint64_t offset) const {
+     if (offset >= num_elements) {
+       throw GenomicsDBException("Genomic Field="+name+" offset="+std::to_string(offset)+" greater than number of elements");
+    }
+  }
   inline int int_value_at(uint64_t offset) const {
+    check_offset(offset);
     return *(reinterpret_cast<int *>(const_cast<void *>(ptr)) + offset);
   }
   inline float float_value_at(uint64_t offset) const {
+    check_offset(offset);
     return *(reinterpret_cast<float *>(const_cast<void *>(ptr)) + offset);
   }
   inline char char_value_at(uint64_t offset) const {
+    check_offset(offset);
     return *(reinterpret_cast<char *>(const_cast<void *>(ptr)) + offset);
   }
   inline std::string str_value() const {
     return std::string(reinterpret_cast<const char *>(ptr)).substr(0, num_elements);
   }
-  std::string recombine_str_value(char delim=ALLELE_SEPARATOR, std::string separator=", ") const {
+  std::string recombine_ALT_value(char delim=ALLELE_SEPARATOR, std::string separator=", ") const {
     std::stringstream ss(str_value());
     std::string output;
     std::string item;
@@ -127,6 +144,30 @@ typedef struct genomic_field_t {
       }
     }
     return "[" + output+"]";
+  }
+  std::string combine_GT_vector(const genomic_field_type_t& field_type) const {
+    std::string output;
+    if (field_type.contains_phase_information()) {
+      for (auto i=0ul; i<num_elements; i++) {
+        output = output + to_string(i, field_type);
+        if (i+1<num_elements) {
+          if (to_string(i+1, field_type).compare("0") == 0) {
+            output = output + UNPHASED_ALLELE_SEPARATOR;
+          } else {
+            output = output + PHASED_ALLELE_SEPARATOR;
+          }
+          i++;
+        }
+      }
+    } else {
+      for (auto i=0ul; i<num_elements; i++) {
+        output = output + to_string(i, field_type);
+        if (i+1<num_elements) {
+          output = output + UNPHASED_ALLELE_SEPARATOR;
+        }
+      }
+    }
+    return output;
   }
   std::string to_string(uint64_t offset, const genomic_field_type_t& field_type) const {
     if (field_type.is_int()) {
@@ -141,22 +182,24 @@ typedef struct genomic_field_t {
   }
   std::string to_string(const genomic_field_type_t& field_type, std::string separator=", ") const {
     if (field_type.is_string()) {
-      if (name.compare(ALT) == 0) {
-        return recombine_str_value();
+      if (name.compare("ALT") == 0) {
+        return recombine_ALT_value();
       }
       return str_value();
-    }
-    if (num_elements == 1) {
+    } else if (num_elements == 1) {
       return to_string(0, field_type);
-    }
-    std::string output("["); 
-    for (auto i=0ul; i<num_elements; i++) {
-      output = output + to_string(i, field_type);
-      if (i<num_elements-1) {
-        output = output + separator;
+    } else if (name.compare("GT") == 0) {
+      return combine_GT_vector(field_type);
+    } else {
+      std::string output;
+      for (auto i=0ul; i<num_elements; i++) {
+        output = output + to_string(i, field_type);
+        if (i<num_elements-1) {
+          output = output + separator;
+        }
       }
+      return "[" + output + "[";
     }
-    return output + "]";
   }
 } genomic_field_t;
 

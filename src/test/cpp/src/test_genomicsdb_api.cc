@@ -78,6 +78,10 @@ static std::string reference_genome(ctests_input_dir+"chr1_10MB.fasta.gz");
 static std::string query_json(ctests_input_dir+"query.json");
 static std::string loader_json(ctests_input_dir+"loader.json");
 
+// Test Phased Ploidy
+static std::string workspace_PP(ctests_input_dir+"ws_phased_ploidy");
+static std::string vid_mapping_PP(ctests_input_dir+"vid_phased_ploidy.json");
+
 static std::string array("t0_1_2");
 
 void check_query_variants_results(GenomicsDB* gdb, const std::string& array, GenomicsDBVariants variants) {
@@ -112,7 +116,7 @@ void check_query_variants_results(GenomicsDB* gdb, const std::string& array, Gen
    CHECK(call_genomic_interval.interval.first == 12141);
    CHECK(call_genomic_interval.interval.second == 12295);   
    auto call_genomic_fields = gdb->get_genomic_fields(array, variant_call);
-   CHECK(call_genomic_fields.size() == 2);
+   CHECK(call_genomic_fields.size() >= 2);
    CHECK(call_genomic_fields[0].name == "REF");
    CHECK(variant_calls.get_genomic_field_type(call_genomic_fields[0].name).is_string());
    CHECK(call_genomic_fields[0].str_value() == "C");
@@ -121,8 +125,24 @@ void check_query_variants_results(GenomicsDB* gdb, const std::string& array, Gen
    CHECK(call_genomic_fields[1].str_value() == "&");
 }
 
-TEST_CASE("api query_variants direct", "[query_variants]") {
+TEST_CASE("api query_variants direct DP", "[query_variants]") {
   GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}, {{0,3}}));
+  check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}));
+  check_query_variants_results(gdb, array, gdb->query_variants(array));
+  delete gdb;
+}
+
+TEST_CASE("api query_variants direct DP and GT", "[query_variants_DP_GT]") {
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP", "GT"}, 40);
+  check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}, {{0,3}}));
+  check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}));
+  check_query_variants_results(gdb, array, gdb->query_variants(array));
+  delete gdb;
+}
+
+TEST_CASE("api query_variants direct DP and GT with PP", "[query_variants_DP_GT_with_PP]") {
+  GenomicsDB* gdb = new GenomicsDB(workspace_PP, callset_mapping, vid_mapping_PP, reference_genome, {"DP", "GT"}, 40);
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}, {{0,3}}));
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}));
   check_query_variants_results(gdb, array, gdb->query_variants(array));
@@ -176,11 +196,15 @@ class NullVariantCallProcessor : public GenomicsDBVariantCallProcessor {
 
 class OneQueryIntervalProcessor : public GenomicsDBVariantCallProcessor {
  public:
-  OneQueryIntervalProcessor() {};
+  OneQueryIntervalProcessor(const std::vector<std::string> attributes = {}, bool is_PP=false) {
+    m_attributes_size = attributes.size();
+    m_is_PP = is_PP;
+  }
 
   ~OneQueryIntervalProcessor() {
     CHECK(m_num_query_intervals == 1);
     CHECK(m_processed_rows == 5);
+    CHECK(m_sample_found);
   }
 
   void process(const interval_t& interval) {
@@ -193,6 +217,9 @@ class OneQueryIntervalProcessor : public GenomicsDBVariantCallProcessor {
                const int64_t* coordinates,
                const genomic_interval_t& genomic_interval,
                const std::vector<genomic_field_t>& genomic_fields) {
+    if (sample_name == "HG01530") {
+      m_sample_found = true;
+    }
     m_processed_rows++;
     auto row = coordinates[0];
     CHECK(row <= 2);
@@ -201,23 +228,61 @@ class OneQueryIntervalProcessor : public GenomicsDBVariantCallProcessor {
       CHECK(genomic_interval.contig_name == "1");
       CHECK(genomic_interval.interval.first == 17385);
       CHECK(genomic_interval.interval.second == 17385);
-      CHECK(genomic_fields.size() == 3);
-      CHECK(genomic_fields[0].name == "REF");
-      CHECK(get_genomic_field_type(genomic_fields[0].name).is_string());
-      CHECK(genomic_fields[0].str_value() == "G");
-      CHECK(genomic_fields[1].name == "ALT");
-      CHECK(get_genomic_field_type(genomic_fields[1].name).is_string());
-      CHECK(genomic_fields[1].str_value() == "A|&");
-      CHECK(genomic_fields[1].to_string(get_genomic_field_type(genomic_fields[1].name)) == "[A, <NON_REF>]");
-      CHECK(genomic_fields[2].name == "DP");
-      CHECK(get_genomic_field_type(genomic_fields[2].name).is_int());
-      CHECK(genomic_fields[2].int_value_at(0) == 76);
-      CHECK(genomic_fields[2].to_string(get_genomic_field_type(genomic_fields[2].name)) == "76");
+      if (m_attributes_size) {
+        CHECK(genomic_fields.size() == m_attributes_size + 2); // Add '2' for REF and ALT fields
+      }
+      int found_fields = 0;
+      for (auto i=0u; i<genomic_fields.size(); i++) {
+        if (genomic_fields[i].name == "REF") {
+          found_fields++;
+          CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
+          CHECK(genomic_fields[i].str_value() == "G");
+        } else if (genomic_fields[i].name == "ALT") {
+          found_fields++;
+          CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
+          CHECK(genomic_fields[i].str_value() == "A|&");
+          CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[1].name)) == "[A, <NON_REF>]");
+        } else if (genomic_fields[i].name == "DP") {
+          found_fields++;
+          CHECK(get_genomic_field_type(genomic_fields[i].name).is_int());
+          CHECK(genomic_fields[i].int_value_at(0) == 76);
+          CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[2].name)) == "76");
+        } else if (genomic_fields[i].name == "GT") {
+          found_fields++;
+          CHECK(get_genomic_field_type(genomic_fields[i].name).is_int());
+          if (m_is_PP) {
+            CHECK(genomic_fields[i].get_num_elements() == 3);
+          } else {
+            CHECK(genomic_fields[i].get_num_elements() == 2);
+            CHECK(genomic_fields[i].int_value_at(0) == 0);
+            CHECK(genomic_fields[i].int_value_at(1) == 1);
+            CHECK_THROWS_AS(genomic_fields[i].int_value_at(2), std::exception);
+          }
+          CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "0/1");
+        }
+      }
+      if (m_attributes_size) {
+        CHECK(found_fields == m_attributes_size + 2);
+      }
+    }
+    if (sample_name == "HG01958" && coordinates[1] == 12144) {
+      for (auto i=0u; i<genomic_fields.size(); i++) {
+        if (genomic_fields[i].name == "GT") {
+          if (m_is_PP) {
+            CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "0|0");
+          } else {
+            CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "0/0");
+          }
+        }
+      }
     }
   };
 
+  int m_attributes_size;
   int m_num_query_intervals = 0;
   int m_processed_rows = 0;
+  int m_sample_found = false;
+  int m_is_PP;
 };
 
 class TwoQueryIntervalsProcessor : public GenomicsDBVariantCallProcessor {
@@ -252,7 +317,11 @@ class TwoQueryIntervalsProcessor : public GenomicsDBVariantCallProcessor {
 };
 
 TEST_CASE("api query_variant_calls direct", "[query_variant_calls_direct]") {
-  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  const std::vector<std::string> attributes = {"DP"};
+
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, attributes, 40);
+
+  gdb->query_variant_calls(array);
 
   // Default query variant call without processor, should just print the calls
   gdb->query_variant_calls(array, {{0,1000000000}}, {{0,3}});
@@ -260,7 +329,53 @@ TEST_CASE("api query_variant_calls direct", "[query_variant_calls_direct]") {
   NullVariantCallProcessor null_processor;
   gdb->query_variant_calls(null_processor, array, {{0,1000000000}}, {{0,3}});
 
-  OneQueryIntervalProcessor one_query_interval_processor;
+  OneQueryIntervalProcessor one_query_interval_processor(attributes);
+  gdb->query_variant_calls(one_query_interval_processor, array, {{0,1000000000}}, {{0,3}});
+  gdb->query_variant_calls(one_query_interval_processor, array, {{0,1000000000}});
+  gdb->query_variant_calls(one_query_interval_processor, array);
+
+  TwoQueryIntervalsProcessor two_query_intervals_processor;
+  gdb->query_variant_calls(two_query_intervals_processor, array, {{0,17000},{17000,18000}}, {{0,3}});
+  gdb->query_variant_calls(two_query_intervals_processor, array, {{0,17000},{17000,18000}});
+
+  delete gdb;
+}
+
+TEST_CASE("api query_variant_calls direct DP and GT", "[query_variant_calls_direct_DP_GT]") {
+  const std::vector<std::string> attributes = {"GT", "DP"};
+
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, attributes, 40);
+
+  // Default query variant call without processor, should just print the calls
+  gdb->query_variant_calls(array, {{0,1000000000}}, {{0,3}});
+
+  NullVariantCallProcessor null_processor;
+  gdb->query_variant_calls(null_processor, array, {{0,1000000000}}, {{0,3}});
+
+  OneQueryIntervalProcessor one_query_interval_processor(attributes);
+  gdb->query_variant_calls(one_query_interval_processor, array, {{0,1000000000}}, {{0,3}});
+  gdb->query_variant_calls(one_query_interval_processor, array, {{0,1000000000}});
+  gdb->query_variant_calls(one_query_interval_processor, array);
+
+  TwoQueryIntervalsProcessor two_query_intervals_processor;
+  gdb->query_variant_calls(two_query_intervals_processor, array, {{0,17000},{17000,18000}}, {{0,3}});
+  gdb->query_variant_calls(two_query_intervals_processor, array, {{0,17000},{17000,18000}});
+
+  delete gdb;
+}
+
+TEST_CASE("api query_variant_calls direct DP and GT with PP", "[query_variant_calls_direct_DP_GT_with_PP]") {
+  const std::vector<std::string> attributes = {"GT", "DP"};
+
+  GenomicsDB* gdb = new GenomicsDB(workspace_PP, callset_mapping, vid_mapping_PP, reference_genome, attributes, 40);
+
+  // Default query variant call without processor, should just print the calls
+  gdb->query_variant_calls(array, {{0,1000000000}}, {{0,3}});
+
+  NullVariantCallProcessor null_processor;
+  gdb->query_variant_calls(null_processor, array, {{0,1000000000}}, {{0,3}});
+
+  OneQueryIntervalProcessor one_query_interval_processor(attributes, true);
   gdb->query_variant_calls(one_query_interval_processor, array, {{0,1000000000}}, {{0,3}});
   gdb->query_variant_calls(one_query_interval_processor, array, {{0,1000000000}});
   gdb->query_variant_calls(one_query_interval_processor, array);
