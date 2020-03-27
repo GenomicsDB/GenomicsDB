@@ -105,6 +105,16 @@ public class GenomicsDBQueryTest {
     return handle;
   }
 
+  private long connectWithDPandGTAttribute() {
+    GenomicsDBQuery query = new GenomicsDBQuery();
+    List<String> attributes = new ArrayList<>();
+    attributes.add("DP");
+    attributes.add("GT");
+    long handle = query.connect(workspace, vidMapping, callsetMapping, referenceGenome, attributes);
+    Assert.assertTrue(handle > 0);
+    return handle;
+  }
+
   private long connectWithSegmentSize() {
     GenomicsDBQuery query = new GenomicsDBQuery();
     long handle = query.connect(workspace, vidMapping, callsetMapping, referenceGenome, new ArrayList<>(), 40);
@@ -170,6 +180,44 @@ public class GenomicsDBQueryTest {
 
     query.disconnect(genomicsDBHandle);
   }
+
+  @Test
+  void testGenomicsDBVariantCallQueryWithMultipleAttributes() {
+    GenomicsDBQuery query = new GenomicsDBQuery();
+    long genomicsDBHandle = connectWithDPandGTAttribute();
+
+    List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName);
+    Assert.assertEquals(intervals.size(), 0);
+
+    List<Pair>columnRanges = new ArrayList<>();
+    columnRanges.add(new Pair(0L, 1000000000L));
+    List<Pair>rowRanges = new ArrayList<>();
+    rowRanges.add(new Pair(0L, 3L));
+
+    intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
+    Assert.assertEquals(intervals.size(), 1);
+
+    Pair interval = intervals.get(0).getInterval();
+    List<VariantCall> calls = intervals.get(0).getCalls();
+
+    Assert.assertEquals(interval.getStart(), 0L);
+    Assert.assertEquals(interval.getEnd(), 1000000000L);
+
+    Assert.assertEquals(calls.size(), 5);
+
+    boolean foundVariantCall = false;
+    for (VariantCall call : calls) {
+      if (call.sampleName.equals("HG00141") && call.contigName.equals("1") && call.genomic_interval.getStart() == 12141 && call.genomic_interval.getEnd() == 12295) {
+        foundVariantCall = true;
+        Assert.assertEquals(call.genomicFields.size(), 3);
+        Assert.assertEquals(call.genomicFields.get("REF"), "C");
+        Assert.assertEquals(call.genomicFields.get("ALT"), "[<NON_REF>]");
+        Assert.assertEquals(call.genomicFields.get("GT"), "0/0");
+      }
+    }
+    Assert.assertTrue(foundVariantCall, "One Variant Call should have been found");
+  }
+  /* GenomicsDBColumnarField::print_data_in_buffer_at_index  genomicsdb_columnar_field.cc:101*/
 
   @Test
   void testGenomicsDBVariantCallQueryWithSegmentSize() {

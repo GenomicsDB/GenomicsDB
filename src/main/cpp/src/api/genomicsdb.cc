@@ -169,21 +169,20 @@ GenomicsDB::~GenomicsDB() {
 std::map<std::string, genomic_field_type_t> create_genomic_field_types(const VariantQueryConfig &query_config) {
   std::map<std::string, genomic_field_type_t> genomic_field_types;
   for (auto i=0u; i<query_config.get_num_queried_attributes(); i++) {
-    if (query_config.is_defined_known_field_enum_for_query_idx(i)) {
-      const std::string attribute_name = query_config.get_query_attribute_name(i);
-      const FieldInfo* field_info = query_config.get_vid_mapper().get_field_info(attribute_name);
-      if (field_info) {
-        const FieldElementTypeDescriptor descr = field_info->get_vcf_type();
-        assert(descr.get_num_elements_in_tuple() > 0);
-        const std::type_index type_index = descr.get_tuple_element_type_index(0);
-        const FieldLengthDescriptor length_descr = field_info->m_length_descriptor;
-        genomic_field_types.insert(std::make_pair(
-            attribute_name,
-            genomic_field_type_t(type_index,
-                                 length_descr.is_fixed_length_field(),
-                                 length_descr.is_fixed_length_field()?length_descr.get_num_elements():0,
-                                 length_descr.get_num_dimensions())));
-      }
+    const std::string attribute_name = query_config.get_query_attribute_name(i);
+    const FieldInfo* field_info = query_config.get_vid_mapper().get_field_info(attribute_name);
+    if (field_info) {
+      const FieldElementTypeDescriptor descr = field_info->get_vcf_type();
+      assert(descr.get_num_elements_in_tuple() > 0);
+      const std::type_index type_index = descr.get_tuple_element_type_index(0);
+      const FieldLengthDescriptor length_descr = field_info->m_length_descriptor;
+      genomic_field_types.insert(std::make_pair(
+          attribute_name,
+          genomic_field_type_t(type_index,
+                               length_descr.is_fixed_length_field(),
+                               length_descr.is_fixed_length_field()?length_descr.get_num_elements():0,
+                               length_descr.get_num_dimensions(),
+                               length_descr.is_length_ploidy_dependent()&&length_descr.contains_phase_information())));
     }
   }
   return genomic_field_types;
@@ -362,7 +361,7 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
   std::vector<genomic_field_t> genomic_fields;
   // Ignore first field as it is "END"
   for (auto i=1u; i<query_config.get_num_queried_attributes(); i++) {
-    if (cell.is_valid(i) && query_config.is_defined_known_field_enum_for_query_idx(i)) {
+    if (cell.is_valid(i)) {
       genomic_field_t field_vec(query_config.get_query_attribute_name(i),
                                 cell.get_field_ptr_for_query_idx(i),
                                 cell.get_field_length(i));
@@ -565,7 +564,7 @@ std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, co
     if (field && field->is_valid()) {
       std::string name = get_query_attribute_name(variant_or_variant_call, query_config, index);
       void* ptr = const_cast<void *>(field->get_raw_pointer());
-      if (name.compare(ALT) == 0) {
+      if (name.compare("ALT") == 0) {
         void *p;
         unsigned size;
         bool allocated;
