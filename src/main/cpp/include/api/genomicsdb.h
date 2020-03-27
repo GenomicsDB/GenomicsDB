@@ -147,9 +147,9 @@ typedef struct genomic_field_t {
   }
   std::string combine_GT_vector(const genomic_field_type_t& field_type) const {
     std::string output;
-    for (auto i=0ul; i<num_elements; i++) {
-      output = output + to_string(i, field_type);
-      if (field_type.contains_phase_information()) {
+    if (field_type.contains_phase_information()) {
+      for (auto i=0ul; i<num_elements; i++) {
+        output = output + to_string(i, field_type);
         if (i+1<num_elements) {
           if (to_string(i+1, field_type).compare("0") == 0) {
             output = output + UNPHASED_ALLELE_SEPARATOR;
@@ -158,8 +158,13 @@ typedef struct genomic_field_t {
           }
           i++;
         }
-      } else if (i+1<num_elements) {
-        output = output + UNPHASED_ALLELE_SEPARATOR;
+      }
+    } else {
+      for (auto i=0ul; i<num_elements; i++) {
+        output = output + to_string(i, field_type);
+        if (i+1<num_elements) {
+          output = output + UNPHASED_ALLELE_SEPARATOR;
+        }
       }
     }
     return output;
