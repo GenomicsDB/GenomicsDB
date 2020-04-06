@@ -143,7 +143,7 @@ typedef struct genomic_field_t {
         output.empty()?output=item:output=output+separator+item;
       }
     }
-    return "[" + output+"]";
+    return "[" + output + "]";
   }
   std::string combine_GT_vector(const genomic_field_type_t& field_type) const {
     std::string output;
@@ -198,7 +198,7 @@ typedef struct genomic_field_t {
           output = output + separator;
         }
       }
-      return "[" + output + "[";
+      return "[" + output + "]";
     }
   }
 } genomic_field_t;
