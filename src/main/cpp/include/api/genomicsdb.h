@@ -53,12 +53,6 @@
 
 GENOMICSDB_EXPORT std::string genomicsdb_version();
 
-#define PHASED_ALLELE_SEPARATOR '|';
-#define UNPHASED_ALLELE_SEPARATOR '/';
-#define ALLELE_SEPARATOR '|'
-#define NON_REF_VARIANT "&"
-#define NON_REF "<NON_REF>"
-
 typedef std::pair<uint64_t, uint64_t> interval_t;
 
 typedef struct genomic_interval_t {
@@ -132,43 +126,8 @@ typedef struct genomic_field_t {
   inline std::string str_value() const {
     return std::string(reinterpret_cast<const char *>(ptr)).substr(0, num_elements);
   }
-  std::string recombine_ALT_value(char delim=ALLELE_SEPARATOR, std::string separator=", ") const {
-    std::stringstream ss(str_value());
-    std::string output;
-    std::string item;
-    while (std::getline(ss, item, delim)){
-      if (item.compare(NON_REF_VARIANT) == 0) {
-        output.empty()?output=NON_REF:output=output+separator+NON_REF;
-      } else {
-        output.empty()?output=item:output=output+separator+item;
-      }
-    }
-    return "[" + output + "]";
-  }
-  std::string combine_GT_vector(const genomic_field_type_t& field_type) const {
-    std::string output;
-    if (field_type.contains_phase_information()) {
-      for (auto i=0ul; i<num_elements; i++) {
-        output = output + to_string(i, field_type);
-        if (i+1<num_elements) {
-          if (to_string(i+1, field_type).compare("0") == 0) {
-            output = output + UNPHASED_ALLELE_SEPARATOR;
-          } else {
-            output = output + PHASED_ALLELE_SEPARATOR;
-          }
-          i++;
-        }
-      }
-    } else {
-      for (auto i=0ul; i<num_elements; i++) {
-        output = output + to_string(i, field_type);
-        if (i+1<num_elements) {
-          output = output + UNPHASED_ALLELE_SEPARATOR;
-        }
-      }
-    }
-    return output;
-  }
+  std::string recombine_ALT_value(std::string separator=", ") const;
+  std::string combine_GT_vector(const genomic_field_type_t& field_type) const;
   std::string to_string(uint64_t offset, const genomic_field_type_t& field_type) const {
     if (field_type.is_int()) {
       return std::to_string(int_value_at(offset));

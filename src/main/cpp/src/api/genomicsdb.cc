@@ -355,8 +355,6 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
   contig_position++;
   genomic_interval_t genomic_interval(std::move(contig_name),
                                       std::make_pair(contig_position, contig_position+end_position-coords[1]));
-  auto ALT_query_idx = query_config.is_defined_query_idx_for_known_field_enum(GVCF_ALT_IDX)
-      ? query_config.get_query_idx_for_known_field_enum(GVCF_ALT_IDX) : UINT64_MAX;
 
   std::vector<genomic_field_t> genomic_fields;
   // Ignore first field as it is "END"
