@@ -28,8 +28,8 @@ import org.apache.log4j.Logger;
 import java.io.*;
 
 public class GenomicsDBLibLoader {
+    public final static String GENOMICSDB_LIBRARY_PATH = "genomicsdb.library.path";
     private final static String GENOMICSDB_LIBRARY_NAME = "tiledbgenomicsdb";
-    private final static String GENOMICSDB_LIBRARY_PATH = "genomicsdb.library.path";
     private static boolean mIsLibraryLoaded = false;
 
     private static Logger logger = Logger.getLogger(GenomicsDBLibLoader.class);
