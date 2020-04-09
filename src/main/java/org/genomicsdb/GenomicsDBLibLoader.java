@@ -22,36 +22,55 @@
 
 package org.genomicsdb;
 
-import java.io.File;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.IOException;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
+
+import org.apache.log4j.Logger;
+
+import java.io.*;
 
 public class GenomicsDBLibLoader {
     private final static String GENOMICSDB_LIBRARY_NAME = "tiledbgenomicsdb";
+    private final static String GENOMICSDB_LIBRARY_PATH = "genomicsdb.library.path";
     private static boolean mIsLibraryLoaded = false;
+
+    private static Logger logger = Logger.getLogger(GenomicsDBLibLoader.class);
 
     private static native int jniGenomicsDBOneTimeInitialize();
 
     public static synchronized boolean loadLibrary() {
         if (mIsLibraryLoaded) return true;
 
-        //Try loading from outside the JAR - on GNU/Linux, if the LD_LIBRARY_PATH variable is set, then the library will be loaded
         try {
-            System.loadLibrary(GENOMICSDB_LIBRARY_NAME);
-        } catch (UnsatisfiedLinkError ule) {
-            //Could not load based on external loader configuration 
-            try {
+            // If GENOMICSDB_LIBRARY_PATH is specified via -Dgenomicsdb.library.path=/path/to/lib then
+            // load library from GENOMICSDB_LIBRARY_PATH
+            String genomicsDBLibraryPath =  System.getProperty(GENOMICSDB_LIBRARY_PATH);
+            if (genomicsDBLibraryPath != null && genomicsDBLibraryPath.length() != 0) {
+                String libraryPrefix = "lib";
+                String librarySuffix;
+                String os = System.getProperty("os.name").toLowerCase();
+                if (os.indexOf("mac") >= 0) {
+                    librarySuffix = ".dylib";
+                } else if (os.indexOf("linux") >= 0) {
+                    librarySuffix = ".so";
+                } else {
+                    throw new RuntimeException("GenomicsDB is not supported for os="+System.getProperty("os.name"));
+                }
+                File genomicsdbLibraryFile = new File(genomicsDBLibraryPath, libraryPrefix+GENOMICSDB_LIBRARY_NAME+librarySuffix);
+                if (!genomicsdbLibraryFile.exists()) {
+                    throw new RuntimeException("GenomicsDB library not found at " + genomicsDBLibraryPath);
+                }
+                System.load(genomicsdbLibraryFile.getAbsolutePath());
+                logger.info("GenomicsDB native library has been loaded from " + genomicsdbLibraryFile.getAbsolutePath());
+            } else {
                 loadLibraryFromJar("/" + System.mapLibraryName(GENOMICSDB_LIBRARY_NAME));
-            } catch (IOException ioe) {
-                //Throw the UnsatisfiedLinkError to make it clear to the user what failed
-                throw ule;
             }
+        } catch (IOException e) {
+            logger.fatal("", e);
+            throw new RuntimeException("GenomicsDB native library could not be loaded", e);
         }
+
         jniGenomicsDBOneTimeInitialize();
         mIsLibraryLoaded = true;
+        logger.info("GenomicsDB native library version : " + GenomicsDBUtils.nativeLibraryVersion());
         return true;
     }
 

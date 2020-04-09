@@ -8,6 +8,14 @@
 extern "C" {
 #endif
 /*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni_jniLibraryVersion
+ * Method:    jniVersion
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniLibraryVersion
+  (JNIEnv *, jclass);
+
+/*
  * Class:     org_genomicsdb_GenomicsDBUtilsJni
  * Method:    jniCreateTileDBWorkspace
  * Signature: (Ljava/lang/String;Z)I

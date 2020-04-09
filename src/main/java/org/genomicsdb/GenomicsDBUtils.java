@@ -23,6 +23,15 @@
 package org.genomicsdb;
 
 public class GenomicsDBUtils {
+
+    /**
+     * Get full version string of GenomicsDB
+     * @return version of GenomicsDB
+     */
+    public static String nativeLibraryVersion() {
+        return GenomicsDBUtilsJni.jniLibraryVersion();
+    }
+
     /**
      * Create TileDB workspace
      *
