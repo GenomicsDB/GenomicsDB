@@ -22,12 +22,12 @@
 
 package org.genomicsdb;
 
-import org.genomicsdb.exception.GenomicsDBException;
-import org.junit.internal.runners.statements.Fail;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Paths;
@@ -55,8 +55,17 @@ public class GenomicsDBLibLoaderTest {
               "-classpath", System.getProperty("java.class.path"),
               GenomicsDBLibLoaderTest.class.getName());
     }
-    Process process = processBuilder.inheritIO().start();
-    return process.waitFor();
+    File file  = File.createTempFile("tmp", "genomicsdblibloadertest");
+    file.deleteOnExit();
+    Process process = processBuilder.redirectError(file).redirectOutput(file).start();
+    int rc = process.waitFor();
+    try (BufferedReader br = new BufferedReader(new FileReader(file.getAbsolutePath()))) {
+      String line;
+      while ((line = br.readLine()) != null) {
+        System.err.println(line);
+      }
+    }
+    return rc;
   }
 
   @Test

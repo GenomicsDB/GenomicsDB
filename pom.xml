@@ -203,6 +203,11 @@
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
         <version>0.8.5</version>
+        <configuration>
+          <excludes>
+            <exclude>**/GenomicsDBLibLoader.*</exclude>
+          </excludes>
+        </configuration>
         <executions>
           <!--
             Prepares the property pointing to the JaCoCo runtime agent which
