@@ -23,6 +23,7 @@
 package org.genomicsdb;
 
 import org.genomicsdb.exception.GenomicsDBException;
+import org.junit.internal.runners.statements.Fail;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -36,37 +37,41 @@ import java.util.stream.Collectors;
 public class GenomicsDBLibLoaderTest {
   @Test
   void testGenomicsDBLoader() {
-    System.clearProperty(GenomicsDBLibLoader.GENOMICSDB_LIBRARY_PATH);
     Assert.assertTrue(GenomicsDBLibLoader.loadLibrary());
   }
 
-  public int runTestInSeparateProcess() throws Exception {
-    String dir = System.getProperty(GenomicsDBLibLoader.GENOMICSDB_LIBRARY_PATH);
+  public int runTestInSeparateProcess(String libraryPath) throws Exception {
     String classpath = Arrays.stream(((URLClassLoader) Thread.currentThread().getContextClassLoader()).getURLs())
             .map(URL::getFile)
             .collect(Collectors.joining(File.pathSeparator));
-    Process process = new ProcessBuilder(
-            System.getProperty("java.home") + "/bin/java",
-            "-classpath", System.getProperty("java.class.path"), GenomicsDBLibLoaderTest.class.getName())
-            .inheritIO()
-            .start();
+    ProcessBuilder processBuilder = null;
+    if (libraryPath == null) {
+      processBuilder = new ProcessBuilder(System.getProperty("java.home") + "/bin/java",
+                      "-classpath", System.getProperty("java.class.path"),
+                      GenomicsDBLibLoaderTest.class.getName());
+    } else {
+      processBuilder = new ProcessBuilder(System.getProperty("java.home") + "/bin/java",
+              "-D"+GenomicsDBLibLoader.GENOMICSDB_LIBRARY_PATH+"="+libraryPath,
+              "-classpath", System.getProperty("java.class.path"),
+              GenomicsDBLibLoaderTest.class.getName());
+    }
+    Process process = processBuilder.inheritIO().start();
     return process.waitFor();
   }
 
   @Test
   public void testGenomicsDBLibLoaderInSeparateProcess() throws Exception {
-    Assert.assertEquals(runTestInSeparateProcess(), 0);
+    Assert.assertEquals(runTestInSeparateProcess(null), 0);
   }
 
   @Test
   public void testGenomicsDBLibLoaderFromPath() throws Exception {
-    String buildDir = Paths.get("src", "main").toAbsolutePath().toString();
+    String buildDir = Paths.get("target", "classes").toAbsolutePath().toString();
     if (!new File(buildDir).exists()) {
-      buildDir = Paths.get("build", "src", "main").toAbsolutePath().toString();
+      buildDir = Paths.get("build", "target", "classes").toAbsolutePath().toString();
     }
-    if (!new File(buildDir).exists()) {
-      System.setProperty(GenomicsDBLibLoader.GENOMICSDB_LIBRARY_PATH, buildDir);
-      Assert.assertEquals(runTestInSeparateProcess(), 0);
+    if (new File(buildDir).exists()) {
+      Assert.assertEquals(runTestInSeparateProcess(buildDir), 0);
     }
   }
 
@@ -74,9 +79,8 @@ public class GenomicsDBLibLoaderTest {
   public void testGenomicsDBLibLoaderFromNonExistentPath() {
     String buildDir = "non-existent-path";
     Assert.assertFalse(new File(buildDir).exists());
-    System.setProperty(GenomicsDBLibLoader.GENOMICSDB_LIBRARY_PATH, buildDir);
     try {
-      runTestInSeparateProcess();
+      Assert.assertEquals(runTestInSeparateProcess(buildDir), 1);
     } catch (Exception e) {
       // Pass
     }
