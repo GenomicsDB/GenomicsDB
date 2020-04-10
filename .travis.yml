@@ -21,6 +21,8 @@ matrix:
         os: linux
         env: INSTALL_TYPE=basic
         services: postgres
+        cache:
+          directories: $HOME/.m2 $CACHE_DIR
 
       - name: "Basic build OSX - 1"
         os: osx
@@ -42,6 +44,8 @@ matrix:
         os: linux
         env: INSTALL_TYPE=hdfs
         services: postgres
+        cache:
+          directories: $HOME/.m2 $CACHE_DIR
 
 #
 # commenting out for now because these seem flaky
@@ -100,8 +104,13 @@ install:
     - export PATH=$JAVA_HOME/bin:$PATH
     - which javac && javac -version
     - which java && java -version
-    # install spark/hdfs/scala
+    - if [[ ! -f $CACHE_DIR/bcftools-1.10.2.tar.bz2 ]]; then
+        wget -nv https://github.com/samtools/bcftools/releases/download/1.10.2/bcftools-1.10.2.tar.bz2 -O $CACHE_DIR/bcftools-1.10.2.tar.bz2;
+      fi
     - cd $TRAVIS_BUILD_DIR
+    - tar -xjf $CACHE_DIR/bcftools-1.10.2.tar.bz2 && cd bcftools-1.10.2 && make -j4 && cd .. && export PATH=$PATH:$TRAVIS_BUILD_DIR/bcftools-1.10.2
+    - which bcftools
+    # install spark/hdfs/scala
     - if [[ $INSTALL_TYPE != basic ]]; then
         wget -nv https://downloads.lightbend.com/scala/2.11.8/scala-2.11.8.deb;
         sudo dpkg -i scala-2.11.8.deb;
