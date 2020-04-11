@@ -717,6 +717,19 @@ def main():
                         } }
                     ]
             },
+            { "name" : "t6_SNV_7_MNV_8", 'golden_output' : 'golden_outputs/t6_SNV_t7_MNV_t8_loading.vcf',
+                'callset_mapping_file': 'inputs/callsets/t6_SNV_7_MNV_8.json',
+                "query_params": [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }], "golden_output": {
+                        "vcf"        : "golden_outputs/t6_SNV_t7_MNV_t8_loading.vcf",
+                        } },
+                    ]
+            },
             { "name" : "java_genomicsdb_importer_from_vcfs_t6_7_8_multi_contig",
                 'callset_mapping_file': 'inputs/callsets/t6_7_8.json',
                 'chromosome_intervals': [ '1:1-8029500','1:8029501-8029501', '1:8029502-10000000' ],
@@ -1399,15 +1412,17 @@ def main():
         if('golden_output' in test_params_dict):
             golden_stdout, golden_md5sum = get_file_content_and_md5sum(test_params_dict['golden_output']);
             if(golden_md5sum != md5sum_hash_str):
+	        is_error = True
                 if(bcftools_path is None):
                     sys.stderr.write('Did not find bcftools in path. If you are able to add that to the path, we can get a more precise diff\n')
                 else:
                     outfilename = tmpdir+os.path.sep+test_name+'.vcf'
                     outfilename_golden = tmpdir+os.path.sep+test_name+'_golden'+'.vcf'
-                    if(bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, stdout_string, golden_stdout)):
-                        sys.stderr.write('Loader stdout mismatch for test: '+test_name+'\n');
-                        print_diff(golden_stdout, stdout_string);
-                        cleanup_and_exit(tmpdir, -1);
+                    is_error = (bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, stdout_string, golden_stdout))
+		if(is_error):
+		    sys.stderr.write('Loader stdout mismatch for test: '+test_name+'\n');
+		    print_diff(golden_stdout, stdout_string);
+		    cleanup_and_exit(tmpdir, -1);
 
         if incremental_load:
             pid = subprocess.Popen(import_cmd_incremental, shell=True, stdout=subprocess.PIPE);

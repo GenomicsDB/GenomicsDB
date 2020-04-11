@@ -296,3 +296,13 @@ bool VariantUtils::contains_deletion(const std::string& REF, const std::vector<s
       return true;
   return false;
 }
+
+bool VariantUtils::contains_MNV(const std::string& REF, const std::vector<std::string>& ALT_vec) {
+  auto REF_length = REF.length();
+  if (REF_length <= 1u)
+    return false;
+  for (auto& alt_allele : ALT_vec)
+    if (is_MNV(REF, alt_allele))
+      return true;
+  return false;
+}

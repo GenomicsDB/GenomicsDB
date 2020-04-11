@@ -796,8 +796,7 @@ void BroadCombinedGVCFOperator::operate(Variant& variant, const VariantQueryConf
   if (m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_ID_IDX)) {
     auto ID_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_ID_IDX);
     merge_ID_field(variant, ID_query_idx);
-    if (!m_ID_value.empty())
-      bcf_update_id(m_vcf_hdr, m_bcf_out, m_ID_value.c_str());
+    bcf_update_id(m_vcf_hdr, m_bcf_out, m_ID_value.empty() ? "." : m_ID_value.c_str());
   }
   m_bcf_record_size += m_ID_value.length();
   //GATK combined GVCF does not care about QUAL value
@@ -906,10 +905,10 @@ void BroadCombinedGVCFOperator::handle_deletions(Variant& variant, const Variant
   for (auto iter=variant.begin(), e=variant.end(); iter != e; ++iter) {
     auto& curr_call = *iter;
     auto curr_call_idx_in_variant = iter.get_call_idx_in_variant();
-    //Deletion and not handled as spanning deletion
+    //Deletion or MNV and not handled as spanning deletion
     //So replace the ALT with *,<NON_REF> and REF with "N"
     //Remap PL, AD fields
-    if (curr_call.contains_deletion() && variant.get_column_begin() > curr_call.get_column_begin()) {
+    if (curr_call.contains_deletion_or_MNV() && variant.get_column_begin() > curr_call.get_column_begin()) {
       auto& ref_allele = get_known_field<VariantFieldString, true>(curr_call, query_config, GVCF_REF_IDX)->get();
       auto& alt_alleles = get_known_field<VariantFieldALTData, true>(curr_call, query_config, GVCF_ALT_IDX)->get();
       assert(alt_alleles.size() > 0u);
@@ -949,7 +948,7 @@ void BroadCombinedGVCFOperator::handle_deletions(Variant& variant, const Variant
       m_spanning_deletion_current_genotype.resize(ploidy);
       for (auto i=0u; i<alt_alleles.size(); ++i) {
         auto allele_idx = i+1;  //+1 for REF
-        if (VariantUtils::is_deletion(ref_allele, alt_alleles[i])) {
+        if (VariantUtils::is_deletion_or_MNV(ref_allele, alt_alleles[i])) {
           if (lowest_deletion_allele_idx < 0) //uninitialized, assign to first deletion found
             lowest_deletion_allele_idx = allele_idx;
           if (PL_field_exists) {

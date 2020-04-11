@@ -82,6 +82,7 @@ class VariantCall {
     m_is_valid = false;
     m_is_initialized = false;
     m_contains_deletion = false;
+    m_contains_MNV = false;
     m_is_reference_block = false;
     m_row_idx = UNDEFINED_NUM_ROWS_VALUE;
     m_col_begin = -1;
@@ -95,6 +96,7 @@ class VariantCall {
     m_is_valid = false;
     m_is_initialized = false;
     m_contains_deletion = false;
+    m_contains_MNV = false;
     m_is_reference_block = false;
     m_row_idx = rowIdx;
     clear();
@@ -260,6 +262,15 @@ class VariantCall {
   bool contains_deletion() const {
     return m_is_valid && m_contains_deletion;
   }
+  void set_contains_MNV(bool val) {
+    m_contains_MNV = val;
+  }
+  bool contains_MNV() const {
+    return m_is_valid && m_contains_MNV;
+  }
+  bool contains_deletion_or_MNV() const {
+    return contains_MNV() || contains_deletion();
+  }
   void set_is_reference_block(bool val) {
     m_is_reference_block = val;
   }
@@ -289,6 +300,8 @@ class VariantCall {
   bool m_is_initialized;
   //whether the ALT contains a deletion
   bool m_contains_deletion;
+  //whether the ALT contains a MNV
+  bool m_contains_MNV;
   //whether the current call is a reference block
   bool m_is_reference_block;
   uint64_t m_row_idx;

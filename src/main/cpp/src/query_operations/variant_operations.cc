@@ -985,15 +985,20 @@ void AlleleCountOperator::operate_on_columnar_cell(const GenomicsDBColumnarCell&
 //Normalize ALT before inserting into map
 //For example, if REF=TGG ALT=T,AGG  (deletion and SNV), then normalize the SNV to T->A
 void AlleleCountOperator::normalize_REF_ALT_pair(std::pair<std::string, std::string>& REF_ALT_pair) {
-  auto REF_length = REF_ALT_pair.first.length();
-  auto curr_ALT_length = REF_ALT_pair.second.length();
-  auto contains_deletion = (REF_length > 1u);
-  if (contains_deletion && curr_ALT_length) {
+  auto& REF = REF_ALT_pair.first;
+  auto& ALT = REF_ALT_pair.second;
+  const auto REF_length = REF.length();
+  const auto curr_ALT_length = ALT.length();
+  if (REF_length > 1u && curr_ALT_length) {
     auto REF_suffix_length = 0u;
-    if (VariantUtils::is_symbolic_allele(REF_ALT_pair.second))
-      REF_ALT_pair.first.resize(1u); //only store 1 bp for REF in case of symbolic alleles
+    if (VariantUtils::is_symbolic_allele(ALT))
+      REF.resize(1u); //only store 1 bp for REF in case of symbolic alleles
     else {
-      if (curr_ALT_length == REF_length) { //SNV
+      if(VariantUtils::is_MNV(REF, ALT)) {
+	//remove common bases at the end of the MNV and REF
+	for(int i=REF_length-1u;i>=0;--i)
+	  REF_suffix_length += (REF[i] == ALT[i]);
+      } else if (curr_ALT_length == REF_length) { //SNV
         //Last n-1 chars are same
         REF_suffix_length = REF_length-1u;
       } else if (curr_ALT_length > REF_length) { //insertion
@@ -1008,11 +1013,11 @@ void AlleleCountOperator::normalize_REF_ALT_pair(std::pair<std::string, std::str
         if (curr_ALT_length > 1u)
           REF_suffix_length = curr_ALT_length-1u;
       }
-      assert(REF_ALT_pair.first.substr(REF_length-REF_suffix_length, REF_suffix_length)
-             == REF_ALT_pair.second.substr(curr_ALT_length-REF_suffix_length, REF_suffix_length));
+      assert(REF.substr(REF_length-REF_suffix_length, REF_suffix_length)
+             == ALT.substr(curr_ALT_length-REF_suffix_length, REF_suffix_length));
       //Chop off suffix
-      REF_ALT_pair.first.resize(REF_length-REF_suffix_length);
-      REF_ALT_pair.second.resize(curr_ALT_length-REF_suffix_length);
+      REF.resize(REF_length-REF_suffix_length);
+      ALT.resize(curr_ALT_length-REF_suffix_length);
     }
   }
 }
