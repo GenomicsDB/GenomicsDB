@@ -796,8 +796,7 @@ void BroadCombinedGVCFOperator::operate(Variant& variant, const VariantQueryConf
   if (m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_ID_IDX)) {
     auto ID_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_ID_IDX);
     merge_ID_field(variant, ID_query_idx);
-    if (!m_ID_value.empty())
-      bcf_update_id(m_vcf_hdr, m_bcf_out, m_ID_value.c_str());
+    bcf_update_id(m_vcf_hdr, m_bcf_out, m_ID_value.empty() ? "." : m_ID_value.c_str());
   }
   m_bcf_record_size += m_ID_value.length();
   //GATK combined GVCF does not care about QUAL value
