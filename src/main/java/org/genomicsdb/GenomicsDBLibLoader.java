@@ -44,18 +44,14 @@ public class GenomicsDBLibLoader {
             // If GENOMICSDB_LIBRARY_PATH is specified via -Dgenomicsdb.library.path=/path/to/lib then
             // load library from GENOMICSDB_LIBRARY_PATH
             String genomicsDBLibraryPath =  System.getProperty(GENOMICSDB_LIBRARY_PATH);
-            System.err.println("Originally genomicsdb.library.path="+genomicsDBLibraryPath);
             if (genomicsDBLibraryPath != null && !genomicsDBLibraryPath.isEmpty()) {
-                System.err.println("Found genomicsdb.library.path="+genomicsDBLibraryPath);
                 File genomicsdbLibraryFile = new File(genomicsDBLibraryPath, System.mapLibraryName(GENOMICSDB_LIBRARY_NAME));
                 if (!genomicsdbLibraryFile.exists()) {
                     throw new RuntimeException("GenomicsDB library not found at " + genomicsDBLibraryPath);
                 }
                 System.load(genomicsdbLibraryFile.getAbsolutePath());
-                System.err.println("GenomicsDB native library has been loaded from "+genomicsDBLibraryPath);
                 logger.info("GenomicsDB native library has been loaded from " + genomicsdbLibraryFile.getAbsolutePath());
             } else {
-                System.err.println("GenomicsDB native library is being loaded from the jar file");
                 loadLibraryFromJar("/" + System.mapLibraryName(GENOMICSDB_LIBRARY_NAME));
             }
         } catch (IOException e) {
@@ -82,7 +78,6 @@ public class GenomicsDBLibLoader {
      * @throws IllegalArgumentException If the path is not absolute or if the filename is shorter than three characters (restriction of @see File#createTempFile(java.lang.String, java.lang.String)).
      */
     private static void loadLibraryFromJar(String path) throws IOException {
-        System.err.println("loadLibraryFromJar path="+ new File(path).getAbsolutePath());
         if (!path.startsWith("/")) {
             throw new IllegalArgumentException("The path should be absolute (start with '/').");
         }
@@ -107,8 +102,7 @@ public class GenomicsDBLibLoader {
 
         // Prepare temporary file
         File temp = File.createTempFile(prefix, suffix);
-        System.err.println("GenomicsDB native library is being extracted to temp file: " + temp.getAbsolutePath());
-        //temp.deleteOnExit();
+        temp.deleteOnExit();
 
         if (!temp.exists()) {
             throw new FileNotFoundException("File " + temp.getAbsolutePath() + " does not exist.");
@@ -158,9 +152,7 @@ public class GenomicsDBLibLoader {
               throw thrownException;
         }
 
-        System.err.println("GenomicsDB native library is finally extracted and being loaded");
         // Finally, load the library
         System.load(temp.getAbsolutePath());
-        System.err.println("GenomicsDB native library has been loaded");
     }
 }
