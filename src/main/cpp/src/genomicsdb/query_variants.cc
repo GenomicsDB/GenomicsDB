@@ -271,7 +271,8 @@ void VariantQueryProcessor::obtain_TileDB_attribute_idxs(const VariantArraySchem
 void VariantQueryProcessor::handle_gvcf_ranges(VariantCallEndPQ& end_pq,
     const VariantQueryConfig& query_config, Variant& variant,
     SingleVariantOperatorBase& variant_operator,
-    int64_t& current_start_position, int64_t next_start_position, bool is_last_call, uint64_t& num_calls_with_deletions,
+    int64_t& current_start_position, int64_t next_start_position, bool is_last_call,
+    uint64_t& num_calls_with_deletions_or_MNVs,
     GTProfileStats* stats_ptr) const {
 #ifdef DO_PROFILING
   assert(stats_ptr);
@@ -280,7 +281,7 @@ void VariantQueryProcessor::handle_gvcf_ranges(VariantCallEndPQ& end_pq,
     int64_t top_end_pq = end_pq.top()->get_column_end();
     int64_t min_end_point = (is_last_call || (top_end_pq < (next_start_position - 1))) ? top_end_pq : (next_start_position-1);
     //If deletions, single position stepping
-    min_end_point = num_calls_with_deletions ? current_start_position : min_end_point;
+    min_end_point = num_calls_with_deletions_or_MNVs ? current_start_position : min_end_point;
     //Prepare variant for aligned column interval
     variant.set_column_interval(current_start_position, min_end_point);
 #ifdef DO_PROFILING
@@ -294,8 +295,8 @@ void VariantQueryProcessor::handle_gvcf_ranges(VariantCallEndPQ& end_pq,
     //The following intervals have been completely processed
     while (!end_pq.empty() && static_cast<int64_t>(end_pq.top()->get_column_end()) == min_end_point) {
       auto top_element = end_pq.top();
-      if (top_element->contains_deletion())
-        --num_calls_with_deletions;
+      if (top_element->contains_deletion_or_MNV())
+        --num_calls_with_deletions_or_MNVs;
       top_element->mark_valid(false);
       end_pq.pop();
     }
@@ -327,7 +328,7 @@ void VariantQueryProcessor::scan_and_operate(
   variant.set_query_config(&query_config);
   variant.resize_based_on_query();
   //Number of calls with deletions
-  uint64_t num_calls_with_deletions = scan_state ? scan_state->get_num_calls_with_deletions() : 0ull;
+  uint64_t num_calls_with_deletions_or_MNVs = scan_state ? scan_state->get_num_calls_with_deletions_or_MNVs() : 0ull;
   //Used when deletions have to be treated as intervals and the PQ needs to be emptied
   std::vector<VariantCall*> tmp_pq_buffer(query_config.get_num_rows_to_query());
   //Forward iterator
@@ -353,8 +354,8 @@ void VariantQueryProcessor::scan_and_operate(
       for (Variant::valid_calls_iterator iter=variant.begin(); iter != variant.end(); ++iter) {
         auto& curr_call = *iter;
         end_pq.push(&curr_call);
-        if (handle_spanning_deletions && curr_call.contains_deletion())
-          ++num_calls_with_deletions;
+        if (handle_spanning_deletions && curr_call.contains_deletion_or_MNV())
+          ++num_calls_with_deletions_or_MNVs;
         assert(end_pq.size() <= query_config.get_num_rows_to_query());
       }
       //Valid calls were found, start position == query colum interval begin
@@ -392,7 +393,8 @@ void VariantQueryProcessor::scan_and_operate(
       continue;
 #endif
     end_loop = scan_handle_cell(query_config, column_interval_idx, variant, variant_operator, cell,
-                                end_pq, tmp_pq_buffer, current_start_position, next_start_position, num_calls_with_deletions, handle_spanning_deletions, stats_ptr);
+                                end_pq, tmp_pq_buffer, current_start_position, next_start_position,
+				num_calls_with_deletions_or_MNVs, handle_spanning_deletions, stats_ptr);
     //Do not increment the iterator if buffer overflows in the operator
     if (scan_state && variant_operator.overflow())
       break;
@@ -410,7 +412,7 @@ void VariantQueryProcessor::scan_and_operate(
     }
     //handle last interval
     handle_gvcf_ranges(end_pq, query_config, variant, variant_operator, current_start_position, next_start_position,
-                       is_last_call, num_calls_with_deletions, stats_ptr);
+                       is_last_call, num_calls_with_deletions_or_MNVs, stats_ptr);
     //If scan_state is non-NULL, it's the responsibility of the caller to deallocate
     //m_iter
     if (scan_state == 0)
@@ -419,7 +421,7 @@ void VariantQueryProcessor::scan_and_operate(
     stats_ptr->print_stats(std::cerr);
 #endif
     if (scan_state) {
-      scan_state->set_scan_state(forward_iter, current_start_position, num_calls_with_deletions);
+      scan_state->set_scan_state(forward_iter, current_start_position, num_calls_with_deletions_or_MNVs);
       if (!variant_operator.overflow()) { //totally done
         //Invalidate iterator
         scan_state->invalidate();
@@ -428,7 +430,7 @@ void VariantQueryProcessor::scan_and_operate(
     }
   } else { //more data available in TileDB array, but buffer is full in operator
     assert(scan_state && variant_operator.overflow());
-    scan_state->set_scan_state(forward_iter, current_start_position, num_calls_with_deletions);
+    scan_state->set_scan_state(forward_iter, current_start_position, num_calls_with_deletions_or_MNVs);
   }
 }
 
@@ -437,7 +439,7 @@ bool VariantQueryProcessor::scan_handle_cell(const VariantQueryConfig& query_con
     const BufferVariantCell& cell,
     VariantCallEndPQ& end_pq, std::vector<VariantCall*>& tmp_pq_buffer,
     int64_t& current_start_position, int64_t& next_start_position,
-    uint64_t& num_calls_with_deletions, bool handle_spanning_deletions,
+    uint64_t& num_calls_with_deletions_or_MNVs, bool handle_spanning_deletions,
     GTProfileStats* stats_ptr) const {
   //If only interval requested and end of interval crossed, then done
   if (query_config.get_num_column_intervals() > 0u &&
@@ -447,7 +449,7 @@ bool VariantQueryProcessor::scan_handle_cell(const VariantQueryConfig& query_con
     next_start_position = cell.get_begin_column();
     assert(cell.get_begin_column() > current_start_position);
     handle_gvcf_ranges(end_pq, query_config, variant, variant_operator, current_start_position,
-                       next_start_position, false, num_calls_with_deletions, stats_ptr);
+                       next_start_position, false, num_calls_with_deletions_or_MNVs, stats_ptr);
     assert(end_pq.empty() || static_cast<int64_t>(end_pq.top()->get_column_end()) >= next_start_position || variant_operator.overflow());  //invariant
     //Buffer overflow, don't process anymore
     if (variant_operator.overflow())
@@ -481,13 +483,13 @@ bool VariantQueryProcessor::scan_handle_cell(const VariantQueryConfig& query_con
       for (auto i=0ull; i<num_entries_in_tmp_pq_buffer; ++i)
         end_pq.push(tmp_pq_buffer[i]);
       //Can handle overlapping deletions and reference blocks - if something else, throw error
-      if (!curr_call.contains_deletion() && !curr_call.is_reference_block())
+      if (!curr_call.contains_deletion_or_MNV() && !curr_call.is_reference_block())
         throw VariantQueryProcessorException("Unhandled overlapping variants at columns "+std::to_string(curr_call.get_column_begin())+" and "
                                              + std::to_string(cell.get_begin_column())+" for row "+std::to_string(cell.get_row()));
-      if (curr_call.contains_deletion()) {
+      if (curr_call.contains_deletion_or_MNV()) {
         //Reduce #calls with deletions
-        assert(num_calls_with_deletions > 0u);
-        --num_calls_with_deletions;
+        assert(num_calls_with_deletions_or_MNVs > 0u);
+        --num_calls_with_deletions_or_MNVs;
       }
     }
     curr_call.reset_for_new_interval();
@@ -495,8 +497,8 @@ bool VariantQueryProcessor::scan_handle_cell(const VariantQueryConfig& query_con
     //When cells are duplicated at the END, then the VariantCall object need not be valid
     if (curr_call.is_valid()) {
       end_pq.push(&curr_call);
-      if (handle_spanning_deletions && curr_call.contains_deletion())
-        ++num_calls_with_deletions;
+      if (handle_spanning_deletions && curr_call.contains_deletion_or_MNV())
+        ++num_calls_with_deletions_or_MNVs;
       assert(end_pq.size() <= query_config.get_num_rows_to_query());
     }
   }
@@ -953,6 +955,7 @@ void VariantQueryProcessor::gt_fill_row(
   //Curr call will be initialized, one way or the other
   curr_call.mark_initialized(true);
   curr_call.set_contains_deletion(false);
+  curr_call.set_contains_MNV(false);
   curr_call.set_is_reference_block(false);
   //Column values
   auto query_column_value = static_cast<int64_t>(variant.get_column_begin());
@@ -1027,6 +1030,7 @@ void VariantQueryProcessor::gt_fill_row(
   if (REF_field_ptr && REF_field_ptr->is_valid() && ALT_field_ptr && ALT_field_ptr->is_valid()) {
     auto has_deletion = VariantUtils::contains_deletion(REF_field_ptr->get(), ALT_field_ptr->get());
     curr_call.set_contains_deletion(has_deletion);
+    curr_call.set_contains_MNV(VariantUtils::contains_MNV(REF_field_ptr->get(), ALT_field_ptr->get()));
     curr_call.set_is_reference_block(VariantUtils::is_reference_block(REF_field_ptr->get(), ALT_field_ptr->get()));
   }
 #ifdef DO_PROFILING

@@ -43,7 +43,7 @@ Logger logger;
 Logger::Logger() {
   m_logger = spdlog::get(LOGGER_NAME);
   if (m_logger == nullptr) {
-    m_logger = spdlog::stdout_color_mt(LOGGER_NAME);
+    m_logger = spdlog::stderr_color_mt(LOGGER_NAME);
     // Follow default log4j pattern for now
     m_logger->set_pattern("%H:%M:%S.%e %4!l  %n - pid=%P tid=%t %v");
 #ifdef NDEBUG

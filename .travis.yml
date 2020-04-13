@@ -21,6 +21,8 @@ matrix:
         os: linux
         env: INSTALL_TYPE=basic
         services: postgres
+        cache:
+          directories: $HOME/.m2 $CACHE_DIR
 
       - name: "Basic build OSX - 1"
         os: osx
@@ -42,6 +44,8 @@ matrix:
         os: linux
         env: INSTALL_TYPE=hdfs
         services: postgres
+        cache:
+          directories: $HOME/.m2 $CACHE_DIR
 
 #
 # commenting out for now because these seem flaky
@@ -100,8 +104,13 @@ install:
     - export PATH=$JAVA_HOME/bin:$PATH
     - which javac && javac -version
     - which java && java -version
-    # install spark/hdfs/scala
+    - if [[ ! -f $CACHE_DIR/bcftools-1.10.2.tar.bz2 ]]; then
+        wget -nv https://github.com/samtools/bcftools/releases/download/1.10.2/bcftools-1.10.2.tar.bz2 -O $CACHE_DIR/bcftools-1.10.2.tar.bz2;
+      fi
     - cd $TRAVIS_BUILD_DIR
+    - tar -xjf $CACHE_DIR/bcftools-1.10.2.tar.bz2 && cd bcftools-1.10.2 && make -j4 && cd .. && export PATH=$PATH:$TRAVIS_BUILD_DIR/bcftools-1.10.2
+    - which bcftools
+    # install spark/hdfs/scala
     - if [[ $INSTALL_TYPE != basic ]]; then
         wget -nv https://downloads.lightbend.com/scala/2.11.8/scala-2.11.8.deb;
         sudo dpkg -i scala-2.11.8.deb;
@@ -129,7 +138,7 @@ script:
     - if [[ $TRAVIS_OS_NAME == linux ]]; then
         cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True;
       elif [[ $TRAVIS_OS_NAME == osx ]]; then
-        cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=False -DPROTOBUF_LIBRARY=$PROTOBUF_HOME/lib/libprotobuf.dylib -DPROTOBUF_INCLUDE_DIRS=$PROTOBUF_HOME/include -DPROTOBUF_PROTOC_EXECUTABLE=$PROTOBUF_HOME/bin/protoc -DPROTOBUF_PROTOC_LIBRARY=$PROTOBUF_HOME/lib/libprotoc.dylib -DPROTOBUF_LIBRARIES=$PROTOBUF_HOME/lib/libprotobuf.dylib -DOPENSSL_PREFIX_DIR=/usr/local/opt/openssl -DCMAKE_C_COMPILER=/usr/local/opt/mpich/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/local/opt/mpich/bin/mpicxx;
+        cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=False -DPROTOBUF_LIBRARY=$PROTOBUF_HOME/lib/libprotobuf.dylib -DPROTOBUF_INCLUDE_DIRS=$PROTOBUF_HOME/include -DPROTOBUF_PROTOC_EXECUTABLE=$PROTOBUF_HOME/bin/protoc -DPROTOBUF_PROTOC_LIBRARY=$PROTOBUF_HOME/lib/libprotoc.dylib -DPROTOBUF_LIBRARIES=$PROTOBUF_HOME/lib/libprotobuf.dylib -DOPENSSL_PREFIX_DIR=/usr/local/opt/openssl -DCMAKE_C_COMPILER=/usr/local/opt/mpich/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/local/opt/mpich/bin/mpicxx;
       fi
     - make -j 4 && make install
     - if [[ $INSTALL_TYPE == hdfs ]]; then
