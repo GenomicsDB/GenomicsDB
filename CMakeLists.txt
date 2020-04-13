@@ -484,6 +484,7 @@ if(BUILD_JAVA)
 
     add_jar(genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples
         SOURCES ${GENOMICSDB_EXAMPLE_SOURCES}
+                log4j.properties
         INCLUDE_JARS ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-allinone.jar
         OUTPUT_DIR ${GENOMICSDB_MAVEN_BUILD_DIR})
 
