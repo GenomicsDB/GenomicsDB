@@ -21,11 +21,17 @@
 */
 
 #include "tiledb_utils.h"
+#include "genomicsdb.h"
 #include "genomicsdb_jni_exception.h"
 #include "genomicsdb_GenomicsDBUtils.h"
 #include "variant_storage_manager.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBJNIException(#X);
+
+JNIEXPORT jstring JNICALL
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniLibraryVersion(JNIEnv *env, jclass cls) {
+  return env->NewStringUTF(genomicsdb_version().c_str());
+}
 
 JNIEXPORT jint JNICALL 
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniCreateTileDBWorkspace

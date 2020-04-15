@@ -22,36 +22,46 @@
 
 package org.genomicsdb;
 
-import java.io.File;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.IOException;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
+
+import org.apache.log4j.Logger;
+
+import java.io.*;
+import java.nio.file.Path;
 
 public class GenomicsDBLibLoader {
+    public final static String GENOMICSDB_LIBRARY_PATH = "genomicsdb.library.path";
     private final static String GENOMICSDB_LIBRARY_NAME = "tiledbgenomicsdb";
     private static boolean mIsLibraryLoaded = false;
+
+    private static Logger logger = Logger.getLogger(GenomicsDBLibLoader.class);
 
     private static native int jniGenomicsDBOneTimeInitialize();
 
     public static synchronized boolean loadLibrary() {
         if (mIsLibraryLoaded) return true;
 
-        //Try loading from outside the JAR - on GNU/Linux, if the LD_LIBRARY_PATH variable is set, then the library will be loaded
         try {
-            System.loadLibrary(GENOMICSDB_LIBRARY_NAME);
-        } catch (UnsatisfiedLinkError ule) {
-            //Could not load based on external loader configuration 
-            try {
+            // If GENOMICSDB_LIBRARY_PATH is specified via -Dgenomicsdb.library.path=/path/to/lib then
+            // load library from GENOMICSDB_LIBRARY_PATH
+            String genomicsDBLibraryPath =  System.getProperty(GENOMICSDB_LIBRARY_PATH);
+            if (genomicsDBLibraryPath != null && !genomicsDBLibraryPath.isEmpty()) {
+                File genomicsdbLibraryFile = new File(genomicsDBLibraryPath, System.mapLibraryName(GENOMICSDB_LIBRARY_NAME));
+                if (!genomicsdbLibraryFile.exists()) {
+                    throw new RuntimeException("GenomicsDB library not found at " + genomicsDBLibraryPath);
+                }
+                System.load(genomicsdbLibraryFile.getAbsolutePath());
+                logger.info("GenomicsDB native library has been loaded from " + genomicsdbLibraryFile.getAbsolutePath());
+            } else {
                 loadLibraryFromJar("/" + System.mapLibraryName(GENOMICSDB_LIBRARY_NAME));
-            } catch (IOException ioe) {
-                //Throw the UnsatisfiedLinkError to make it clear to the user what failed
-                throw ule;
             }
+        } catch (IOException e) {
+            logger.fatal("", e);
+            throw new RuntimeException("GenomicsDB native library could not be loaded", e);
         }
+
         jniGenomicsDBOneTimeInitialize();
         mIsLibraryLoaded = true;
+        logger.info("GenomicsDB native library version : " + GenomicsDBUtils.nativeLibraryVersion());
         return true;
     }
 
@@ -68,7 +78,6 @@ public class GenomicsDBLibLoader {
      * @throws IllegalArgumentException If the path is not absolute or if the filename is shorter than three characters (restriction of @see File#createTempFile(java.lang.String, java.lang.String)).
      */
     private static void loadLibraryFromJar(String path) throws IOException {
-
         if (!path.startsWith("/")) {
             throw new IllegalArgumentException("The path should be absolute (start with '/').");
         }

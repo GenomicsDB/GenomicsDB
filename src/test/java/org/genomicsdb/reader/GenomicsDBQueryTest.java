@@ -37,13 +37,13 @@ public class GenomicsDBQueryTest {
 
   static String inputsDir = Paths.get("target", "test", "inputs").toAbsolutePath().toString();
 
-  static String workspace = Paths.get(inputsDir, "ws").toAbsolutePath().toString();
-  static String callsetMapping = Paths.get(inputsDir, "callset_t0_1_2.json").toAbsolutePath().toString();
-  static String vidMapping = Paths.get(inputsDir, "vid.json").toAbsolutePath().toString();
-  static String referenceGenome = Paths.get(inputsDir, "chr1_10MB.fasta.gz").toAbsolutePath().toString();
+  static String workspace;
+  static String callsetMapping;
+  static String vidMapping;
+  static String referenceGenome;
 
-  static String queryJSONFile = Paths.get(inputsDir, "query.json").toAbsolutePath().toString();
-  static String loaderJSONFile = Paths.get(inputsDir, "loader.json").toAbsolutePath().toString();
+  static String queryJSONFile;
+  static String loaderJSONFile;
 
   static String arrayName = "t0_1_2";
 
@@ -51,8 +51,19 @@ public class GenomicsDBQueryTest {
   public void setUp() {
     File inputsDirFile = new File(inputsDir);
     if (!inputsDirFile.exists() || inputsDirFile.list().length == 0) {
-      Assert.fail("Aborting GenomicsDBQueryTest. Could not find test inputs folder " + inputsDir);
+      inputsDir = Paths.get("build", "target", "test", "inputs").toAbsolutePath().toString();
+      inputsDirFile = new File(inputsDir);
+      if (!inputsDirFile.exists() || inputsDirFile.list().length == 0) {
+        Assert.fail("Aborting GenomicsDBQueryTest. Could not find test inputs folder " + inputsDir);
+      }
     }
+    workspace = Paths.get(inputsDir, "ws").toAbsolutePath().toString();
+    callsetMapping = Paths.get(inputsDir, "callset_t0_1_2.json").toAbsolutePath().toString();
+    vidMapping = Paths.get(inputsDir, "vid.json").toAbsolutePath().toString();
+    referenceGenome = Paths.get(inputsDir, "chr1_10MB.fasta.gz").toAbsolutePath().toString();
+
+    queryJSONFile = Paths.get(inputsDir, "query.json").toAbsolutePath().toString();
+    loaderJSONFile = Paths.get(inputsDir, "loader.json").toAbsolutePath().toString();
   }
 
   @Test

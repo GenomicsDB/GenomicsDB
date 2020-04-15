@@ -34,6 +34,8 @@ public class GenomicsDBUtilsJni {
         }
     }
 
+    public static native String jniLibraryVersion();
+
     /**
      * Create TileDB workspace
      *
