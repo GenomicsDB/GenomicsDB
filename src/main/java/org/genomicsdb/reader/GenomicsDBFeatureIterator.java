@@ -122,21 +122,16 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
                     GenomicsDBExportConfiguration.ExportConfiguration.newBuilder(queryPB)
                     .setArrayName(array).build();
                 GenomicsDBQueryStreamParamsHolder params;
-                String[] ref = array.split(CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX);
-                if(ref.length != 3) {
-                    throw new RuntimeException("Array folder name format should be " +
-                            "in {chromosome}{delimiter}{intervalStart}{delimiter}{intervalEnd}");
-                }
-                int iStart = Integer.parseInt(ref[1]);
-                int iEnd= Integer.parseInt(ref[2]);
+                // we don't need array column bounds here - either specify start/end to limit what is queried
+                // or pass 0's for those and entire chromosome/contig is queried.
+                // If start or end is beyond array column bounds, genomicsdb will handle that internally
                 if (start.isPresent() && end.isPresent()) {
                     params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, 
-                            newQueryPB, ref[0], Math.max(start.getAsInt(), iStart),
-                            Math.min(end.getAsInt(), iEnd));
+                            newQueryPB, chr, start.getAsInt(), end.getAsInt());
                 }
                 else if (!start.isPresent() && !end.isPresent()) {
                     params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, 
-                            newQueryPB, ref[0], iStart, iEnd);
+                            newQueryPB, chr, 0, 0);
                 }
                 else {
                     throw new RuntimeException("Start and End must either be both specified or both unspecified");

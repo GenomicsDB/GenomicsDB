@@ -29,20 +29,26 @@ import htsjdk.variant.vcf.VCFContigHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
 import org.genomicsdb.model.Coordinates;
+import org.genomicsdb.model.GenomicsDBVidMapProto;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.importer.extensions.VidMapExtensions;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 import static org.genomicsdb.Constants.CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX;
+import static org.genomicsdb.Constants.CHROMOSOME_FOLDER_DELIMITER_SYMBOL;
 import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBArrays;
+import static org.genomicsdb.GenomicsDBUtils.getArrayColumnBounds;
+import static com.googlecode.protobuf.format.JsonFormat.ParseException;
 
 /**
  * A reader for GenomicsDB that implements {@link htsjdk.tribble.FeatureReader}
  * Currently, the reader only return {@link htsjdk.variant.variantcontext.VariantContext}
  */
-public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements FeatureReader<T> {
+public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements FeatureReader<T>,VidMapExtensions {
     private String loaderJSONFile;
     private GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration;
     private FeatureCodec<T, SOURCE> codec;
@@ -151,14 +157,30 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
 
     private List<String> resolveChromosomeArrayFolderList(final Optional<Coordinates.ContigInterval> chromosome) {
         List<String> chromosomeIntervalArraysNames = getArrayListFromWorkspace(exportConfiguration.getWorkspace(), chromosome);
+        // TODO what does this sort do? do i need a version for columnoffsetnames??
         chromosomeIntervalArraysNames.sort(new ChrArrayFolderComparator());
         return chromosomeIntervalArraysNames;
     }
 
 
-    private void throwExceptionIfArrayFolderRefIsWrong(String[] ref) {
-        if (ref.length != 3) throw new RuntimeException("There is a wrong array folder name in the workspace. " +
-                "Array folder name should be {chromosome}{delimiter}{intervalStart}{delimiter}{intervalEnd}");
+    private boolean checkIfContigOverlapsArray(String workspace, String[] ref, 
+            Coordinates.ContigInterval contigInterval) {
+        if (ref.length == 3) {
+            return contigInterval.getContig().equals(ref[0]) && (contigInterval.getBegin() <= Integer.parseInt(ref[2])
+                    && contigInterval.getEnd() >= Integer.parseInt(ref[1]));
+        }
+        else {
+            try {
+                GenomicsDBVidMapProto.VidMappingPB vidPB = this.exportConfiguration.hasVidMapping() ?
+                        this.exportConfiguration.getVidMapping() :
+                        generateVidMapFromFile(this.exportConfiguration.getVidMappingFile());
+                String array = Arrays.stream(ref).collect(Collectors.joining(CHROMOSOME_FOLDER_DELIMITER_SYMBOL));
+                long[] bounds = getArrayColumnBounds(workspace, array);
+                return checkVidForContigColumnOffsetOverlap(vidPB, bounds, contigInterval);
+            } catch (ParseException e) {
+                throw new RuntimeException("Error parsing vid from file");
+            }
+        }
     }
 
 
@@ -189,9 +211,7 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
 	List<String> folders = Arrays.asList(listGenomicsDBArrays(workspace_str));
         return chromosome.map(contigInterval -> folders.stream().filter(name -> {
             String[] ref = name.split(CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX);
-            throwExceptionIfArrayFolderRefIsWrong(ref);
-            return contigInterval.getContig().equals(ref[0]) && (contigInterval.getBegin() <= Integer.parseInt(ref[2])
-                    && contigInterval.getEnd() >= Integer.parseInt(ref[1]));
+            return checkIfContigOverlapsArray(workspace_str, ref, contigInterval);
         }).collect(toList())).orElse(folders);
     }
 }

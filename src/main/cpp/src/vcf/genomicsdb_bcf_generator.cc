@@ -60,8 +60,16 @@ GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_
     auto found_contig = vid_mapper.get_contig_info(chr, contig_info);
     if (!found_contig)
       throw GenomicsDBJNIException(std::string("Could not find TileDB column interval for contig: ")+chr);
-    int64_t column_begin = contig_info.m_tiledb_column_offset + static_cast<int64_t>(start) - 1; //since VCF positions are 1 based
-    int64_t column_end = contig_info.m_tiledb_column_offset + static_cast<int64_t>(end) - 1; //since VCF positions are 1 based
+    int64_t column_begin, column_end;
+    // allow for just chr to be specified, and for start=end=0. query entire chr
+    if (start == 0 && end == 0) {
+      column_begin = contig_info.m_tiledb_column_offset;
+      column_end = contig_info.m_tiledb_column_offset + contig_info.m_length - 1;
+    }
+    else {
+      column_begin = contig_info.m_tiledb_column_offset + static_cast<int64_t>(start) - 1; //since VCF positions are 1 based
+      column_end = contig_info.m_tiledb_column_offset + static_cast<int64_t>(end) - 1; //since VCF positions are 1 based
+    }
     m_query_config.set_column_interval_to_query(column_begin, column_end);
   }
   m_storage_manager = new VariantStorageManager(m_query_config.get_workspace(my_rank),

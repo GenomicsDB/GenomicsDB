@@ -4,6 +4,7 @@ import htsjdk.variant.vcf.*;
 
 import org.genomicsdb.importer.Constants;
 import org.genomicsdb.model.GenomicsDBVidMapProto;
+import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.GenomicsDBUtils;
 
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import java.util.Set;
 import java.util.Map;
 import java.util.HashMap;
 
+import static java.util.stream.Collectors.toList;
 import static com.googlecode.protobuf.format.JsonFormat.*;
 import static org.genomicsdb.GenomicsDBUtils.readEntireFile;
 
@@ -259,6 +261,17 @@ public interface VidMapExtensions {
                 GenomicsDBVidMapProto.VidMappingPB.newBuilder();
         merge(existingVidJson, vidMapBuilder);
         return vidMapBuilder.build();
+    }
+
+    default boolean checkVidForContigColumnOffsetOverlap(GenomicsDBVidMapProto.VidMappingPB vidmap,
+            long[] bounds, Coordinates.ContigInterval contigInterval) {
+        List<GenomicsDBVidMapProto.Chromosome> contigList = vidmap.getContigsList().stream().filter(
+            x -> x.getName().equals(contigInterval.getContig())).collect(toList());
+        if (contigList.size() != 1) {
+            throw new RuntimeException("Contig "+contigInterval.getContig()+" not found, or found multiple times in vid");
+        }
+        return contigList.get(0).getTiledbColumnOffset() < bounds[1] &&
+            contigList.get(0).getTiledbColumnOffset() >= bounds[0];
     }
 
     public static DuplicateVcfFieldNamesCheckResult checkForDuplicateVcfFieldNames(final String vcfFieldName,

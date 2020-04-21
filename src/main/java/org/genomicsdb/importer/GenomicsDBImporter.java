@@ -182,10 +182,17 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
             GenomicsDBImportConfiguration.Partition partition = this.config.getImportConfiguration().getColumnPartitions(0); 
             String array;
             if (partition.hasGenerateArrayNameFromPartitionBounds()) {
-                final String chromosomeName = partition.getBegin().getContigPosition().getContig();
-                final int chromosomeStart = (int) partition.getBegin().getContigPosition().getPosition();
-                final int chromosomeEnd = (int) partition.getEnd().getContigPosition().getPosition();
-                array = String.format(Constants.CHROMOSOME_INTERVAL_FOLDER, chromosomeName, chromosomeStart, chromosomeEnd);
+                if (partition.getBegin().hasContigPosition()) {
+                    final String chromosomeName = partition.getBegin().getContigPosition().getContig();
+                    final int chromosomeStart = (int) partition.getBegin().getContigPosition().getPosition();
+                    final int chromosomeEnd = (int) partition.getEnd().getContigPosition().getPosition();
+                    array = String.format(Constants.CHROMOSOME_INTERVAL_FOLDER, chromosomeName, chromosomeStart, chromosomeEnd);
+                }
+                else {
+                    final long start = partition.getBegin().getTiledbColumn();
+                    final long end = partition.getEnd().getTiledbColumn();
+                    array = String.format(Constants.TILEDBCOLUMN_INTERVAL_FOLDER, start, end);
+                }
             } else {
                 array = partition.getArrayName();
             }
@@ -690,17 +697,26 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     }
 
     private void updateConfigPartitionsAndLbUb(ImportConfig importConfig, final int index, final int rank) {
-        final String chromosomeName = importConfig.getImportConfiguration().getColumnPartitions(rank).getBegin()
-                .getContigPosition().getContig();
-        final int chromosomeStart = (int) importConfig.getImportConfiguration().getColumnPartitions(rank).getBegin()
-                .getContigPosition().getPosition();
-        final int chromosomeEnd = (int) importConfig.getImportConfiguration().getColumnPartitions(rank).getEnd()
-                .getContigPosition().getPosition();
         GenomicsDBImportConfiguration.Partition partition = importConfig.getImportConfiguration().getColumnPartitions(rank);
+        // TODO: why even support the old way of naming arrays?
+        if (partition.getBegin().hasContigPosition()) {
+            final String chromosomeName = partition.getBegin().getContigPosition().getContig();
+            final int chromosomeStart = (int) partition.getBegin().getContigPosition().getPosition();
+            final int chromosomeEnd = (int) partition.getEnd().getContigPosition().getPosition();
 
-        if (partition.hasGenerateArrayNameFromPartitionBounds()) {
-            String arrayName = String.format(Constants.CHROMOSOME_INTERVAL_FOLDER, chromosomeName, chromosomeStart, chromosomeEnd);
-            partition = partition.toBuilder().setArrayName(arrayName).build();
+            if (partition.hasGenerateArrayNameFromPartitionBounds()) {
+                String arrayName = String.format(Constants.CHROMOSOME_INTERVAL_FOLDER, chromosomeName, chromosomeStart, chromosomeEnd);
+                partition = partition.toBuilder().setArrayName(arrayName).build();
+            }
+        }
+        else {
+            final long start = partition.getBegin().getTiledbColumn();
+            final long end = partition.getEnd().getTiledbColumn();
+
+            if (partition.hasGenerateArrayNameFromPartitionBounds()) {
+                String arrayName = String.format(Constants.TILEDBCOLUMN_INTERVAL_FOLDER, start, end);
+                partition = partition.toBuilder().setArrayName(arrayName).build();
+            }
         }
 
         GenomicsDBImportConfiguration.ImportConfiguration importConfiguration = importConfig
@@ -797,4 +813,70 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
         mDone = true;
     }
 
+    private GenomicsDBImportConfiguration.Partition.Builder initializePartitionPB(final long start,
+            final String workspace) {
+        GenomicsDBImportConfiguration.Partition.Builder partitionBuilder =
+                GenomicsDBImportConfiguration.Partition.newBuilder();
+        Coordinates.GenomicsDBColumn.Builder columnBuilder =
+                Coordinates.GenomicsDBColumn.newBuilder().setTiledbColumn(start);
+        partitionBuilder.setBegin(columnBuilder.build());
+        partitionBuilder.setWorkspace(workspace);
+        partitionBuilder.setGenerateArrayNameFromPartitionBounds(true);
+        return partitionBuilder;
+    }
+
+    /**
+     * Coalesce contigs into fewer GenomicsDB partitions
+     *
+     * @param partitions Approximate number of partitions to coalesce into
+     * @throws GenomicsDBException Coalescing contigs into partitions fails
+     */
+    public void coalesceContigsIntoNumPartitions(final int partitions)
+            throws GenomicsDBException {
+        GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder =
+                this.config.getImportConfiguration().toBuilder();
+        if (importConfigurationBuilder.hasVidMapping()) {
+            GenomicsDBVidMapProto.VidMappingPB vidPB = importConfigurationBuilder.getVidMapping();
+            // we assume here that contigs in vid are sorted in ascending tiledb column offset order
+            // this is true for vids generated by GenomicsDBImporter...I suppose it could be false
+            // for hand written vids...but we'll throw an exception later if not true
+            final int numContigs = vidPB.getContigsCount();
+            final long genomeLength = vidPB.getContigs(numContigs-1).getTiledbColumnOffset() +
+                    vidPB.getContigs(numContigs-1).getLength() - 1;
+            final String workspace = importConfigurationBuilder.getColumnPartitions(0).getWorkspace();
+            importConfigurationBuilder.clearColumnPartitions();
+
+            // initialize begin for first partition to 0
+            GenomicsDBImportConfiguration.Partition.Builder partitionBuilder =
+                    initializePartitionPB(0, workspace);
+            long partitionSum = 0;
+            long previousEnd = -1;
+            final long goalSize = genomeLength / numContigs;
+            for (GenomicsDBVidMapProto.Chromosome contig: vidPB.getContigsList()) {
+                if (previousEnd + 1 != contig.getTiledbColumnOffset()) {
+                    throw new GenomicsDBException("GenomicsDBImporter expects contigs in " +
+                            "vid to be contiguous and be sorted by tiledb_column_offset");
+                }
+                partitionSum += contig.getLength();
+                previousEnd = contig.getTiledbColumnOffset() + contig.getLength();
+                if (partitionSum >= goalSize) {
+                    Coordinates.GenomicsDBColumn.Builder endBuilder =
+                        Coordinates.GenomicsDBColumn.newBuilder().setTiledbColumn(previousEnd);
+                    partitionBuilder.setEnd(endBuilder.build());
+                    importConfigurationBuilder.addColumnPartitions(partitionBuilder.build());
+                    partitionBuilder = initializePartitionPB(contig.getTiledbColumnOffset()+1, workspace);
+                }
+            }
+
+            // finish up the final partition
+            Coordinates.GenomicsDBColumn.Builder endBuilder =
+                    Coordinates.GenomicsDBColumn.newBuilder().setTiledbColumn(genomeLength);
+            partitionBuilder.setEnd(endBuilder.build());
+            importConfigurationBuilder.addColumnPartitions(partitionBuilder.build());
+            this.config.setImportConfiguration(importConfigurationBuilder.build());
+        }
+        else {
+            throw new GenomicsDBException("GenomicsDBImporter needs vid mapping to coalesce contigs into partitions");
+        }
+    }
 }

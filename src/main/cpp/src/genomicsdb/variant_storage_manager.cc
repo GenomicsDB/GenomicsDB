@@ -33,6 +33,7 @@
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VariantStorageManagerException(#X);
 #define METADATA_FILE_PREFIX "genomicsdb_meta"
+#define COLUMN_METADATA_FILENAME "genomicsdb_column_bounds.json"
 #define GET_OLD_METADATA_PATH(workspace, array) ((workspace)+'/'+(array)+'/' + METADATA_FILE_PREFIX + ".json")
 #define GET_METADATA_DIRECTORY(workspace, array) ((workspace)+'/'+(array)+"/genomicsdb_meta_dir")
 bool is_genomicsdb_meta_file(const TileDB_CTX* tiledb_ctx, const std::string& filepath) {
@@ -293,7 +294,7 @@ void VariantArrayInfo::write_cell(const void* ptr) {
   m_buffer_offsets[coords_buffer_idx] += coords_size;
 }
 
-int read_row_bounds_kernel(TileDB_CTX *ctx,
+int read_dim_bounds_kernel(TileDB_CTX *ctx,
                                               rapidjson::Document *json_doc, 
                                               char **buffer,
                                               const std::string& filepath) {
@@ -320,6 +321,28 @@ int read_row_bounds_kernel(TileDB_CTX *ctx,
   return -1;
 }
 
+int VariantArrayInfo::get_array_column_bounds(const std::string& workspace, const std::string& array, int64_t bounds[]) {
+  TileDB_CTX *ctx;
+  // initialize ctx, and ensure that we've an existing workspace
+  if (TileDBUtils::initialize_workspace(&ctx, workspace, false) != 1)
+    return -1;
+  auto column_filepath = GET_METADATA_DIRECTORY(workspace, array)
+                           + '/' + COLUMN_METADATA_FILENAME;
+  char *buffer;
+  rapidjson::Document json_doc;
+  if (read_dim_bounds_kernel(ctx, &json_doc, &buffer, column_filepath))
+    return -1;
+  bounds[0] = bounds[1] = 0;
+  if (json_doc.HasMember("min_column") && json_doc["min_column"].IsInt64() &&
+      json_doc.HasMember("max_column") && json_doc["max_column"].IsInt64()) {
+    bounds[0] = json_doc["min_column"].GetInt64();
+    bounds[1] = json_doc["max_column"].GetInt64();
+  }
+  free(buffer);
+
+  return 0;
+}
+
 int VariantArrayInfo::get_max_valid_row_idx(const std::string& workspace, const std::string& array) {
   TileDB_CTX *ctx;
   // initialize ctx, and ensure that we've an existing workspace
@@ -332,7 +355,7 @@ int VariantArrayInfo::get_max_valid_row_idx(const std::string& workspace, const 
     if (is_genomicsdb_meta_file(ctx, filepath)) {
       char *buffer;
       rapidjson::Document json_doc;
-      if (read_row_bounds_kernel(ctx, &json_doc, &buffer, filepath))
+      if (read_dim_bounds_kernel(ctx, &json_doc, &buffer, filepath))
         return -1;
       if (json_doc.HasMember("max_valid_row_idx_in_array") && json_doc["max_valid_row_idx_in_array"].IsInt64()
           && (max_valid_row_idx < json_doc["max_valid_row_idx_in_array"].GetInt64()))
@@ -363,7 +386,7 @@ int VariantArrayInfo::read_row_bounds_from_metadata(const std::string& filepath)
   if (is_genomicsdb_meta_file(m_tiledb_ctx, filepath)) {
     char *buffer;
     rapidjson::Document json_doc;
-    if (read_row_bounds_kernel(m_tiledb_ctx, &json_doc, &buffer, filepath))
+    if (read_dim_bounds_kernel(m_tiledb_ctx, &json_doc, &buffer, filepath))
       return -1;
 
     if (json_doc.HasMember("max_valid_row_idx_in_array") && json_doc["max_valid_row_idx_in_array"].IsInt64()
@@ -749,4 +772,28 @@ void VariantStorageManager::update_row_bounds_in_array(const int ad, const int64
   assert(static_cast<size_t>(ad) < m_open_arrays_info_vector.size() &&
          m_open_arrays_info_vector[ad].get_array_name().length());
   m_open_arrays_info_vector[ad].update_row_bounds_in_array(lb_row_idx, max_valid_row_idx_in_array);
+}
+
+void VariantStorageManager::write_column_bounds_to_array(const int ad, const int64_t min_column, const int64_t max_column) {
+  assert(static_cast<size_t>(ad) < m_open_arrays_info_vector.size() &&
+         m_open_arrays_info_vector[ad].get_array_name().length());
+  rapidjson::Document json_doc;
+  json_doc.SetObject();
+  json_doc.AddMember("min_column", min_column, json_doc.GetAllocator());
+  json_doc.AddMember("max_column", max_column, json_doc.GetAllocator());
+  rapidjson::StringBuffer buffer;
+  rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+  json_doc.Accept(writer);
+  auto column_filepath = GET_METADATA_DIRECTORY(m_workspace, m_open_arrays_info_vector[ad].get_array_name())
+                           + '/' + COLUMN_METADATA_FILENAME;
+
+  if (write_file(m_tiledb_ctx, column_filepath, buffer.GetString(), strlen(buffer.GetString()))) {
+    throw VariantStorageManagerException(std::string("Could not write to column bounds file ")+column_filepath
+                                         +"\nTileDB error message : "+tiledb_errmsg);
+  };
+
+  if (close_file(m_tiledb_ctx, column_filepath)) {
+    throw VariantStorageManagerException(std::string("Could not close after write to column bounds file ")+column_filepath
+                                         +"\nTileDB error message : "+tiledb_errmsg);
+  }
 }

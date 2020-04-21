@@ -17,7 +17,7 @@ public class ChrArrayFolderComparator implements Comparator<String> {
 
     private String extractChromsomeName(String s) {
         String[] values = s.split(CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX);
-        return values[0];
+        return values.length == 3 ? values[0] : "";
     }
 
     private int extractIntervalStart(String s) {
