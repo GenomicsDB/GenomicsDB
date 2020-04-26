@@ -777,23 +777,25 @@ void VariantStorageManager::update_row_bounds_in_array(const int ad, const int64
 void VariantStorageManager::write_column_bounds_to_array(const int ad, const int64_t min_column, const int64_t max_column) {
   assert(static_cast<size_t>(ad) < m_open_arrays_info_vector.size() &&
          m_open_arrays_info_vector[ad].get_array_name().length());
-  rapidjson::Document json_doc;
-  json_doc.SetObject();
-  json_doc.AddMember("min_column", min_column, json_doc.GetAllocator());
-  json_doc.AddMember("max_column", max_column, json_doc.GetAllocator());
-  rapidjson::StringBuffer buffer;
-  rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
-  json_doc.Accept(writer);
   auto column_filepath = GET_METADATA_DIRECTORY(m_workspace, m_open_arrays_info_vector[ad].get_array_name())
                            + '/' + COLUMN_METADATA_FILENAME;
-
-  if (write_file(m_tiledb_ctx, column_filepath, buffer.GetString(), strlen(buffer.GetString()))) {
-    throw VariantStorageManagerException(std::string("Could not write to column bounds file ")+column_filepath
-                                         +"\nTileDB error message : "+tiledb_errmsg);
-  };
-
-  if (close_file(m_tiledb_ctx, column_filepath)) {
-    throw VariantStorageManagerException(std::string("Could not close after write to column bounds file ")+column_filepath
-                                         +"\nTileDB error message : "+tiledb_errmsg);
+  if (!is_file(m_tiledb_ctx, column_filepath)) {
+    rapidjson::Document json_doc;
+    json_doc.SetObject();
+    json_doc.AddMember("min_column", min_column, json_doc.GetAllocator());
+    json_doc.AddMember("max_column", max_column, json_doc.GetAllocator());
+    rapidjson::StringBuffer buffer;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+    json_doc.Accept(writer);
+  
+    if (write_file(m_tiledb_ctx, column_filepath, buffer.GetString(), strlen(buffer.GetString()))) {
+      throw VariantStorageManagerException(std::string("Could not write to column bounds file ")+column_filepath
+                                           +"\nTileDB error message : "+tiledb_errmsg);
+    };
+  
+    if (close_file(m_tiledb_ctx, column_filepath)) {
+      throw VariantStorageManagerException(std::string("Could not close after write to column bounds file ")+column_filepath
+                                           +"\nTileDB error message : "+tiledb_errmsg);
+    }
   }
 }

@@ -173,7 +173,7 @@ Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetArrayColumnBounds
   VERIFY_OR_THROW(array_cstr);
   int64_t bounds[2];
   auto return_val = VariantArrayInfo::get_array_column_bounds(workspace_cstr, array_cstr, bounds);
-  VERIFY_OR_THROW(return_val);
+  VERIFY_OR_THROW(!return_val);
   jlongArray long_array = (jlongArray)env->NewLongArray(2);
   env->SetLongArrayRegion(long_array, 0, 2, (jlong*)bounds);
   env->ReleaseStringUTFChars(workspace, workspace_cstr);

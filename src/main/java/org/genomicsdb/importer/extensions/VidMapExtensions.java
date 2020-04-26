@@ -4,18 +4,12 @@ import htsjdk.variant.vcf.*;
 
 import org.genomicsdb.importer.Constants;
 import org.genomicsdb.model.GenomicsDBVidMapProto;
-import org.genomicsdb.model.Coordinates;
-import org.genomicsdb.GenomicsDBUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.Map;
 import java.util.HashMap;
-
-import static java.util.stream.Collectors.toList;
-import static com.googlecode.protobuf.format.JsonFormat.*;
-import static org.genomicsdb.GenomicsDBUtils.readEntireFile;
 
 public interface VidMapExtensions {
 
@@ -243,35 +237,6 @@ public interface VidMapExtensions {
             }
         }
         return length;
-    }
-
-    /**
-     * Generate the ProtoBuf data structure for vid mapping
-     * from the existing vid file
-     *
-     * @param vidFile file with existing vid info
-     * @return a vid map containing all field names, lengths and types
-     * from the merged GVCF header. for incremental import case
-     * @throws ParseException when there is an error parsing existing vid json
-     */
-    default GenomicsDBVidMapProto.VidMappingPB generateVidMapFromFile(final String vidFile)
-        throws ParseException {
-        String existingVidJson = GenomicsDBUtils.readEntireFile(vidFile);
-        GenomicsDBVidMapProto.VidMappingPB.Builder vidMapBuilder = 
-                GenomicsDBVidMapProto.VidMappingPB.newBuilder();
-        merge(existingVidJson, vidMapBuilder);
-        return vidMapBuilder.build();
-    }
-
-    default boolean checkVidForContigColumnOffsetOverlap(GenomicsDBVidMapProto.VidMappingPB vidmap,
-            long[] bounds, Coordinates.ContigInterval contigInterval) {
-        List<GenomicsDBVidMapProto.Chromosome> contigList = vidmap.getContigsList().stream().filter(
-            x -> x.getName().equals(contigInterval.getContig())).collect(toList());
-        if (contigList.size() != 1) {
-            throw new RuntimeException("Contig "+contigInterval.getContig()+" not found, or found multiple times in vid");
-        }
-        return contigList.get(0).getTiledbColumnOffset() < bounds[1] &&
-            contigList.get(0).getTiledbColumnOffset() >= bounds[0];
     }
 
     public static DuplicateVcfFieldNamesCheckResult checkForDuplicateVcfFieldNames(final String vcfFieldName,
