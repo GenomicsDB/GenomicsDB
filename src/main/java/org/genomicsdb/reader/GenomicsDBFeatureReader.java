@@ -174,7 +174,11 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
                         this.exportConfiguration.getVidMapping() :
                         generateVidMapFromFile(this.exportConfiguration.getVidMappingFile());
                 long[] bounds = getArrayColumnBounds(workspace, array);
-                return checkVidForContigColumnOffsetOverlap(vidPB, bounds, contigInterval);
+                // here we only check if contig starts within column bounds
+                // this works because currently the contig coalescing respects contig boundaries
+                // that is, we are guaranteed that entire contigs reside in the same array
+                // if that changes we need to get smarter here
+                return checkVidIfContigStartsWithinColumnBounds(vidPB, bounds, contigInterval);
             } catch (ParseException e) {
                 throw new RuntimeException("Error parsing vid from file");
             }

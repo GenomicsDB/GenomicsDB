@@ -126,7 +126,7 @@ public interface JsonFileExtensions {
      * @param contigInterval contig interval
      * @return true if contig starts within column bounds
      */
-    default boolean checkVidForContigColumnOffsetOverlap(GenomicsDBVidMapProto.VidMappingPB vidmap,
+    default boolean checkVidIfContigStartsWithinColumnBounds(GenomicsDBVidMapProto.VidMappingPB vidmap,
             long[] bounds, Coordinates.ContigInterval contigInterval) {
         List<GenomicsDBVidMapProto.Chromosome> contigList = vidmap.getContigsList().stream().filter(
             x -> x.getName().equals(contigInterval.getContig())).collect(toList());
