@@ -1352,7 +1352,7 @@ def main():
 	      'size_per_column_partition': 4096,
               'generate_array_name_from_partition_bounds': True,
               'coalesce_to_num_partitions': '2',
-              'chromosome_intervals': [ '1:1-100000000' ],
+              'chromosome_intervals': [ '1:1-249250621', '2:1-243199373', '3:1-198022430', '4:1-191154276' ],
 	      "query_params": [
 		  {
 		    'attributes': attributes_multi_contig,
@@ -1379,7 +1379,7 @@ def main():
 	      'size_per_column_partition': 4096,
               'generate_array_name_from_partition_bounds': True,
               'coalesce_to_num_partitions': '2',
-              'chromosome_intervals': [ '1:1-100000000' ],
+              'chromosome_intervals': [ '1:1-249250621', '2:1-243199373', '3:1-198022430', '4:1-191154276' ],
 	      "query_params": [
 		  {
 		    'attributes': attributes_multi_contig,
