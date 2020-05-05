@@ -63,6 +63,7 @@ attributes_with_DS_ID = [ "REF", "ALT", "BaseQRankSum", "MQ", "RAW_MQ", "MQ0", "
 attributes_with_PL_only = [ "PL" ]
 attributes_with_MLEAC_only = [ "MLEAC" ]
 attributes_with_bigint = [ "big_field1", "big_field2", "AS_big_field3", "big_field4", "AS_big_field5", "DP", "GT" ]
+attributes_multi_contig = ["DP", "AF", "GT"]
 default_segment_size = 40
 
 def create_query_json(ws_dir, test_name, query_param_dict):
@@ -100,6 +101,8 @@ def create_query_json(ws_dir, test_name, query_param_dict):
         test_dict['query_filter'] = query_param_dict['query_filter']
     if('max_genotype_count' in query_param_dict):
         test_dict['max_genotype_count'] = query_param_dict['max_genotype_count']
+    if('reference_genome' in query_param_dict):
+        test_dict['reference_genome'] =  query_param_dict['reference_genome']
     return test_dict;
 
 
@@ -142,6 +145,8 @@ def create_loader_json(ws_dir, test_name, test_params_dict):
         test_dict['segment_size'] = test_params_dict['segment_size'];
     else:
         test_dict['segment_size'] = default_segment_size;
+    if('reference_genome' in test_params_dict):
+        test_dict['reference_genome'] =  test_params_dict['reference_genome']
     return test_dict;
 
 def get_file_content_and_md5sum(filename):
@@ -1339,6 +1344,59 @@ def main():
 		      "java_vcf"   : "golden_outputs/bigint_java.vcf",
 		      } },
 	       ],
+	    },
+	    { "name" : "java_genomicsdb_importer_from_vcfs_multi_contig_coalesce",
+	      'callset_mapping_file': 'inputs/callsets/multi_contig.json',
+	      'vid_mapping_file': 'inputs/vid_multi_contig.json',
+              'reference_genome': 'inputs/chr1_2_3_4_70Kb.fasta.gz',
+	      'size_per_column_partition': 4096,
+              'generate_array_name_from_partition_bounds': True,
+              'coalesce_to_num_partitions': '2',
+              'chromosome_intervals': [ '1:1-249250621', '2:1-243199373', '3:1-198022430', '4:1-191154276' ],
+	      "query_params": [
+		  {
+		    'attributes': attributes_multi_contig,
+		    "force_override": True,
+		    'segment_size': 4096,
+		    'pass_as_vcf': True,
+                    'produce_GT_field': True,
+                    'reference_genome': 'inputs/chr1_2_3_4_70Kb.fasta.gz',
+		    "query_column_ranges": [{
+		      "range_list": [{
+			  "low": 0,
+			  "high": 1000000000
+		      }]
+		  }], "golden_output": {
+		      "java_vcf"   : "golden_outputs/multi_contig_java_vcf",
+		      } },
+	       ],
+	    },
+	    { "name" : "java_genomicsdb_importer_from_vcfs_incremental_multi_contig_coalesce",
+	      'callset_mapping_file': 'inputs/callsets/multi_contig.0.json',
+              'callset_mapping_file1': 'inputs/callsets/multi_contig.1.json',
+	      'vid_mapping_file': 'inputs/vid_multi_contig.json',
+              'reference_genome': 'inputs/chr1_2_3_4_70Kb.fasta.gz',
+	      'size_per_column_partition': 4096,
+              'generate_array_name_from_partition_bounds': True,
+              'coalesce_to_num_partitions': '2',
+              'chromosome_intervals': [ '1:1-249250621', '2:1-243199373', '3:1-198022430', '4:1-191154276' ],
+	      "query_params": [
+		  {
+		    'attributes': attributes_multi_contig,
+		    "force_override": True,
+		    'segment_size': 4096,
+		    'pass_as_vcf': True,
+                    'produce_GT_field': True,
+                    'reference_genome': 'inputs/chr1_2_3_4_70Kb.fasta.gz',
+		    "query_column_ranges": [{
+		      "range_list": [{
+			  "low": 0,
+			  "high": 1000000000
+		      }]
+		  }], "golden_output": {
+		      "java_vcf"   : "golden_outputs/multi_contig_java_vcf",
+		      } },
+	       ],
 	  },
     ];
     if(len(sys.argv) < 5):
@@ -1387,8 +1445,12 @@ def main():
                     file_list += ' '+callset_info['filename'];
                     count=count+1
                 cs_fptr.close();
+
+            coalesce_arg = ''
+            if('coalesce_to_num_partitions' in test_params_dict):
+                coalesce_arg = ' --coalesce-multiple-contigs '+test_params_dict['coalesce_to_num_partitions']
             import_cmd = 'java'+jacoco+' -ea TestGenomicsDBImporterWithMergedVCFHeader --size_per_column_partition 16384 ' \
-                                   '--segment_size 10485760'+arg_list+file_list
+                                   '--segment_size 10485760'+arg_list+file_list+coalesce_arg
             if(test_name.find('incremental') != -1):
                 incremental_load = True
                 file_list = ''
@@ -1398,7 +1460,7 @@ def main():
                         file_list += ' '+callset_info['filename'];
                 cs_fptr.close();
                 import_cmd_incremental = 'java'+jacoco+' -ea TestGenomicsDBImporterWithMergedVCFHeader --size_per_column_partition 16384 ' \
-                                               '--segment_size 10485760 --incremental '+str(count)+arg_list+file_list
+                                               '--segment_size 10485760 --incremental '+str(count)+arg_list+file_list+coalesce_arg
         else:
             import_cmd = exe_path+os.path.sep+'vcf2genomicsdb '+loader_json_filename
         pid = subprocess.Popen(import_cmd, shell=True, stdout=subprocess.PIPE);

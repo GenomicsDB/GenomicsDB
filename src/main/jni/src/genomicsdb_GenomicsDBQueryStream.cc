@@ -43,7 +43,7 @@ void handleJNIException(JNIEnv *env, std::exception& exception) {
 
 JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQueryStream_jniGenomicsDBInit
   (JNIEnv* env, jobject curr_obj, jstring loader_configuration_file, 
-   jbyteArray query_buffer, jstring chr, jint start, jint end,
+   jbyteArray query_buffer, jstring chr, jlong start, jlong end,
    jint rank, jlong buffer_capacity, jlong segment_size,
    jboolean is_bcf, jboolean produce_header_only,
    jboolean use_missing_values_only_not_vector_end, jboolean keep_idx_fields_in_bcf_header)

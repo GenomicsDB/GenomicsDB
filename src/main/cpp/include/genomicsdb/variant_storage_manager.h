@@ -161,6 +161,7 @@ class VariantArrayInfo {
   }
   void write_cell(const void* ptr);
   static int get_max_valid_row_idx(const std::string& workspace, const std::string& array);
+  static int get_array_column_bounds(const std::string& workspace, const std::string& array, int64_t bounds[]);
   //Read #valid rows from metadata if available, else set from schema (array domain)
   void read_row_bounds_from_metadata();
   int read_row_bounds_from_metadata(const std::string& filepath);
@@ -270,6 +271,7 @@ class VariantStorageManager {
    * Update row bounds in the metadata
    */
   void update_row_bounds_in_array(const int ad, const int64_t lb_row_idx, const int64_t max_valid_row_idx_in_array);
+  void write_column_bounds_to_array(const int ad, const int64_t column_min, const int64_t column_max);
   /*
    * Return workspace path
    */

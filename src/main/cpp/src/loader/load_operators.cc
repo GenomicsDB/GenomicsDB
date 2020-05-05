@@ -142,6 +142,9 @@ LoaderArrayWriter::LoaderArrayWriter(
                                 + "\nTileDB error message : "+tiledb_errmsg);
   m_storage_manager->update_row_bounds_in_array(m_array_descriptor, m_import_config_ptr->get_row_bounds().first,
       std::min(m_import_config_ptr->get_row_bounds().second, id_mapper.get_max_callset_row_idx()));
+  m_storage_manager->write_column_bounds_to_array(m_array_descriptor,
+      m_import_config_ptr->get_column_partition(m_partition_idx).first,
+      m_import_config_ptr->get_column_partition(m_partition_idx).second);
 }
 
 #ifdef DUPLICATE_CELL_AT_END

@@ -162,3 +162,21 @@ Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetMaxValidRowIndex
   env->ReleaseStringUTFChars(array, array_cstr);
   return return_val;
 }
+
+JNIEXPORT jlongArray JNICALL
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetArrayColumnBounds
+(JNIEnv *env, jclass currClass, jstring workspace, jstring array)
+{
+  auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
+  VERIFY_OR_THROW(workspace_cstr);
+  auto array_cstr = env->GetStringUTFChars(array, NULL);
+  VERIFY_OR_THROW(array_cstr);
+  int64_t bounds[2];
+  auto return_val = VariantArrayInfo::get_array_column_bounds(workspace_cstr, array_cstr, bounds);
+  VERIFY_OR_THROW(!return_val);
+  jlongArray long_array = (jlongArray)env->NewLongArray(2);
+  env->SetLongArrayRegion(long_array, 0, 2, (jlong*)bounds);
+  env->ReleaseStringUTFChars(workspace, workspace_cstr);
+  env->ReleaseStringUTFChars(array, array_cstr);
+  return long_array;
+}

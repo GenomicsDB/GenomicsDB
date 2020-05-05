@@ -132,5 +132,15 @@ public class GenomicsDBUtils {
 	return GenomicsDBUtilsJni.jniGetMaxValidRowIndex(workspace, array);
     } 
 
+    /**
+     * Get array column bounds
+     * @param workspace path to workspace
+     * @param array name of workspace
+     * @return array of length 2 with with [0] = min column, [1] = max column
+     */
+    public static long[] getArrayColumnBounds(final String workspace, final String array) {
+	return GenomicsDBUtilsJni.jniGetArrayColumnBounds(workspace, array);
+    }
+
 }
 

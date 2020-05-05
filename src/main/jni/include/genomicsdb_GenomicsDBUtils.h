@@ -87,6 +87,14 @@ JNIEXPORT jstring JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniReadEntireFi
 JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetMaxValidRowIndex
   (JNIEnv *, jclass, jstring, jstring);
 
+/*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni
+ * Method:    jniGetArrayColumnBounds
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I
+ */
+JNIEXPORT jlongArray JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetArrayColumnBounds
+  (JNIEnv *, jclass, jstring, jstring);
+
 #ifdef __cplusplus
 }
 #endif
