@@ -34,7 +34,7 @@
 class GenomicsDBBCFGenerator {
  public:
   GenomicsDBBCFGenerator(const std::string& loader_config_file, const genomicsdb_pb::ExportConfiguration *query_config_pb,
-                         const char* chr, const int start, const int end,
+                         const char* chr, const long start, const long end,
                          int my_rank=0, size_t buffer_capacity=DEFAULT_COMBINED_VCF_RECORDS_BUFFER_SIZE, size_t tiledb_segment_size=1048576u,
                          const char* output_format="bu",
                          const bool produce_header_only=false,

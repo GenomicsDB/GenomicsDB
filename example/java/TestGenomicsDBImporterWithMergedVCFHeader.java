@@ -25,13 +25,23 @@ import org.genomicsdb.importer.GenomicsDBImporter;
 import org.genomicsdb.model.CommandLineImportConfig;
 import org.json.simple.parser.ParseException;
 
+import java.util.Arrays;
 import java.io.IOException;
 
 public final class TestGenomicsDBImporterWithMergedVCFHeader {
 
-  public static void main(final String[] args) throws IOException, GenomicsDBException, ParseException, InterruptedException {
+  public static void main(String[] args) throws IOException, GenomicsDBException, ParseException, InterruptedException {
+    // this expects --coalesce-multiple-contigs to be the last argument, if it exists
+    int numPartitions = 0;
+    if (args[args.length-2].equals("--coalesce-multiple-contigs")) {
+      numPartitions = Integer.parseInt(args[args.length-1]);
+      args = Arrays.copyOf(args, args.length-2);
+    }
     CommandLineImportConfig config = new CommandLineImportConfig("TestGenomicsDBImporterWithMergedVCFHeader", args);
     GenomicsDBImporter importer = new GenomicsDBImporter(config);
+    if (numPartitions > 0) {
+      importer.coalesceContigsIntoNumPartitions(numPartitions);
+    }
     importer.executeImport();
   }
 

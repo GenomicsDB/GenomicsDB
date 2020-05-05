@@ -54,6 +54,7 @@ rapidjson::Document parse_json_file(const std::string& filename) {
 void extract_contig_interval_from_object(const rapidjson::Value& curr_json_object,
     const VidMapper* id_mapper, ColumnRange& result) {
   // This MUST be a dictionary of the form "contig" : position or "contig" : [start, end]
+  // or "tiledb_column": position
   VERIFY_OR_THROW(curr_json_object.IsObject());
   VERIFY_OR_THROW(curr_json_object.MemberCount() == 1);
   auto itr = curr_json_object.MemberBegin();
@@ -69,6 +70,10 @@ void extract_contig_interval_from_object(const rapidjson::Value& curr_json_objec
                     && pb_contig_position_dict["position"].IsInt64());
     contig_name = pb_contig_position_dict["contig"].GetString();
     contig_position_ptr = &(pb_contig_position_dict["position"]);
+  } else if (contig_name == "tiledb_column") {
+    VERIFY_OR_THROW(itr->value.IsInt64());
+    result.first = itr->value.GetInt64();
+    return;
   } else
     contig_position_ptr = &(itr->value);
   ContigInfo contig_info;
@@ -332,6 +337,7 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
 	VERIFY_OR_THROW(curr_partition_info_dict.HasMember("begin"));
 	auto& begin_json_value = curr_partition_info_dict["begin"];
 	//Either a TileDB column idx or a dictionary of the form { "chr1" : [ 5, 6 ] }
+	//Or "tiledb_column": 1234
 	VERIFY_OR_THROW(begin_json_value.IsInt64() || begin_json_value.IsObject());
 	if (begin_json_value.IsInt64())
 	  m_column_ranges[partition_idx][0].first = begin_json_value.GetInt64();
@@ -341,6 +347,7 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
 	if (curr_partition_info_dict.HasMember("end")) {
 	  auto& end_json_value = curr_partition_info_dict["end"];
 	  //Either a TileDB column idx or a dictionary of the form { "chr1" : [ 5, 6 ] }
+	  //Or "tiledb_column": 1234
 	  VERIFY_OR_THROW(end_json_value.IsInt64() || end_json_value.IsObject());
 	  if (end_json_value.IsInt64())
 	    m_column_ranges[partition_idx][0].second = end_json_value.GetInt64();
