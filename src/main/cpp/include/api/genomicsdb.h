@@ -126,8 +126,8 @@ typedef struct genomic_field_t {
   inline std::string str_value() const {
     return std::string(reinterpret_cast<const char *>(ptr)).substr(0, num_elements);
   }
-  std::string recombine_ALT_value(std::string separator=", ") const;
-  std::string combine_GT_vector(const genomic_field_type_t& field_type) const;
+  GENOMICSDB_EXPORT std::string recombine_ALT_value(std::string separator=", ") const;
+  GENOMICSDB_EXPORT std::string combine_GT_vector(const genomic_field_type_t& field_type) const;
   std::string to_string(uint64_t offset, const genomic_field_type_t& field_type) const {
     if (field_type.is_int()) {
       return std::to_string(int_value_at(offset));
