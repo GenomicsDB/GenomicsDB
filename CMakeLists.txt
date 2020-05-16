@@ -162,7 +162,8 @@ find_package(libuuid REQUIRED)
 include_directories(${LIBUUID_INCLUDE_DIR})
 
 if(ENABLE_LIBCURL)
-    find_package(CURL REQUIRED)
+  find_package(OpenSSL REQUIRED)
+  find_package(CURL REQUIRED)
 endif()
 
 #RapidJSON
