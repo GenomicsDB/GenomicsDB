@@ -61,7 +61,9 @@ GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_
     if (!found_contig)
       throw GenomicsDBJNIException(std::string("Could not find TileDB column interval for contig: ")+chr);
     int64_t column_begin = contig_info.m_tiledb_column_offset + static_cast<int64_t>(start) - 1; //since VCF positions are 1 based
-    int64_t column_end = contig_info.m_tiledb_column_offset + static_cast<int64_t>(end) - 1; //since VCF positions are 1 based
+    // check that end position doesn't go beyond contig length
+    int64_t end_check = std::min<int64_t>(end, contig_info.m_length);
+    int64_t column_end = contig_info.m_tiledb_column_offset + static_cast<int64_t>(end_check) - 1; //since VCF positions are 1 based
     m_query_config.set_column_interval_to_query(column_begin, column_end);
   }
   else if (start != 0 || end != 0) {

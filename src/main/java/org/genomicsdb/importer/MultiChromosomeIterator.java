@@ -24,7 +24,7 @@ package org.genomicsdb.importer;
 
 import org.genomicsdb.importer.model.ChromosomeInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.tribble.AbstractFeatureReader;
+import htsjdk.tribble.FeatureReader;
 import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
@@ -41,23 +41,21 @@ import java.util.NoSuchElementException;
  * is an Iterator over VariantContext for all the chromosome intervals in the
  * list
  *
- * @param <SOURCE> LineIterator for VCFs, PositionalBufferedStream for BCFs
  */
-class MultiChromosomeIterator<SOURCE> implements Iterator<VariantContext> {
+class MultiChromosomeIterator implements Iterator<VariantContext> {
     private ArrayList<ChromosomeInterval> chromosomeIntervals;
-    private AbstractFeatureReader<VariantContext, SOURCE> reader;
+    private FeatureReader<VariantContext> reader;
     private int idxInIntervalList = 0;
     private CloseableTribbleIterator<VariantContext> iterator = null;
 
     /**
      * Constructor
      *
-     * @param reader              AbstractFeatureReader over VariantContext objects -
-     *                            SOURCE can vary - BCF v/s VCF for example
+     * @param reader              FeatureReader over VariantContext objects
      * @param chromosomeIntervals chromosome intervals over which to iterate
      * @throws IOException when the reader's query method throws an IOException
      */
-    MultiChromosomeIterator(AbstractFeatureReader<VariantContext, SOURCE> reader, final List<ChromosomeInterval> chromosomeIntervals)
+    MultiChromosomeIterator(FeatureReader<VariantContext> reader, final List<ChromosomeInterval> chromosomeIntervals)
             throws IOException {
         this.reader = reader;
         this.chromosomeIntervals = new ArrayList<>();
