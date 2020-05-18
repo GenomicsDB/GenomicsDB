@@ -40,7 +40,7 @@ public final class TestGenomicsDBImporterWithMergedVCFHeader {
     CommandLineImportConfig config = new CommandLineImportConfig("TestGenomicsDBImporterWithMergedVCFHeader", args);
     GenomicsDBImporter importer = new GenomicsDBImporter(config);
     if (numPartitions > 0) {
-      importer.coalesceContigsIntoNumPartitions(numPartitions);
+      importer.coalesceChromosomesIntoNumPartitions(numPartitions);
     }
     importer.executeImport();
   }
