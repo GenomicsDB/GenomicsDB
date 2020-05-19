@@ -892,12 +892,12 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     }
 
     /**
-     * Coalesce chromosomes into fewer GenomicsDB partitions
+     * Coalesce contigs into fewer GenomicsDB partitions
      *
      * @param partitions Approximate number of partitions to coalesce into
-     * @throws GenomicsDBException Coalescing chromosomes into partitions fails
+     * @throws GenomicsDBException Coalescing contigs into partitions fails
      */
-    public void coalesceChromosomesIntoNumPartitions(final int partitions)
+    public void coalesceContigsIntoNumPartitions(final int partitions)
             throws GenomicsDBException {
         GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder =
                 this.config.getImportConfiguration().toBuilder();
