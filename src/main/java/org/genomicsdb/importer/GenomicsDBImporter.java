@@ -162,15 +162,9 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                 else {
                     // we may have multiple chromosomes per partition...
                     try {
-                        if (importConfig.isPassAsVcf()) {
-                            iterator = GenomicsDBImporter.columnPartitionIterator(
-                                    (AbstractFeatureReader<VariantContext, LineIterator>)featureReader, 
-                                    importJSONFile.getAbsolutePath(), rank);
-                        } else {
-                            iterator = GenomicsDBImporter.columnPartitionIterator(
-                                    (AbstractFeatureReader<VariantContext, PositionalBufferedStream>)featureReader,
-                                    importJSONFile.getAbsolutePath(), rank);
-                        }
+                        iterator = GenomicsDBImporter.columnPartitionIterator(
+                                featureReader, 
+                                importJSONFile.getAbsolutePath(), rank);
                     }
                     catch (ParseException ex) {
                         throw new RuntimeException("Error parsing import json file:"+ex);
@@ -370,13 +364,11 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     }
 
     /**
-     * Utility function that returns a MultiChromosomeIterator given an AbstractFeatureReader
+     * Utility function that returns a MultiChromosomeIterator given an FeatureReader
      * that will iterate over the VariantContext objects provided by the reader belonging
      * to the column partition specified by the loader JSON file and rank/partition index
      *
-     * @param <SOURCE>       LineIterator for VCFs, PositionalBufferedStream for BCFs
-     * @param reader         AbstractFeatureReader over VariantContext objects -
-     *                       SOURCE can vary - BCF v/s VCF for example
+     * @param reader         AbstractFeatureReader over VariantContext objects
      * @param loaderJSONFile path to loader JSON file
      * @param partitionIdx   rank/partition index
      * @return MultiChromosomeIterator that iterates over VariantContext objects in the reader
@@ -384,11 +376,11 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
      * @throws IOException    when the reader's query method throws an IOException
      * @throws ParseException when there is a bug in the JNI interface and a faulty JSON is returned
      */
-    public static <SOURCE> MultiChromosomeIterator<SOURCE> columnPartitionIterator(
-            AbstractFeatureReader<VariantContext, SOURCE> reader,
+    public static MultiChromosomeIterator columnPartitionIterator(
+            FeatureReader<VariantContext> reader,
             final String loaderJSONFile,
             final int partitionIdx) throws ParseException, IOException {
-        return new MultiChromosomeIterator<>(reader, GenomicsDBImporter.getChromosomeIntervalsForColumnPartition(
+        return new MultiChromosomeIterator(reader, GenomicsDBImporter.getChromosomeIntervalsForColumnPartition(
                 loaderJSONFile, partitionIdx));
     }
 
@@ -779,20 +771,18 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     }
 
     /**
-     * Utility function that returns a MultiChromosomeIterator given an AbstractFeatureReader
+     * Utility function that returns a MultiChromosomeIterator given an FeatureReader
      * that will iterate over the VariantContext objects provided by the reader belonging
      * to the column partition specified by this object's loader JSON file and rank/partition index
      *
-     * @param <SOURCE> LineIterator for VCFs, PositionalBufferedStream for BCFs
-     * @param reader   AbstractFeatureReader over VariantContext objects -
-     *                 SOURCE can vary - BCF v/s VCF for example
+     * @param reader   AbstractFeatureReader over VariantContext objects
      * @return MultiChromosomeIterator that iterates over VariantContext objects in the reader
      * belonging to the specified column partition
      * @throws IOException    when the reader's query method throws an IOException
      * @throws ParseException when there is a bug in the JNI interface and a faulty JSON is returned
      */
-    public <SOURCE> MultiChromosomeIterator<SOURCE> columnPartitionIterator(
-            AbstractFeatureReader<VariantContext, SOURCE> reader) throws ParseException, IOException {
+    public MultiChromosomeIterator columnPartitionIterator(
+            FeatureReader<VariantContext> reader) throws ParseException, IOException {
         return GenomicsDBImporter.columnPartitionIterator(reader, mLoaderJSONFile, mRank);
     }
 

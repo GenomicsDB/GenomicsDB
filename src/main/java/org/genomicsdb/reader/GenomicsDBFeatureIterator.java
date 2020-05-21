@@ -143,9 +143,15 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
                     }
                 }
                 else {
-                    long[] bounds = getArrayColumnBounds(newQueryPB.getWorkspace(), array);
-                    params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, 
-                            newQueryPB, "", bounds[0], bounds[1]);
+                    if (start.isPresent() && end.isPresent()) {
+                        params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile,
+                                newQueryPB, chr, start.getAsInt(), end.getAsInt());
+                    }
+                    else {
+                        long[] bounds = getArrayColumnBounds(newQueryPB.getWorkspace(), array);
+                        params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile,
+                                newQueryPB, "", bounds[0], bounds[1]);
+                    }
                 }
 
                 return params;
