@@ -29,6 +29,8 @@
 #include "genomicsdb_multid_vector_field.h"
 #include "logger.h"
 
+#include <errno.h>
+
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCF2BinaryException(#X);
 
 //INFO fields like DP, RAW_MQ - the combine operation is a sum
@@ -156,8 +158,13 @@ void VCFReader::initialize(const char* filename,
 void VCFReader::add_reader() {
   assert(m_indexed_reader->nreaders == 0);      //no existing files are open
   assert(m_fptr == 0);  //normal file handle should be NULL
-  if (bcf_sr_add_reader(m_indexed_reader, m_name.c_str()) != 1)
-    throw VCF2BinaryException(std::string("Could not open file ")+m_name+" : " + bcf_sr_strerror(m_indexed_reader->errnum) + " (VCF/BCF files must be block compressed and indexed)");
+  errno = 0;
+  if (bcf_sr_add_reader(m_indexed_reader, m_name.c_str()) != 1) {
+    throw VCF2BinaryException(std::string("Could not open file ")+m_name+" : "
+                              + bcf_sr_strerror(m_indexed_reader->errnum)
+                              + " (VCF/BCF files must be block compressed and indexed)"
+                              + errno>0?logger.format(" errno={1} ({2})", errno, std::strerror(errno)):"");
+  }
   assert(m_hdr);
   auto tmp_hdr_ptr = bcf_sr_get_header(m_indexed_reader, 0);
   bcf_sr_get_header(m_indexed_reader, 0) = m_hdr;
