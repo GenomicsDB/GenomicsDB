@@ -160,10 +160,10 @@ void VCFReader::add_reader() {
   assert(m_fptr == 0);  //normal file handle should be NULL
   errno = 0;
   if (bcf_sr_add_reader(m_indexed_reader, m_name.c_str()) != 1) {
+    std::string errmsg =  (errno>0)?logger.format(" errno={1} ({2})", errno, std::strerror(errno)):"";
     throw VCF2BinaryException(std::string("Could not open file ")+m_name+" : "
                               + bcf_sr_strerror(m_indexed_reader->errnum)
-                              + " (VCF/BCF files must be block compressed and indexed)"
-                              + errno>0?logger.format(" errno={1} ({2})", errno, std::strerror(errno)):"");
+                              + " (VCF/BCF files must be block compressed and indexed)" + errmsg);
   }
   assert(m_hdr);
   auto tmp_hdr_ptr = bcf_sr_get_header(m_indexed_reader, 0);
