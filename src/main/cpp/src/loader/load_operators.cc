@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -121,7 +122,7 @@ LoaderArrayWriter::LoaderArrayWriter(
   //Storage manager
   size_t segment_size = m_import_config_ptr->get_segment_size();
   m_storage_manager = new VariantStorageManager(workspace, segment_size,
-      config.disable_file_locking_in_tiledb());
+       m_import_config_ptr->enable_shared_posixfs_optimizations());
   if (m_import_config_ptr->delete_and_create_tiledb_array())
     m_storage_manager->delete_array(array_name);
   //Open array in write mode
@@ -129,7 +130,12 @@ LoaderArrayWriter::LoaderArrayWriter(
   //Check if array already exists
   //Array does not exist - define it first
   if (m_array_descriptor < 0) {
-    if (m_storage_manager->define_array(m_schema, m_import_config_ptr->get_num_cells_per_tile()) != TILEDB_OK)
+    if (m_storage_manager->define_array(m_schema,
+                                        m_import_config_ptr->get_num_cells_per_tile(),
+                                        m_import_config_ptr->disable_delta_encode_offsets(),
+                                        m_import_config_ptr->disable_delta_encode_coords(),
+                                        m_import_config_ptr->enable_bit_shuffle_gt(),
+                                        m_import_config_ptr->enable_lz4_compression_gt()) != TILEDB_OK)
       throw LoadOperatorException(std::string("Could not define TileDB array")
                                   +"\nTileDB error message : "+tiledb_errmsg);
     //Open array in write mode

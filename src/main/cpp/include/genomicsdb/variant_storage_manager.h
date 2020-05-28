@@ -221,7 +221,7 @@ class VariantArrayInfo {
 class VariantStorageManager {
  public:
   VariantStorageManager(const std::string& workspace, const unsigned segment_size,
-                        const bool disable_file_locking_in_tiledb);
+                        const bool enable_shared_posixfs_optimizations);
   VariantStorageManager(const std::string& workspace, const unsigned segment_size=10u*1024u*1024u)
     : VariantStorageManager(workspace, segment_size, false)
   {}
@@ -238,7 +238,12 @@ class VariantStorageManager {
 
   int open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode, const std::string& query_filter=std::string());
   void close_array(const int ad, const bool consolidate_tiledb_array=false);
-  int define_array(const VariantArraySchema* variant_array_schema, const size_t num_cells_per_tile=1000u);
+  int define_array(const VariantArraySchema* variant_array_schema,
+                   const size_t num_cells_per_tile=1000u,
+                   const bool disable_delta_encode_for_offsets=false,
+                   const bool disable_delta_encode_for_coords=false,
+                   const bool enable_bit_shuffle_gt=false,
+                   const bool enable_lz4_compression_gt=false);
   void delete_array(const std::string& array_name);
   int define_metadata_schema(const VariantArraySchema* variant_array_schema);
   /*

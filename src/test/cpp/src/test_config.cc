@@ -36,6 +36,70 @@ static std::string ctests_input_dir(GENOMICSDB_CTESTS_DIR);
 static std::string query_json(ctests_input_dir+"query.json");
 static std::string loader_json(ctests_input_dir+"loader.json");
 
+void set_env_for_field(const char* field, const std::string& val) {
+  char *addr = (char *)malloc(strlen(field)+val.length()+1);
+  strcpy(addr, field);
+  strcat(addr, val.c_str());
+  REQUIRE(putenv(addr) == 0);
+  REQUIRE(getenv(field));
+}
+
+TEST_CASE("Check loader configuration with json file", "[basic_loader_config_check]") {
+  GenomicsDBImportConfig loader_config;
+  loader_config.read_from_file(loader_json);
+
+  CHECK(loader_config.treat_deletions_as_intervals());
+  CHECK(loader_config.get_callset_mapping_file() == "inputs/callset_t0_1_2.json");
+  CHECK(loader_config.compress_tiledb_array());
+  CHECK(loader_config.produce_tiledb_array());
+  CHECK(loader_config.delete_and_create_tiledb_array());
+  CHECK(loader_config.produce_combined_vcf());
+  CHECK(loader_config.discard_vcf_index());
+  CHECK(loader_config.get_num_parallel_vcf_files() == 1);
+  CHECK(loader_config.get_num_cells_per_tile() == 3);
+  CHECK(loader_config.get_reference_genome() == "inputs/chr1_10MB.fasta.gz");
+  CHECK(!loader_config.offload_vcf_output_processing());
+  CHECK(loader_config.get_vcf_header_filename() == "inputs/template_vcf_header.vcf");
+  CHECK(!loader_config.is_row_based_partitioning());
+  CHECK(loader_config.get_segment_size() == 40);
+  CHECK(loader_config.get_vid_mapping_file() == "inputs/vid.json");
+  // defaults
+  CHECK(!loader_config.enable_shared_posixfs_optimizations());
+  CHECK(loader_config.get_tiledb_compression_level() == -1);
+  CHECK(!loader_config.disable_delta_encode_offsets());
+  CHECK(!loader_config.disable_delta_encode_coords());
+  CHECK(!loader_config.enable_bit_shuffle_gt());
+  CHECK(!loader_config.enable_lz4_compression_gt());
+  // with env overrides
+  std::string enable = "=1";
+  std::string disable = "=0";
+
+  set_env_for_field(ENABLE_SHARED_POSIXFS_OPTIMIZATIONS, enable);
+  CHECK(loader_config.enable_shared_posixfs_optimizations());
+  set_env_for_field(ENABLE_SHARED_POSIXFS_OPTIMIZATIONS, disable);
+  CHECK(!loader_config.enable_shared_posixfs_optimizations());
+   
+  set_env_for_field(DISABLE_DELTA_ENCODE_OFFSETS, enable);
+  CHECK(loader_config.disable_delta_encode_offsets());
+  set_env_for_field(DISABLE_DELTA_ENCODE_OFFSETS, disable);
+  CHECK(!loader_config.disable_delta_encode_offsets());
+  
+  set_env_for_field(DISABLE_DELTA_ENCODE_COORDS, enable);
+  CHECK(loader_config.disable_delta_encode_coords());
+  set_env_for_field(DISABLE_DELTA_ENCODE_COORDS, disable);
+  CHECK(!loader_config.disable_delta_encode_coords());
+
+  set_env_for_field(ENABLE_BIT_SHUFFLE_GT, enable);
+  CHECK(loader_config.enable_bit_shuffle_gt());
+  set_env_for_field(ENABLE_BIT_SHUFFLE_GT, disable);
+  CHECK(!loader_config.enable_bit_shuffle_gt());
+
+  set_env_for_field(ENABLE_LZ4_GT, enable);
+  CHECK(loader_config.enable_lz4_compression_gt());
+  set_env_for_field(ENABLE_LZ4_GT, disable);
+  CHECK(!loader_config.enable_lz4_compression_gt());
+}
+
 TEST_CASE("Check configuration with json file", "[basic_config_check]") {
   GenomicsDBImportConfig loader_config;
   loader_config.read_from_file(loader_json);

@@ -53,7 +53,7 @@ public class GenomicsDBUtils {
      * @return status 0 = OK
      */
     public static int writeToFile(final String filename, final String contents) {
-	return GenomicsDBUtilsJni.jniWriteToFile(filename, contents, (long)contents.length());
+        return GenomicsDBUtilsJni.jniWriteToFile(filename, contents, (long) contents.length());
     }
 
     /**
