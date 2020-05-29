@@ -34,7 +34,7 @@
 
 #include "logger.h"
 
-#define LOGGER_NAME "GenomicsDB"
+#define LOGGER_NAME "NativeGenomicsDB"
 #define LOGGER_NAME_STRING "GenomicsDB.String"
 
 /** Global thread safe logger */

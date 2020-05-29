@@ -22,8 +22,8 @@
 
 package org.genomicsdb;
 
-
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -33,7 +33,7 @@ public class GenomicsDBLibLoader {
     private final static String GENOMICSDB_LIBRARY_NAME = "tiledbgenomicsdb";
     private static boolean mIsLibraryLoaded = false;
 
-    private static Logger logger = Logger.getLogger(GenomicsDBLibLoader.class);
+    private static Logger logger = LogManager.getLogger(GenomicsDBLibLoader.class);
 
     private static native int jniGenomicsDBOneTimeInitialize();
 
