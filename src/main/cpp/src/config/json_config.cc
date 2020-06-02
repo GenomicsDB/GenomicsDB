@@ -786,18 +786,12 @@ void GenomicsDBImportConfig::read_from_file(const std::string& filename, const i
     m_no_mandatory_VCF_fields = json_doc["no_mandatory_VCF_fields"].GetBool();
 
   //Delta Encoding for offsets while compressing tiles
-  if (json_doc.HasMember("disable_delta_encode_offsets") && json_doc["disable_delta_encode_offsets"].GetBool()) {
-    m_disable_delta_encode_offsets = true;
-  } 
+  set_config_field(json_doc, "disable_delta_encode_offsets",  m_disable_delta_encode_offsets);
+
   //Delta Encoding for coords while compressing tiles
-  if (json_doc.HasMember("disable_delta_encode_coords") && json_doc["disable_delta_encode_coords "].GetBool()) {
-    m_disable_delta_encode_coords = true;
-  }
+  set_config_field(json_doc, "disable_delta_encode_coords", m_disable_delta_encode_coords);
+
   //Bit Shuffle while compressing tiles
-  if (json_doc.HasMember("enable_bit_shuffle_gt") && json_doc["m_enable_bit_shuffle_gt"].GetBool()) {
-    m_enable_bit_shuffle_gt = true;
-  }
-  if (json_doc.HasMember("enable_lz4_compression_gt") && json_doc["enable_lz4_compression_gt"].GetBool()) {
-     m_enable_lz4_compression_gt = true;
-  }
+  set_config_field(json_doc, "enable_bit_shuffle_gt",  m_enable_bit_shuffle_gt);
+  set_config_field(json_doc, "enable_lz4_compression_gt", m_enable_lz4_compression_gt);
 }
