@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2018-2019 Omics Data Automation, Inc.
+ * Copyright (c) 2018-2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -520,11 +520,11 @@ void VariantArrayInfo::close_array(const bool consolidate_tiledb_array) {
 
 //VariantStorageManager functions
 VariantStorageManager::VariantStorageManager(const std::string& workspace, const unsigned segment_size,
-    const bool disable_file_locking_in_tiledb) {
+    const bool enable_shared_posixfs_optimizations) {
   m_workspace = workspace;
   m_segment_size = segment_size;
 
-  if (TileDBUtils::initialize_workspace(&m_tiledb_ctx, workspace, false, disable_file_locking_in_tiledb) < 0 || m_tiledb_ctx == NULL) {
+  if (TileDBUtils::initialize_workspace(&m_tiledb_ctx, workspace, false, enable_shared_posixfs_optimizations) < 0 || m_tiledb_ctx == NULL) {
     logger.fatal(VariantStorageManagerException(
         logger.format("Error while creating TileDB workspace {}\nTileDB error message : {}",
                       workspace, tiledb_errmsg)));
@@ -571,13 +571,20 @@ void VariantStorageManager::close_array(const int ad, const bool consolidate_til
   m_open_arrays_info_vector[ad].close_array(consolidate_tiledb_array);
 }
 
-int VariantStorageManager::define_array(const VariantArraySchema* variant_array_schema, const size_t num_cells_per_tile) {
+int VariantStorageManager::define_array(const VariantArraySchema* variant_array_schema,
+                                        const size_t num_cells_per_tile,
+                                        const bool disable_delta_encode_for_offsets,
+                                        const bool disable_delta_encode_for_coords,
+                                        const bool enable_bit_shuffle_gt,
+                                        const bool enable_lz4_compression_gt) {
   //Attribute attributes
   std::vector<const char*> attribute_names(variant_array_schema->attribute_num());
   std::vector<int> cell_val_num(variant_array_schema->attribute_num());
   std::vector<int> types(variant_array_schema->attribute_num()+1u);  //+1 for the co-ordinates
   std::vector<int> compression(variant_array_schema->attribute_num()+1u);  //+1 for the co-ordinates
   std::vector<int> compression_level(variant_array_schema->attribute_num()+1u); //+1 for the co-ordinates
+  std::vector<int> offset_compression(variant_array_schema->attribute_num(), 0); // for attributes with variable number of cells
+  std::vector<int> offset_compression_level(variant_array_schema->attribute_num(), 0); // for attributes with variable number of cells
 
   for (auto i=0ull; i<variant_array_schema->attribute_num(); ++i) {
     attribute_names[i] = variant_array_schema->attribute_name(i).c_str();
@@ -585,12 +592,41 @@ int VariantStorageManager::define_array(const VariantArraySchema* variant_array_
     types[i] = VariantFieldTypeUtil::get_tiledb_type_for_variant_field_type(variant_array_schema->type(i));
     compression[i] = variant_array_schema->compression(i);
     compression_level[i] = variant_array_schema->compression_level(i);
+
+    if (variant_array_schema->attribute_name(i)=="GT" && variant_array_schema->compression(i) 
+        && (enable_bit_shuffle_gt || enable_lz4_compression_gt)) {
+      if (enable_lz4_compression_gt) {
+        compression[i] = TILEDB_LZ4;
+      } else {
+        compression[i] = variant_array_schema->compression(i);
+      }
+      if (enable_bit_shuffle_gt) {
+        compression[i] = compression[i] | TILEDB_BIT_SHUFFLE;
+      }
+      compression_level[i] = variant_array_schema->compression_level(i);
+    } else {
+      compression[i] = variant_array_schema->compression(i);
+      compression_level[i] = variant_array_schema->compression_level(i);
+    }
+
+    if (cell_val_num[i] == TILEDB_VAR_NUM && variant_array_schema->compression(i) > TILEDB_NO_COMPRESSION) {
+      if (disable_delta_encode_for_offsets) {
+        offset_compression[i] = variant_array_schema->compression(i);
+        offset_compression_level[i] = variant_array_schema->compression_level(i);
+      } else {
+        offset_compression[i] = variant_array_schema->compression(i) | TILEDB_DELTA_ENCODE;
+        offset_compression_level[i] = variant_array_schema->compression_level(i);
+      }
+    }
   }
 
   //Co-ordinates
   types[variant_array_schema->attribute_num()] = VariantFieldTypeUtil::get_tiledb_type_for_variant_field_type(
         variant_array_schema->dim_type());
   compression[variant_array_schema->attribute_num()] = variant_array_schema->dim_compression_type();
+  if (compression[variant_array_schema->attribute_num()] && !disable_delta_encode_for_coords) {
+    compression[variant_array_schema->attribute_num()] |= TILEDB_DELTA_ENCODE;
+  }
   compression_level[variant_array_schema->attribute_num()] = variant_array_schema->dim_compression_level();
   std::vector<const char*> dim_names(variant_array_schema->dim_names().size());
   std::vector<int64_t> dim_domains(2u*dim_names.size());
@@ -622,6 +658,10 @@ int VariantStorageManager::define_array(const VariantArraySchema* variant_array_
     &(compression[0]),
     // Compression Level
     &(compression_level[0]),
+    // Compression for offsets
+    &(offset_compression[0]),
+    // Compression level for offsets
+    &(offset_compression_level[0]),
     // Sparse array
     0,
     // Dimensions

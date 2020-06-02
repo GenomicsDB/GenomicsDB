@@ -199,6 +199,12 @@ rapidjson::Document GenomicsDBConfigBase::read_from_JSON_string(const std::strin
   return json_doc;
 }
 
+void set_config_field(const rapidjson::Document& json_doc, const char* name, bool& config_field) {
+  if (json_doc.HasMember(name) && json_doc[name].IsBool()) {
+    config_field = json_doc[name].GetBool();
+  }
+}
+
 void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, const int rank) {
   //Null or un-initialized
   read_and_initialize_vid_and_callset_mapping_if_available(json_doc, rank);
@@ -633,10 +639,9 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
   //when producing GT, use the min PL value GT for spanning deletions
   m_produce_GT_with_min_PL_value_for_spanning_deletions = (json_doc.HasMember("produce_GT_with_min_PL_value_for_spanning_deletions")
       && json_doc["produce_GT_with_min_PL_value_for_spanning_deletions"].GetBool());
-  //Disable file locking in TileDB
-  m_disable_file_locking_in_tiledb = false;
-  if (json_doc.HasMember("disable_file_locking_in_tiledb") && json_doc["disable_file_locking_in_tiledb"].GetBool())
-    m_disable_file_locking_in_tiledb = true;
+
+  //Shared posixfs(e.g. NFS/Lustre) optimizations - passed via storage manager
+  set_config_field(json_doc, "enable_shared_posixfs_optimizations", m_enable_shared_posixfs_optimizations);
 }
 
 void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(
@@ -779,4 +784,14 @@ void GenomicsDBImportConfig::read_from_file(const std::string& filename, const i
   m_no_mandatory_VCF_fields = false;
   if (json_doc.HasMember("no_mandatory_VCF_fields") && json_doc["no_mandatory_VCF_fields"].IsBool())
     m_no_mandatory_VCF_fields = json_doc["no_mandatory_VCF_fields"].GetBool();
+
+  //Delta Encoding for offsets while compressing tiles
+  set_config_field(json_doc, "disable_delta_encode_offsets",  m_disable_delta_encode_offsets);
+
+  //Delta Encoding for coords while compressing tiles
+  set_config_field(json_doc, "disable_delta_encode_coords", m_disable_delta_encode_coords);
+
+  //Bit Shuffle while compressing tiles
+  set_config_field(json_doc, "enable_bit_shuffle_gt",  m_enable_bit_shuffle_gt);
+  set_config_field(json_doc, "enable_lz4_compression_gt", m_enable_lz4_compression_gt);
 }

@@ -49,7 +49,7 @@ void check_equal_query_config(const GenomicsDBConfigBase& json_config, const Gen
   CHECK(pb_config.index_output_VCF() == json_config.index_output_VCF());
   CHECK(pb_config.produce_GT_with_min_PL_value_for_spanning_deletions()
       == json_config.produce_GT_with_min_PL_value_for_spanning_deletions());
-  CHECK(pb_config.disable_file_locking_in_tiledb() == json_config.disable_file_locking_in_tiledb());
+  CHECK(pb_config.enable_shared_posixfs_optimizations() == json_config.enable_shared_posixfs_optimizations());
   CHECK(pb_config.get_query_filter() == json_config.get_query_filter());
   CHECK(pb_config.get_attributes() == json_config.get_attributes());
 }

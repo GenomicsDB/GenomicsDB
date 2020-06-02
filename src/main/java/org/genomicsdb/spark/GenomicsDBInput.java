@@ -462,8 +462,8 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
             exportConfigurationBuilder.setSitesOnlyQuery(
                 val.toString().equals("true")); 
             break;
-          case "disable_file_locking_in_tiledb":
-            exportConfigurationBuilder.setDisableFileLockingInTiledb(
+          case "enable_shared_posixfs_optimizations":
+            exportConfigurationBuilder.setEnableSharedPosixfsOptimizations(
                 val.toString().equals("true")); 
             break;
           case "produce_FILTER_field":

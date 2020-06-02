@@ -41,7 +41,8 @@ if((DEFINED TILEDB_SOURCE_DIR) AND (NOT "${TILEDB_SOURCE_DIR}" STREQUAL "") AND 
   set(TILEDB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/TileDB" CACHE PATH "Path to TileDB source directory" FORCE)
 endif()
 
-set(TILEDB_VERBOSE True)
+#TileDB c-api returns a tiledb_errmsg which is what GenomicsDB should rely on
+set(TILEDB_VERBOSE False)
 set(TILEDB_DISABLE_TESTING True)
 
 #Zlib
