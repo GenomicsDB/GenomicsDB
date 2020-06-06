@@ -507,6 +507,10 @@ if(BUILD_JAVA)
     )
     add_dependencies(mvn_central_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
 
+    add_custom_target(mvn_local_deploy
+            COMMAND mvn install:install-file -Dfile=target/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar -DpomFile=pom.xml)
+    add_dependencies(mvn_local_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
+
     if(NOT DISABLE_MPI)
         add_test(NAME CI_tests
             COMMAND python2 ${CMAKE_SOURCE_DIR}/tests/run.py
