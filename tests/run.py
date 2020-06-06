@@ -258,6 +258,29 @@ def test_pre_1_0_0_query_compatibility(tmpdir):
         cleanup_and_exit(tmpdir, -1)
     sys.stdout.write("Successful\n")
 
+def test_query_compatibility_with_old_schema_verion_1(tmpdir):
+    sys.stdout.write("Testing query compatibility with arrays created with old array schema version 1...") 
+    import tarfile
+    compatDir = tmpdir+'/compat_schema_version_1_test'
+    tar = tarfile.open('inputs/compatibility.array.schema.version.1.tar')
+    tar.extractall(path=compatDir)
+    loader_json = compatDir+'/t0_1_2.json'
+    query_json = compatDir+'/t0_1_2_query.json'
+    substitute_workspace_dir(loader_json, compatDir)
+    substitute_workspace_dir(query_json, compatDir)
+    query_command = 'java -ea TestGenomicsDB --query -l '+loader_json+' '+query_json
+    pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE);
+    stdout_string = pid.communicate()[0]
+    if(pid.returncode != 0):
+        sys.stderr.write('Compatibility Test Query : '+query_command+' failed\n');
+        cleanup_and_exit(tmpdir, -1);
+    actual_md5sum = str(hashlib.md5(stdout_string).hexdigest())
+    golden_str, golden_md5sum = get_file_content_and_md5sum('golden_outputs/java_t0_1_2_vcf_sites_only_at_0')
+    if (actual_md5sum != golden_md5sum):
+        sys.stderr.write('Compatibility Test Query : '+query_command+' failed. Results did not match with golden output.\n');
+        cleanup_and_exit(tmpdir, -1)
+    sys.stdout.write("Successful\n")
+
 def run_cmd(cmd, expected_to_pass):
     pid = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
     stdout_string, stderr_string = pid.communicate()
@@ -1592,6 +1615,7 @@ def main():
                                 cleanup_and_exit(tmpdir, -1);
         shutil.rmtree(ws_dir, ignore_errors=True)
     test_pre_1_0_0_query_compatibility(tmpdir)
+    test_query_compatibility_with_old_schema_verion_1(tmpdir)
     rc = common.report_jacoco_coverage(jacoco_report_cmd)
     if (rc != 0):
         cleanup_and_exit(tmpdir, -1);
