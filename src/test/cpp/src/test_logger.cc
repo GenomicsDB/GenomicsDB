@@ -46,7 +46,7 @@
 
 #define TEST_STR_FMT "i={} str={}"
 
-TEST_CASE("test logger" "[test_logger_basic]") {
+TEST_CASE("test logger", "[test_logger_basic]") {
   logger.info(TEST_STR);
   logger.warn(TEST_STR);
   logger.error(TEST_STR);
@@ -61,9 +61,11 @@ TEST_CASE("test logger" "[test_logger_basic]") {
 
   logger.info(std::string(TEST_STR_ONCE_ONLY), true);
   logger.info(std::string(TEST_STR_ONCE_ONLY), true);
+
+  logger.info(logger.format("Trying format {} {}", "Hello1", "Hello2"));
 }
 
-TEST_CASE("test logger format" "[test_logger_format]") {
+TEST_CASE("test logger format", "[test_logger_format]") {
   logger.info(TEST_STR_FMT, 1, TEST_STR);
   logger.warn(TEST_STR_FMT, 2, TEST_STR);
   logger.error(TEST_STR_FMT, 3, TEST_STR);

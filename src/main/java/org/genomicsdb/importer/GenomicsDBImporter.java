@@ -389,6 +389,7 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                 config.getImportConfiguration().toBuilder();
         importConfigurationBuilder.setSegmentSize(config.getImportConfiguration().getSegmentSize())
                 .setFailIfUpdating(config.getImportConfiguration().getFailIfUpdating())
+                .setEnableSharedPosixfsOptimizations(config.getImportConfiguration().getEnableSharedPosixfsOptimizations())
                 //TODO: making the following attributes explicit since the C++ layer is not working with the
                 // protobuf object and it's defaults
                 .setTreatDeletionsAsIntervals(true).setCompressTiledbArray(true).setNumCellsPerTile(1000)
