@@ -18,14 +18,6 @@ class GenomicsDBImporterJni {
     static native String jniGetChromosomeIntervalsForColumnPartition(final String loaderJSONFile, final int rank);
 
     /**
-     * Consolidate TileDB array
-     *
-     * @param workspace path to workspace directory
-     * @param arrayName array name
-     */
-    static native void jniConsolidateTileDBArray(final String workspace, final String arrayName);
-
-    /**
      * Creates GenomicsDBImporter object when importing VCF files (no streams)
      *
      * @param loaderJSONFile Path to loader JSON file

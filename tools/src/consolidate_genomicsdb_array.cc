@@ -23,6 +23,7 @@
 #include <iostream>
 #include "tiledb_loader.h"
 
+// TODO: Evolve this tool to support shared_posixfs_optimizations
 int main(int argc, char** argv) {
   if (argc < 3) {
     std::cerr << "Needs 2 arguments <workspace_directory> <array_name>\n";

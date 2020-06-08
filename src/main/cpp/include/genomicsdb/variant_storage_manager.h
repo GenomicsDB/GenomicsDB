@@ -220,11 +220,9 @@ class VariantArrayInfo {
 
 class VariantStorageManager {
  public:
-  VariantStorageManager(const std::string& workspace, const unsigned segment_size,
-                        const bool enable_shared_posixfs_optimizations);
-  VariantStorageManager(const std::string& workspace, const unsigned segment_size=10u*1024u*1024u)
-    : VariantStorageManager(workspace, segment_size, false)
-  {}
+  VariantStorageManager(const std::string& workspace,
+                        const unsigned segment_size=10u*1024u*1024u,
+                        const bool enable_shared_posixfs_optimizations=false);
   ~VariantStorageManager() {
     m_open_arrays_info_vector.clear();
     m_workspace.clear();

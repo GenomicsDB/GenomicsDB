@@ -70,7 +70,8 @@ GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_
     m_query_config.set_column_interval_to_query(start, end);
   }
   m_storage_manager = new VariantStorageManager(m_query_config.get_workspace(my_rank),
-      m_query_config.get_segment_size());
+                                                m_query_config.get_segment_size(),
+                                                m_query_config.enable_shared_posixfs_optimizations());
   m_query_processor = new VariantQueryProcessor(m_storage_manager,
       m_query_config.get_array_name(my_rank),
       vid_mapper);

@@ -150,7 +150,7 @@ GenomicsDB::GenomicsDB(const std::string& query_configuration,
   query_config->subset_query_column_ranges_based_on_partition(loader_config, concurrency_rank);
 
   // Create storage manager
-  m_storage_manager = new VariantStorageManager(query_config->get_workspace(concurrency_rank), query_config->get_segment_size());
+  m_storage_manager = new VariantStorageManager(query_config->get_workspace(concurrency_rank), query_config->get_segment_size(), query_config->enable_shared_posixfs_optimizations());
 }
 
 GenomicsDB::~GenomicsDB() {
