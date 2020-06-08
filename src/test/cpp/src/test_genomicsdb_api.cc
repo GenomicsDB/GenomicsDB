@@ -84,6 +84,10 @@ static std::string vid_mapping_PP(ctests_input_dir+"vid_phased_ploidy.json");
 
 static std::string array("t0_1_2");
 
+// Test Shared PosixFS Optimizations
+static std::string query_with_shared_posixfs_optimizations(ctests_input_dir+"query_with_shared_posixfs_optimizations.json");
+static std::string consolidation_lock_file(workspace+"/"+array+"/"+".__consolidation_lock");
+
 void check_query_variants_results(GenomicsDB* gdb, const std::string& array, GenomicsDBVariants variants) {
    REQUIRE(variants.size() == 4);
    CHECK(variants.at(5) == nullptr);
@@ -162,14 +166,17 @@ TEST_CASE("api query_variants with json", "[query_variants_json]") {
 }
 
 TEST_CASE("api query variants with json string", "[query_variants_json_string]") {
-  char *query_json_buffer=NULL, *loader_json_buffer=NULL;
-  size_t query_json_buffer_length, loader_json_buffer_length;
+  char *query_json_buffer=NULL;
+  size_t query_json_buffer_length;
   CHECK(TileDBUtils::read_entire_file(query_json, (void **)&query_json_buffer, &query_json_buffer_length) == TILEDB_OK);
   CHECK(query_json_buffer);
   CHECK(query_json_buffer_length > 0);
 
   GenomicsDB* gdb = new GenomicsDB(query_json_buffer, GenomicsDB::JSON_STRING, loader_json);
   check_query_variants_results(gdb, array, gdb->query_variants());
+  // Consolidation lock file created as shared posixfs optimization is not set by default
+  std::cerr << consolidation_lock_file << std::endl;
+  CHECK(TileDBUtils::is_file(consolidation_lock_file));
   delete gdb;
 
   gdb = new GenomicsDB(query_json_buffer, GenomicsDB::JSON_STRING, loader_json, 0);
@@ -177,6 +184,29 @@ TEST_CASE("api query variants with json string", "[query_variants_json_string]")
   delete gdb;
   
   CHECK_THROWS_AS(new GenomicsDB(query_json_buffer, GenomicsDB::JSON_STRING, loader_json, 1), GenomicsDBConfigException);
+
+  free(query_json_buffer);
+}
+
+TEST_CASE("api query variants with enabled shared posixfs optimizations", "[query_variants_json_string_posixfs_optimizations]") {
+  char *query_json_buffer=NULL;
+  size_t query_json_buffer_length;
+  CHECK(TileDBUtils::read_entire_file(query_with_shared_posixfs_optimizations, (void **)&query_json_buffer, &query_json_buffer_length) == TILEDB_OK);
+  CHECK(query_json_buffer);
+  CHECK(query_json_buffer_length > 0);
+
+  if (TileDBUtils::is_file(consolidation_lock_file)) {
+    if (TileDBUtils::delete_file(consolidation_lock_file) == TILEDB_OK) {
+      GenomicsDB* gdb = new GenomicsDB(query_json_buffer, GenomicsDB::JSON_STRING, loader_json);
+      check_query_variants_results(gdb, array, gdb->query_variants());
+      // A consolidation lock file should not be created when querying with shared posixfs
+      // optimization is true
+      CHECK(!(TileDBUtils::is_file(consolidation_lock_file)));
+      delete gdb;
+    }
+  }
+
+  free(query_json_buffer);
 }
 
 class NullVariantCallProcessor : public GenomicsDBVariantCallProcessor {

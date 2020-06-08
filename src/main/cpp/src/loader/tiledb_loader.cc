@@ -889,6 +889,8 @@ void VCF2TileDBLoader::clear() {
   m_operators_overflow.clear();
 }
 
+// TODO: Support consolidation with shared posixfs optimizations turned ON. This is only used
+// by the consolidate_genomicsdb_array tool.
 void VCF2TileDBLoader::consolidate_tiledb_array(const char* workspace, const char* array_name) {
   VariantStorageManager sm(workspace);
   auto ad = sm.open_array(array_name, 0, "w");

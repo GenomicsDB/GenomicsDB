@@ -36,6 +36,8 @@ static std::string ctests_input_dir(GENOMICSDB_CTESTS_DIR);
 static std::string query_json(ctests_input_dir+"query.json");
 static std::string loader_json(ctests_input_dir+"loader.json");
 
+static std::string query_with_shared_posixfs_optimizations(ctests_input_dir+"query_with_shared_posixfs_optimizations.json");
+
 void set_env_for_field(const char* field, const std::string& val) {
   char *addr = (char *)malloc(strlen(field)+val.length()+1);
   strcpy(addr, field);
@@ -129,6 +131,20 @@ TEST_CASE("Check configuration with json file", "[basic_config_check]") {
   CHECK(query_config_from_file.produce_GT_with_min_PL_value_for_spanning_deletions() == false);
   CHECK(query_config_from_file.get_vid_mapper().is_initialized() ==  true);
   CHECK(query_config_from_file.get_vid_mapper().is_callset_mapping_initialized() == true);
+  CHECK(query_config_from_file.enable_shared_posixfs_optimizations() == false);
+}
+
+TEST_CASE("Check configuration with json file and shared posifs optim", "[config_check_with_enable_posixfs_enable_optimization]") {
+  unsetenv(ENABLE_SHARED_POSIXFS_OPTIMIZATIONS);
+  
+  GenomicsDBImportConfig loader_config;
+  loader_config.read_from_file(loader_json);
+  
+  VariantQueryConfig query_config_from_file;
+  query_config_from_file.update_from_loader(loader_config);
+  query_config_from_file.read_from_file(query_with_shared_posixfs_optimizations);
+
+  CHECK(query_config_from_file.enable_shared_posixfs_optimizations() == true);
 }
 
 TEST_CASE("Compare configuration with json file and string", "[compare_json_types]") {
