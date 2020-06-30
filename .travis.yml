@@ -132,8 +132,6 @@ before_script:
       fi
 
 script:
-    #- pylint $TRAVIS_BUILD_DIR/docker/vcf_combiner/usr/bin/combine_vcf.py
-    - python -m pytest $TRAVIS_BUILD_DIR/docker/vcf_combiner/usr/bin/combine_vcf.py
     - cd $GENOMICSDB_BUILD_DIR
     - if [[ $TRAVIS_OS_NAME == linux ]]; then
         cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True;
