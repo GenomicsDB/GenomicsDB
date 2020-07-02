@@ -43,3 +43,6 @@ TAGS
 
 #Xcode
 .DS_Store
+
+#vs-code
+.vscode/*
