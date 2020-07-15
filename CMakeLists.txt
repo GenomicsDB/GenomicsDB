@@ -179,7 +179,7 @@ include_directories(${SPDLOG_INCLUDE_DIR})
 
 #htslib
 find_package(htslib REQUIRED)
-include_directories(${HTSLIB_INCLUDE_DIR})
+include_directories(BEFORE ${HTSLIB_INCLUDE_DIR})
 
 #TileDB
 find_package(TileDB REQUIRED)
