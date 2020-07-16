@@ -56,6 +56,16 @@
 #define memcpy_s(dst, dst_size, src, src_size) memcpy((dst), (src), (src_size))
 #endif
 
+#ifdef STRING_VIEW_FOUND
+#include <string_view>
+typedef std::string_view STRING_VIEW;
+#elif defined(STRING_VIEW_EXPERIMENTAL_FOUND)
+#include <experimental/string_view>
+typedef std::experimental::string_view STRING_VIEW;
+#endif
+//FIXME: define a simple class to mimic string_view behavior
+//to use with compilers which don't support string_view (for example, gcc 4.8)
+
 typedef std::pair<int64_t, int64_t> ColumnRange;
 typedef std::pair<int64_t, int64_t> TileDBRowRange;
 bool ColumnRangeCompare(const ColumnRange& x, const ColumnRange& y);

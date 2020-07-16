@@ -264,6 +264,14 @@ class VariantQueryProcessor {
                           int64_t& current_start_position, int64_t next_start_position, bool is_last_call,
 			  uint64_t& num_calls_with_deletions_or_MNVs,
                           GTProfileStats* stats_ptr) const;
+  /*
+   * Columnar version of scan_and_operate - WIP
+   */
+  void iterate_over_gvcf_entries(
+    const int ad,
+    const VariantQueryConfig& query_config,
+    SingleCellOperatorBase& variant_operator,
+    const bool use_common_array_object) const;
   //while scan breaks up the intervals, iterate does not
   //@param use_common_array_object - VariantStorageManager invoked tiledb_array_init()
   //for the array once. If you wish to use that TileDB_Array object in your iterator, pass true

@@ -524,6 +524,25 @@ void VariantQueryProcessor::iterate_over_cells(
   delete columnar_forward_iter;
 }
 
+void VariantQueryProcessor::iterate_over_gvcf_entries(
+  const int ad,
+  const VariantQueryConfig& query_config,
+  SingleCellOperatorBase& variant_operator,
+  const bool use_common_array_object) const {
+  assert(query_config.is_bookkeeping_done());
+  //Initialize forward scan iterators
+  GenomicsDBGVCFIterator* columnar_gvcf_iter = get_storage_manager()->begin_gvcf_iterator(ad, query_config,
+      use_common_array_object);
+  for (; !(columnar_gvcf_iter->end()); ++(*columnar_gvcf_iter)) {
+    //auto& cell = **columnar_forward_iter;
+    //auto coords = cell.get_coordinates();
+    //if (query_config.is_queried_array_row_idx(coords[0]))      //If row is part of query, process cell
+    //variant_operator.operate_on_columnar_cell(cell, query_config, get_array_schema());
+  }
+  variant_operator.finalize();
+  delete columnar_gvcf_iter;
+}
+
 void VariantQueryProcessor::do_query_bookkeeping(const VariantArraySchema& array_schema,
     VariantQueryConfig& query_config, const VidMapper& vid_mapper, const bool alleles_required) const {
   //Flatten composite fields - fields whose elements are tuples

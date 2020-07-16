@@ -262,6 +262,12 @@ class VariantStorageManager {
     int ad, const VariantQueryConfig& query_config,
     const bool use_common_array_object ) const;
   /*
+   * Columnar GVCF iterator
+   */
+  GenomicsDBGVCFIterator* begin_gvcf_iterator(
+    int ad, const VariantQueryConfig& query_config,
+    const bool use_common_array_object ) const;
+  /*
    * Write sorted cell
    */
   void write_cell_sorted(const int ad, const void* ptr);

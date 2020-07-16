@@ -164,6 +164,11 @@ if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
   add_definitions(-D_FORTIFY_SOURCE=2)
 endif()
 
+find_package(StringView)
+if(NOT STRING_VIEW_FOUND AND NOT STRING_VIEW_EXPERIMENTAL_FOUND)
+  message(FATAL_ERROR "No string_view found")
+endif()
+
 find_package(libuuid REQUIRED)
 include_directories(${LIBUUID_INCLUDE_DIR})
 

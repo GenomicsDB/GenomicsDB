@@ -49,7 +49,8 @@ enum ArgsEnum {
   ARGS_IDX_PRINT_CSV,
   ARGS_IDX_VERSION,
   ARGS_IDX_PRODUCE_INTERESTING_POSITIONS,
-  ARGS_IDX_PRINT_ALT_ALLELE_COUNTS
+  ARGS_IDX_PRINT_ALT_ALLELE_COUNTS,
+  ARGS_IDX_COLUMNAR_GVCF
 };
 
 enum CommandsEnum {
@@ -58,7 +59,8 @@ enum CommandsEnum {
   COMMAND_PRODUCE_HISTOGRAM,
   COMMAND_PRINT_CALLS,
   COMMAND_PRINT_CSV,
-  COMMAND_PRINT_ALT_ALLELE_COUNTS
+  COMMAND_PRINT_ALT_ALLELE_COUNTS,
+  COMMAND_COLUMNAR_GVCF
 };
 
 enum ProduceBroadGVCFSubOperation {
@@ -345,6 +347,11 @@ void scan_and_produce_Broad_GVCF(const VariantQueryProcessor& qp, const VariantQ
   delete op_ptr;
 }
 
+void iterate_columnar_gvcf(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, int command_idx) {
+  VariantCallPrintCSVOperator printer(std::cout);
+  qp.iterate_over_gvcf_entries(qp.get_array_descriptor(), query_config, printer, true);
+}
+
 void print_calls(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, int command_idx, const VidMapper& id_mapper) {
   switch (command_idx) {
   case COMMAND_PRINT_CALLS: {
@@ -466,6 +473,7 @@ int main(int argc, char *argv[]) {
     {"print-AC",0,0,ARGS_IDX_PRINT_ALT_ALLELE_COUNTS},
     {"array",1,0,'A'},
     {"version",0,0,ARGS_IDX_VERSION},
+    {"columnar-gvcf",0,0,ARGS_IDX_COLUMNAR_GVCF},
     {"help",0,0,'h'},
     {0,0,0,0},
   };
@@ -510,6 +518,9 @@ int main(int argc, char *argv[]) {
     case ARGS_IDX_PRODUCE_BROAD_GVCF:
       command_idx = COMMAND_PRODUCE_BROAD_GVCF;
       sub_operation_type = PRODUCE_BROAD_GVCF_PRODUCE_GVCF;
+      break;
+    case ARGS_IDX_COLUMNAR_GVCF:
+      command_idx = COMMAND_COLUMNAR_GVCF;
       break;
     case ARGS_IDX_PRODUCE_INTERESTING_POSITIONS:
       command_idx = COMMAND_PRODUCE_BROAD_GVCF;
@@ -595,7 +606,8 @@ int main(int argc, char *argv[]) {
     /*Create query processor*/
     VariantQueryProcessor qp(&sm, array_name, query_config.get_vid_mapper());
     auto require_alleles = ((command_idx == COMMAND_RANGE_QUERY)
-                            || (command_idx == COMMAND_PRODUCE_BROAD_GVCF));
+                            || (command_idx == COMMAND_PRODUCE_BROAD_GVCF)
+			    || (command_idx == COMMAND_COLUMNAR_GVCF));
     qp.do_query_bookkeeping(qp.get_array_schema(), query_config, query_config.get_vid_mapper(), require_alleles);
     switch (command_idx) {
       case COMMAND_RANGE_QUERY:
@@ -607,6 +619,9 @@ int main(int argc, char *argv[]) {
         scan_and_produce_Broad_GVCF(qp, query_config, vcf_adapter, query_config.get_vid_mapper(),
                                     sub_operation_type, my_world_mpi_rank, skip_query_on_root);
         break;
+      case COMMAND_COLUMNAR_GVCF:
+	iterate_columnar_gvcf(qp, query_config, command_idx);
+	break;
       case COMMAND_PRODUCE_HISTOGRAM:
         produce_column_histogram(qp, query_config, 100, std::vector<uint64_t>({ 128, 64, 32, 16, 8, 4, 2 }));
         break;
