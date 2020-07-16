@@ -54,7 +54,7 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
     m_at_new_query_column_interval(true),
     m_live_cell_markers(query_config.get_num_rows_in_array(), query_config.get_num_queried_attributes()+1u), //+1 for coords
     m_num_markers_initialized(0),
-    m_PQ_live_cell_markers(m_live_cell_markers),
+    m_PQ_live_cell_markers(),
     m_smallest_row_idx_in_array(query_config.get_smallest_row_idx_in_array()) {
 #ifdef DO_PROFILING
   memset(m_num_cells_traversed_stats, 0, GenomicsDBIteratorStatsEnum::NUM_STATS*sizeof(uint64_t));
@@ -459,14 +459,14 @@ void SingleCellTileDBIterator::handle_current_cell_in_find_intersecting_interval
   std::swap(coords_column, END_field_value);
   initialize_live_cell_marker_from_tail(marker_idx, coords, END_field_value);
   //Add to PQ
-  m_PQ_live_cell_markers.push(marker_idx);
+  m_PQ_live_cell_markers.push(MarkerPQElementTy(coords[1], marker_idx));
   ++m_num_markers_initialized;
 }
 
 const SingleCellTileDBIterator& SingleCellTileDBIterator::operator++() {
   //Intervals intersecting the column begin still exist in PQ
   if (!m_PQ_live_cell_markers.empty()) {
-    auto marker_idx = m_PQ_live_cell_markers.top();
+    auto marker_idx = m_PQ_live_cell_markers.top().second;
     m_PQ_live_cell_markers.pop();
     //Decrease #live entries and move to free list if needed
     decrement_num_live_entries_in_live_cell_marker(marker_idx);
@@ -875,7 +875,7 @@ void GenomicsDBGVCFIterator::begin_new_query_column_interval() {
   //and intersect the query interval - hence, the m_current_start_position
   //of all elements of PQ is simply the start of the query interval
   while(!m_PQ_live_cell_markers.empty()) {
-    auto marker_idx = m_PQ_live_cell_markers.top();
+    auto marker_idx = m_PQ_live_cell_markers.top().second;
     m_PQ_live_cell_markers.pop();
     update_num_deletions_and_MNVs<true>(marker_idx);
     m_end_set.insert(GVCFEndSetElementTy(m_live_cell_markers.get_end(marker_idx), marker_idx));
@@ -890,22 +890,25 @@ const GenomicsDBGVCFIterator& GenomicsDBGVCFIterator::operator++() {
   assert(!m_end_set.empty());
   m_current_start_position = m_current_end_position+1;
   assert(m_current_start_position <= m_next_start_position);
-  //Remove all entries that finish at m_current_end_position
-  while(!m_end_set.empty()) {
-    auto iter = m_end_set.begin();
+  auto iter = m_end_set.begin();
+  //Remove all entries that finish at or before m_current_end_position
+  for(;iter!=m_end_set.end();++iter) {
     auto min_end_element = *iter;
     const auto END_field_value = min_end_element.first;
     const auto marker_idx = min_end_element.second;
     if(END_field_value < m_current_start_position) {
-      m_end_set.erase(iter);
       update_num_deletions_and_MNVs<false>(marker_idx);
       decrement_num_live_entries_in_live_cell_marker(marker_idx);
     }
     else
       break;
   }
-  if(m_end_set.empty())
+  if(iter == m_end_set.end()) { //all entries have END <= m_current_end_position
+    m_end_set.clear();
     m_current_start_position = m_next_start_position;
+  }
+  else
+    m_end_set.erase(m_end_set.begin(), iter);
   if(m_current_start_position == m_next_start_position)
     fill_end_set_in_simple_traversal_mode();
   else {

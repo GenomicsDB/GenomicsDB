@@ -131,12 +131,6 @@ class GenomicsDBLiveCellMarker {
     assert(idx < m_buffer_ptr_vec[field_idx].size() && idx < m_indexes[field_idx].size());
     return m_indexes[field_idx][idx];
   }
-  inline bool column_major_compare_for_PQ(const size_t a, const size_t b) const {
-    assert(a < m_row.size() && b < m_row.size());
-    assert(m_valid[a] && m_initialized[a]);
-    assert(m_valid[b] && m_initialized[b]);
-    return !((m_begin[a] < m_begin[b]) || ((m_begin[a] == m_begin[b]) && (m_row[a] < m_row[b]))); //for min heap
-  }
   inline int64_t get_begin(const size_t idx) const {
     assert(idx < m_begin.size());
     return m_begin[idx];
@@ -176,18 +170,19 @@ class GenomicsDBLiveCellMarker {
   std::vector<std::vector<size_t> >m_indexes;
 };
 
-class GenomicsDBLiveCellMarkerColumnMajorComparator {
- public:
-  GenomicsDBLiveCellMarkerColumnMajorComparator(const GenomicsDBLiveCellMarker& obj) {
-    m_ptr = &obj;
-  }
-  bool operator()(const size_t a, const size_t b) const {
-    return m_ptr->column_major_compare_for_PQ(a, b);
-  }
- private:
-  const GenomicsDBLiveCellMarker* m_ptr;
-};
+//m_PQ_live_cell_markers is a min-heap ordered in column major order
+//Elements of the heap are pairs<column, marker_idx>
+//Earlier only the marker was stored in the heap and the column was obtained by
+//accessing the live cell markers. Storing the column in the heap helps improve
+//locality of accesses in the heap.
+typedef std::pair<int64_t, size_t> MarkerPQElementTy;
 
+class GenomicsDBLiveCellMarkerColumnMajorComparator {
+  public:
+    bool operator()(const MarkerPQElementTy& a, const MarkerPQElementTy& b) const {
+      return !((a.first < b.first) || (a.first == b.first && a.second < b.second));
+    }
+};
 
 enum GenomicsDBIteratorStatsEnum {
   TOTAL_CELLS_TRAVERSED=0,
@@ -315,7 +310,7 @@ class SingleCellTileDBIterator {
       index = genomicsdb_columnar_field.get_curr_index_in_live_list_tail();
       return genomicsdb_columnar_field.get_live_buffer_list_tail_ptr();
     } else {
-      const auto marker_idx = m_PQ_live_cell_markers.top();
+      const auto marker_idx = m_PQ_live_cell_markers.top().second;
       index = m_live_cell_markers.get_index(marker_idx, field_query_idx);
       return m_live_cell_markers.get_buffer_pointer(marker_idx, field_query_idx);
     }
@@ -394,7 +389,7 @@ class SingleCellTileDBIterator {
   //Cell markers for handling the sweep operation
   GenomicsDBLiveCellMarker m_live_cell_markers;
   //Cell markers in column major order
-  std::priority_queue<size_t, std::vector<size_t>,
+  std::priority_queue<MarkerPQElementTy, std::vector<MarkerPQElementTy>,
       GenomicsDBLiveCellMarkerColumnMajorComparator> m_PQ_live_cell_markers;
   uint64_t m_num_markers_initialized;
   int64_t m_smallest_row_idx_in_array;
