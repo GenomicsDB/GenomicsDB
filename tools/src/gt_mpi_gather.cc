@@ -50,7 +50,8 @@ enum ArgsEnum {
   ARGS_IDX_VERSION,
   ARGS_IDX_PRODUCE_INTERESTING_POSITIONS,
   ARGS_IDX_PRINT_ALT_ALLELE_COUNTS,
-  ARGS_IDX_COLUMNAR_GVCF
+  ARGS_IDX_COLUMNAR_GVCF,
+  ARGS_IDX_GVCF_COUNT_LINES
 };
 
 enum CommandsEnum {
@@ -66,6 +67,7 @@ enum CommandsEnum {
 enum ProduceBroadGVCFSubOperation {
   PRODUCE_BROAD_GVCF_PRODUCE_GVCF=0,
   PRODUCE_BROAD_GVCF_PRODUCE_INTERESTING_POSITIONS,
+  PRODUCE_BROAD_GVCF_COUNT_LINES,
   PRODUCE_BROAD_GVCF_UNKNOWN
 };
 
@@ -324,6 +326,9 @@ void scan_and_produce_Broad_GVCF(const VariantQueryProcessor& qp, const VariantQ
   case ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_PRODUCE_INTERESTING_POSITIONS:
     op_ptr = new InterestingLocationsPrinter(std::cout);
     break;
+  case ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_COUNT_LINES:
+    op_ptr = new VariantCounter();
+    break;
   default:
     throw VariantOperationException(std::string("Unknown gvcf sub-operation type: ")
                                     + std::to_string(sub_operation_type) + "n");
@@ -344,12 +349,15 @@ void scan_and_produce_Broad_GVCF(const VariantQueryProcessor& qp, const VariantQ
   }
   timer.stop();
   timer.print(std::string("Total scan_and_produce_Broad_GVCF time")+" for rank "+std::to_string(my_world_mpi_rank), std::cerr);
+  if(sub_operation_type == ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_COUNT_LINES)
+    std::cerr << "Count "<< dynamic_cast<VariantCounter*>(op_ptr)->get_value() << "\n";
   delete op_ptr;
 }
 
 void iterate_columnar_gvcf(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, int command_idx) {
-  VariantCallPrintCSVOperator printer(std::cout);
-  qp.iterate_over_gvcf_entries(qp.get_array_descriptor(), query_config, printer, true);
+  VariantCounter counter;
+  qp.iterate_over_gvcf_entries(qp.get_array_descriptor(), query_config, counter, true);
+  std::cerr << "Counter "<<counter.get_value() << "\n";
 }
 
 void print_calls(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, int command_idx, const VidMapper& id_mapper) {
@@ -474,6 +482,7 @@ int main(int argc, char *argv[]) {
     {"array",1,0,'A'},
     {"version",0,0,ARGS_IDX_VERSION},
     {"columnar-gvcf",0,0,ARGS_IDX_COLUMNAR_GVCF},
+    {"gvcf-count-lines",0,0,ARGS_IDX_GVCF_COUNT_LINES},
     {"help",0,0,'h'},
     {0,0,0,0},
   };
@@ -525,6 +534,10 @@ int main(int argc, char *argv[]) {
     case ARGS_IDX_PRODUCE_INTERESTING_POSITIONS:
       command_idx = COMMAND_PRODUCE_BROAD_GVCF;
       sub_operation_type = PRODUCE_BROAD_GVCF_PRODUCE_INTERESTING_POSITIONS;
+      break;
+    case ARGS_IDX_GVCF_COUNT_LINES:
+      command_idx = COMMAND_PRODUCE_BROAD_GVCF;
+      sub_operation_type = PRODUCE_BROAD_GVCF_COUNT_LINES;
       break;
     case ARGS_IDX_PRODUCE_HISTOGRAM:
       command_idx = COMMAND_PRODUCE_HISTOGRAM;

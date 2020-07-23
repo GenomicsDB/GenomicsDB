@@ -270,7 +270,7 @@ class VariantQueryProcessor {
   void iterate_over_gvcf_entries(
     const int ad,
     const VariantQueryConfig& query_config,
-    SingleCellOperatorBase& variant_operator,
+    SingleVariantOperatorBase& variant_operator,
     const bool use_common_array_object) const;
   //while scan breaks up the intervals, iterate does not
   //@param use_common_array_object - VariantStorageManager invoked tiledb_array_init()

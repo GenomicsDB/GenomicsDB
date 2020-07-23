@@ -142,7 +142,6 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
     throw BroadCombinedGVCFException("Id mapper is not initialized");
   if (!id_mapper.is_callset_mapping_initialized())
     throw BroadCombinedGVCFException("Callset mapping in id mapper is not initialized");
-  m_query_config = &query_config;
   //Initialize VCF structs
   m_vcf_adapter = &vcf_adapter;
   m_vid_mapper = &id_mapper;
@@ -762,13 +761,13 @@ void BroadCombinedGVCFOperator::merge_ID_field(const Variant& variant, const uns
     m_ID_value.pop_back(); //delete last ';'
 }
 
-void BroadCombinedGVCFOperator::operate(Variant& variant, const VariantQueryConfig& query_config) {
+void BroadCombinedGVCFOperator::operate(Variant& variant) {
 #ifdef DO_PROFILING
   m_bcf_t_creation_timer.start();
 #endif
   //Handle spanning deletions - change ALT alleles in calls with deletions to *, <NON_REF>
-  handle_deletions(variant, query_config);
-  GA4GHOperator::operate(variant, query_config);
+  handle_deletions(variant);
+  GA4GHOperator::operate(variant);
   //Moved to new contig
   if (static_cast<int64_t>(m_remapped_variant.get_column_begin()) >= m_next_contig_begin_position) {
     std::string contig_name;
@@ -893,7 +892,8 @@ void BroadCombinedGVCFOperator::switch_contig() {
 }
 
 //Modifies original Variant object
-void BroadCombinedGVCFOperator::handle_deletions(Variant& variant, const VariantQueryConfig& query_config) {
+void BroadCombinedGVCFOperator::handle_deletions(Variant& variant) {
+  const VariantQueryConfig& query_config = *m_query_config;
   //#merged alleles in spanning deletion can be at most 3 - REF,*,<NON_REF>; however, the #input alleles
   //can be much larger. LUT gets resized later
   m_reduced_alleles_LUT.resize_luts_if_needed(variant.get_num_calls(), 3u);

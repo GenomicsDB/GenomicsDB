@@ -810,7 +810,8 @@ GenomicsDBGVCFIterator::GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
   m_current_start_position(-1ll),
   m_current_end_position(-1ll),
   m_next_start_position(-1ll),
-  m_num_calls_with_deletions_or_MNVs(0u)
+  m_num_calls_with_deletions_or_MNVs(0u),
+  m_cell(new GenomicsDBGVCFCell(this))
 {
   m_REF_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_REF_IDX);
   m_ALT_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_ALT_IDX);
@@ -818,6 +819,12 @@ GenomicsDBGVCFIterator::GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
   //Constructor for SingleCellTileDBIterator invokes SingleCellTileDBIterator::begin_new_query_column_interval()
   //So, it's safe to call GenomicsDBGVCFIterator::begin_new_query_column_interval()
   begin_new_query_column_interval();
+}
+
+GenomicsDBGVCFIterator::~GenomicsDBGVCFIterator() {
+  if(m_cell)
+    delete m_cell;
+  m_cell = 0;
 }
 
 template<>
@@ -861,6 +868,9 @@ void GenomicsDBGVCFIterator::begin_new_query_column_interval() {
   m_num_calls_with_deletions_or_MNVs = 0u;
   m_current_start_position = (m_query_config->get_num_column_intervals() == 0u)
     ? -1ll : m_query_config->get_column_begin(m_query_column_interval_idx);
+  m_query_interval_limit = (m_query_config->get_num_column_intervals() == 0u)
+    ? m_variant_array_schema->dim_domains()[1].second
+    : m_query_config->get_column_end(m_query_column_interval_idx);
   //m_current_start_position might have to be updated if
   //(a) there are no intersecting intervals for query interval begin AND
   //(b) there's valid data in simple traversal mode
@@ -886,10 +896,11 @@ void GenomicsDBGVCFIterator::begin_new_query_column_interval() {
 }
 
 const GenomicsDBGVCFIterator& GenomicsDBGVCFIterator::operator++() {
-  std::cerr << "START "<<m_current_start_position<<"\n";
   assert(!m_end_set.empty());
   m_current_start_position = m_current_end_position+1;
-  assert(m_current_start_position <= m_next_start_position);
+  //Past the limit, clean-up end set and move to next interval
+  if(m_current_start_position > m_query_interval_limit)
+    m_current_start_position = INT64_MAX;
   auto iter = m_end_set.begin();
   //Remove all entries that finish at or before m_current_end_position
   for(;iter!=m_end_set.end();++iter) {
@@ -912,7 +923,7 @@ const GenomicsDBGVCFIterator& GenomicsDBGVCFIterator::operator++() {
   if(m_current_start_position == m_next_start_position)
     fill_end_set_in_simple_traversal_mode();
   else {
-    assert(!m_end_set.empty());
+    assert(!m_end_set.empty() || m_current_start_position == INT64_MAX);
     update_current_end_position();
   }
   //No more valid data - move to next query interval if needed

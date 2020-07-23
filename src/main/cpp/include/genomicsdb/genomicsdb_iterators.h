@@ -457,6 +457,7 @@ class GVCFEndSetElementComparator {
   }
 };
 
+class GenomicsDBGVCFCell;
 class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
   public:
     GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
@@ -467,12 +468,16 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
 	const TileDB_Array* tiledb_array,
 	const VidMapper* vid_mapper, const VariantArraySchema& variant_array_schema,
 	const std::string& array_path, const VariantQueryConfig& query_config, const size_t buffer_size);
+    ~GenomicsDBGVCFIterator();
     //Delete default copy and move constructors
     GenomicsDBGVCFIterator(const GenomicsDBGVCFIterator& other) = delete;
     GenomicsDBGVCFIterator& operator=(const GenomicsDBGVCFIterator& other) = delete;
     GenomicsDBGVCFIterator(GenomicsDBGVCFIterator&& other) = delete;
     //iterator functions
     const GenomicsDBGVCFIterator& operator++();
+    inline const GenomicsDBGVCFCell& operator*() const {
+      return *m_cell;
+    }
     inline bool end() const {
       return SingleCellTileDBIterator::end() && m_end_set.empty();
     }
@@ -516,10 +521,12 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
     int64_t m_current_start_position;
     int64_t m_current_end_position;
     int64_t m_next_start_position;
+    int64_t m_query_interval_limit;
     uint64_t m_num_calls_with_deletions_or_MNVs;
     std::set<GVCFEndSetElementTy, GVCFEndSetElementComparator> m_end_set;
     unsigned m_REF_query_idx;
     unsigned m_ALT_query_idx;
+    GenomicsDBGVCFCell* m_cell;
 };
 
 #endif

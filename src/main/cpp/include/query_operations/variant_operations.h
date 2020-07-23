@@ -354,12 +354,13 @@ class VariantOperations {
  */
 class SingleVariantOperatorBase {
  public:
-  SingleVariantOperatorBase(const VidMapper* vid_mapper) {
+  SingleVariantOperatorBase(const VidMapper* vid_mapper, const VariantQueryConfig* query_config) {
     clear();
     m_NON_REF_exists = false;
     m_remapping_needed = true;
     m_is_reference_block_only = false;
-    m_vid_mapper = vid_mapper->is_initialized() ? vid_mapper : 0;
+    m_vid_mapper = (vid_mapper && vid_mapper->is_initialized()) ? vid_mapper : 0;
+    m_query_config = query_config;
   }
   virtual ~SingleVariantOperatorBase() { }
   void clear();
@@ -369,7 +370,8 @@ class SingleVariantOperatorBase {
    * (a) Merged reference allele
    * (b) Merged ALT allele list and updates the alleles LUT
    */
-  virtual void operate(Variant& variant, const VariantQueryConfig& query_config);
+  virtual void operate(Variant& variant);
+  virtual void operate_on_columnar_cell(const GenomicsDBGVCFCell& variant) { ; }
   /*
    * Return true in child class if some output buffer used by the operator
    * is full. Default implementation: return false
@@ -391,6 +393,17 @@ class SingleVariantOperatorBase {
   //is pure reference block if REF is 1 char, and ALT contains only <NON_REF>
   bool m_is_reference_block_only;
   const VidMapper* m_vid_mapper;
+  const VariantQueryConfig* m_query_config;
+};
+
+class VariantCounter : public SingleVariantOperatorBase {
+  public:
+    VariantCounter() : SingleVariantOperatorBase(0, 0) { m_total = 0u; }
+    void operate(Variant& variant) { ++m_total; }
+    void operate_on_columnar_cell(const GenomicsDBGVCFCell& variant) { ++m_total; }
+    uint64_t get_value() const { return m_total; }
+  private:
+    uint64_t m_total;
 };
 
 /*
@@ -402,10 +415,10 @@ class SingleVariantOperatorBase {
 class InterestingLocationsPrinter : public SingleVariantOperatorBase {
  public:
   InterestingLocationsPrinter(std::ostream& fptr)
-    : SingleVariantOperatorBase(0) {
+    : SingleVariantOperatorBase(0, 0) {
     m_fptr = &fptr;
   }
-  virtual void operate(Variant& variant, const VariantQueryConfig& query_config);
+  virtual void operate(Variant& variant);
  protected:
   //Output stream
   std::ostream* m_fptr;
@@ -435,7 +448,7 @@ class MaxAllelesCountOperator : public SingleVariantOperatorBase {
   };
  public:
   MaxAllelesCountOperator(const unsigned top_count=25u)
-    : SingleVariantOperatorBase(0) {
+    : SingleVariantOperatorBase(0, 0) {
     m_top_count = top_count;
     m_curr_count = 0u;
     m_total_lines = 0ull;
@@ -452,8 +465,8 @@ class MaxAllelesCountOperator : public SingleVariantOperatorBase {
       m_top_alleles_pq.pop();
     }
   }
-  virtual void operate(Variant& variant, const VariantQueryConfig& query_config) {
-    SingleVariantOperatorBase::operate(variant, query_config);
+  virtual void operate(Variant& variant) {
+    SingleVariantOperatorBase::operate(variant);
     ++m_total_lines;
     if (m_curr_count < m_top_count || m_merged_alt_alleles.size() > m_top_alleles_pq.top().size()) {
       if (m_curr_count < m_top_count)
@@ -472,10 +485,10 @@ class MaxAllelesCountOperator : public SingleVariantOperatorBase {
 
 class DummyGenotypingOperator : public SingleVariantOperatorBase {
  public:
-  DummyGenotypingOperator() : SingleVariantOperatorBase(0) {
+  DummyGenotypingOperator() : SingleVariantOperatorBase(0, 0) {
     m_output_stream = &(std::cout);
   }
-  virtual void operate(Variant& variant, const VariantQueryConfig& query_config);
+  virtual void operate(Variant& variant);
   std::ostream* m_output_stream;
 };
 
@@ -745,7 +758,7 @@ class GA4GHOperator : public SingleVariantOperatorBase {
   GA4GHOperator(const VariantQueryConfig& query_config,
                 const VidMapper& vid_mapper,
 		const bool skip_remapping_INFO_fields_with_sum_combine_operation);
-  virtual void operate(Variant& variant, const VariantQueryConfig& query_config);
+  virtual void operate(Variant& variant);
   const Variant& get_remapped_variant() const {
     return m_remapped_variant;
   }
