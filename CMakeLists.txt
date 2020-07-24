@@ -26,7 +26,7 @@
 #
 
 project(GenomicsDB)
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.4)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -93,7 +93,6 @@ include(CheckIncludeFileCXX)
 include(CheckCXXSymbolExists)
 
 if(BUILD_DISTRIBUTABLE_LIBRARY)
-    cmake_minimum_required(VERSION 3.4)
     set(DISABLE_MPI True)
     set(DISABLE_OPENMP True)
     #For the GNU compiler, link in static gcc libraries
