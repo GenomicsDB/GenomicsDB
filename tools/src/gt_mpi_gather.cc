@@ -324,7 +324,7 @@ void scan_and_produce_Broad_GVCF(const VariantQueryProcessor& qp, const VariantQ
     op_ptr = new BroadCombinedGVCFOperator(vcf_adapter, id_mapper, query_config);
     break;
   case ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_PRODUCE_INTERESTING_POSITIONS:
-    op_ptr = new InterestingLocationsPrinter(std::cout);
+    op_ptr = new InterestingLocationsPrinter(std::cout, query_config);
     break;
   case ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_COUNT_LINES:
     op_ptr = new VariantCounter();

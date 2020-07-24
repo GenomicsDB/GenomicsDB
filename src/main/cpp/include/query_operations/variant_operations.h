@@ -414,8 +414,8 @@ class VariantCounter : public SingleVariantOperatorBase {
  */
 class InterestingLocationsPrinter : public SingleVariantOperatorBase {
  public:
-  InterestingLocationsPrinter(std::ostream& fptr)
-    : SingleVariantOperatorBase(0, 0) {
+  InterestingLocationsPrinter(std::ostream& fptr, const VariantQueryConfig& query_config)
+    : SingleVariantOperatorBase(0, &query_config) {
     m_fptr = &fptr;
   }
   virtual void operate(Variant& variant);

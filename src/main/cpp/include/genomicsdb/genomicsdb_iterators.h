@@ -73,7 +73,7 @@ class GenomicsDBLiveCellMarker {
   }
   inline void prepare_for_gvcf_iterator() {
     m_store_gvcf_specific_info = true;
-    const auto num_markers = m_indexes.size();
+    const auto num_markers = m_valid.size();
     m_contains_deletion.resize(num_markers);
     m_contains_MNV.resize(num_markers);
   }
