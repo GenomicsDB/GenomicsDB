@@ -72,9 +72,9 @@ install:
       fi
     # Install dependencies
     - if [[ $TRAVIS_OS_NAME == linux ]]; then
-        pip install -r requirements.txt;
+        pip install -r tests/requirements.txt;
       elif [[ $TRAVIS_OS_NAME == osx ]]; then
-        pip install --user -r requirements.txt;
+        pip install --user -r tests/requirements.txt;
       fi
     - sudo pip2 install jsondiff
     - if [[ $TRAVIS_OS_NAME == linux ]]; then
