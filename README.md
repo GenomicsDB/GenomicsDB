@@ -20,4 +20,15 @@ GenomicsDB is packaged into [gatk4](https://software.broadinstitute.org/gatk/doc
 The GenomicsDB documentation for users is hosted as a Github wiki:
 https://github.com/GenomicsDB/GenomicsDB/wiki
 
-GenomicsDB is open source and all participation is welcome. Please read the [guidelines](contrib/README.md) to help with contributions.
+# External Contributions
+GenomicsDB is open source and all participation is welcome.
+GenomicsDB is released under the MIT License and expect all external
+contributors grant an MIT License for their contributions. We have adopted
+the Developer Certificate of Origin from the Linux project, and request the
+developer to include a 'Signed-off-by' line in the commit message to indicate
+they understand and agree to the DCO.
+
+Signed-off-by: First Last developeremail@example.com (github:developer_githubid)
+
+## Checklist before creating Pull Request
+Please ensure that the code is well documented in javadoc style for Java/Scala or roughly adhere to [Google C++ Style](https://google.github.io/styleguide/cppguide.html) for C/C++.
