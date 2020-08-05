@@ -1,0 +1,18 @@
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 0.5%
+        branches: null
+
+    patch:
+      default:
+        target: auto
+        branches: null
+
+    changes:
+      default:
+        branches: null
+
+
