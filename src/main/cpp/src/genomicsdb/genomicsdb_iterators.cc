@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -43,7 +44,7 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
     const TileDB_Array* tiledb_array,
     const VidMapper* vid_mapper, const VariantArraySchema& variant_array_schema,
     const std::string& array_path, const VariantQueryConfig& query_config, const size_t buffer_size)
-  : m_variant_array_schema(&variant_array_schema), m_query_config(&query_config),
+  : m_query_config(&query_config),
     m_cell(new GenomicsDBColumnarCell(this)),
     m_tiledb_array(tiledb_array), m_owned_tiledb_array(0),
     m_query_column_interval_idx(0u),
