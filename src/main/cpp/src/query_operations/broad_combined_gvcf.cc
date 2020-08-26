@@ -287,7 +287,7 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
       auto hrec = bcf_hdr_parse_line(m_vcf_hdr, contig_vcf_line.c_str(), &line_length);
       bcf_hdr_add_hrec(m_vcf_hdr, hrec);
       if (bcf_hdr_sync(m_vcf_hdr)) {
-        logger.error("bcf_hdr_sync() failed while {}:{}", "adding missing contig names to template header", __LINE__);
+        logger.fatal(BroadCombinedGVCFException("Possible realloc() failure from bcf_hdr_sync() while adding missing contig names to template header"));
       }
     }
   }
@@ -311,7 +311,7 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
     }
   }
   if (bcf_hdr_sync(m_vcf_hdr)) {
-    logger.error("bcf_hdr_sync() failed while {}:{}", "adding samples to template header", __LINE__);
+    logger.fatal(BroadCombinedGVCFException("Possible realloc() failure from bcf_hdr_sync() while adding samples to template header"));
   }
   //Map from vid mapper field idx to hdr field idx
   m_global_field_idx_to_hdr_idx.resize(m_vid_mapper->get_num_fields(), -1);

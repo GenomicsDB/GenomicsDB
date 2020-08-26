@@ -44,7 +44,7 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
     const TileDB_Array* tiledb_array,
     const VidMapper* vid_mapper, const VariantArraySchema& variant_array_schema,
     const std::string& array_path, const VariantQueryConfig& query_config, const size_t buffer_size)
-  : m_query_config(&query_config),
+  : m_variant_array_schema(&variant_array_schema), m_query_config(&query_config),
     m_cell(new GenomicsDBColumnarCell(this)),
     m_tiledb_array(tiledb_array), m_owned_tiledb_array(0),
     m_query_column_interval_idx(0u),
@@ -78,9 +78,9 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
   m_query_attribute_idx_to_tiledb_buffer_idx.resize(attribute_ids.size()+1u);//+1 for the COORDS
   for (auto i=0ull; i<attribute_ids.size(); ++i) {
     auto schema_idx = attribute_ids[i];
-    attribute_names[i] = variant_array_schema.attribute_name(schema_idx).c_str();
+    attribute_names[i] = m_variant_array_schema->attribute_name(schema_idx).c_str();
     m_query_attribute_idx_to_tiledb_buffer_idx[i] = m_buffer_pointers.size();
-    auto is_variable_length_field = variant_array_schema.is_variable_length_field(schema_idx);
+    auto is_variable_length_field = m_variant_array_schema->is_variable_length_field(schema_idx);
     //TileDB does not have a way to distinguish between char, string and int8_t fields
     //Hence, a series of possibly messy checks here
     assert(vid_mapper);
@@ -88,11 +88,11 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
     auto curr_type_index = (vid_field_info
                             && vid_field_info->get_genomicsdb_type().get_tuple_element_bcf_ht_type(0u) == BCF_HT_FLAG)
                            ? std::type_index(typeid(bool))
-                           : variant_array_schema.type(schema_idx);
+                           : m_variant_array_schema->type(schema_idx);
     //GenomicsDBColumnarField
     m_fields.emplace_back(curr_type_index,
                           is_variable_length_field ? BCF_VL_VAR : BCF_VL_FIXED,
-                          variant_array_schema.val_num(schema_idx), buffer_size);
+                          m_variant_array_schema->val_num(schema_idx), buffer_size);
     //Buffer pointers and size
     m_buffer_pointers.push_back(0);
     m_buffer_sizes.push_back(0);
@@ -108,7 +108,7 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
   attribute_names[coords_idx] = TILEDB_COORDS;
   m_query_attribute_idx_to_tiledb_buffer_idx[coords_idx] = m_buffer_pointers.size();
   //GenomicsDBColumnarField
-  m_fields.emplace_back(variant_array_schema.dim_type(), BCF_VL_FIXED, variant_array_schema.dim_length(), buffer_size);
+  m_fields.emplace_back(m_variant_array_schema->dim_type(), BCF_VL_FIXED, m_variant_array_schema->dim_length(), buffer_size);
   //Buffer pointers and size for COORDS
   m_buffer_pointers.push_back(0);
   m_buffer_sizes.push_back(0);

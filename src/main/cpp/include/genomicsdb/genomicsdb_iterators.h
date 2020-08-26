@@ -1,7 +1,6 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016 Intel Corporation
- * Copyright (c) 2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -341,6 +340,7 @@ class SingleCellTileDBIterator {
   //Flag that specifies if this is the first time reading from TileDB
   bool m_first_read_from_TileDB;
   unsigned m_END_query_idx;
+  const VariantArraySchema* m_variant_array_schema;
   const VariantQueryConfig* m_query_config;
   uint64_t m_query_column_interval_idx;
   GenomicsDBColumnarCell* m_cell;

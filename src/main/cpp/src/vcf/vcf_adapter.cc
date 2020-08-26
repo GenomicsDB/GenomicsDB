@@ -87,7 +87,7 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
       description_value = hrec->vals[description_idx];
     bcf_hdr_remove(hdr, field_type_idx, field_name.c_str());
     if (bcf_hdr_sync(hdr)) {
-      logger.error("bcf_hdr_sync() failed while {}:{}", "adding missing field to hdr", __LINE__);
+      logger.fatal(VCFAdapterException("Possible realloc() failure from bcf_hdr_sync() while adding missing field to hdr"));
     }
     field_exists_in_vcf_hdr = false;
     old_field_idx_before_deletion = field_idx;
@@ -186,7 +186,7 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
     auto hrec = bcf_hdr_parse_line(hdr, header_line.c_str(), &line_length);
     bcf_hdr_add_hrec(hdr, hrec);
     if (bcf_hdr_sync(hdr)) {
-      logger.error("bcf_hdr_sync() failed while {}:{}", "adding missing field to hdr", __LINE__);
+      logger.fatal(VCFAdapterException("Possible realloc() failure from bcf_hdr_sync() while adding missing field to hdr"));
     }
 #ifdef DEBUG
     if (old_field_idx_before_deletion >= 0)
@@ -353,7 +353,7 @@ bcf_hdr_t* VCFAdapter::initialize_default_header() {
   bcf_hdr_append(hdr, "##ALT=<ID=NON_REF,Description=\"Represents any possible alternative allele at this location\">");
   bcf_hdr_append(hdr, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"Stop position of the interval\">");
   if (bcf_hdr_sync(hdr)) {
-    logger.error("bcf_hdr_sync() failed while {}:{}", "initializing default header", __LINE__);
+    logger.fatal(VCFAdapterException("Posssible realloc() failure from bcf_hdr_sync() while initializing default header"));
   }
   return hdr;
 }
