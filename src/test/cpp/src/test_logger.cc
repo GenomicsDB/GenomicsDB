@@ -146,3 +146,4 @@ TEST_CASE("test explicit logger", "[test_logger_explicit]") {
   with_string_logger.info(test_str, true);
   CHECK(oss.str() == "");
 }
+

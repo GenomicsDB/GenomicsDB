@@ -38,9 +38,12 @@
 #include <spdlog/fmt/fmt.h>
 
 #include <exception>
+#include <execinfo.h>
 #include <list>
 #include <mutex>
 #include <sstream>
+
+#include <dlfcn.h>
 
 class Logger {
  public:
@@ -61,32 +64,59 @@ class Logger {
   void info(const char* fmt, const Args &... args) {
     m_logger->info(fmt, args...);
   }
+
   template<typename... Args>
   void debug(const char* fmt, const Args &... args) {
     m_logger->debug(fmt, args...);
   }
+
   template<typename... Args>
   void debug_only(const char* fmt, const Args &... args) {
 #ifdef DEBUG
     m_logger->debug(fmt, args...);
 #endif
   }
+
   template<typename... Args>
   void warn(const char* fmt, const Args &... args) {
     m_logger->warn(fmt, args...);
   }
+
   template<typename... Args>
   void error(const char* fmt, const Args &... args) {
     m_logger->error(fmt, args...);
   }
-  template<typename... Args>
-  void fatal(const std::exception& exception, const char* fmt, const Args &... args) {
+
+#define BACKTRACE_LENGTH 10
+  void print_backtrace() {
+    void *buffer[BACKTRACE_LENGTH];
+    int nptrs = backtrace(buffer, BACKTRACE_LENGTH);
+    char **strings = backtrace_symbols(buffer, nptrs);
+    m_logger->error("Native Stack Trace:");
+    for (auto i = 1; i < nptrs; i++) {
+        Dl_info info;
+        if (dladdr(buffer[i], &info) && info.dli_sname) {
+          m_string_logger->error(std::string("\t")+strings[i]);
+        } else {
+          break;
+        }
+    }
+    free(strings);
+  }
+
+  template<typename T, typename... Args>
+  void fatal(const T& exception, const char* fmt, const Args &... args) {
+    static_assert(std::is_base_of<std::exception, T>::value, "Template class to fatal() must derive from std::exception");
     m_logger->error(fmt, args...);
+    print_backtrace();
     throw exception;
   }
 
-  void fatal(const std::exception& exception) {
+  template<typename T>
+  void fatal(const T& exception) {
+    static_assert(std::is_base_of<std::exception, T>::value, "Template class to fatal() must derive from std::exception");
     m_logger->error(exception.what());
+    print_backtrace();
     throw exception;
   }
 
@@ -96,6 +126,7 @@ class Logger {
       m_logger->info(fmt, args...);
     }
   }
+
   template<typename... Args>
   void warn_once(const char* fmt, const Args &... args) {
     if (not_been_logged(format(fmt, args...))) {
