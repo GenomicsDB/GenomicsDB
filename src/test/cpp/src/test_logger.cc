@@ -81,8 +81,8 @@ TEST_CASE("test logger format", "[test_logger_format]") {
   CHECK(logger.format(TEST_STR_FMT, 0, TEST_STR).find(TEST_STR) != std::string::npos);
 
   GenomicsDBException exception("Test Exception");
-  CHECK_THROWS_AS(logger.fatal(exception, TEST_STR_FMT, 1, TEST_STR), std::exception);
-  CHECK_THROWS_AS(logger.fatal(exception), std::exception);
+  CHECK_THROWS_AS(logger.fatal(exception, TEST_STR_FMT, 1, TEST_STR), GenomicsDBException);
+  CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
 }
 
 #define CHECK_LOGGER(X, Y)                      \
