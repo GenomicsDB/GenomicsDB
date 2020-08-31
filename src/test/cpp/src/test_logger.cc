@@ -36,6 +36,7 @@
 #include "genomicsdb_exception.h"
 
 #include <iostream>
+#include <stdlib.h>
 #include <string>
 #include <sstream>
 #include <streambuf>
@@ -83,6 +84,13 @@ TEST_CASE("test logger format", "[test_logger_format]") {
   GenomicsDBException exception("Test Exception");
   CHECK_THROWS_AS(logger.fatal(exception, TEST_STR_FMT, 1, TEST_STR), GenomicsDBException);
   CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
+  REQUIRE(setenv("GENOMICSDB_STACK_TRACE", "0", 1) == 0);
+  CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
+  REQUIRE(setenv("GENOMICSDB_STACK_TRACE", "1", 1) == 0);
+  CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
+  REQUIRE(setenv("GENOMICSDB_STACK_TRACE", "true", 1) == 0);
+  CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
+  CHECK(unsetenv("GENOMICSDB_STACK_TRACE") == 0);
 }
 
 #define CHECK_LOGGER(X, Y)                      \
