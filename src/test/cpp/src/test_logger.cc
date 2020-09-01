@@ -36,6 +36,7 @@
 #include "genomicsdb_exception.h"
 
 #include <iostream>
+#include <stdlib.h>
 #include <string>
 #include <sstream>
 #include <streambuf>
@@ -81,8 +82,15 @@ TEST_CASE("test logger format", "[test_logger_format]") {
   CHECK(logger.format(TEST_STR_FMT, 0, TEST_STR).find(TEST_STR) != std::string::npos);
 
   GenomicsDBException exception("Test Exception");
-  CHECK_THROWS_AS(logger.fatal(exception, TEST_STR_FMT, 1, TEST_STR), std::exception);
-  CHECK_THROWS_AS(logger.fatal(exception), std::exception);
+  CHECK_THROWS_AS(logger.fatal(exception, TEST_STR_FMT, 1, TEST_STR), GenomicsDBException);
+  CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
+  REQUIRE(setenv("GENOMICSDB_PRINT_STACKTRACE", "0", 1) == 0);
+  CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
+  REQUIRE(setenv("GENOMICSDB_PRINT_STACKTRACE", "1", 1) == 0);
+  CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
+  REQUIRE(setenv("GENOMICSDB_PRINT_STACKTRACE", "true", 1) == 0);
+  CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
+  CHECK(unsetenv("GENOMICSDB_PRINT_STACKTRACE") == 0);
 }
 
 #define CHECK_LOGGER(X, Y)                      \
@@ -146,3 +154,4 @@ TEST_CASE("test explicit logger", "[test_logger_explicit]") {
   with_string_logger.info(test_str, true);
   CHECK(oss.str() == "");
 }
+
