@@ -43,7 +43,7 @@
 #include <mutex>
 #include <sstream>
 
-//TODO: Forward declaration from TileDB/utils.h for now.
+//TODO: Prototype from TileDB/utils.h for now.
 bool is_env_set(const std::string& name);
 
 class Logger {
