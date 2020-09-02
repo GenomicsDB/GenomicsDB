@@ -64,6 +64,9 @@ attributes_with_PL_only = [ "PL" ]
 attributes_with_MLEAC_only = [ "MLEAC" ]
 attributes_with_bigint = [ "big_field1", "big_field2", "AS_big_field3", "big_field4", "AS_big_field5", "DP", "GT" ]
 attributes_multi_contig = ["DP", "AF", "GT"]
+attributes_multi_contig_empty_contigs = [ "REF", "ALT", "ID", "AD", "DP", "GQ", "GT", "PL", "BaseQRankSum", "HaplotypeScore", "MLEAC", "MLEAF", "MQ", "MQRankSum", "NS", "ReadPosRankSum", "SB", "DP_FORMAT", "AN"] 
+# multi contig interval below is missing scaffold_3123 to test that we can deal with non-contiguous contigs when coalescing
+multi_contig_empty_contigs_intervals = ['scaffold_3370:1-2985', 'scaffold_3100:1-2123', 'scaffold_3160:1-1884', 'scaffold_3300:1-2080', 'scaffold_3060:1-2290', 'scaffold_3360:1-1235', 'scaffold_3190:1-1726', 'scaffold_3020:1-2530', 'scaffold_3050:1-2317', 'scaffold_3340:1-2888', 'scaffold_2930:1-2674', 'scaffold_3230:1-1594', 'scaffold_3320:1-2574', 'scaffold_3210:1-1863', 'scaffold_3440:1-1034', 'scaffold_3550:1-1938', 'scaffold_3250:1-1485', 'scaffold_3391:1-1147', 'scaffold_3431:1-1055', 'scaffold_3171:1-1840', 'scaffold_3191:1-2934', 'scaffold_3061:1-2903', 'scaffold_2911:1-2734', 'scaffold_2951:1-2618', 'scaffold_3231:1-1591', 'scaffold_2981:1-2544', 'scaffold_3021:1-2419', 'scaffold_3381:1-1181', 'scaffold_3011:1-2971', 'scaffold_3681:1-1022', 'scaffold_2851:1-2950', 'scaffold_3121:1-2043', 'scaffold_3251:1-2376', 'scaffold_2922:1-2707', 'scaffold_3452:1-1858', 'scaffold_3362:1-1482', 'scaffold_3342:1-2686', 'scaffold_3042:1-2357', 'scaffold_3372:1-1208', 'scaffold_3472:1-1331', 'scaffold_3202:1-2247', 'scaffold_3312:1-1324', 'scaffold_3432:1-1048', 'scaffold_3272:1-1426', 'scaffold_3422:1-2139', 'scaffold_3412:1-2813', 'scaffold_3222:1-1606', 'scaffold_3262:1-1448', 'scaffold_3352:1-2879', 'scaffold_3442:1-1032', 'scaffold_3332:1-1283', 'scaffold_3292:1-1613', 'scaffold_3252:1-1483', 'scaffold_3383:1-1162', 'scaffold_3423:1-1189', 'scaffold_3353:1-1243', 'scaffold_2933:1-2669', 'scaffold_2853:1-2935', 'scaffold_2913:1-2832', 'scaffold_2893:1-2797', 'scaffold_3413:1-1105', 'scaffold_3453:1-1003', 'scaffold_3523:1-1130', 'scaffold_3213:1-1653', 'scaffold_3223:1-1705', 'scaffold_3263:1-1970', 'scaffold_3053:1-2603', 'scaffold_3363:1-1230', 'scaffold_3403:1-2418', 'scaffold_3393:1-1141', 'scaffold_3294:1-1369', 'scaffold_3384:1-2287', 'scaffold_3364:1-2412', 'scaffold_3044:1-2336', 'scaffold_3134:1-2599', 'scaffold_3264:1-1441', 'scaffold_2844:1-2966', 'scaffold_3214:1-1641', 'scaffold_3064:1-2391', 'scaffold_3304:1-1992', 'scaffold_3014:1-2633', 'scaffold_3024:1-2408', 'scaffold_3354:1-2537', 'scaffold_3194:1-2061', 'scaffold_2924:1-2704', 'scaffold_3054:1-2300', 'scaffold_3074:1-2965', 'scaffold_3374:1-1200', 'scaffold_3445:1-1028', 'scaffold_3335:1-1924', 'scaffold_3005:1-2485', 'scaffold_2885:1-2936', 'scaffold_2855:1-2931', 'scaffold_3285:1-2448', 'scaffold_3255:1-2564', 'scaffold_3095:1-2137', 'scaffold_3245:1-2263', 'scaffold_3425:1-1075', 'scaffold_2965:1-2576', 'scaffold_3275:1-1417', 'scaffold_3325:1-1298', 'scaffold_3305:1-1337', 'scaffold_3346:1-1260', 'scaffold_3426:1-1074', 'scaffold_3416:1-1094', 'scaffold_3046:1-2329', 'scaffold_3246:1-1501', 'scaffold_3326:1-2466', 'scaffold_3436:1-2815', 'scaffold_3356:1-2921', 'scaffold_3206:1-1669', 'scaffold_3316:1-1314', 'scaffold_3296:1-1362', 'scaffold_3116:1-2637', 'scaffold_3136:1-2710', 'scaffold_3306:1-1470', 'scaffold_3236:1-1544', 'scaffold_3446:1-1027', 'scaffold_3126:1-2028', 'scaffold_3226:1-1920', 'scaffold_3076:1-2214', 'scaffold_3056:1-2299', 'scaffold_3427:1-2622', 'scaffold_2907:1-2749', 'scaffold_3157:1-1898', 'scaffold_3387:1-1156', 'scaffold_2987:1-2534', 'scaffold_3437:1-1040', 'scaffold_3007:1-2593', 'scaffold_2857:1-2929', 'scaffold_3537:1-1011', 'scaffold_3547:1-1702', 'scaffold_3147:1-2230', 'scaffold_3257:1-1463', 'scaffold_3357:1-1239', 'scaffold_3107:1-2869', 'scaffold_3388:1-1155', 'scaffold_3368:1-1220', 'scaffold_3068:1-2254', 'scaffold_2838:1-2988', 'scaffold_3008:1-2908', 'scaffold_3058:1-2824', 'scaffold_3648:1-2796', 'scaffold_3328:1-1293', 'scaffold_3398:1-1131', 'scaffold_3528:1-2635', 'scaffold_3348:1-1258', 'scaffold_2968:1-2573', 'scaffold_3478:1-2690', 'scaffold_3228:1-1597', 'scaffold_2868:1-2983', 'scaffold_3088:1-2159', 'scaffold_3298:1-2443', 'scaffold_3448:1-1020', 'scaffold_3239:1-1965', 'scaffold_2879:1-2846', 'scaffold_2919:1-2717', 'scaffold_3269:1-1431', 'scaffold_3129:1-2114', 'scaffold_3389:1-1153', 'scaffold_3179:1-2709', 'scaffold_3379:1-1639', 'scaffold_3139:1-1964', 'scaffold_3259:1-1665', 'scaffold_3289:1-2781', 'scaffold_2889:1-2826']
 default_segment_size = 40
 
 def create_query_json(ws_dir, test_name, query_param_dict):
@@ -1422,7 +1425,33 @@ def main():
                       "java_vcf"   : "golden_outputs/multi_contig_java_vcf",
                       } },
                ],
-          },
+            },
+            { "name" : "java_genomicsdb_importer_from_vcfs_multi_contig_empty_contigs_coalesce",
+              'callset_mapping_file': 'inputs/callsets/multi_contig_empty_contigs.json',
+              'vid_mapping_file': 'inputs/vid_multi_contig_empty_contigs.json',
+              'reference_genome': 'inputs/Pop_tri_nonchrom_subset.fa.gz',
+              'size_per_column_partition': 4096,
+              'generate_array_name_from_partition_bounds': True,
+              'coalesce_to_num_partitions': '7',
+              'chromosome_intervals': multi_contig_empty_contigs_intervals,
+              "query_params": [
+                  {
+                    'attributes': attributes_multi_contig_empty_contigs,
+                    "force_override": True,
+                    'segment_size': 4096,
+                    'pass_as_vcf': True,
+                    'produce_GT_field': True,
+                    'reference_genome': 'inputs/Pop_tri_nonchrom_subset.fa.gz',
+                    "query_column_ranges": [{
+                      "range_list": [{
+                          "low": 0,
+                          "high": 1000000000
+                      }]
+                  }], "golden_output": {
+                      "java_vcf"   : "golden_outputs/multi_contig_empty_contigs_java_vcf",
+                      } },
+               ],
+            },
     ];
     if(len(sys.argv) < 5):
         loader_tests = loader_tests0 + loader_tests1
