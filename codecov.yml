@@ -14,8 +14,4 @@ coverage:
         target: auto
         branches: null
 
-    changes:
-      default:
-        branches: null
-
 
