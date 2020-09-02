@@ -842,7 +842,7 @@
             "length": [ { "variable_length_descriptor": "R" } ], "name": "AD", "type": [ "Integer" ], "vcf_field_class": [ "FORMAT" ]
         },
         {
-            "length": [ { "variable_length_descriptor": "1" } ], "name": "DP", "type": [ "Integer" ], "VCF_field_combine_operation":"sum","vcf_field_class": [ "FORMAT", "INFO" ]
+            "length": [ { "variable_length_descriptor": "1" } ], "name": "DP", "type": [ "Integer" ],"vcf_field_class": [ "FORMAT", "INFO" ]
         },
         {
             "length": [ { "variable_length_descriptor": "1" } ], "name": "GQ", "type": [ "Integer" ], "vcf_field_class": [ "FORMAT" ]
