@@ -80,8 +80,12 @@ TEST_CASE("test logger format", "[test_logger_format]") {
   logger.warn_once(TEST_STR_FMT, 7, TEST_STR_ONCE_ONLY);
 
   CHECK(logger.format(TEST_STR_FMT, 0, TEST_STR).find(TEST_STR) != std::string::npos);
+}
 
-  GenomicsDBException exception("Test Exception");
+#define TEST_EXCEPTION_STR "Test Exception"
+
+TEST_CASE("test logger exceptions", "[test_logger_exceptions]") {
+  GenomicsDBException exception(TEST_EXCEPTION_STR);
   CHECK_THROWS_AS(logger.fatal(exception, TEST_STR_FMT, 1, TEST_STR), GenomicsDBException);
   CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
   REQUIRE(setenv("GENOMICSDB_PRINT_STACKTRACE", "0", 1) == 0);
@@ -92,6 +96,8 @@ TEST_CASE("test logger format", "[test_logger_format]") {
   CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
   CHECK(unsetenv("GENOMICSDB_PRINT_STACKTRACE") == 0);
 }
+
+#define NATIVE_STACK_TRACE_STR "Native Stack Trace:"
 
 #define CHECK_LOGGER(X, Y)                      \
   do {                                          \
@@ -138,6 +144,42 @@ TEST_CASE("test explicit logger", "[test_logger_explicit]") {
   oss.str("");
   logger.info_once(TEST_STR_FMT, 2, TEST_STR);
   CHECK(oss.str() == "");
+
+  // Test Exceptions
+  oss.str("");
+  GenomicsDBException exception("Test Exception");
+  CHECK_THROWS_AS(logger.fatal(exception, TEST_STR_FMT, 1, TEST_STR), GenomicsDBException);
+  std::cerr << "Nalini: " << oss.str() << std::endl;
+  CHECK(oss.str().find(TEST_STR) != std::string::npos);
+  CHECK(oss.str().find(NATIVE_STACK_TRACE_STR) == std::string::npos); // Should not dump stack trace
+
+  oss.str("");
+  CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
+  CHECK(oss.str().find(TEST_EXCEPTION_STR) != std::string::npos);
+  CHECK(oss.str().find(NATIVE_STACK_TRACE_STR) == std::string::npos); // Should not dump stack trace
+
+  oss.str("");
+  REQUIRE(setenv("GENOMICSDB_PRINT_STACKTRACE", "0", 1) == 0);
+  CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
+  CHECK(oss.str().find(TEST_EXCEPTION_STR) != std::string::npos);
+  CHECK(oss.str().find(NATIVE_STACK_TRACE_STR) == std::string::npos); // Should not dump stack trace
+
+  oss.str("");
+  REQUIRE(setenv("GENOMICSDB_PRINT_STACKTRACE", "1", 1) == 0);
+  CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
+  CHECK(oss.str().find(TEST_EXCEPTION_STR) != std::string::npos);
+  CHECK(oss.str().find(NATIVE_STACK_TRACE_STR) != std::string::npos); // Should dump stack trace
+  CHECK(oss.str().substr(oss.str().find(NATIVE_STACK_TRACE_STR)+1).length() > 0); // Should be the stack trace
+
+  oss.str("");
+  REQUIRE(setenv("GENOMICSDB_PRINT_STACKTRACE", "true", 1) == 0);
+  CHECK_THROWS_AS(logger.fatal(exception), GenomicsDBException);
+  CHECK(oss.str().find(TEST_EXCEPTION_STR) != std::string::npos);
+  CHECK(oss.str().find(NATIVE_STACK_TRACE_STR) != std::string::npos); // Should dump stack trace
+  CHECK(oss.str().substr(oss.str().find(NATIVE_STACK_TRACE_STR)+1).length() > 0); // Should be the stack trace
+
+  CHECK(unsetenv("GENOMICSDB_PRINT_STACKTRACE") == 0);
+  oss.str("");
 
   // String logger logs to console 
   const std::string test_str(TEST_STR);
