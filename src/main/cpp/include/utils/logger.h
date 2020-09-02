@@ -90,7 +90,7 @@ class Logger {
 
 #define BACKTRACE_LENGTH 10
   void print_backtrace() {
-    if (is_env_set("GENOMICSDB_PRINT_STACKTRACE") || is_env_set("GATK_STACKTRACE_ON_USER_EXCEPTION")) {
+    if (is_env_set("GENOMICSDB_PRINT_STACKTRACE")) {
       void *buffer[BACKTRACE_LENGTH];
       int nptrs = backtrace(buffer, BACKTRACE_LENGTH);
       char **strings = backtrace_symbols(buffer, nptrs);
