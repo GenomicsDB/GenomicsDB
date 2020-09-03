@@ -86,7 +86,9 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
     if (description_idx >= 0)
       description_value = hrec->vals[description_idx];
     bcf_hdr_remove(hdr, field_type_idx, field_name.c_str());
-    bcf_hdr_sync(hdr);
+    if (bcf_hdr_sync(hdr)) {
+      logger.fatal(VCFAdapterException("Possible realloc() failure from bcf_hdr_sync() while adding missing field to hdr"));
+    }
     field_exists_in_vcf_hdr = false;
     old_field_idx_before_deletion = field_idx;
   }
@@ -183,7 +185,9 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
     int line_length = 0;
     auto hrec = bcf_hdr_parse_line(hdr, header_line.c_str(), &line_length);
     bcf_hdr_add_hrec(hdr, hrec);
-    bcf_hdr_sync(hdr);
+    if (bcf_hdr_sync(hdr)) {
+      logger.fatal(VCFAdapterException("Possible realloc() failure from bcf_hdr_sync() while adding missing field to hdr"));
+    }
 #ifdef DEBUG
     if (old_field_idx_before_deletion >= 0)
       assert(bcf_hdr_id2int(hdr, BCF_DT_ID, field_name.c_str()) == old_field_idx_before_deletion);
@@ -348,20 +352,23 @@ bcf_hdr_t* VCFAdapter::initialize_default_header() {
   auto hdr = bcf_hdr_init("w");
   bcf_hdr_append(hdr, "##ALT=<ID=NON_REF,Description=\"Represents any possible alternative allele at this location\">");
   bcf_hdr_append(hdr, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"Stop position of the interval\">");
-  bcf_hdr_sync(hdr);
+  if (bcf_hdr_sync(hdr)) {
+    logger.fatal(VCFAdapterException("Posssible realloc() failure from bcf_hdr_sync() while initializing default header"));
+  }
   return hdr;
 }
 
 void VCFAdapter::print_header() {
-  bcf_hdr_write(m_output_fptr, m_template_vcf_hdr);
+  if (bcf_hdr_write(m_output_fptr, m_template_vcf_hdr)) {
+    logger.fatal(VCFAdapterException("bcf_hdr_write() failed while printing header"));
+  }
 }
 
 void VCFAdapter::handoff_output_bcf_line(bcf1_t*& line, const size_t bcf_record_size) {
-  auto write_status = bcf_write(m_output_fptr, m_template_vcf_hdr, line);
-  if (write_status != 0)
-    throw VCFAdapterException(std::string("Failed to write VCF/BCF record at position ")
-                              +bcf_hdr_id2name(m_template_vcf_hdr, line->rid)+", "
-                              +std::to_string(line->pos+1));
+  if (bcf_write(m_output_fptr, m_template_vcf_hdr, line)) {
+    logger.fatal(VCFAdapterException(logger.format("Failed to write VCF/BCF record at position {}, {}",
+                                                   bcf_hdr_id2name(m_template_vcf_hdr, line->rid), line->pos+1)));
+  }
 }
 
 BufferedVCFAdapter::BufferedVCFAdapter(unsigned num_circular_buffers, unsigned max_num_entries)

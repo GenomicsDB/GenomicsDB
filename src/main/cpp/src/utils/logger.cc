@@ -103,7 +103,7 @@ void Logger::error(const std::string& msg, bool once_only) {
 void Logger::setup_string_logger() {
   m_string_logger = spdlog::get(LOGGER_NAME_STRING);
   if (m_string_logger == nullptr) {
-    m_string_logger = spdlog::stdout_color_mt(LOGGER_NAME_STRING);
+    m_string_logger = spdlog::stderr_color_mt(LOGGER_NAME_STRING);
     // No pattern for string logger
     m_string_logger->set_pattern("%v");
 #ifdef NDEBUG

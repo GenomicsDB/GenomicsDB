@@ -13,6 +13,7 @@ env:
         - GENOMICSDB_INSTALL_DIR=$GENOMICSDB_BUILD_DIR/install
         - PATH=$GENOMICSDB_INSTALL_DIR/bin:$TRAVIS_BUILD_DIR/bin:$PATH
         - GENOMICSDB_RELEASE_VERSION=x.y.z-travis-test
+        - PROTOBUF_HOME=$TRAVIS_BUILD_DIR/dependencies/protobuf
         - secure: ns0xWDbnmDb71J0/edoJ4jN/xtPg4yxnbexe/AcTwHUOkLehEuGHY7tlZa8cTlBsV19+CFXpYXn4LezS/7989gPfI5Kl0lLg1T8I4V+t2iJTAXurjew0i1AVjQBKfVWtYhGJQOws8DMUDunTxEJMahZzdNK1McLxvongJ7mD1rLabSlLE81lSnsVwvms/4Cp6c2hxec8mNsxxV9CUDzrsX63te/srvPuG+FMD1E32PYuTJJpNH3O7/nvbuW5bOvdwT5Yq/dHGF96U+YZpvqH1PqqtXUuZRJltFUaTsdEclv9Q1DpSpikEmPL+iOJRgS1W0i+mZ2wShFYmSZIv/fwlVoE4bNnLd/dJOTsS6hSpVpEPJnK/YizPNxoB21LAZACdg6rSBnPClfMnYdkNilL9h1s/u4P6RTHUztc8Ty6z1qpi78pOjS3t26o36m87MtXnkkTp06Q0O5kDSM35xsTdBevGeT3lWfYSxRpM/ypqb6xTnii8ZQ+Ohe+m7AVFhE5nFh2JUxQRCcl0xjZQyy2nbLPmDfvnAM+yIvGBZPPiCVJgWy5Vs3Jm1TC5Ju63Rz+RzJfAIiy6DhnUDK74ip5NMP1PXey8ySKnOfcPcxCdJVqqtEARvt+zIhrbGZCkjDUR1L2OOBheZ6RKY/rsuAsVOBo9s+ELBz0Y4hWXDhmn5c=
 
 matrix:
@@ -91,7 +92,7 @@ install:
         sudo apt-get -y install openjdk-8-jdk icedtea-plugin;
         sudo apt-get -y install zip unzip;
         wget -nv https://github.com/GenomicsDB/GenomicsDB/releases/download/v1.0.0/protobuf-3.0.2-trusty.tar.gz -O protobuf-3.0.2-trusty.tar.gz;
-        tar xzf protobuf-3.0.2-trusty.tar.gz && sudo rsync -a protobuf-3.0.2-trusty/ /usr/;
+        tar xzf protobuf-3.0.2-trusty.tar.gz && sudo rsync -a protobuf-3.0.2-trusty/ $PROTOBUF_HOME/;
         cd $TRAVIS_BUILD_DIR;
         cd dependencies && git clone https://github.com/rgamble/libcsv && cd libcsv && ./configure && make;
         jdk_switcher use openjdk8;
@@ -135,7 +136,10 @@ before_script:
 script:
     - cd $GENOMICSDB_BUILD_DIR
     - if [[ $TRAVIS_OS_NAME == linux ]]; then
-        cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True;
+        export PATH=$PROTOBUF_HOME/bin:$PATH;
+        export LD_LIBRARY_PATH=$PROTOBUF_HOME/lib:$LD_LIBRARY_PATH;
+        export C_INCLUDE_PATH=$PROTOBUF_HOME/include:$C_INCLUDE_PATH;
+        cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True -DCMAKE_PREFIX_PATH=$PROTOBUF_HOME;
       elif [[ $TRAVIS_OS_NAME == osx ]]; then
         cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=False -DCMAKE_PREFIX_PATH=$PROTOBUF_HOME -DOPENSSL_PREFIX_DIR=/usr/local/opt/openssl -DCMAKE_C_COMPILER=/usr/local/opt/mpich/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/local/opt/mpich/bin/mpicxx;
       fi
