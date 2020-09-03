@@ -26,7 +26,7 @@
 #
 
 project(GenomicsDB)
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.4)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -48,7 +48,7 @@ execute_process(
     )
 
 #Build parameters
-set(GENOMICSDB_RELEASE_VERSION "1.2.3-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+set(GENOMICSDB_RELEASE_VERSION "1.3.1-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 set(GENOMICSDB_VERSION "${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}" CACHE STRING "GenomicsDB full version string")
 set(DISABLE_MPI False CACHE BOOL "Disable use of any MPI compiler/libraries")
 set(DISABLE_OPENMP False CACHE BOOL "Disable OpenMP")
@@ -99,7 +99,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND BUILD_FOR_ARCH)
 endif()
 
 if(BUILD_DISTRIBUTABLE_LIBRARY)
-    cmake_minimum_required(VERSION 3.4)
     set(DISABLE_MPI True)
     set(DISABLE_OPENMP True)
     #For the GNU compiler, link in static gcc libraries
@@ -190,7 +189,7 @@ include_directories(${SPDLOG_INCLUDE_DIR})
 
 #htslib
 find_package(htslib REQUIRED)
-include_directories(${HTSLIB_INCLUDE_DIR})
+include_directories(BEFORE ${HTSLIB_INCLUDE_DIR})
 
 #TileDB
 find_package(TileDB REQUIRED)

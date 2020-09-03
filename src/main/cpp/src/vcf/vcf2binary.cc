@@ -1121,7 +1121,9 @@ void VCF2Binary::write_partition_data(File2TileDBBinaryColumnPartitionBase& part
   //The second parameter is useful if the file handler is open, but the buffer was full in a previous call
   auto has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, m_close_file, false);
   while (has_data) {
-    bcf_write(vcf_partition.m_split_output_fptr, hdr, vcf_reader_ptr->get_line());
+    if (bcf_write(vcf_partition.m_split_output_fptr, hdr, vcf_reader_ptr->get_line())) {
+      logger.fatal(VCF2BinaryException("Error writing VCF data for partition"));
+    }
     has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, false, true);
   }
 }

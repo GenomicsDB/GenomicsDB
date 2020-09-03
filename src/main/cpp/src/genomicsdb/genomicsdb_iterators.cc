@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -77,9 +78,9 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
   m_query_attribute_idx_to_tiledb_buffer_idx.resize(attribute_ids.size()+1u);//+1 for the COORDS
   for (auto i=0ull; i<attribute_ids.size(); ++i) {
     auto schema_idx = attribute_ids[i];
-    attribute_names[i] = variant_array_schema.attribute_name(schema_idx).c_str();
+    attribute_names[i] = m_variant_array_schema->attribute_name(schema_idx).c_str();
     m_query_attribute_idx_to_tiledb_buffer_idx[i] = m_buffer_pointers.size();
-    auto is_variable_length_field = variant_array_schema.is_variable_length_field(schema_idx);
+    auto is_variable_length_field = m_variant_array_schema->is_variable_length_field(schema_idx);
     //TileDB does not have a way to distinguish between char, string and int8_t fields
     //Hence, a series of possibly messy checks here
     assert(vid_mapper);
@@ -87,11 +88,11 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
     auto curr_type_index = (vid_field_info
                             && vid_field_info->get_genomicsdb_type().get_tuple_element_bcf_ht_type(0u) == BCF_HT_FLAG)
                            ? std::type_index(typeid(bool))
-                           : variant_array_schema.type(schema_idx);
+                           : m_variant_array_schema->type(schema_idx);
     //GenomicsDBColumnarField
     m_fields.emplace_back(curr_type_index,
                           is_variable_length_field ? BCF_VL_VAR : BCF_VL_FIXED,
-                          variant_array_schema.val_num(schema_idx), buffer_size);
+                          m_variant_array_schema->val_num(schema_idx), buffer_size);
     //Buffer pointers and size
     m_buffer_pointers.push_back(0);
     m_buffer_sizes.push_back(0);
@@ -107,7 +108,7 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
   attribute_names[coords_idx] = TILEDB_COORDS;
   m_query_attribute_idx_to_tiledb_buffer_idx[coords_idx] = m_buffer_pointers.size();
   //GenomicsDBColumnarField
-  m_fields.emplace_back(variant_array_schema.dim_type(), BCF_VL_FIXED, variant_array_schema.dim_length(), buffer_size);
+  m_fields.emplace_back(m_variant_array_schema->dim_type(), BCF_VL_FIXED, m_variant_array_schema->dim_length(), buffer_size);
   //Buffer pointers and size for COORDS
   m_buffer_pointers.push_back(0);
   m_buffer_sizes.push_back(0);
