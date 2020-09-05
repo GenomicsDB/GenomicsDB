@@ -48,4 +48,4 @@ find_path(
   CMAKE_FIND_ROOT_PATH_BOTH)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(SpdLog "Could not find SpdLog header: spdlog/spdlog.h - specify the variable SPDLOG_INCLUDE_DIR to point to the directory <SpdLog>/include" SPDLOG_INCLUDE_DIR)
+find_package_handle_standard_args(Spdlog "Could not find SpdLog header: spdlog/spdlog.h - specify the variable SPDLOG_INCLUDE_DIR to point to the directory <SpdLog>/include" SPDLOG_INCLUDE_DIR)

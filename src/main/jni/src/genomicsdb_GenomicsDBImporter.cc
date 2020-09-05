@@ -268,14 +268,8 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniCopyVidMap
   VidMappingPB vidmap;
   jbyte *vidmap_elements = env->GetByteArrayElements(vidmap_as_bytearray, 0);
   int vidmap_length = env->GetArrayLength(vidmap_as_bytearray);
-  try {
-    vidmap.ParseFromArray(
-      reinterpret_cast<jbyte*>(vidmap_elements), vidmap_length);
-  } catch (std::exception e) {
-    std::cerr << "Parsing error of vid maps. " <<
-        "Please check VCF merged headers\n";
-    throw e;
-  }
+  vidmap.ParseFromArray(
+        reinterpret_cast<jbyte*>(vidmap_elements), vidmap_length);
 
   //Cleanup
   env->ReleaseByteArrayElements(
@@ -302,16 +296,10 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniCopyCallsetMap
   jbyte *callsetmap_elements =
       env->GetByteArrayElements(callsetmap_as_bytearray, 0);
   int callsetmap_length = env->GetArrayLength(callsetmap_as_bytearray);
-  try {
-    callsetmap.ParseFromArray(
+  callsetmap.ParseFromArray(
         reinterpret_cast<jbyte*>(callsetmap_elements),
         callsetmap_length);
-  } catch (std::exception e) {
-    std::cerr << "Parsing error of callset maps. " <<
-        "Please check VCF merged headers\n";
-    throw e;
-  }
-
+  
   //Cleanup
   env->ReleaseByteArrayElements(
         callsetmap_as_bytearray,

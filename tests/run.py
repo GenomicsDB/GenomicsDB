@@ -2,7 +2,7 @@
 
 #The MIT License (MIT)
 #Copyright (c) 2016-2017 Intel Corporation
-#Copyright (c) 2019 Omics Data Automation, Inc.
+#Copyright (c) 2019-2020 Omics Data Automation, Inc.
 
 #Permission is hereby granted, free of charge, to any person obtaining a copy of 
 #this software and associated documentation files (the "Software"), to deal in 
@@ -220,7 +220,7 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
 
 def create_json_file(tmpdir, test_name, query_type, test_dict):
     query_json_filename = tmpdir+os.path.sep+test_name+ (('_'+query_type) if query_type else '') +'.json'
-    with open(query_json_filename, 'wb') as fptr:
+    with open(query_json_filename, 'w') as fptr:
         json.dump(test_dict, fptr, indent=4, separators=(',', ': '))
         fptr.close()
     return query_json_filename
@@ -233,7 +233,41 @@ def cleanup_and_exit(tmpdir, exit_code):
 def substitute_workspace_dir(jsonfile, wsdir):
     import fileinput
     for line in fileinput.input(jsonfile, inplace=True):
-        print line.replace("#WORKSPACE_DIR#", wsdir),
+        print(line.replace("#WORKSPACE_DIR#", wsdir)),
+
+def test_with_java_options(tmpdir, lib_path, jacoco):
+    sys.stdout.write("Testing with Java Options...\n")
+    import tarfile
+    compatDir = tmpdir+'/compat_100_test'
+    tar = tarfile.open('inputs/compatibility.pre.1.0.0.test.tar')
+    tar.extractall(path=compatDir)
+    loader_json = compatDir+'/t0_1_2.json'
+    query_json = compatDir+'/t0_1_2_java_vcf.json'
+    substitute_workspace_dir(loader_json, compatDir)
+    substitute_workspace_dir(query_json, compatDir)
+
+    # Sanity Test java options supported by GenomicsDB
+    query_command = 'java'+jacoco+' -Dgenomicsdb.library.path='+lib_path+' -DGATK_STACKTRACE_ON_USER_EXCEPTION=true -ea TestGenomicsDB --query -l '+loader_json+' '+query_json
+    pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE)
+    stdout_string = pid.communicate()[0]
+    if(pid.returncode != 0):
+        sys.stderr.write('Query with java options : '+query_command+' failed\n')
+        cleanup_and_exit(tmpdir, -1)
+    actual_md5sum = str(hashlib.md5(stdout_string).hexdigest())
+    golden_str, golden_md5sum = get_file_content_and_md5sum('golden_outputs/java_t0_1_2_vcf_at_0')
+    if (actual_md5sum != golden_md5sum):
+        sys.stderr.write('Query with java options : '+query_command+' failed. Results did not match with golden output.\n');
+        cleanup_and_exit(tmpdir, -1)
+
+    # Test if exception stack trace is logged when there is no tiledb_workspace for example
+    import os
+    os.remove(compatDir+'/ws/__tiledb_workspace.tdb')
+    pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT);
+    stdout_string = pid.communicate()[0]
+    if (stdout_string.find('Native Stack Trace:') < 0):
+        sys.stderr.write('Query with java options did not throw expected exception: '+query_command+' failed\n')
+        cleanup_and_exit(tmpdir, -1)
+    sys.stdout.write("Successful\n")
 
 def test_pre_1_0_0_query_compatibility(tmpdir):
     sys.stdout.write("Testing compatibility with workspace/arrays from releases before 1.0.0...") 
@@ -368,8 +402,10 @@ def main():
         sys.stderr.write('                         Otherwise all tests are run.\n\n')
         sys.exit(-1);
     build_dir=os.path.abspath(sys.argv[1])
+    install_dir=os.path.abspath(sys.argv[2])
     ctest_dir = os.path.join(build_dir, 'src/test/cpp')
-    exe_path = os.path.join(sys.argv[2],'bin')
+    exe_path = os.path.join(install_dir,'bin')
+    lib_path = os.path.join(install_dir,'lib')
     tool_sanity_checks(exe_path);
     if (len(sys.argv) >= 4):
         build_type = sys.argv[3]
@@ -1469,7 +1505,7 @@ def main():
             count=0
             with open(test_params_dict['callset_mapping_file'], 'rb') as cs_fptr:
                 callset_mapping_dict = json.load(cs_fptr, object_pairs_hook=OrderedDict)
-                for callset_name, callset_info in callset_mapping_dict['callsets'].iteritems():
+                for callset_name, callset_info in callset_mapping_dict['callsets'].items():
                     file_list += ' '+callset_info['filename'];
                     count=count+1
                 cs_fptr.close();
@@ -1484,7 +1520,7 @@ def main():
                 file_list = ''
                 with open(test_params_dict['callset_mapping_file1'], 'rb') as cs_fptr:
                     callset_mapping_dict = json.load(cs_fptr, object_pairs_hook=OrderedDict)
-                    for callset_name, callset_info in callset_mapping_dict['callsets'].iteritems():
+                    for callset_name, callset_info in callset_mapping_dict['callsets'].items():
                         file_list += ' '+callset_info['filename'];
                 cs_fptr.close();
                 import_cmd_incremental = 'java'+jacoco+' -ea TestGenomicsDBImporterWithMergedVCFHeader --size_per_column_partition 16384 ' \
@@ -1618,7 +1654,8 @@ def main():
                                 if(json_diff_result):
                                     print(json.dumps(json_diff_result, indent=4, separators=(',', ': ')));
                                 cleanup_and_exit(tmpdir, -1);
-        #shutil.rmtree(ws_dir, ignore_errors=True)
+        shutil.rmtree(ws_dir, ignore_errors=True)
+    test_with_java_options(tmpdir, lib_path, jacoco)
     test_pre_1_0_0_query_compatibility(tmpdir)
     test_query_compatibility_with_old_schema_verion_1(tmpdir)
     rc = common.report_jacoco_coverage(jacoco_report_cmd)
