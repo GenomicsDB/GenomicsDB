@@ -73,7 +73,7 @@ class ReferenceGenomeInfo {
       fai_destroy(m_reference_faidx);
   }
   void initialize(const std::string& reference_genome);
-  char get_reference_base_at_position(const char* contig, int pos);
+  char get_reference_base_at_position(const char* contig, const int64_t pos);
  private:
   int m_reference_last_read_pos;
   int m_reference_num_bases_read;
@@ -113,7 +113,7 @@ class VCFAdapter {
   virtual bool overflow() const {
     return false;
   }
-  char get_reference_base_at_position(const char* contig, int pos) {
+  char get_reference_base_at_position(const char* contig, const int64_t pos) {
     return m_reference_genome_info.get_reference_base_at_position(contig, pos);
   }
  protected:

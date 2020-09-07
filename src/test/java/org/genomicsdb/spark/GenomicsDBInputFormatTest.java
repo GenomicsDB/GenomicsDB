@@ -234,4 +234,45 @@ public class GenomicsDBInputFormatTest {
       Assert.assertEquals(gSplit.getQueryInfoList().get(i), qList.get(i));
     }
   }
+
+  @Test(testName = "Test query larger than query block size",
+      dataProvider = "loaderQueryHostFilesTest6",
+      dataProviderClass = GenomicsDBTestUtils.class)
+  public void testQueryLargerThanQueryBlockSize(String queryPath, 
+              String loaderPath, String hostPath) 
+              throws IOException, FileNotFoundException, InterruptedException {
+    Job job = Job.getInstance();
+    Configuration conf = job.getConfiguration();
+    conf.set(GenomicsDBConfiguration.LOADERJSON, loaderPath);
+    conf.set(GenomicsDBConfiguration.QUERYJSON, queryPath);
+    conf.set(GenomicsDBConfiguration.MPIHOSTFILE, hostPath);
+    ArrayList<GenomicsDBPartitionInfo> pList = new ArrayList<>(3);
+    for(int i=0; i<3; i++) {
+      GenomicsDBPartitionInfo p = new GenomicsDBPartitionInfo(i*10000, "hdfs://tmp/ws", "part"+i, "/tmp/test0.vcf.gz");
+      pList.add(p);
+    }
+    int qstart = 9000;
+    int qend = 24500;
+    GenomicsDBQueryInfo q = new GenomicsDBQueryInfo(qstart, qend);
+
+    GenomicsDBInputFormat format = new GenomicsDBInputFormat();
+    format.setConf(conf);
+    List<InputSplit> splits = format.getSplits(job);
+    Assert.assertEquals(splits.size(), 5);
+    // check first partition
+    Assert.assertEquals(((GenomicsDBInputSplit)splits.get(0)).getPartitionInfo().getBeginPosition(), 0);
+    // check that query chunks span the original query range
+    Assert.assertEquals(((GenomicsDBInputSplit)splits.get(0)).getQueryInfoList().get(0).getBeginPosition(), 9000);
+    Assert.assertEquals(((GenomicsDBInputSplit)splits.get(4)).getQueryInfoList().get(0).getEndPosition(), 24500);
+    for(int i=0; i<splits.size()-1; i++) {
+      GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(i);
+      GenomicsDBInputSplit gSplitNext = (GenomicsDBInputSplit)splits.get(i+1);
+      // check that query ranges do not overlap, OR if they do they are targetting different partitions
+      // the latter check is because we sometimes send the same query range to differnt partitions. Genomicsdb can handle this
+      // and each array only worries about the column ranges it owns
+      Assert.assertTrue((gSplit.getQueryInfoList().get(0).getEndPosition()+1 == gSplitNext.getQueryInfoList().get(0).getBeginPosition()) ||
+                           gSplit.getPartitionInfo().getBeginPosition() < gSplitNext.getPartitionInfo().getBeginPosition());
+    }
+  }
+
 }

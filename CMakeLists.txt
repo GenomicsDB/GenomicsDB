@@ -4,7 +4,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2019 Omics Data Automation, Inc.
+# Copyright (c) 2019-2020 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,12 +26,18 @@
 #
 
 project(GenomicsDB)
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.4)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   message(FATAL_ERROR CMAKE_CXX_COMPILER_ID " Compiler not yet supported. Exiting.")
 endif()
+
+#External sources
+set(HTSLIB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/htslib" CACHE PATH "Path to htslib source directory")
+set(TILEDB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/TileDB" CACHE PATH "Path to TileDB source directory")
+set(RAPIDJSON_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/dependencies/RapidJSON/include" CACHE PATH "Path to RapidJSON include directory")
+set(SPDLOG_INCLUDE_DIR  "${CMAKE_SOURCE_DIR}/dependencies/spdlog/include" CACHE PATH "Path to SpdLog include directory")
 
 #git tag
 execute_process(
@@ -42,20 +48,18 @@ execute_process(
     )
 
 #Build parameters
-set(GENOMICSDB_RELEASE_VERSION "1.1.1-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+set(GENOMICSDB_RELEASE_VERSION "1.3.1-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 set(GENOMICSDB_VERSION "${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}" CACHE STRING "GenomicsDB full version string")
 set(DISABLE_MPI False CACHE BOOL "Disable use of any MPI compiler/libraries")
 set(DISABLE_OPENMP False CACHE BOOL "Disable OpenMP")
 set(BUILD_DISTRIBUTABLE_LIBRARY False CACHE BOOL "Build the TileDB/GenomicsDB library with minimal runtime dependencies")
 set(BUILD_JAVA False CACHE BOOL "Build Java/JNI interface for combined VCF records")
-set(HTSLIB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/htslib" CACHE PATH "Path to htslib source directory")
 set(HTSLIB_INSTALL_DIR "" CACHE PATH "Path to htslib install directory")
 set(OPENSSL_PREFIX_DIR "" CACHE PATH "OpenSSL installation prefix")
 set(GENOMICSDB_PROTOBUF_VERSION "3.0.2" CACHE STRING "Version of Google Protocol Buffer library")
 set(PROTOBUF_LIBRARY "" CACHE PATH "Path to protobuf headers and library")
 set(PROTOBUF_STATIC_LINKING True CACHE BOOL "Statically link Protobuf libraries")
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
-set(TILEDB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/TileDB" CACHE PATH "Path to TileDB source directory")
 set(USE_LIBCSV False CACHE BOOL "Disable library components that import data from csv files")
 set(LIBCSV_DIR "" CACHE PATH "Path to libcsv header and library")
 set(DO_PROFILING False CACHE BOOL "Collect some stats during execution - doesn't add much overhead")
@@ -89,7 +93,6 @@ include(CheckIncludeFileCXX)
 include(CheckCXXSymbolExists)
 
 if(BUILD_DISTRIBUTABLE_LIBRARY)
-    cmake_minimum_required(VERSION 3.4)
     set(DISABLE_MPI True)
     set(DISABLE_OPENMP True)
     #For the GNU compiler, link in static gcc libraries
@@ -149,6 +152,7 @@ add_definitions(-D_FILE_OFFSET_BITS=64)  #large file support
 add_definitions(-DHTSDIR=1) #htslib is a mandatory requirement
 add_definitions(-DDUPLICATE_CELL_AT_END=1) #mandatory
 add_definitions(-DGENOMICSDB_VERSION=\"${GENOMICSDB_VERSION}\")
+
 if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
   add_definitions(-D_FORTIFY_SOURCE=2)
 endif()
@@ -157,16 +161,24 @@ find_package(libuuid REQUIRED)
 include_directories(${LIBUUID_INCLUDE_DIR})
 
 if(ENABLE_LIBCURL)
-    find_package(CURL REQUIRED)
+  if(BUILD_DISTRIBUTABLE_LIBRARY)
+    set(OPENSSL_USE_STATIC_LIBS TRUE)
+  endif()
+  find_package(OpenSSL REQUIRED)
+  find_package(CURL REQUIRED)
 endif()
 
 #RapidJSON
 find_package(RapidJSON REQUIRED)
 include_directories(${RAPIDJSON_INCLUDE_DIR})
 
+#SpdLog
+find_package(Spdlog REQUIRED)
+include_directories(${SPDLOG_INCLUDE_DIR})
+
 #htslib
 find_package(htslib REQUIRED)
-include_directories(${HTSLIB_INCLUDE_DIR})
+include_directories(BEFORE ${HTSLIB_INCLUDE_DIR})
 
 #TileDB
 find_package(TileDB REQUIRED)
@@ -190,6 +202,11 @@ else()
   set(PROTOBUF_JAVA_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/src/main/java")
 endif()
 include_directories(${PROTOBUF_INCLUDE_DIRS})
+CHECK_IF_USING_PROTOBUF_V_3_0_0_BETA_1(USE_PROTOBUF_V_3_0_0_BETA_1)
+if(USE_PROTOBUF_V_3_0_0_BETA_1)
+  add_definitions(-DUSE_PROTOBUF_V_3_0_0_BETA_1)
+  message(STATUS "Using Protobuf v3.0.0-beta-1")
+endif()
 
 #JNI
 if(BUILD_JAVA)
@@ -306,6 +323,9 @@ if(MPI_FOUND)
 endif()
 if(USE_HDFS)
     set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES} ${JAVA_JVM_LIBRARY})
+endif()
+if(OPENSSL_FOUND)
+    set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES} ${OPENSSL_LIBRARIES})
 endif()
 if(CURL_FOUND)
     set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES} ${CURL_LIBRARIES})
@@ -470,6 +490,7 @@ if(BUILD_JAVA)
 
     add_jar(genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples
         SOURCES ${GENOMICSDB_EXAMPLE_SOURCES}
+                log4j.properties
         INCLUDE_JARS ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-allinone.jar
         OUTPUT_DIR ${GENOMICSDB_MAVEN_BUILD_DIR})
 
@@ -484,6 +505,10 @@ if(BUILD_JAVA)
         COMMENT "Deploy to Maven central"
     )
     add_dependencies(mvn_central_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
+
+    add_custom_target(mvn_local_deploy
+            COMMAND mvn install:install-file -Dfile=target/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar -DpomFile=pom.xml)
+    add_dependencies(mvn_local_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
 
     if(NOT DISABLE_MPI)
         add_test(NAME CI_tests

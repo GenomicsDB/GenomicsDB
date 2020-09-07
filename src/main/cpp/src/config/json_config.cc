@@ -54,6 +54,7 @@ rapidjson::Document parse_json_file(const std::string& filename) {
 void extract_contig_interval_from_object(const rapidjson::Value& curr_json_object,
     const VidMapper* id_mapper, ColumnRange& result) {
   // This MUST be a dictionary of the form "contig" : position or "contig" : [start, end]
+  // or "tiledb_column": position
   VERIFY_OR_THROW(curr_json_object.IsObject());
   VERIFY_OR_THROW(curr_json_object.MemberCount() == 1);
   auto itr = curr_json_object.MemberBegin();
@@ -69,6 +70,10 @@ void extract_contig_interval_from_object(const rapidjson::Value& curr_json_objec
                     && pb_contig_position_dict["position"].IsInt64());
     contig_name = pb_contig_position_dict["contig"].GetString();
     contig_position_ptr = &(pb_contig_position_dict["position"]);
+  } else if (contig_name == "tiledb_column") {
+    VERIFY_OR_THROW(itr->value.IsInt64());
+    result.first = itr->value.GetInt64();
+    return;
   } else
     contig_position_ptr = &(itr->value);
   ContigInfo contig_info;
@@ -192,6 +197,12 @@ rapidjson::Document GenomicsDBConfigBase::read_from_JSON_string(const std::strin
     throw GenomicsDBConfigException(std::string("Syntax error in JSON string ")+str);
   read_from_JSON(json_doc, rank);
   return json_doc;
+}
+
+void set_config_field(const rapidjson::Document& json_doc, const char* name, bool& config_field) {
+  if (json_doc.HasMember(name) && json_doc[name].IsBool()) {
+    config_field = json_doc[name].GetBool();
+  }
 }
 
 void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, const int rank) {
@@ -332,6 +343,7 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
 	VERIFY_OR_THROW(curr_partition_info_dict.HasMember("begin"));
 	auto& begin_json_value = curr_partition_info_dict["begin"];
 	//Either a TileDB column idx or a dictionary of the form { "chr1" : [ 5, 6 ] }
+	//Or "tiledb_column": 1234
 	VERIFY_OR_THROW(begin_json_value.IsInt64() || begin_json_value.IsObject());
 	if (begin_json_value.IsInt64())
 	  m_column_ranges[partition_idx][0].first = begin_json_value.GetInt64();
@@ -341,6 +353,7 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
 	if (curr_partition_info_dict.HasMember("end")) {
 	  auto& end_json_value = curr_partition_info_dict["end"];
 	  //Either a TileDB column idx or a dictionary of the form { "chr1" : [ 5, 6 ] }
+	  //Or "tiledb_column": 1234
 	  VERIFY_OR_THROW(end_json_value.IsInt64() || end_json_value.IsObject());
 	  if (end_json_value.IsInt64())
 	    m_column_ranges[partition_idx][0].second = end_json_value.GetInt64();
@@ -626,10 +639,9 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
   //when producing GT, use the min PL value GT for spanning deletions
   m_produce_GT_with_min_PL_value_for_spanning_deletions = (json_doc.HasMember("produce_GT_with_min_PL_value_for_spanning_deletions")
       && json_doc["produce_GT_with_min_PL_value_for_spanning_deletions"].GetBool());
-  //Disable file locking in TileDB
-  m_disable_file_locking_in_tiledb = false;
-  if (json_doc.HasMember("disable_file_locking_in_tiledb") && json_doc["disable_file_locking_in_tiledb"].GetBool())
-    m_disable_file_locking_in_tiledb = true;
+
+  //Shared posixfs(e.g. NFS/Lustre) optimizations - passed via storage manager
+  set_config_field(json_doc, "enable_shared_posixfs_optimizations", m_enable_shared_posixfs_optimizations);
 }
 
 void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(
@@ -772,4 +784,14 @@ void GenomicsDBImportConfig::read_from_file(const std::string& filename, const i
   m_no_mandatory_VCF_fields = false;
   if (json_doc.HasMember("no_mandatory_VCF_fields") && json_doc["no_mandatory_VCF_fields"].IsBool())
     m_no_mandatory_VCF_fields = json_doc["no_mandatory_VCF_fields"].GetBool();
+
+  //Delta Encoding for offsets while compressing tiles
+  set_config_field(json_doc, "disable_delta_encode_offsets",  m_disable_delta_encode_offsets);
+
+  //Delta Encoding for coords while compressing tiles
+  set_config_field(json_doc, "disable_delta_encode_coords", m_disable_delta_encode_coords);
+
+  //Bit Shuffle while compressing tiles
+  set_config_field(json_doc, "enable_bit_shuffle_gt",  m_enable_bit_shuffle_gt);
+  set_config_field(json_doc, "enable_lz4_compression_gt", m_enable_lz4_compression_gt);
 }

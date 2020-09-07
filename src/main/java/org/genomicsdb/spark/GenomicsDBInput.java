@@ -31,7 +31,6 @@ import org.json.simple.JSONArray;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.util.Map;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.FileReader;
@@ -42,8 +41,6 @@ import java.lang.RuntimeException;
 import java.lang.InstantiationException;
 import java.lang.IllegalAccessException;
 import java.lang.ClassNotFoundException;
-
-import com.googlecode.protobuf.format.JsonFormat;
 
 /**
  * The input class represents all the data being queried from GenomicsDB.
@@ -283,8 +280,9 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
   	    // can use the same ArrayList of queries since each inputsplit will only care
   	    // about the section that is relevant to its partition
             glomQuerys.add(queryRange);
-            partition = addSplitsIfQuerySpansPartitions(inputPartitions, pIndex, 
+            pIndex = addSplitsIfQuerySpansPartitions(inputPartitions, pIndex, 
                     queryRange.getEndPosition(), partitionsList, glomQuerys);
+            partition = (pIndex < partitionsList.size()) ? partitionsList.get(pIndex) : null;
             glomQuerys.clear();
           }
           else {
@@ -316,8 +314,9 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
   	    inputPartitions.add(getInputInstance(partition, glomQuerys));
   
   	    // if this queryBlock spans multiple partitions, need to add those as splits as well
-  	    partition = addSplitsIfQuerySpansPartitions(inputPartitions, pIndex,
+  	    pIndex = addSplitsIfQuerySpansPartitions(inputPartitions, pIndex,
                     queryBlockStart+blockSize-1, partitionsList, glomQuerys);
+            partition = (pIndex < partitionsList.size()) ? partitionsList.get(pIndex) : null;
             glomQuerys.clear();
   	    queryBlockStart += blockSize;
   	    queryBlockSize -= blockSize;
@@ -341,7 +340,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
             queryEnd >= list.get(index).getBeginPosition();
   }
 
-  private GenomicsDBPartitionInfo addSplitsIfQuerySpansPartitions(
+  private int addSplitsIfQuerySpansPartitions(
           ArrayList<T> list, int index,
           final long queryEnd,
           final ArrayList<GenomicsDBPartitionInfo> partitionList, 
@@ -352,17 +351,17 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       partition = partitionList.get(index);
       list.add(getInputInstance(partition, queryList));
     }
-    return partition;
+    return index;
   }
 
   /**
    * Creates export configuration protobuf object 
    * based on partition, query and existing query file or protobuf
    *
-   * @param queryFileOrPB Existing query json file or protobuf string
+   * @param queryFileOrPB Existing query json file or base64 encoded protobuf byte data
    * @param partition used to populate array
    * @param queryList used to bound query column ranges
-   * @param isPB boolean parameter that denotes if queryFileOrPB is protobuf string
+   * @param isPB boolean parameter that denotes if queryFileOrPB is protobuf
    * @return  Returns export configuration protobuf object
    * @throws IOException  Thrown if other IO exception while handling file operations
    * @throws ParseException  Thrown if JSON parsing fails
@@ -379,7 +378,8 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     if (isPB) {
       exportConfigurationBuilder = 
           GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
-      JsonFormat.merge(queryFileOrPB, exportConfigurationBuilder);
+      byte[] queryPB = Base64.getDecoder().decode(queryFileOrPB);
+      exportConfigurationBuilder.mergeFrom(queryPB);
     }
     else {
       exportConfigurationBuilder =
@@ -462,8 +462,8 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
             exportConfigurationBuilder.setSitesOnlyQuery(
                 val.toString().equals("true")); 
             break;
-          case "disable_file_locking_in_tiledb":
-            exportConfigurationBuilder.setDisableFileLockingInTiledb(
+          case "enable_shared_posixfs_optimizations":
+            exportConfigurationBuilder.setEnableSharedPosixfsOptimizations(
                 val.toString().equals("true")); 
             break;
           case "produce_FILTER_field":

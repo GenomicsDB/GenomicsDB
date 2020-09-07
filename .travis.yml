@@ -13,6 +13,7 @@ env:
         - GENOMICSDB_INSTALL_DIR=$GENOMICSDB_BUILD_DIR/install
         - PATH=$GENOMICSDB_INSTALL_DIR/bin:$TRAVIS_BUILD_DIR/bin:$PATH
         - GENOMICSDB_RELEASE_VERSION=x.y.z-travis-test
+        - PROTOBUF_HOME=$TRAVIS_BUILD_DIR/dependencies/protobuf
         - secure: ns0xWDbnmDb71J0/edoJ4jN/xtPg4yxnbexe/AcTwHUOkLehEuGHY7tlZa8cTlBsV19+CFXpYXn4LezS/7989gPfI5Kl0lLg1T8I4V+t2iJTAXurjew0i1AVjQBKfVWtYhGJQOws8DMUDunTxEJMahZzdNK1McLxvongJ7mD1rLabSlLE81lSnsVwvms/4Cp6c2hxec8mNsxxV9CUDzrsX63te/srvPuG+FMD1E32PYuTJJpNH3O7/nvbuW5bOvdwT5Yq/dHGF96U+YZpvqH1PqqtXUuZRJltFUaTsdEclv9Q1DpSpikEmPL+iOJRgS1W0i+mZ2wShFYmSZIv/fwlVoE4bNnLd/dJOTsS6hSpVpEPJnK/YizPNxoB21LAZACdg6rSBnPClfMnYdkNilL9h1s/u4P6RTHUztc8Ty6z1qpi78pOjS3t26o36m87MtXnkkTp06Q0O5kDSM35xsTdBevGeT3lWfYSxRpM/ypqb6xTnii8ZQ+Ohe+m7AVFhE5nFh2JUxQRCcl0xjZQyy2nbLPmDfvnAM+yIvGBZPPiCVJgWy5Vs3Jm1TC5Ju63Rz+RzJfAIiy6DhnUDK74ip5NMP1PXey8ySKnOfcPcxCdJVqqtEARvt+zIhrbGZCkjDUR1L2OOBheZ6RKY/rsuAsVOBo9s+ELBz0Y4hWXDhmn5c=
 
 matrix:
@@ -21,9 +22,12 @@ matrix:
         os: linux
         env: INSTALL_TYPE=basic
         services: postgres
+        cache:
+          directories: $HOME/.m2 $CACHE_DIR
 
       - name: "Basic build OSX - 1"
         os: osx
+        osx_image: xcode9.3
         language: generic
         env: TOXENV=py34 INSTALL_TYPE=basic OSX_PHASE=1 PROTOBUF_VERSION=3.0.0-beta-1 PROTOBUF_HOME=$TRAVIS_BUILD_DIR/dependencies/protobuf
         cache:
@@ -31,6 +35,7 @@ matrix:
 
       - name: "Basic build OSX - 2"
         os: osx
+        osx_image: xcode9.3
         language: generic
         env: TOXENV=py34 INSTALL_TYPE=basic OSX_PHASE=2 PROTOBUF_VERSION=3.0.0-beta-1 PROTOBUF_HOME=$TRAVIS_BUILD_DIR/dependencies/protobuf
         cache:
@@ -40,6 +45,8 @@ matrix:
         os: linux
         env: INSTALL_TYPE=hdfs
         services: postgres
+        cache:
+          directories: $HOME/.m2 $CACHE_DIR
 
 #
 # commenting out for now because these seem flaky
@@ -65,7 +72,11 @@ install:
         mkdir -p $CACHE_DIR;
       fi
     # Install dependencies
-    - pip install -r requirements.txt
+    - if [[ $TRAVIS_OS_NAME == linux ]]; then
+        pip install -r tests/requirements.txt;
+      elif [[ $TRAVIS_OS_NAME == osx ]]; then
+        pip install --user -r tests/requirements.txt;
+      fi
     - sudo pip2 install jsondiff
     - if [[ $TRAVIS_OS_NAME == linux ]]; then
         sudo apt-get -y install lcov mpich zlib1g-dev libssl-dev rsync cmake uuid-dev libcurl4-openssl-dev;
@@ -81,7 +92,7 @@ install:
         sudo apt-get -y install openjdk-8-jdk icedtea-plugin;
         sudo apt-get -y install zip unzip;
         wget -nv https://github.com/GenomicsDB/GenomicsDB/releases/download/v1.0.0/protobuf-3.0.2-trusty.tar.gz -O protobuf-3.0.2-trusty.tar.gz;
-        tar xzf protobuf-3.0.2-trusty.tar.gz && sudo rsync -a protobuf-3.0.2-trusty/ /usr/;
+        tar xzf protobuf-3.0.2-trusty.tar.gz && sudo rsync -a protobuf-3.0.2-trusty/ $PROTOBUF_HOME/;
         cd $TRAVIS_BUILD_DIR;
         cd dependencies && git clone https://github.com/rgamble/libcsv && cd libcsv && ./configure && make;
         jdk_switcher use openjdk8;
@@ -89,13 +100,19 @@ install:
         HOMEBREW_NO_AUTO_UPDATE=1 brew install lcov mpich ossp-uuid libcsv;
         source $TRAVIS_BUILD_DIR/.travis/scripts/install_osx_dependencies.sh;
         JAVA_HOME=$(/usr/libexec/java_home);
+        which cmake && cmake --version;
       fi
     - echo $JAVA_HOME
     - export PATH=$JAVA_HOME/bin:$PATH
     - which javac && javac -version
     - which java && java -version
-    # install spark/hdfs/scala
+    - if [[ ! -f $CACHE_DIR/bcftools-1.10.2.tar.bz2 ]]; then
+        wget -nv https://github.com/samtools/bcftools/releases/download/1.10.2/bcftools-1.10.2.tar.bz2 -O $CACHE_DIR/bcftools-1.10.2.tar.bz2;
+      fi
     - cd $TRAVIS_BUILD_DIR
+    - tar -xjf $CACHE_DIR/bcftools-1.10.2.tar.bz2 && cd bcftools-1.10.2 && make -j4 && cd .. && export PATH=$PATH:$TRAVIS_BUILD_DIR/bcftools-1.10.2
+    - which bcftools
+    # install spark/hdfs/scala
     - if [[ $INSTALL_TYPE != basic ]]; then
         wget -nv https://downloads.lightbend.com/scala/2.11.8/scala-2.11.8.deb;
         sudo dpkg -i scala-2.11.8.deb;
@@ -117,15 +134,16 @@ before_script:
       fi
 
 script:
-    #- pylint $TRAVIS_BUILD_DIR/docker/vcf_combiner/usr/bin/combine_vcf.py
-    - pytest $TRAVIS_BUILD_DIR/docker/vcf_combiner/usr/bin/combine_vcf.py
     - cd $GENOMICSDB_BUILD_DIR
     - if [[ $TRAVIS_OS_NAME == linux ]]; then
-        cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True;
+        export PATH=$PROTOBUF_HOME/bin:$PATH;
+        export LD_LIBRARY_PATH=$PROTOBUF_HOME/lib:$LD_LIBRARY_PATH;
+        export C_INCLUDE_PATH=$PROTOBUF_HOME/include:$C_INCLUDE_PATH;
+        cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=True -DCMAKE_PREFIX_PATH=$PROTOBUF_HOME;
       elif [[ $TRAVIS_OS_NAME == osx ]]; then
-        cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=False -DPROTOBUF_LIBRARY=$PROTOBUF_HOME/lib/libprotobuf.dylib -DPROTOBUF_INCLUDE_DIRS=$PROTOBUF_HOME/include -DPROTOBUF_PROTOC_EXECUTABLE=$PROTOBUF_HOME/bin/protoc -DPROTOBUF_PROTOC_LIBRARY=$PROTOBUF_HOME/lib/libprotoc.dylib -DPROTOBUF_LIBRARIES=$PROTOBUF_HOME/lib/libprotobuf.dylib -DOPENSSL_PREFIX_DIR=/usr/local/opt/openssl -DCMAKE_C_COMPILER=/usr/local/opt/mpich/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/local/opt/mpich/bin/mpicxx;
+        cmake $TRAVIS_BUILD_DIR -DBUILD_JAVA=1 -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DLIBCSV_DIR=$TRAVIS_BUILD_DIR/dependencies/libcsv -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DMAVEN_QUIET=True -DENABLE_LIBCURL=False -DCMAKE_PREFIX_PATH=$PROTOBUF_HOME -DOPENSSL_PREFIX_DIR=/usr/local/opt/openssl -DCMAKE_C_COMPILER=/usr/local/opt/mpich/bin/mpicc -DCMAKE_CXX_COMPILER=/usr/local/opt/mpich/bin/mpicxx;
       fi
-    - make -j 4 && make install
+    - make -j4 && make install
     - if [[ $INSTALL_TYPE == hdfs ]]; then
         echo "Run spark/hdfs tests";
         /usr/local/spark/sbin/start-master.sh;

@@ -26,6 +26,8 @@ import htsjdk.samtools.util.CloseableIterator;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.AbstractFeatureReader;
 import htsjdk.tribble.FeatureReader;
+import htsjdk.tribble.readers.LineIterator;
+import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFHeader;
@@ -52,6 +54,7 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -67,7 +70,7 @@ import static org.genomicsdb.GenomicsDBUtils.writeToFile;
 import static org.genomicsdb.GenomicsDBUtils.getMaxValidRowIndex;
 
 /**
- * Java wrapper for vcf2tiledb - imports VCFs into TileDB/GenomicsDB.
+ * Java wrapper for vcf2genomicsdb - imports VCFs into GenomicsDB.
  * All vid information is assumed to be set correctly by the user (JSON files)
  */
 public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFileExtensions, CallSetMapExtensions,
@@ -135,9 +138,15 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
         //jniCopyVidMap(mGenomicsDBImporterObjectHandle, vidMapPB.toByteArray());
         //jniCopyCallsetMap(mGenomicsDBImporterObjectHandle, callsetMappingPB.toByteArray());
 
-        String chromosomeName = importConfig.getImportConfiguration().getColumnPartitions(rank).getBegin().getContigPosition().getContig();
-        int chromosomeStart = (int) importConfig.getImportConfiguration().getColumnPartitions(rank).getBegin().getContigPosition().getPosition();
-        int chromosomeEnd = (int) importConfig.getImportConfiguration().getColumnPartitions(rank).getEnd().getContigPosition().getPosition();
+        GenomicsDBImportConfiguration.Partition partition = importConfig.getImportConfiguration().getColumnPartitions(rank);
+        String chromosomeName = "";
+        int chromosomeStart = 0;
+        int chromosomeEnd = 0;
+        if (partition.getBegin().hasContigPosition()) {
+            chromosomeName = partition.getBegin().getContigPosition().getContig();
+            chromosomeStart = (int) partition.getBegin().getContigPosition().getPosition();
+            chromosomeEnd = (int) partition.getEnd().getContigPosition().getPosition();
+        }
         
         if(sampleToReaderMap != null)
             for (final Map.Entry<String, FeatureReader<VariantContext>> currEntry : sampleToReaderMap.entrySet()) {
@@ -146,7 +155,21 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
 
                 FeatureReader<VariantContext> featureReader = currEntry.getValue();
 
-                CloseableIterator<VariantContext> iterator = featureReader.query(chromosomeName, chromosomeStart, chromosomeEnd);
+                Iterator<VariantContext> iterator;
+                if (chromosomeName != null && !chromosomeName.isEmpty()) {
+                    iterator = featureReader.query(chromosomeName, chromosomeStart, chromosomeEnd);
+                }
+                else {
+                    // we may have multiple chromosomes per partition...
+                    try {
+                        iterator = GenomicsDBImporter.columnPartitionIterator(
+                                featureReader, 
+                                importJSONFile.getAbsolutePath(), rank);
+                    }
+                    catch (ParseException ex) {
+                        throw new RuntimeException("Error parsing import json file:"+ex);
+                    }
+                }
 
                 addSortedVariantContextIterator(
                         getStreamNameFromSampleName(sampleName),
@@ -182,10 +205,17 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
             GenomicsDBImportConfiguration.Partition partition = this.config.getImportConfiguration().getColumnPartitions(0); 
             String array;
             if (partition.hasGenerateArrayNameFromPartitionBounds()) {
-                final String chromosomeName = partition.getBegin().getContigPosition().getContig();
-                final int chromosomeStart = (int) partition.getBegin().getContigPosition().getPosition();
-                final int chromosomeEnd = (int) partition.getEnd().getContigPosition().getPosition();
-                array = String.format(Constants.CHROMOSOME_INTERVAL_FOLDER, chromosomeName, chromosomeStart, chromosomeEnd);
+                if (partition.getBegin().hasContigPosition()) {
+                    final String chromosomeName = partition.getBegin().getContigPosition().getContig();
+                    final int chromosomeStart = (int) partition.getBegin().getContigPosition().getPosition();
+                    final int chromosomeEnd = (int) partition.getEnd().getContigPosition().getPosition();
+                    array = String.format(Constants.CHROMOSOME_INTERVAL_FOLDER, chromosomeName, chromosomeStart, chromosomeEnd);
+                }
+                else {
+                    // if array name isn't using contig position, then just named using
+                    // partition rank. Let's pick "0" to get max row index
+                    array = "0";
+                }
             } else {
                 array = partition.getArrayName();
             }
@@ -334,13 +364,11 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     }
 
     /**
-     * Utility function that returns a MultiChromosomeIterator given an AbstractFeatureReader
+     * Utility function that returns a MultiChromosomeIterator given an FeatureReader
      * that will iterate over the VariantContext objects provided by the reader belonging
      * to the column partition specified by the loader JSON file and rank/partition index
      *
-     * @param <SOURCE>       LineIterator for VCFs, PositionalBufferedStream for BCFs
-     * @param reader         AbstractFeatureReader over VariantContext objects -
-     *                       SOURCE can vary - BCF v/s VCF for example
+     * @param reader         AbstractFeatureReader over VariantContext objects
      * @param loaderJSONFile path to loader JSON file
      * @param partitionIdx   rank/partition index
      * @return MultiChromosomeIterator that iterates over VariantContext objects in the reader
@@ -348,11 +376,11 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
      * @throws IOException    when the reader's query method throws an IOException
      * @throws ParseException when there is a bug in the JNI interface and a faulty JSON is returned
      */
-    public static <SOURCE> MultiChromosomeIterator<SOURCE> columnPartitionIterator(
-            AbstractFeatureReader<VariantContext, SOURCE> reader,
+    public static MultiChromosomeIterator columnPartitionIterator(
+            FeatureReader<VariantContext> reader,
             final String loaderJSONFile,
             final int partitionIdx) throws ParseException, IOException {
-        return new MultiChromosomeIterator<>(reader, GenomicsDBImporter.getChromosomeIntervalsForColumnPartition(
+        return new MultiChromosomeIterator(reader, GenomicsDBImporter.getChromosomeIntervalsForColumnPartition(
                 loaderJSONFile, partitionIdx));
     }
 
@@ -361,6 +389,7 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                 config.getImportConfiguration().toBuilder();
         importConfigurationBuilder.setSegmentSize(config.getImportConfiguration().getSegmentSize())
                 .setFailIfUpdating(config.getImportConfiguration().getFailIfUpdating())
+                .setEnableSharedPosixfsOptimizations(config.getImportConfiguration().getEnableSharedPosixfsOptimizations())
                 //TODO: making the following attributes explicit since the C++ layer is not working with the
                 // protobuf object and it's defaults
                 .setTreatDeletionsAsIntervals(true).setCompressTiledbArray(true).setNumCellsPerTile(1000)
@@ -690,16 +719,16 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     }
 
     private void updateConfigPartitionsAndLbUb(ImportConfig importConfig, final int index, final int rank) {
-        final String chromosomeName = importConfig.getImportConfiguration().getColumnPartitions(rank).getBegin()
-                .getContigPosition().getContig();
-        final int chromosomeStart = (int) importConfig.getImportConfiguration().getColumnPartitions(rank).getBegin()
-                .getContigPosition().getPosition();
-        final int chromosomeEnd = (int) importConfig.getImportConfiguration().getColumnPartitions(rank).getEnd()
-                .getContigPosition().getPosition();
         GenomicsDBImportConfiguration.Partition partition = importConfig.getImportConfiguration().getColumnPartitions(rank);
-
         if (partition.hasGenerateArrayNameFromPartitionBounds()) {
-            String arrayName = String.format(Constants.CHROMOSOME_INTERVAL_FOLDER, chromosomeName, chromosomeStart, chromosomeEnd);
+            String arrayName = Integer.toString(rank);
+            if (partition.getBegin().hasContigPosition()) {
+                final String chromosomeName = partition.getBegin().getContigPosition().getContig();
+                final int chromosomeStart = (int) partition.getBegin().getContigPosition().getPosition();
+                final int chromosomeEnd = (int) partition.getEnd().getContigPosition().getPosition();
+
+                arrayName = String.format(Constants.CHROMOSOME_INTERVAL_FOLDER, chromosomeName, chromosomeStart, chromosomeEnd);
+            }
             partition = partition.toBuilder().setArrayName(arrayName).build();
         }
 
@@ -743,20 +772,18 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     }
 
     /**
-     * Utility function that returns a MultiChromosomeIterator given an AbstractFeatureReader
+     * Utility function that returns a MultiChromosomeIterator given an FeatureReader
      * that will iterate over the VariantContext objects provided by the reader belonging
      * to the column partition specified by this object's loader JSON file and rank/partition index
      *
-     * @param <SOURCE> LineIterator for VCFs, PositionalBufferedStream for BCFs
-     * @param reader   AbstractFeatureReader over VariantContext objects -
-     *                 SOURCE can vary - BCF v/s VCF for example
+     * @param reader   AbstractFeatureReader over VariantContext objects
      * @return MultiChromosomeIterator that iterates over VariantContext objects in the reader
      * belonging to the specified column partition
      * @throws IOException    when the reader's query method throws an IOException
      * @throws ParseException when there is a bug in the JNI interface and a faulty JSON is returned
      */
-    public <SOURCE> MultiChromosomeIterator<SOURCE> columnPartitionIterator(
-            AbstractFeatureReader<VariantContext, SOURCE> reader) throws ParseException, IOException {
+    public MultiChromosomeIterator columnPartitionIterator(
+            FeatureReader<VariantContext> reader) throws ParseException, IOException {
         return GenomicsDBImporter.columnPartitionIterator(reader, mLoaderJSONFile, mRank);
     }
 
@@ -797,4 +824,131 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
         mDone = true;
     }
 
+    /*
+     * Create and return Partition protobuf object using start and workspace attributes
+     */
+    private GenomicsDBImportConfiguration.Partition.Builder initializePartitionPB(final long start,
+            final String workspace) {
+        GenomicsDBImportConfiguration.Partition.Builder partitionBuilder =
+                GenomicsDBImportConfiguration.Partition.newBuilder();
+        Coordinates.GenomicsDBColumn.Builder columnBuilder =
+                Coordinates.GenomicsDBColumn.newBuilder().setTiledbColumn(start);
+        partitionBuilder.setBegin(columnBuilder.build());
+        partitionBuilder.setWorkspace(workspace);
+        partitionBuilder.setGenerateArrayNameFromPartitionBounds(true);
+        return partitionBuilder;
+    }
+
+    /*
+     * Returns Vid contigs that match loader column partitions
+     */
+    private List<GenomicsDBVidMapProto.Chromosome> getContigsFromPartitions(
+            GenomicsDBImportConfiguration.ImportConfiguration.Builder builder) {
+        assert builder.hasVidMapping() : "ImportConfiguration must specify VidMapping";
+        GenomicsDBVidMapProto.VidMappingPB vidPB = builder.getVidMapping();
+        assert builder.getColumnPartitions(0).getBegin().hasContigPosition() : 
+                "Partitions must be specified using ContigPositions";
+
+        Set<String> contigNames = builder.getColumnPartitionsList().stream()
+                .map(x -> x.getBegin().getContigPosition().getContig())
+                .collect(Collectors.toSet());
+
+        return vidPB.getContigsList().stream()
+                .filter(x -> contigNames.contains(x.getName()))
+                .collect(Collectors.toList());
+    }
+
+    /*
+     * Returns Vid protobuf object that only has contigs specified in contigList
+     */
+    private GenomicsDBVidMapProto.VidMappingPB regenerateVidUsingContigList(
+            GenomicsDBImportConfiguration.ImportConfiguration.Builder builder,
+             final List<GenomicsDBVidMapProto.Chromosome> contigList) {
+        assert builder.hasVidMapping() : "ImportConfiguration must specify VidMapping";
+        GenomicsDBVidMapProto.VidMappingPB.Builder vidBuilder = 
+                builder.getVidMapping().toBuilder();
+
+        // only need to regenerate vid if interval list (read: map)
+        // doesn't include all the contigs
+        if (vidBuilder.getContigsCount() != contigList.size()) {
+            vidBuilder.clearContigs();
+            long columnOffset = 0;
+            for (GenomicsDBVidMapProto.Chromosome entry : contigList) {
+                GenomicsDBVidMapProto.Chromosome.Builder chr = GenomicsDBVidMapProto.Chromosome.newBuilder();
+                chr.setName(entry.getName()).setLength(entry.getLength()).setTiledbColumnOffset(columnOffset);
+                vidBuilder.addContigs(chr.build());
+                columnOffset += entry.getLength();
+            }
+            GenomicsDBVidMapProto.VidMappingPB vidPB = vidBuilder.build();
+            builder.setVidMapping(vidPB);
+
+            // if we wrote out a vid file earlier, amend it
+            String vidmapOutputFilepath = this.config.getOutputVidmapJsonFile();
+            if (!config.isIncrementalImport() && vidmapOutputFilepath != null && !vidmapOutputFilepath.isEmpty())
+                this.writeVidMapJSONFile(vidmapOutputFilepath, vidPB);
+
+            return vidPB;
+        }
+        return vidBuilder.build();
+    }
+
+    /**
+     * Coalesce contigs into fewer GenomicsDB partitions
+     *
+     * @param partitions Approximate number of partitions to coalesce into
+     * @throws GenomicsDBException Coalescing contigs into partitions fails
+     */
+    public void coalesceContigsIntoNumPartitions(final int partitions)
+            throws GenomicsDBException {
+        GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder =
+                this.config.getImportConfiguration().toBuilder();
+        if (importConfigurationBuilder.hasVidMapping()) {
+            GenomicsDBVidMapProto.VidMappingPB vidPB = importConfigurationBuilder.getVidMapping();
+            // we assume here that contigs in vid are sorted in ascending tiledb column offset order
+            // this is true for vids generated by GenomicsDBImporter...I suppose it could be false
+            // for hand written vids...but we'll throw an exception later if not true
+            final String workspace = importConfigurationBuilder.getColumnPartitions(0).getWorkspace();
+            List<GenomicsDBVidMapProto.Chromosome> contigList = getContigsFromPartitions(importConfigurationBuilder);
+            vidPB = regenerateVidUsingContigList(importConfigurationBuilder, contigList);
+            final int numContigs = vidPB.getContigsCount();
+            final long genomeLength = vidPB.getContigs(numContigs-1).getTiledbColumnOffset() +
+                    vidPB.getContigs(numContigs-1).getLength() + 1;
+            importConfigurationBuilder.clearColumnPartitions();
+
+            // initialize begin for first partition to 0
+            GenomicsDBImportConfiguration.Partition.Builder partitionBuilder =
+                    initializePartitionPB(0, workspace);
+            long partitionSum = 0;
+            long previousEnd = -1;
+            final long goalSize = genomeLength / partitions;
+            for (GenomicsDBVidMapProto.Chromosome contig: vidPB.getContigsList()) {
+                if (previousEnd + 1 != contig.getTiledbColumnOffset()) {
+                    throw new GenomicsDBException("GenomicsDBImporter expects contigs in " +
+                            "vid to be contiguous and be sorted by tiledb_column_offset. " + 
+                            "Contig "+contig.getName()+" has tiledb_column_offset "+contig.getTiledbColumnOffset()+
+                            " while previous contig ended at "+previousEnd);
+                }
+                partitionSum += contig.getLength();
+                previousEnd = contig.getTiledbColumnOffset() + contig.getLength() - 1;
+                if (partitionSum >= goalSize) {
+                    Coordinates.GenomicsDBColumn.Builder endBuilder =
+                        Coordinates.GenomicsDBColumn.newBuilder().setTiledbColumn(previousEnd);
+                    partitionBuilder.setEnd(endBuilder.build());
+                    importConfigurationBuilder.addColumnPartitions(partitionBuilder.build());
+                    partitionBuilder = initializePartitionPB(previousEnd+1, workspace);
+                    partitionSum = 0;
+                }
+            }
+
+            // finish up the final partition
+            Coordinates.GenomicsDBColumn.Builder endBuilder =
+                    Coordinates.GenomicsDBColumn.newBuilder().setTiledbColumn(genomeLength-1);
+            partitionBuilder.setEnd(endBuilder.build());
+            importConfigurationBuilder.addColumnPartitions(partitionBuilder.build());
+            this.config.setImportConfiguration(importConfigurationBuilder.build());
+        }
+        else {
+            throw new GenomicsDBException("GenomicsDBImporter needs vid mapping to coalesce contigs into partitions");
+        }
+    }
 }

@@ -8,6 +8,14 @@
 extern "C" {
 #endif
 /*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni_jniLibraryVersion
+ * Method:    jniVersion
+ * Signature: ()Ljava/lang/String;
+ */
+JNIEXPORT jstring JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniLibraryVersion
+  (JNIEnv *, jclass);
+
+/*
  * Class:     org_genomicsdb_GenomicsDBUtilsJni
  * Method:    jniCreateTileDBWorkspace
  * Signature: (Ljava/lang/String;Z)I
@@ -77,6 +85,14 @@ JNIEXPORT jstring JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniReadEntireFi
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
 JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetMaxValidRowIndex
+  (JNIEnv *, jclass, jstring, jstring);
+
+/*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni
+ * Method:    jniGetArrayColumnBounds
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)I
+ */
+JNIEXPORT jlongArray JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetArrayColumnBounds
   (JNIEnv *, jclass, jstring, jstring);
 
 #ifdef __cplusplus

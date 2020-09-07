@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2018-2019 Omics Data Automation, Inc.
+ * Copyright (c) 2018-2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -109,7 +109,6 @@ class VariantArrayCellIterator {
   }
  private:
   unsigned m_num_queried_attributes;
-  TileDB_CTX* m_tiledb_ctx;
   const VariantArraySchema* m_variant_array_schema;
   BufferVariantCell m_cell;
   //The actual TileDB array iterator
@@ -161,6 +160,7 @@ class VariantArrayInfo {
   }
   void write_cell(const void* ptr);
   static int get_max_valid_row_idx(const std::string& workspace, const std::string& array);
+  static int get_array_column_bounds(const std::string& workspace, const std::string& array, int64_t bounds[]);
   //Read #valid rows from metadata if available, else set from schema (array domain)
   void read_row_bounds_from_metadata();
   int read_row_bounds_from_metadata(const std::string& filepath);
@@ -219,11 +219,9 @@ class VariantArrayInfo {
 
 class VariantStorageManager {
  public:
-  VariantStorageManager(const std::string& workspace, const unsigned segment_size,
-                        const bool disable_file_locking_in_tiledb);
-  VariantStorageManager(const std::string& workspace, const unsigned segment_size=10u*1024u*1024u)
-    : VariantStorageManager(workspace, segment_size, false)
-  {}
+  VariantStorageManager(const std::string& workspace,
+                        const unsigned segment_size=10u*1024u*1024u,
+                        const bool enable_shared_posixfs_optimizations=false);
   ~VariantStorageManager() {
     m_open_arrays_info_vector.clear();
     m_workspace.clear();
@@ -237,7 +235,12 @@ class VariantStorageManager {
 
   int open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode, const std::string& query_filter=std::string());
   void close_array(const int ad, const bool consolidate_tiledb_array=false);
-  int define_array(const VariantArraySchema* variant_array_schema, const size_t num_cells_per_tile=1000u);
+  int define_array(const VariantArraySchema* variant_array_schema,
+                   const size_t num_cells_per_tile=1000u,
+                   const bool disable_delta_encode_for_offsets=false,
+                   const bool disable_delta_encode_for_coords=false,
+                   const bool enable_bit_shuffle_gt=false,
+                   const bool enable_lz4_compression_gt=false);
   void delete_array(const std::string& array_name);
   int define_metadata_schema(const VariantArraySchema* variant_array_schema);
   /*
@@ -270,6 +273,7 @@ class VariantStorageManager {
    * Update row bounds in the metadata
    */
   void update_row_bounds_in_array(const int ad, const int64_t lb_row_idx, const int64_t max_valid_row_idx_in_array);
+  void write_column_bounds_to_array(const int ad, const int64_t column_min, const int64_t column_max);
   /*
    * Return workspace path
    */

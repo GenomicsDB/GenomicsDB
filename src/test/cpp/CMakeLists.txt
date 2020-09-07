@@ -30,9 +30,11 @@ include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})
 
 set(CPP_TEST_SOURCES
   src/ctest_main.cc
+  src/test_config.cc
   src/test_non_diploid_mapper.cc
   src/test_multid_vector.cc
   src/test_pb.cc
+  src/test_logger.cc
   )
 
 if(LIBDBI_FOUND)
@@ -50,19 +52,20 @@ function(target_link_libraries_for_GenomicsDB_tests target)
 endfunction()
 
 add_executable(ctests ${CPP_TEST_SOURCES})
-build_GenomicsDB_links(ctests)
+target_link_libraries_for_GenomicsDB_tests(ctests)
+target_compile_definitions(ctests PRIVATE -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/")
 add_test(ctests ctests -d yes)
 
 add_executable(api_tests
   src/ctest_main.cc
   src/test_genomicsdb_api.cc)
-build_GenomicsDB_links(api_tests)
+target_link_libraries_for_GenomicsDB_tests(api_tests)
 target_compile_definitions(api_tests PRIVATE -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/")
 add_test(api_tests api_tests -d yes)
 
 add_custom_command(TARGET api_tests
   COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/../inputs/test.tgz
-  WORKING_DRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../inputs/test.tgz)
 
 add_custom_target(all_ctests COMMAND ${CMAKE_CTEST_COMMAND} -V DEPENDS ctests api_tests)

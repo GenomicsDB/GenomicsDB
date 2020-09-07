@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -21,6 +22,7 @@
 */
 
 #include "known_field_info.h"
+#include "logger.h"
 #include "vid_mapper.h"
 #include "variant_operations.h"
 
@@ -198,7 +200,7 @@ unsigned KnownFieldInfo::get_num_elements_for_known_field_enum(unsigned num_ALT_
     length = ploidy;
     break;
   default:
-    std::cerr << "Unknown length descriptor "<<m_length_descriptor<<" - ignoring\n";
+    logger.error("Unknown length descriptor {} - ignoring", m_length_descriptor);
     break;
   }
   return length;
@@ -291,6 +293,16 @@ bool VariantUtils::contains_deletion(const std::string& REF, const std::vector<s
     return false;
   for (auto& alt_allele : ALT_vec)
     if (is_deletion(REF, alt_allele))
+      return true;
+  return false;
+}
+
+bool VariantUtils::contains_MNV(const std::string& REF, const std::vector<std::string>& ALT_vec) {
+  auto REF_length = REF.length();
+  if (REF_length <= 1u)
+    return false;
+  for (auto& alt_allele : ALT_vec)
+    if (is_MNV(REF, alt_allele))
       return true;
   return false;
 }

@@ -45,6 +45,7 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.Base64;
 
 import com.googlecode.protobuf.format.JsonFormat;
 
@@ -139,7 +140,8 @@ public final class TestGenomicsDBSparkHDFS {
           GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
       String jsonString = readFile(queryFile, Charset.defaultCharset());
       JsonFormat.merge(jsonString, builder);
-      String pbString = JsonFormat.printToString(builder.build());
+      byte[] pb = builder.build().toByteArray();
+      String pbString = Base64.getEncoder().encodeToString(pb);
       hadoopConf.set(GenomicsDBConfiguration.QUERYPB, pbString);
     }
     if(!hostfile.isEmpty()) {

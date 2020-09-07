@@ -25,7 +25,7 @@
 unsigned GenomicsDBBCFGenerator_NUM_ENTRIES_IN_CIRCULAR_BUFFER=1u;
 GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_file, 
     const genomicsdb_pb::ExportConfiguration *query_config_pb,
-    const char* chr, const int start, const int end,
+    const char* chr, const long start, const long end,
     int my_rank, size_t buffer_capacity, size_t tiledb_segment_size, const char* output_format,
     const bool produce_header_only,
     const bool use_missing_values_only_not_vector_end, const bool keep_idx_fields_in_bcf_header)
@@ -61,11 +61,17 @@ GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_
     if (!found_contig)
       throw GenomicsDBJNIException(std::string("Could not find TileDB column interval for contig: ")+chr);
     int64_t column_begin = contig_info.m_tiledb_column_offset + static_cast<int64_t>(start) - 1; //since VCF positions are 1 based
-    int64_t column_end = contig_info.m_tiledb_column_offset + static_cast<int64_t>(end) - 1; //since VCF positions are 1 based
+    // check that end position doesn't go beyond contig length
+    int64_t end_check = std::min<int64_t>(end, contig_info.m_length);
+    int64_t column_end = contig_info.m_tiledb_column_offset + static_cast<int64_t>(end_check) - 1; //since VCF positions are 1 based
     m_query_config.set_column_interval_to_query(column_begin, column_end);
   }
+  else if (start != 0 || end != 0) {
+    m_query_config.set_column_interval_to_query(start, end);
+  }
   m_storage_manager = new VariantStorageManager(m_query_config.get_workspace(my_rank),
-      m_query_config.get_segment_size());
+                                                m_query_config.get_segment_size(),
+                                                m_query_config.enable_shared_posixfs_optimizations());
   m_query_processor = new VariantQueryProcessor(m_storage_manager,
       m_query_config.get_array_name(my_rank),
       vid_mapper);

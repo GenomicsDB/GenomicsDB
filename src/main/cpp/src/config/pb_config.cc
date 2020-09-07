@@ -212,9 +212,9 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
   m_produce_GT_with_min_PL_value_for_spanning_deletions =
     export_config->has_produce_gt_with_min_pl_value_for_spanning_deletions()
     ? export_config->produce_gt_with_min_pl_value_for_spanning_deletions() : false;
-  //Disable file locking in TileDB
-  m_disable_file_locking_in_tiledb = export_config->has_disable_file_locking_in_tiledb()
-    ? export_config->disable_file_locking_in_tiledb() : false;
+  //Enable Shared PosixFS Optimizations in TileDB
+  m_enable_shared_posixfs_optimizations = export_config->has_enable_shared_posixfs_optimizations()
+    ? export_config->enable_shared_posixfs_optimizations() : false;
 }
 
 void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(
@@ -249,18 +249,21 @@ void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_availa
   }
 }
 
-void GenomicsDBConfigBase::get_pb_from_query_json_file(
-        genomicsdb_pb::ExportConfiguration *export_config,
+void GenomicsDBConfigBase::get_pb_from_json_file(
+        google::protobuf::Message *pb_config,
         const std::string& json_file) {
   char *json_buffer = 0;
   size_t json_buffer_length;
   if (TileDBUtils::read_entire_file(json_file, (void **)&json_buffer, &json_buffer_length) != TILEDB_OK
         || !json_buffer || json_buffer_length == 0) { 
     free(json_buffer);
-    std::cerr << "Could not open query JSON file "+json_file+"\n";
-    exit(-1);
+    throw GenomicsDBConfigException(std::string("Could not open query JSON file ")+json_file);
   }
   std::string json_to_binary_output;
+#ifndef USE_PROTOBUF_V_3_0_0_BETA_1
+  google::protobuf::util::JsonParseOptions parse_opt;
+  parse_opt.ignore_unknown_fields = true;
+#endif
   //The function JsonStringToMessage was made available in Protobuf version 3.0.0. However,
   //to maintain compatibility with GATK-4, we need to use 3.0.0-beta-1. This version doesn't have
   //the JsonStringToMessage method. A workaround is as follows.
@@ -268,16 +271,20 @@ void GenomicsDBConfigBase::get_pb_from_query_json_file(
   google::protobuf::util::TypeResolver* resolver= google::protobuf::util::NewTypeResolverForDescriptorPool(
       "", google::protobuf::DescriptorPool::generated_pool());
   auto status = google::protobuf::util::JsonToBinaryString(resolver,
-      "/"+export_config->GetDescriptor()->full_name(), json_buffer,
-      &json_to_binary_output);
+      "/"+pb_config->GetDescriptor()->full_name(), json_buffer,
+      &json_to_binary_output
+#ifndef USE_PROTOBUF_V_3_0_0_BETA_1
+      , parse_opt
+#endif
+      );
   if (!status.ok()) {
-    std::cerr << "Error converting JSON to binary string\n";
-    exit(-1);
+    delete resolver;
+    free(json_buffer);
+    throw GenomicsDBConfigException(std::string("Error converting JSON to binary string from file ")+json_file);
   }
   delete resolver;
-  auto success = export_config->ParseFromString(json_to_binary_output);
-  if(!success) {
-    std::cerr << "Could not parse query JSON file to protobuf\n";
-    exit(-1);
-  }
+  free(json_buffer);
+  auto success = pb_config->ParseFromString(json_to_binary_output);
+  if(!success)
+    throw GenomicsDBConfigException(std::string("Could not parse query JSON file to protobuf ")+json_file);
 }

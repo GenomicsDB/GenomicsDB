@@ -10,3 +10,6 @@
 [submodule "src/test/cpp/Catch2"]
 	path = src/test/cpp/Catch2
 	url = https://github.com/catchorg/Catch2
+[submodule "dependencies/spdlog"]
+	path = dependencies/spdlog
+	url = https://github.com/gabime/spdlog.git

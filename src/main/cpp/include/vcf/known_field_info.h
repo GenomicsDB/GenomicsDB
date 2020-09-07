@@ -219,6 +219,7 @@ extern KnownFieldInitializer g_known_field_initializer;
 class VariantUtils {
  public:
   static bool contains_deletion(const std::string& REF, const std::vector<std::string>& ALT_vec);
+  static bool contains_MNV(const std::string& REF, const std::vector<std::string>& ALT_vec);
   inline static bool is_deletion(const std::string& REF, const std::string& alt_allele) {
     auto REF_length = REF.length();
     auto alt_allele_length = alt_allele.length();
@@ -239,6 +240,23 @@ class VariantUtils {
   }
   inline static bool is_reference_block(const std::string& REF, const std::vector<std::string>& ALT_vec) {
     return (REF.length() == 1u && ALT_vec.size() == 1u && IS_NON_REF_ALLELE(ALT_vec[0]));
+  }
+  inline static unsigned compute_num_mismatching_bases(const std::string& REF, const std::string& alt_allele) {
+    assert(REF.length() == alt_allele.length());
+    auto num_diff_bases = 0u;
+    for(auto i=0u;i<alt_allele.length();++i)
+      num_diff_bases += (REF[i] != alt_allele[i]);
+    return num_diff_bases;
+  }
+  inline static bool is_MNV(const std::string& REF, const std::string& alt_allele) {
+    auto REF_length = REF.length();
+    auto alt_allele_length = alt_allele.length();
+    return (REF_length > 1u
+	&& !is_symbolic_allele(alt_allele) && (alt_allele_length == REF_length)
+	&& compute_num_mismatching_bases(REF, alt_allele) > 1u);
+  }
+  inline static bool is_deletion_or_MNV(const std::string& REF, const std::string& alt_allele) {
+    return is_deletion(REF, alt_allele) || is_MNV(REF, alt_allele);
   }
 };
 

@@ -23,6 +23,15 @@
 package org.genomicsdb;
 
 public class GenomicsDBUtils {
+
+    /**
+     * Get full version string of GenomicsDB
+     * @return version of GenomicsDB
+     */
+    public static String nativeLibraryVersion() {
+        return GenomicsDBUtilsJni.jniLibraryVersion();
+    }
+
     /**
      * Create TileDB workspace
      *
@@ -44,7 +53,7 @@ public class GenomicsDBUtils {
      * @return status 0 = OK
      */
     public static int writeToFile(final String filename, final String contents) {
-	return GenomicsDBUtilsJni.jniWriteToFile(filename, contents, (long)contents.length());
+        return GenomicsDBUtilsJni.jniWriteToFile(filename, contents, (long) contents.length());
     }
 
     /**
@@ -122,6 +131,16 @@ public class GenomicsDBUtils {
     public static int getMaxValidRowIndex(final String workspace, final String array) {
 	return GenomicsDBUtilsJni.jniGetMaxValidRowIndex(workspace, array);
     } 
+
+    /**
+     * Get array column bounds
+     * @param workspace path to workspace
+     * @param array name of workspace
+     * @return array of length 2 with with [0] = min column, [1] = max column
+     */
+    public static long[] getArrayColumnBounds(final String workspace, final String array) {
+	return GenomicsDBUtilsJni.jniGetArrayColumnBounds(workspace, array);
+    }
 
 }
 

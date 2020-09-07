@@ -24,10 +24,18 @@
 #define GENOMICSDB_CONFIG_BASE_H
 
 #include "vid_mapper.h"
+#include <google/protobuf/message.h>
 
 namespace genomicsdb_pb {
   class ExportConfiguration;
 }
+
+// Overridding env variables
+#define ENABLE_SHARED_POSIXFS_OPTIMIZATIONS "GENOMICSDB_SHARED_POSIXFS_OPTIMIZATIONS"
+#define DISABLE_DELTA_ENCODE_OFFSETS "GENOMICSDB_OFFSETS_DISABLE_DELTA_ENCODE"
+#define DISABLE_DELTA_ENCODE_COORDS "GENOMICSDB_COORDS_DISABLE_DELTA_ENCODE"
+#define ENABLE_BIT_SHUFFLE_GT "GENOMICSDB_GT_ENABLE_BIT_SHUFFLE"
+#define ENABLE_LZ4_GT "GENOMICSDB_GT_ENABLE_LZ4_COMPRESSION"
 
 //Exceptions thrown
 class GenomicsDBConfigException : public std::exception {
@@ -89,12 +97,15 @@ class GenomicsDBConfigBase {
   const std::string& get_vcf_header_filename() const {
     return m_vcf_header_filename;
   }
+  const std::string& get_vcf_output_filename() const {
+    return m_vcf_output_filename;
+  }
+  void set_vcf_output_filename(const std::string& output_filename) {
+     m_vcf_output_filename = output_filename;
+  }
   void set_vcf_output_format(const std::string& output_format);
   const std::string& get_vcf_output_format() const {
     return m_vcf_output_format;
-  }
-  const std::string& get_vcf_output_filename() const {
-    return m_vcf_output_filename;
   }
   const std::string& get_reference_genome() const {
     return m_reference_genome;
@@ -113,6 +124,9 @@ class GenomicsDBConfigBase {
   }
   const bool index_output_VCF() const {
     return m_index_output_VCF;
+  }
+  void set_index_output_VCF(bool index_output_vcf) {
+    m_index_output_VCF = index_output_vcf;
   }
   const bool produce_GT_with_min_PL_value_for_spanning_deletions() const {
     return m_produce_GT_with_min_PL_value_for_spanning_deletions;
@@ -136,16 +150,16 @@ class GenomicsDBConfigBase {
     m_vid_mapping_file = vid_mapping_file;
   }
   //Sometimes information is present in the loader - copy over
-  void update_from_loader(const GenomicsDBImportConfig& loader_config, const int rank);
-  void subset_query_column_ranges_based_on_partition(const GenomicsDBImportConfig& loader_config, const int rank);
+  void update_from_loader(const GenomicsDBImportConfig& loader_config, const int rank=0);
+  void subset_query_column_ranges_based_on_partition(const GenomicsDBImportConfig& loader_config, const int rank=0);
   inline TileDBRowRange get_row_bounds() const {
     return TileDBRowRange(m_lb_callset_row_idx, m_ub_callset_row_idx);
   }
   inline uint64_t get_num_rows_within_bounds() const {
     return m_ub_callset_row_idx - m_lb_callset_row_idx + 1ull;
   }
-  inline bool disable_file_locking_in_tiledb() const {
-    return m_disable_file_locking_in_tiledb;
+  inline bool enable_shared_posixfs_optimizations() const {
+    return is_set_with_env_override(m_enable_shared_posixfs_optimizations, ENABLE_SHARED_POSIXFS_OPTIMIZATIONS);
   }
   void scan_whole_array();
   const std::vector<std::string>& get_attributes() const { return m_attributes; }
@@ -158,7 +172,7 @@ class GenomicsDBConfigBase {
   void read_from_PB_binary_string(const std::string& str, const int rank=0);
   void read_from_PB(const genomicsdb_pb::ExportConfiguration* x, const int rank=0);
   void read_and_initialize_vid_and_callset_mapping_if_available(const genomicsdb_pb::ExportConfiguration*);
-  static void get_pb_from_query_json_file(genomicsdb_pb::ExportConfiguration* export_config, const std::string& json_file);
+  static void get_pb_from_json_file(google::protobuf::Message* pb_config, const std::string& json_file);
  protected:
   bool m_single_workspace_path;
   bool m_single_array_name;
@@ -209,11 +223,23 @@ class GenomicsDBConfigBase {
   //Might be empty strings if using Protobuf
   std::string m_vid_mapping_file;
   std::string m_callset_mapping_file;
-  //Disable file locking in TileDB
-  bool m_disable_file_locking_in_tiledb;
+  //Enable optimizations (disable file locking and enable keep file handles open until finalization
+  bool m_enable_shared_posixfs_optimizations;
  public:
   //Static convenience member
   static std::unordered_map<std::string, bool> m_vcf_output_format_to_is_bcf_flag;
+  static bool is_set_with_env_override(const bool field, const std::string& env) {
+    auto env_var = getenv(env.c_str());
+    if (env_var) {
+      if (strcasecmp(env_var, "true") == 0 || strcmp(env_var, "1") == 0) {
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      return field;
+    }
+  }
 };
 
 class GenomicsDBImportConfig : public GenomicsDBConfigBase {
@@ -253,6 +279,18 @@ class GenomicsDBImportConfig : public GenomicsDBConfigBase {
   inline int64_t get_tiledb_compression_level() const {
     return m_tiledb_compression_level;
   }
+  inline bool disable_delta_encode_offsets() const {
+    return is_set_with_env_override(m_disable_delta_encode_offsets, DISABLE_DELTA_ENCODE_OFFSETS);
+  }
+  inline bool disable_delta_encode_coords() const {
+    return is_set_with_env_override(m_disable_delta_encode_coords, DISABLE_DELTA_ENCODE_COORDS);
+  }
+  inline bool enable_bit_shuffle_gt() const {
+    return is_set_with_env_override(m_enable_bit_shuffle_gt, ENABLE_BIT_SHUFFLE_GT);
+  }
+  inline bool enable_lz4_compression_gt() const {
+    return is_set_with_env_override(m_enable_lz4_compression_gt, ENABLE_LZ4_GT);
+  }
   inline bool fail_if_updating() const {
     return m_fail_if_updating;
   }
@@ -268,6 +306,22 @@ class GenomicsDBImportConfig : public GenomicsDBConfigBase {
   inline bool treat_deletions_as_intervals() const {
     return m_treat_deletions_as_intervals;
   }
+  inline bool produce_tiledb_array() const {
+    return m_produce_tiledb_array;
+  }
+  inline bool produce_combined_vcf() const {
+    return m_produce_combined_vcf;
+  }
+  inline bool discard_vcf_index() const {
+    return  m_discard_vcf_index;
+  }
+  inline int get_num_parallel_vcf_files() const {
+    return m_num_parallel_vcf_files;
+  }
+  inline bool is_row_based_partitioning() const {
+    return m_row_based_partitioning;
+  }
+
  protected:
   bool m_standalone_converter_process;
   bool m_treat_deletions_as_intervals;
@@ -299,6 +353,14 @@ class GenomicsDBImportConfig : public GenomicsDBConfigBase {
   size_t m_num_cells_per_tile;
   //TileDB compression level
   int m_tiledb_compression_level;
+  //flag to disallow TileDB pre compression filter Delta Encoding for offsets to fields
+  bool m_disable_delta_encode_offsets;
+  //flag to disallow TileDB pre compression filter Delta Encoding for coordinates
+  bool m_disable_delta_encode_coords;
+  //flag to allow TileDB pre compression filter Bit Shuffle for GT fields
+  bool m_enable_bit_shuffle_gt;
+  //flag to allow TileDB LZ4 compression for GT fields
+  bool m_enable_lz4_compression_gt;
   //flag that causes the loader to fail if this is an update (rather than a fresh load)
   bool m_fail_if_updating;
   //consolidate TileDB array after load - merges fragments

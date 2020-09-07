@@ -28,7 +28,9 @@ import htsjdk.tribble.Feature;
 import htsjdk.tribble.FeatureCodec;
 import htsjdk.tribble.FeatureCodecHeader;
 import htsjdk.variant.bcf2.BCF2Codec;
+
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
 
 import java.io.IOException;
 import java.util.Iterator;
@@ -40,25 +42,26 @@ import java.util.Collections;
 import java.lang.RuntimeException;
 
 import static org.genomicsdb.Constants.CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX;
+import static org.genomicsdb.GenomicsDBUtils.getArrayColumnBounds;
 
 /**
  * Iterator over {@link htsjdk.variant.variantcontext.VariantContext} objects.
  * Uses {@link GenomicsDBQueryStream} to obtain combined gVCF records
  * (as BCF2) from TileDB/GenomicsDB
  */
-public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements CloseableTribbleIterator<T> {
+public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements CloseableTribbleIterator<T>, JsonFileExtensions {
 
     private class GenomicsDBQueryStreamParamsHolder {
 
         public String loaderJSONFile;
         public GenomicsDBExportConfiguration.ExportConfiguration queryPB;
         public String contig;
-        public int begin;
-        public int end;
+        public long begin;
+        public long end;
 
         GenomicsDBQueryStreamParamsHolder(final String loaderJSONFile, 
                 final GenomicsDBExportConfiguration.ExportConfiguration queryPB,
-                final String contig, final int begin, final int end) {
+                final String contig, final long begin, final long end) {
             this.loaderJSONFile = loaderJSONFile;
             this.queryPB = queryPB;
             this.contig = contig;
@@ -84,6 +87,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
      * @param featureCodecHeader htsjdk Feature codec header
      * @param codec              FeatureCodec, currently only {@link htsjdk.variant.bcf2.BCF2Codec}
      *                           and {@link htsjdk.variant.vcf.VCFCodec} are tested
+     * @throws IOException       when data cannot be read from the stream
      */
     GenomicsDBFeatureIterator(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB,
@@ -106,6 +110,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
      * @param chr                contig name
      * @param start              start position (1-based)
      * @param end                end position, inclusive (1-based)
+     * @throws IOException       when data cannot be read from the stream
      */
     GenomicsDBFeatureIterator(final String loaderJSONFile, 
             final GenomicsDBExportConfiguration.ExportConfiguration queryPB,
@@ -121,24 +126,34 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
                     .setArrayName(array).build();
                 GenomicsDBQueryStreamParamsHolder params;
                 String[] ref = array.split(CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX);
-                if(ref.length != 3) {
-                    throw new RuntimeException("Array folder name format should be " +
-                            "in {chromosome}{delimiter}{intervalStart}{delimiter}{intervalEnd}");
-                }
-                int iStart = Integer.parseInt(ref[1]);
-                int iEnd= Integer.parseInt(ref[2]);
-                if (start.isPresent() && end.isPresent()) {
-                    params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, 
-                            newQueryPB, ref[0], Math.max(start.getAsInt(), iStart),
-                            Math.min(end.getAsInt(), iEnd));
-                }
-                else if (!start.isPresent() && !end.isPresent()) {
-                    params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, 
-                            newQueryPB, ref[0], iStart, iEnd);
+                if(ref.length == 3) {
+                    int iStart = Integer.parseInt(ref[1]);
+                    int iEnd = Integer.parseInt(ref[2]);
+                    if (start.isPresent() && end.isPresent()) {
+                        params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, 
+                                newQueryPB, ref[0], Math.max(start.getAsInt(), iStart), 
+                                Math.min(end.getAsInt(), iEnd));
+                    }
+                    else if (!start.isPresent() && !end.isPresent()) {
+                        params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile, 
+                                newQueryPB, ref[0], iStart, iEnd);
+                    }
+                    else {
+                        throw new RuntimeException("Start and End must either be both specified or both unspecified");
+                    }
                 }
                 else {
-                    throw new RuntimeException("Start and End must either be both specified or both unspecified");
+                    if (start.isPresent() && end.isPresent()) {
+                        params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile,
+                                newQueryPB, chr, start.getAsInt(), end.getAsInt());
+                    }
+                    else {
+                        long[] bounds = getArrayColumnBounds(newQueryPB.getWorkspace(), array);
+                        params = new GenomicsDBQueryStreamParamsHolder(loaderJSONFile,
+                                newQueryPB, "", bounds[0], bounds[1]);
+                    }
                 }
+
                 return params;
             }).collect(Collectors.toList());
         }

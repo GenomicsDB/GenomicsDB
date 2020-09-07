@@ -29,20 +29,25 @@ import htsjdk.variant.vcf.VCFContigHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
 
 import org.genomicsdb.model.Coordinates;
+import org.genomicsdb.model.GenomicsDBVidMapProto;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 import static org.genomicsdb.Constants.CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX;
 import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBArrays;
+import static org.genomicsdb.GenomicsDBUtils.getArrayColumnBounds;
+import static com.googlecode.protobuf.format.JsonFormat.ParseException;
 
 /**
  * A reader for GenomicsDB that implements {@link htsjdk.tribble.FeatureReader}
  * Currently, the reader only return {@link htsjdk.variant.variantcontext.VariantContext}
  */
-public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements FeatureReader<T> {
+public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements FeatureReader<T>, JsonFileExtensions {
     private String loaderJSONFile;
     private GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration;
     private FeatureCodec<T, SOURCE> codec;
@@ -156,9 +161,28 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
     }
 
 
-    private void throwExceptionIfArrayFolderRefIsWrong(String[] ref) {
-        if (ref.length != 3) throw new RuntimeException("There is a wrong array folder name in the workspace. " +
-                "Array folder name should be {chromosome}{delimiter}{intervalStart}{delimiter}{intervalEnd}");
+    private boolean checkIfContigOverlapsArray(String workspace, String array, 
+            Coordinates.ContigInterval contigInterval) {
+        String[] ref = array.split(CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX);
+        if (ref.length == 3) {
+            return contigInterval.getContig().equals(ref[0]) && (contigInterval.getBegin() <= Integer.parseInt(ref[2])
+                    && contigInterval.getEnd() >= Integer.parseInt(ref[1]));
+        }
+        else {
+            try {
+                GenomicsDBVidMapProto.VidMappingPB vidPB = this.exportConfiguration.hasVidMapping() ?
+                        this.exportConfiguration.getVidMapping() :
+                        generateVidMapFromFile(this.exportConfiguration.getVidMappingFile());
+                long[] bounds = getArrayColumnBounds(workspace, array);
+                // here we only check if contig starts within column bounds
+                // this works because currently the contig coalescing respects contig boundaries
+                // that is, we are guaranteed that entire contigs reside in the same array
+                // if that changes we need to get smarter here
+                return checkVidIfContigStartsWithinColumnBounds(vidPB, bounds, contigInterval);
+            } catch (ParseException e) {
+                throw new RuntimeException("Error parsing vid from file");
+            }
+        }
     }
 
 
@@ -187,11 +211,8 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
 
     private List<String> getArrayListFromWorkspace(final String workspace_str, Optional<Coordinates.ContigInterval> chromosome) {
 	List<String> folders = Arrays.asList(listGenomicsDBArrays(workspace_str));
-        return chromosome.map(contigInterval -> folders.stream().filter(name -> {
-            String[] ref = name.split(CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX);
-            throwExceptionIfArrayFolderRefIsWrong(ref);
-            return contigInterval.getContig().equals(ref[0]) && (contigInterval.getBegin() <= Integer.parseInt(ref[2])
-                    && contigInterval.getEnd() >= Integer.parseInt(ref[1]));
-        }).collect(toList())).orElse(folders);
+        return chromosome.map(contigInterval -> folders.stream().filter(name -> 
+            checkIfContigOverlapsArray(workspace_str, name, contigInterval)
+        ).collect(toList())).orElse(folders);
     }
 }

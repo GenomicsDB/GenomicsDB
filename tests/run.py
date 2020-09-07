@@ -2,7 +2,7 @@
 
 #The MIT License (MIT)
 #Copyright (c) 2016-2017 Intel Corporation
-#Copyright (c) 2019 Omics Data Automation, Inc.
+#Copyright (c) 2019-2020 Omics Data Automation, Inc.
 
 #Permission is hereby granted, free of charge, to any person obtaining a copy of 
 #this software and associated documentation files (the "Software"), to deal in 
@@ -62,6 +62,11 @@ asa_vcf_attributes = [ "END", "REF", "ALT", "BaseQRankSum", "ClippingRankSum", "
 attributes_with_DS_ID = [ "REF", "ALT", "BaseQRankSum", "MQ", "RAW_MQ", "MQ0", "ClippingRankSum", "MQRankSum", "ReadPosRankSum", "DP", "GT", "GQ", "SB", "AD", "PL", "DP_FORMAT", "MIN_DP", "PID", "PGT", "DS", "ID" ];
 attributes_with_PL_only = [ "PL" ]
 attributes_with_MLEAC_only = [ "MLEAC" ]
+attributes_with_bigint = [ "big_field1", "big_field2", "AS_big_field3", "big_field4", "AS_big_field5", "DP", "GT" ]
+attributes_multi_contig = ["DP", "AF", "GT"]
+attributes_multi_contig_empty_contigs = [ "REF", "ALT", "ID", "AD", "DP", "GQ", "GT", "PL", "BaseQRankSum", "HaplotypeScore", "MLEAC", "MLEAF", "MQ", "MQRankSum", "NS", "ReadPosRankSum", "SB", "DP_FORMAT", "AN"] 
+# multi contig interval below is missing scaffold_3123 to test that we can deal with non-contiguous contigs when coalescing
+multi_contig_empty_contigs_intervals = ['scaffold_3370:1-2985', 'scaffold_3100:1-2123', 'scaffold_3160:1-1884', 'scaffold_3300:1-2080', 'scaffold_3060:1-2290', 'scaffold_3360:1-1235', 'scaffold_3190:1-1726', 'scaffold_3020:1-2530', 'scaffold_3050:1-2317', 'scaffold_3340:1-2888', 'scaffold_2930:1-2674', 'scaffold_3230:1-1594', 'scaffold_3320:1-2574', 'scaffold_3210:1-1863', 'scaffold_3440:1-1034', 'scaffold_3550:1-1938', 'scaffold_3250:1-1485', 'scaffold_3391:1-1147', 'scaffold_3431:1-1055', 'scaffold_3171:1-1840', 'scaffold_3191:1-2934', 'scaffold_3061:1-2903', 'scaffold_2911:1-2734', 'scaffold_2951:1-2618', 'scaffold_3231:1-1591', 'scaffold_2981:1-2544', 'scaffold_3021:1-2419', 'scaffold_3381:1-1181', 'scaffold_3011:1-2971', 'scaffold_3681:1-1022', 'scaffold_2851:1-2950', 'scaffold_3121:1-2043', 'scaffold_3251:1-2376', 'scaffold_2922:1-2707', 'scaffold_3452:1-1858', 'scaffold_3362:1-1482', 'scaffold_3342:1-2686', 'scaffold_3042:1-2357', 'scaffold_3372:1-1208', 'scaffold_3472:1-1331', 'scaffold_3202:1-2247', 'scaffold_3312:1-1324', 'scaffold_3432:1-1048', 'scaffold_3272:1-1426', 'scaffold_3422:1-2139', 'scaffold_3412:1-2813', 'scaffold_3222:1-1606', 'scaffold_3262:1-1448', 'scaffold_3352:1-2879', 'scaffold_3442:1-1032', 'scaffold_3332:1-1283', 'scaffold_3292:1-1613', 'scaffold_3252:1-1483', 'scaffold_3383:1-1162', 'scaffold_3423:1-1189', 'scaffold_3353:1-1243', 'scaffold_2933:1-2669', 'scaffold_2853:1-2935', 'scaffold_2913:1-2832', 'scaffold_2893:1-2797', 'scaffold_3413:1-1105', 'scaffold_3453:1-1003', 'scaffold_3523:1-1130', 'scaffold_3213:1-1653', 'scaffold_3223:1-1705', 'scaffold_3263:1-1970', 'scaffold_3053:1-2603', 'scaffold_3363:1-1230', 'scaffold_3403:1-2418', 'scaffold_3393:1-1141', 'scaffold_3294:1-1369', 'scaffold_3384:1-2287', 'scaffold_3364:1-2412', 'scaffold_3044:1-2336', 'scaffold_3134:1-2599', 'scaffold_3264:1-1441', 'scaffold_2844:1-2966', 'scaffold_3214:1-1641', 'scaffold_3064:1-2391', 'scaffold_3304:1-1992', 'scaffold_3014:1-2633', 'scaffold_3024:1-2408', 'scaffold_3354:1-2537', 'scaffold_3194:1-2061', 'scaffold_2924:1-2704', 'scaffold_3054:1-2300', 'scaffold_3074:1-2965', 'scaffold_3374:1-1200', 'scaffold_3445:1-1028', 'scaffold_3335:1-1924', 'scaffold_3005:1-2485', 'scaffold_2885:1-2936', 'scaffold_2855:1-2931', 'scaffold_3285:1-2448', 'scaffold_3255:1-2564', 'scaffold_3095:1-2137', 'scaffold_3245:1-2263', 'scaffold_3425:1-1075', 'scaffold_2965:1-2576', 'scaffold_3275:1-1417', 'scaffold_3325:1-1298', 'scaffold_3305:1-1337', 'scaffold_3346:1-1260', 'scaffold_3426:1-1074', 'scaffold_3416:1-1094', 'scaffold_3046:1-2329', 'scaffold_3246:1-1501', 'scaffold_3326:1-2466', 'scaffold_3436:1-2815', 'scaffold_3356:1-2921', 'scaffold_3206:1-1669', 'scaffold_3316:1-1314', 'scaffold_3296:1-1362', 'scaffold_3116:1-2637', 'scaffold_3136:1-2710', 'scaffold_3306:1-1470', 'scaffold_3236:1-1544', 'scaffold_3446:1-1027', 'scaffold_3126:1-2028', 'scaffold_3226:1-1920', 'scaffold_3076:1-2214', 'scaffold_3056:1-2299', 'scaffold_3427:1-2622', 'scaffold_2907:1-2749', 'scaffold_3157:1-1898', 'scaffold_3387:1-1156', 'scaffold_2987:1-2534', 'scaffold_3437:1-1040', 'scaffold_3007:1-2593', 'scaffold_2857:1-2929', 'scaffold_3537:1-1011', 'scaffold_3547:1-1702', 'scaffold_3147:1-2230', 'scaffold_3257:1-1463', 'scaffold_3357:1-1239', 'scaffold_3107:1-2869', 'scaffold_3388:1-1155', 'scaffold_3368:1-1220', 'scaffold_3068:1-2254', 'scaffold_2838:1-2988', 'scaffold_3008:1-2908', 'scaffold_3058:1-2824', 'scaffold_3648:1-2796', 'scaffold_3328:1-1293', 'scaffold_3398:1-1131', 'scaffold_3528:1-2635', 'scaffold_3348:1-1258', 'scaffold_2968:1-2573', 'scaffold_3478:1-2690', 'scaffold_3228:1-1597', 'scaffold_2868:1-2983', 'scaffold_3088:1-2159', 'scaffold_3298:1-2443', 'scaffold_3448:1-1020', 'scaffold_3239:1-1965', 'scaffold_2879:1-2846', 'scaffold_2919:1-2717', 'scaffold_3269:1-1431', 'scaffold_3129:1-2114', 'scaffold_3389:1-1153', 'scaffold_3179:1-2709', 'scaffold_3379:1-1639', 'scaffold_3139:1-1964', 'scaffold_3259:1-1665', 'scaffold_3289:1-2781', 'scaffold_2889:1-2826']
 default_segment_size = 40
 
 def create_query_json(ws_dir, test_name, query_param_dict):
@@ -77,7 +82,7 @@ def create_query_json(ws_dir, test_name, query_param_dict):
     if("callset_mapping_file" in query_param_dict):
         test_dict["callset_mapping_file"] = query_param_dict["callset_mapping_file"];
     if("attributes" in query_param_dict):
-        test_dict["attributes"] = query_param_dict["attributes"];
+        test_dict["attributes"] = query_param_dict["attributes"]
     if('segment_size' in query_param_dict):
         test_dict['segment_size'] = query_param_dict['segment_size'];
     else:
@@ -93,12 +98,14 @@ def create_query_json(ws_dir, test_name, query_param_dict):
                 query_param_dict['produce_GT_with_min_PL_value_for_spanning_deletions']
     if('query_sample_names' in query_param_dict):
         test_dict['query_sample_names'] = query_param_dict['query_sample_names']
-	if('query_row_ranges' in test_dict):
-	  del test_dict['query_row_ranges']
+        if('query_row_ranges' in test_dict):
+            del test_dict['query_row_ranges']
     if('query_filter' in query_param_dict):
         test_dict['query_filter'] = query_param_dict['query_filter']
     if('max_genotype_count' in query_param_dict):
         test_dict['max_genotype_count'] = query_param_dict['max_genotype_count']
+    if('reference_genome' in query_param_dict):
+        test_dict['reference_genome'] =  query_param_dict['reference_genome']
     return test_dict;
 
 
@@ -141,6 +148,8 @@ def create_loader_json(ws_dir, test_name, test_params_dict):
         test_dict['segment_size'] = test_params_dict['segment_size'];
     else:
         test_dict['segment_size'] = default_segment_size;
+    if('reference_genome' in test_params_dict):
+        test_dict['reference_genome'] =  test_params_dict['reference_genome']
     return test_dict;
 
 def get_file_content_and_md5sum(filename):
@@ -180,7 +189,7 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
     with open(outfilename, "w") as out_fd:
         out_fd.write(outfile_string)
     bcf_cmd = bcftools_path+' view -Oz -o '+outfilename+'.gz '+outfilename+' && '+bcftools_path+' index -f -t '+outfilename+'.gz'
-    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE)
+    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     bcf_stdout = pid.communicate()[0]
     if(pid.returncode != 0):
         sys.stderr.write('Call to bcftools failed. Cmd: '+bcf_cmd+'\n')
@@ -190,7 +199,7 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
     with open(outfilename_golden, "w") as out_golden_fd:
         out_golden_fd.write(golden_string)
     bcf_cmd = bcftools_path+' view -Oz -o '+outfilename_golden+'.gz '+outfilename_golden+' && '+bcftools_path+' index -f -t '+outfilename_golden+'.gz'
-    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE)
+    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     bcf_stdout = pid.communicate()[0]
     if(pid.returncode != 0):
         sys.stderr.write('Call to bcftools failed. Cmd: '+bcf_cmd+'\n')
@@ -198,7 +207,7 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
         return True
 
     vcfdiff_cmd = exe_path+os.path.sep+'vcfdiff '+outfilename+'.gz '+outfilename_golden+'.gz'
-    pid = subprocess.Popen(vcfdiff_cmd, shell=True, stdout=subprocess.PIPE)
+    pid = subprocess.Popen(vcfdiff_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     vcfdiff_stdout = pid.communicate()[0]
     if(pid.returncode != 0):
         sys.stderr.write('vcfdiff cmd failed. Cmd: '+vcfdiff_cmd+'\n')
@@ -214,9 +223,9 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
 
 def create_json_file(tmpdir, test_name, query_type, test_dict):
     query_json_filename = tmpdir+os.path.sep+test_name+ (('_'+query_type) if query_type else '') +'.json'
-    with open(query_json_filename, 'wb') as fptr:
-	json.dump(test_dict, fptr, indent=4, separators=(',', ': '))
-	fptr.close()
+    with open(query_json_filename, 'w') as fptr:
+        json.dump(test_dict, fptr, indent=4, separators=(',', ': '))
+        fptr.close()
     return query_json_filename
 
 def cleanup_and_exit(tmpdir, exit_code):
@@ -227,7 +236,41 @@ def cleanup_and_exit(tmpdir, exit_code):
 def substitute_workspace_dir(jsonfile, wsdir):
     import fileinput
     for line in fileinput.input(jsonfile, inplace=True):
-        print line.replace("#WORKSPACE_DIR#", wsdir),
+        print(line.replace("#WORKSPACE_DIR#", wsdir)),
+
+def test_with_java_options(tmpdir, lib_path, jacoco):
+    sys.stdout.write("Testing with Java Options...\n")
+    import tarfile
+    compatDir = tmpdir+'/compat_100_test'
+    tar = tarfile.open('inputs/compatibility.pre.1.0.0.test.tar')
+    tar.extractall(path=compatDir)
+    loader_json = compatDir+'/t0_1_2.json'
+    query_json = compatDir+'/t0_1_2_java_vcf.json'
+    substitute_workspace_dir(loader_json, compatDir)
+    substitute_workspace_dir(query_json, compatDir)
+
+    # Sanity Test java options supported by GenomicsDB
+    query_command = 'java'+jacoco+' -Dgenomicsdb.library.path='+lib_path+' -DGATK_STACKTRACE_ON_USER_EXCEPTION=true -ea TestGenomicsDB --query -l '+loader_json+' '+query_json
+    pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE)
+    stdout_string = pid.communicate()[0]
+    if(pid.returncode != 0):
+        sys.stderr.write('Query with java options : '+query_command+' failed\n')
+        cleanup_and_exit(tmpdir, -1)
+    actual_md5sum = str(hashlib.md5(stdout_string).hexdigest())
+    golden_str, golden_md5sum = get_file_content_and_md5sum('golden_outputs/java_t0_1_2_vcf_at_0')
+    if (actual_md5sum != golden_md5sum):
+        sys.stderr.write('Query with java options : '+query_command+' failed. Results did not match with golden output.\n');
+        cleanup_and_exit(tmpdir, -1)
+
+    # Test if exception stack trace is logged when there is no tiledb_workspace for example
+    import os
+    os.remove(compatDir+'/ws/__tiledb_workspace.tdb')
+    pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT);
+    stdout_string = pid.communicate()[0]
+    if (stdout_string.find('Native Stack Trace:') < 0):
+        sys.stderr.write('Query with java options did not throw expected exception: '+query_command+' failed\n')
+        cleanup_and_exit(tmpdir, -1)
+    sys.stdout.write("Successful\n")
 
 def test_pre_1_0_0_query_compatibility(tmpdir):
     sys.stdout.write("Testing compatibility with workspace/arrays from releases before 1.0.0...") 
@@ -247,6 +290,29 @@ def test_pre_1_0_0_query_compatibility(tmpdir):
         cleanup_and_exit(tmpdir, -1);
     actual_md5sum = str(hashlib.md5(stdout_string).hexdigest())
     golden_str, golden_md5sum = get_file_content_and_md5sum('golden_outputs/java_t0_1_2_vcf_at_0')
+    if (actual_md5sum != golden_md5sum):
+        sys.stderr.write('Compatibility Test Query : '+query_command+' failed. Results did not match with golden output.\n');
+        cleanup_and_exit(tmpdir, -1)
+    sys.stdout.write("Successful\n")
+
+def test_query_compatibility_with_old_schema_verion_1(tmpdir):
+    sys.stdout.write("Testing query compatibility with arrays created with old array schema version 1...") 
+    import tarfile
+    compatDir = tmpdir+'/compat_schema_version_1_test'
+    tar = tarfile.open('inputs/compatibility.array.schema.version.1.tar')
+    tar.extractall(path=compatDir)
+    loader_json = compatDir+'/t0_1_2.json'
+    query_json = compatDir+'/t0_1_2_query.json'
+    substitute_workspace_dir(loader_json, compatDir)
+    substitute_workspace_dir(query_json, compatDir)
+    query_command = 'java -ea TestGenomicsDB --query -l '+loader_json+' '+query_json
+    pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE);
+    stdout_string = pid.communicate()[0]
+    if(pid.returncode != 0):
+        sys.stderr.write('Compatibility Test Query : '+query_command+' failed\n');
+        cleanup_and_exit(tmpdir, -1);
+    actual_md5sum = str(hashlib.md5(stdout_string).hexdigest())
+    golden_str, golden_md5sum = get_file_content_and_md5sum('golden_outputs/java_t0_1_2_vcf_sites_only_at_0')
     if (actual_md5sum != golden_md5sum):
         sys.stderr.write('Compatibility Test Query : '+query_command+' failed. Results did not match with golden output.\n');
         cleanup_and_exit(tmpdir, -1)
@@ -287,30 +353,30 @@ def test_pb_configs(tmpdir, ctest_dir):
                             "high": 1000000000
                         }]
                         }],
-	              "query_row_ranges": [{
-			  "range_list": [{
-			      "low": 0,
-			      "high": 1
-			      },
-			      {
-			      "low": 3,
-			      "high": 3
-			      }
-			      ]
-			  }],
+                      "query_row_ranges": [{
+                          "range_list": [{
+                              "low": 0,
+                              "high": 1
+                              },
+                              {
+                              "low": 3,
+                              "high": 3
+                              }
+                              ]
+                          }],
                       'callset_mapping_file': 'inputs/callsets/t0_haploid_triploid_1_2_3_triploid_deletion.json',
                       "vid_mapping_file": "inputs/vid_DS_ID_phased_GT.json",
                       'produce_GT_field': True,
                       'segment_size': 100,
                     },
                     { "query_samples_names": [
-			"HG00141", "NA12878"
-			],
-		       "query_contig_intervals": [
-			   { "contig": "1" },
-			   { "contig": "1", "begin": 100 },
-			   { "contig": "1", "begin": 100, "end": 500 },
-			   ],
+                        "HG00141", "NA12878"
+                        ],
+                       "query_contig_intervals": [
+                           { "contig": "1" },
+                           { "contig": "1", "begin": 100 },
+                           { "contig": "1", "begin": 100, "end": 500 },
+                           ],
                       'callset_mapping_file': 'inputs/callsets/t0_haploid_triploid_1_2_3_triploid_deletion.json',
                       "vid_mapping_file": "inputs/vid_DS_ID_phased_GT.json",
                       'sites_only_query': True,
@@ -318,16 +384,16 @@ def test_pb_configs(tmpdir, ctest_dir):
                     },
                 ]
     for test_pb_dict in pb_query_test_configs:
-	query_dict = create_query_json('/tmp/ws', 'pb_test', test_pb_dict)
-	if('scan_full' in query_dict):
-	    del query_dict['scan_full']
-	modify_query_column_ranges_for_PB(query_dict)
-	query_json_filename = create_json_file(tmpdir, 'pb_test', None, query_dict)
-	cmd = ctest_dir+'/ctests pb_query_config_test --pb-query-json-file '+query_json_filename
-	exit_code = subprocess.call(cmd, shell=True)
-	if(exit_code != 0):
-	    sys.stderr.write('Failed command: '+cmd+'\n')
-	    cleanup_and_exit(tmpdir, exit_code)
+        query_dict = create_query_json('/tmp/ws', 'pb_test', test_pb_dict)
+        if('scan_full' in query_dict):
+            del query_dict['scan_full']
+        modify_query_column_ranges_for_PB(query_dict)
+        query_json_filename = create_json_file(tmpdir, 'pb_test', None, query_dict)
+        cmd = ctest_dir+'/ctests pb_query_config_test --pb-query-json-file '+query_json_filename
+        exit_code = subprocess.call(cmd, shell=True)
+        if(exit_code != 0):
+            sys.stderr.write('Failed command: '+cmd+'\n')
+            cleanup_and_exit(tmpdir, exit_code)
 
 def main():
     #Initial Setup
@@ -339,8 +405,10 @@ def main():
         sys.stderr.write('                         Otherwise all tests are run.\n\n')
         sys.exit(-1);
     build_dir=os.path.abspath(sys.argv[1])
+    install_dir=os.path.abspath(sys.argv[2])
     ctest_dir = os.path.join(build_dir, 'src/test/cpp')
-    exe_path = os.path.join(sys.argv[2],'bin')
+    exe_path = os.path.join(install_dir,'bin')
+    lib_path = os.path.join(install_dir,'lib')
     tool_sanity_checks(exe_path);
     if (len(sys.argv) >= 4):
         build_type = sys.argv[3]
@@ -351,7 +419,9 @@ def main():
     os.chdir(parent_dir)
     tmpdir = tempfile.mkdtemp()
     bcftools_path = distutils.spawn.find_executable("bcftools")
-    ws_dir=tmpdir+os.path.sep+'ws';
+    top_ws_dir=tmpdir+os.path.sep+'ws';
+    java_import_dir = tmpdir+os.path.sep + 'java_import'
+    os.mkdir(java_import_dir)
     test_pb_configs(tmpdir, ctest_dir)
     common.setup_classpath(build_dir)
     jacoco, jacoco_report_cmd = common.setup_jacoco(build_dir, build_type)
@@ -371,16 +441,16 @@ def main():
                         "batched_vcf": "golden_outputs/t0_1_2_vcf_at_0",
                         "java_vcf"   : "golden_outputs/java_t0_1_2_vcf_at_0",
                         } },
-		    { "query_column_ranges": [{
+                    { "query_column_ranges": [{
                         "range_list": [{
                             "low": 0,
                             "high": 1000000000
                         }]
                     }],
-		    "query_sample_names" : [ "HG00141", "HG01958" ] ,
-		    "golden_output": {
+                    "query_sample_names" : [ "HG00141", "HG01958" ] ,
+                    "golden_output": {
                         "vcf"        : "golden_outputs/t0_1_vcf_at_0",
-			"java_vcf"   : "golden_outputs/java_t0_1_vcf_at_0",
+                        "java_vcf"   : "golden_outputs/java_t0_1_vcf_at_0",
                         } },
                     { "query_column_ranges": [{ 'column_or_interval_list': [{'column': {'tiledb_column': 12000}}, 
                                                                             {'column': {'tiledb_column': 12142}},
@@ -676,23 +746,23 @@ def main():
                         "vcf"        : "golden_outputs/t6_7_8_vcf_at_0",
                         "batched_vcf": "golden_outputs/t6_7_8_vcf_at_0",
                         } },
-		    { "query_column_ranges": [{
+                    { "query_column_ranges": [{
                         "range_list": [{
                             "low": 0,
                             "high": 1000000000
                         }]
                     }],
-		       "max_genotype_count": 8,
-		       "golden_output": {
+                       "max_genotype_count": 8,
+                       "golden_output": {
                         "vcf"        : "golden_outputs/t6_7_8_vcf_at_0_max_genotype_count_8",
                         } },
-		    { "query_column_ranges" : [{
+                    { "query_column_ranges" : [{
                         "range_list": [{
                           "low": 0,
                           "high": 1000000000
                         }]
                        }],
-		      "sites_only_query": True, "golden_output": {
+                      "sites_only_query": True, "golden_output": {
                         "vcf"        : "golden_outputs/t6_7_8_vcf_sites_only_at_0",
                         } },
                     { "query_column_ranges": [{
@@ -714,6 +784,19 @@ def main():
                     }], "golden_output": {
                         "vcf"        : "golden_outputs/t6_7_8_vcf_at_8029500-8029500",
                         } }
+                    ]
+            },
+            { "name" : "t6_SNV_7_MNV_8", 'golden_output' : 'golden_outputs/t6_SNV_t7_MNV_t8_loading.vcf',
+                'callset_mapping_file': 'inputs/callsets/t6_SNV_7_MNV_8.json',
+                "query_params": [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }], "golden_output": {
+                        "vcf"        : "golden_outputs/t6_SNV_t7_MNV_t8_loading.vcf",
+                        } },
                     ]
             },
             { "name" : "java_genomicsdb_importer_from_vcfs_t6_7_8_multi_contig",
@@ -1275,7 +1358,7 @@ def main():
                         } }
                     ]
             },
-	    { "name" : "t6_7_8_asa", 'golden_output' : 'golden_outputs/t6_7_8_asa.vcf',
+            { "name" : "t6_7_8_asa", 'golden_output' : 'golden_outputs/t6_7_8_asa.vcf',
                 'callset_mapping_file': 'inputs/callsets/t6_7_8_asa.json',
                 'vid_mapping_file': 'inputs/vid_all_asa.json',
                 'size_per_column_partition': 3000,
@@ -1292,7 +1375,7 @@ def main():
                         "golden_output": {
                         "vcf"      : "golden_outputs/t6_7_8_asa.vcf",
                         } },
-		    { "query_column_ranges": [{
+                    { "query_column_ranges": [{
                         "range_list": [{
                             "low": 8029500,
                             "high": 1000000000
@@ -1306,6 +1389,105 @@ def main():
                         } },
                     ]
             },
+            { "name" : "test_info_combine_bigint", 'golden_output' : 'golden_outputs/bigint.vcf',
+              'callset_mapping_file': 'inputs/callsets/bigint.json',
+              'vid_mapping_file': 'inputs/vid_bigint.json',
+              'size_per_column_partition': 4096,
+              "query_params": [
+                  {
+                    'attributes': attributes_with_bigint,
+                    "force_override": True,
+                    'segment_size': 4096,
+                    'pass_as_vcf': True,
+                    "query_column_ranges": [{
+                      "range_list": [{
+                          "low": 0,
+                          "high": 1000000000
+                      }]
+                  }], "golden_output": {
+                      "java_vcf"   : "golden_outputs/bigint_java.vcf",
+                      } },
+               ],
+            },
+            { "name" : "java_genomicsdb_importer_from_vcfs_multi_contig_coalesce",
+              'callset_mapping_file': 'inputs/callsets/multi_contig.json',
+              'vid_mapping_file': 'inputs/vid_multi_contig.json',
+              'reference_genome': 'inputs/chr1_2_3_4_70Kb.fasta.gz',
+              'size_per_column_partition': 4096,
+              'generate_array_name_from_partition_bounds': True,
+              'coalesce_to_num_partitions': '2',
+              'chromosome_intervals': [ '1:1-249250621', '2:1-243199373', '3:1-198022430', '4:1-191154276' ],
+              "query_params": [
+                  {
+                    'attributes': attributes_multi_contig,
+                    "force_override": True,
+                    'segment_size': 4096,
+                    'pass_as_vcf': True,
+                    'produce_GT_field': True,
+                    'reference_genome': 'inputs/chr1_2_3_4_70Kb.fasta.gz',
+                    "query_column_ranges": [{
+                      "range_list": [{
+                          "low": 0,
+                          "high": 1000000000
+                      }]
+                  }], "golden_output": {
+                      "java_vcf"   : "golden_outputs/multi_contig_java_vcf",
+                      } },
+               ],
+            },
+            { "name" : "java_genomicsdb_importer_from_vcfs_incremental_multi_contig_coalesce",
+              'callset_mapping_file': 'inputs/callsets/multi_contig.0.json',
+              'callset_mapping_file1': 'inputs/callsets/multi_contig.1.json',
+              'vid_mapping_file': 'inputs/vid_multi_contig.json',
+              'reference_genome': 'inputs/chr1_2_3_4_70Kb.fasta.gz',
+              'size_per_column_partition': 4096,
+              'generate_array_name_from_partition_bounds': True,
+              'coalesce_to_num_partitions': '2',
+              'chromosome_intervals': [ '1:1-249250621', '2:1-243199373', '3:1-198022430', '4:1-191154276' ],
+              "query_params": [
+                  {
+                    'attributes': attributes_multi_contig,
+                    "force_override": True,
+                    'segment_size': 4096,
+                    'pass_as_vcf': True,
+                    'produce_GT_field': True,
+                    'reference_genome': 'inputs/chr1_2_3_4_70Kb.fasta.gz',
+                    "query_column_ranges": [{
+                      "range_list": [{
+                          "low": 0,
+                          "high": 1000000000
+                      }]
+                  }], "golden_output": {
+                      "java_vcf"   : "golden_outputs/multi_contig_java_vcf",
+                      } },
+               ],
+            },
+            { "name" : "java_genomicsdb_importer_from_vcfs_multi_contig_empty_contigs_coalesce",
+              'callset_mapping_file': 'inputs/callsets/multi_contig_empty_contigs.json',
+              'vid_mapping_file': 'inputs/vid_multi_contig_empty_contigs.json',
+              'reference_genome': 'inputs/Pop_tri_nonchrom_subset.fa.gz',
+              'size_per_column_partition': 4096,
+              'generate_array_name_from_partition_bounds': True,
+              'coalesce_to_num_partitions': '7',
+              'chromosome_intervals': multi_contig_empty_contigs_intervals,
+              "query_params": [
+                  {
+                    'attributes': attributes_multi_contig_empty_contigs,
+                    "force_override": True,
+                    'segment_size': 4096,
+                    'pass_as_vcf': True,
+                    'produce_GT_field': True,
+                    'reference_genome': 'inputs/Pop_tri_nonchrom_subset.fa.gz',
+                    "query_column_ranges": [{
+                      "range_list": [{
+                          "low": 0,
+                          "high": 1000000000
+                      }]
+                  }], "golden_output": {
+                      "java_vcf"   : "golden_outputs/multi_contig_empty_contigs_java_vcf",
+                      } },
+               ],
+            },
     ];
     if(len(sys.argv) < 5):
         loader_tests = loader_tests0 + loader_tests1
@@ -1315,6 +1497,9 @@ def main():
         loader_tests = loader_tests1
     for test_params_dict in loader_tests:
         test_name = test_params_dict['name']
+        ws_dir = top_ws_dir
+        if(test_name.find('java_genomicsdb_importer_from_vcfs') != -1):
+            ws_dir = java_import_dir+os.path.sep+test_name
         test_loader_dict = create_loader_json(ws_dir, test_name, test_params_dict);
         incremental_load = False
         if(test_name == "t0_1_2"):
@@ -1349,24 +1534,28 @@ def main():
             count=0
             with open(test_params_dict['callset_mapping_file'], 'rb') as cs_fptr:
                 callset_mapping_dict = json.load(cs_fptr, object_pairs_hook=OrderedDict)
-                for callset_name, callset_info in callset_mapping_dict['callsets'].iteritems():
+                for callset_name, callset_info in callset_mapping_dict['callsets'].items():
                     file_list += ' '+callset_info['filename'];
                     count=count+1
                 cs_fptr.close();
+
+            coalesce_arg = ''
+            if('coalesce_to_num_partitions' in test_params_dict):
+                coalesce_arg = ' --coalesce-multiple-contigs '+test_params_dict['coalesce_to_num_partitions']
             import_cmd = 'java'+jacoco+' -ea TestGenomicsDBImporterWithMergedVCFHeader --size_per_column_partition 16384 ' \
-                                   '--segment_size 10485760'+arg_list+file_list
+                                   '--segment_size 10485760'+arg_list+file_list+coalesce_arg
             if(test_name.find('incremental') != -1):
                 incremental_load = True
                 file_list = ''
                 with open(test_params_dict['callset_mapping_file1'], 'rb') as cs_fptr:
                     callset_mapping_dict = json.load(cs_fptr, object_pairs_hook=OrderedDict)
-                    for callset_name, callset_info in callset_mapping_dict['callsets'].iteritems():
+                    for callset_name, callset_info in callset_mapping_dict['callsets'].items():
                         file_list += ' '+callset_info['filename'];
                 cs_fptr.close();
                 import_cmd_incremental = 'java'+jacoco+' -ea TestGenomicsDBImporterWithMergedVCFHeader --size_per_column_partition 16384 ' \
-                                               '--segment_size 10485760 --incremental '+str(count)+arg_list+file_list
+                                               '--segment_size 10485760 --incremental '+str(count)+arg_list+file_list+coalesce_arg
         else:
-            import_cmd = exe_path+os.path.sep+'vcf2tiledb '+loader_json_filename
+            import_cmd = exe_path+os.path.sep+'vcf2genomicsdb '+loader_json_filename
         pid = subprocess.Popen(import_cmd, shell=True, stdout=subprocess.PIPE);
         stdout_string = pid.communicate()[0]
         if(pid.returncode != 0):
@@ -1378,15 +1567,17 @@ def main():
         if('golden_output' in test_params_dict):
             golden_stdout, golden_md5sum = get_file_content_and_md5sum(test_params_dict['golden_output']);
             if(golden_md5sum != md5sum_hash_str):
+                is_error = True
                 if(bcftools_path is None):
                     sys.stderr.write('Did not find bcftools in path. If you are able to add that to the path, we can get a more precise diff\n')
                 else:
                     outfilename = tmpdir+os.path.sep+test_name+'.vcf'
                     outfilename_golden = tmpdir+os.path.sep+test_name+'_golden'+'.vcf'
-                    if(bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, stdout_string, golden_stdout)):
-                        sys.stderr.write('Loader stdout mismatch for test: '+test_name+'\n');
-                        print_diff(golden_stdout, stdout_string);
-                        cleanup_and_exit(tmpdir, -1);
+                    is_error = (bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, stdout_string, golden_stdout))
+                if(is_error):
+                    sys.stderr.write('Loader stdout mismatch for test: '+test_name+'\n');
+                    print_diff(golden_stdout, stdout_string);
+                    cleanup_and_exit(tmpdir, -1);
 
         if incremental_load:
             pid = subprocess.Popen(import_cmd_incremental, shell=True, stdout=subprocess.PIPE);
@@ -1425,7 +1616,7 @@ def main():
                             test_query_dict['attributes'] = vcf_attributes_order;
                         if(query_type.find('java_vcf') != -1):
                             modify_query_column_ranges_for_PB(test_query_dict)
-			query_json_filename = create_json_file(tmpdir, test_name, query_type, test_query_dict)
+                        query_json_filename = create_json_file(tmpdir, test_name, query_type, test_query_dict)
                         if(query_type == 'java_vcf'):
                             loader_argument = loader_json_filename;
                             misc_args = ''
@@ -1436,12 +1627,14 @@ def main():
                                 misc_args += ('--chromosome '+query_contig_interval_dict['contig'] \
                                         + ' --begin %d --end %d')%(query_contig_interval_dict['begin'],
                                                 query_contig_interval_dict['end'])
+                            if('pass_as_vcf' in query_param_dict and query_param_dict['pass_as_vcf']):
+                                misc_args += ' --pass_as_vcf '
                             query_command = 'java'+jacoco+' -ea TestGenomicsDB --query -l '+loader_argument+' '+query_json_filename \
                                 + ' ' + misc_args;
                             pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE);
                         else:
                             if(query_type == 'consolidate_and_vcf'):
-                                retcode = subprocess.call(exe_path+os.path.sep+'consolidate_tiledb_array '+ws_dir+' '+test_name,
+                                retcode = subprocess.call(exe_path+os.path.sep+'consolidate_genomicsdb_array '+ws_dir+' '+test_name,
                                         shell=True)
                                 if(retcode != 0):
                                     sys.stderr.write('TileDB array consolidation failed '+ws_dir+' '+test_name+'\n');
@@ -1491,7 +1684,9 @@ def main():
                                     print(json.dumps(json_diff_result, indent=4, separators=(',', ': ')));
                                 cleanup_and_exit(tmpdir, -1);
         shutil.rmtree(ws_dir, ignore_errors=True)
+    test_with_java_options(tmpdir, lib_path, jacoco)
     test_pre_1_0_0_query_compatibility(tmpdir)
+    test_query_compatibility_with_old_schema_verion_1(tmpdir)
     rc = common.report_jacoco_coverage(jacoco_report_cmd)
     if (rc != 0):
         cleanup_and_exit(tmpdir, -1);

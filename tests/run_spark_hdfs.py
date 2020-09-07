@@ -2,7 +2,7 @@
 
 #The MIT License (MIT)
 #Copyright (c) 2018 University of California, Los Angeles and Intel Corporation
-#Copyright (c) 2019 Omics Data Automation, Inc.
+#Copyright (c) 2019-2020 Omics Data Automation, Inc.
 
 #Permission is hereby granted, free of charge, to any person obtaining a copy of 
 #this software and associated documentation files (the "Software"), to deal in 
@@ -374,10 +374,10 @@ def main():
             with open(loader_json_filename, 'wb') as fptr:
                 json.dump(test_loader_dict, fptr, indent=4, separators=(',', ': '));
                 fptr.close();
-            # invoke vcf2tiledb -r <rank> where <rank> goes from 0 to num partitions
+            # invoke vcf2genomicsdb -r <rank> where <rank> goes from 0 to num partitions
             # otherwise this only loads the first partition
             for i in range(0, len(col_part)):
-                etl_cmd=exe_path+os.path.sep+'vcf2tiledb -r '+str(i)+' '+loader_json_filename
+                etl_cmd=exe_path+os.path.sep+'vcf2genomicsdb -r '+str(i)+' '+loader_json_filename
                 pid = subprocess.Popen(etl_cmd, shell=True,
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE);
                 stdout_string, stderr_string = pid.communicate()

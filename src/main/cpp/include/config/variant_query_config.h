@@ -340,6 +340,10 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
    */
   void read_from_file(const std::string& filename, const int rank=0);
   /*
+   * Read configuration from JSON string
+   */
+  void read_from_JSON_string(const std::string& str, const int rank=0);
+  /*
    * Validates and intializes variant query configuration. GenomicsDBConfigException is thrown on failed checks.
    */
   void validate(const int rank=0);

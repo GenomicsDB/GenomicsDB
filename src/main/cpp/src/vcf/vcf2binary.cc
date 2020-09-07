@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,6 +27,9 @@
 #include "htslib/bgzf.h"
 #include "vcf_adapter.h"
 #include "genomicsdb_multid_vector_field.h"
+#include "logger.h"
+
+#include <errno.h>
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCF2BinaryException(#X);
 
@@ -60,8 +64,7 @@ void VCFReaderBase::initialize(const char* filename,
       for (auto j=0u; j<vcf_field_names[field_type_idx].size(); ++j)
         VCFAdapter::add_field_to_hdr_if_missing(m_hdr, id_mapper, vcf_field_names[field_type_idx][j], field_type_idx);
     } catch (const VCFAdapterException& e) {
-      std::cerr << "ERROR: conflicting field description in the vid JSON and the VCF header of file: "<<filename<<"\n";
-      throw e;
+      logger.fatal(e, "conflicting field description in the vid JSON and the VCF header of file: {}", filename);
     }
   }
 }
@@ -155,8 +158,13 @@ void VCFReader::initialize(const char* filename,
 void VCFReader::add_reader() {
   assert(m_indexed_reader->nreaders == 0);      //no existing files are open
   assert(m_fptr == 0);  //normal file handle should be NULL
-  if (bcf_sr_add_reader(m_indexed_reader, m_name.c_str()) != 1)
-    throw VCF2BinaryException(std::string("Could not open file ")+m_name+" : " + bcf_sr_strerror(m_indexed_reader->errnum) + " (VCF/BCF files must be block compressed and indexed)");
+  errno = 0;
+  if (bcf_sr_add_reader(m_indexed_reader, m_name.c_str()) != 1) {
+    std::string errmsg =  (errno>0) ? logger.format(" errno={} ({})", errno, std::strerror(errno))
+        : " (VCF/BCF files must be block compressed and indexed)";
+    throw VCF2BinaryException(std::string("Could not open file ")+m_name+" : "
+                              + bcf_sr_strerror(m_indexed_reader->errnum) + errmsg);
+  }
   assert(m_hdr);
   auto tmp_hdr_ptr = bcf_sr_get_header(m_indexed_reader, 0);
   bcf_sr_get_header(m_indexed_reader, 0) = m_hdr;
@@ -445,19 +453,27 @@ bool VCF2Binary::convert_record_to_binary(std::vector<uint8_t>& buffer, File2Til
         assert(j < vcf_partition.m_vcf_get_buffer_vec[i].size());
         auto& curr_vcf_get_buffer_wrapper = vcf_partition.m_vcf_get_buffer_vec[i][j];
         const auto& field_name = (*m_vcf_fields)[field_type_idx][j];
+	const auto* field_info_ptr = m_vid_mapper->get_field_info(field_name);
+	assert(field_info_ptr);
         //FIXME: avoid strings
         if (field_type_idx == BCF_HL_INFO && field_name == "END")  //ignore END field
           continue;
         auto field_idx = bcf_hdr_id2int(hdr, BCF_DT_ID, field_name.c_str());
         //Should always pass - left in for safety
         VERIFY_OR_THROW(field_idx >= 0 && bcf_hdr_idinfo_exists(hdr, field_type_idx, field_idx));
-        auto field_ht_type = bcf_hdr_id2type(hdr, field_type_idx, field_idx);
+	//auto field_ht_type = bcf_hdr_id2type(hdr, field_type_idx, field_idx);
+        auto field_ht_type = field_info_ptr->get_vcf_type().get_tuple_element_bcf_ht_type(0u);
         //Because GT is encoded type string in VCF - total nonsense
         //FIXME: avoid strings
         field_ht_type = (field_type_idx == BCF_HL_FMT && field_name == "GT") ? BCF_HT_INT : field_ht_type;
         switch (field_ht_type) {
         case BCF_HT_INT:
           fetch_field_from_vcf_record<int>(curr_vcf_get_buffer_wrapper,
+                                           hdr, line,
+                                           field_name, field_type_idx, field_ht_type);
+          break;
+        case BCF_HT_INT64:
+          fetch_field_from_vcf_record<int64_t>(curr_vcf_get_buffer_wrapper,
                                            hdr, line,
                                            field_name, field_type_idx, field_ht_type);
           break;
@@ -1015,13 +1031,21 @@ bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer,
       auto field_idx = bcf_hdr_id2int(hdr, BCF_DT_ID, field_name.c_str());
       //Should always pass - left in for safety
       VERIFY_OR_THROW(field_idx >= 0 && bcf_hdr_idinfo_exists(hdr, field_type_idx, field_idx));
-      auto field_ht_type = bcf_hdr_id2type(hdr, field_type_idx, field_idx);
+      const auto field_info_ptr = m_vid_mapper->get_field_info(field_name);
+      assert(field_info_ptr);
+      //auto field_ht_type = bcf_hdr_id2type(hdr, field_type_idx, field_idx);
+      auto field_ht_type = field_info_ptr->get_vcf_type().get_tuple_element_bcf_ht_type(0u);
       //Because GT is encoded type string in VCF - total nonsense
       //FIXME: avoid strings
       field_ht_type = (field_type_idx == BCF_HL_FMT && field_name == "GT") ? BCF_HT_INT : field_ht_type;
       switch (field_ht_type) {
       case BCF_HT_INT:
         buffer_full = buffer_full || convert_field_to_tiledb<int>(buffer, vcf_partition, buffer_offset, buffer_offset_limit, local_callset_idx,
+                      field_name, field_type_idx, j);
+        if (buffer_full) return true;
+        break;
+      case BCF_HT_INT64:
+        buffer_full = buffer_full || convert_field_to_tiledb<int64_t>(buffer, vcf_partition, buffer_offset, buffer_offset_limit, local_callset_idx,
                       field_name, field_type_idx, j);
         if (buffer_full) return true;
         break;
@@ -1097,7 +1121,9 @@ void VCF2Binary::write_partition_data(File2TileDBBinaryColumnPartitionBase& part
   //The second parameter is useful if the file handler is open, but the buffer was full in a previous call
   auto has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, m_close_file, false);
   while (has_data) {
-    bcf_write(vcf_partition.m_split_output_fptr, hdr, vcf_reader_ptr->get_line());
+    if (bcf_write(vcf_partition.m_split_output_fptr, hdr, vcf_reader_ptr->get_line())) {
+      logger.fatal(VCF2BinaryException("Error writing VCF data for partition"));
+    }
     has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, false, true);
   }
 }
@@ -1123,8 +1149,9 @@ void VCF2Binary::close_partition_output_file(File2TileDBBinaryColumnPartitionBas
   default:
     break; //do nothing
   }
-  if (status != 0)
-    std::cerr << "WARNING: indexing of partition file "<< vcf_partition.m_split_filename <<" failed\n";
+  if (status != 0) {
+    logger.warn(" indexing of partition file {} failed", vcf_partition.m_split_filename);
+  }
 }
 
 #endif //ifdef HTSDIR

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2018-2019 Omics Data Automation, Inc.
+ * Copyright (c) 2018-2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,6 +26,7 @@
 #include "json_config.h"
 #include "genomicsdb_config_base.h"
 #include "known_field_info.h"
+#include "logger.h"
 #include "tiledb.h"
 #include "tiledb_utils.h"
 #include "vcf.h"
@@ -56,6 +57,10 @@ std::unordered_map<std::string, std::type_index>({
   {"Int", std::type_index(typeid(int))},
   {"integer", std::type_index(typeid(int))},
   {"Integer", std::type_index(typeid(int))},
+  {"int64", std::type_index(typeid(int64_t))},
+  {"Int64", std::type_index(typeid(int64_t))},
+  {"integer64", std::type_index(typeid(int64_t))},
+  {"Integer64", std::type_index(typeid(int64_t))},
   {"float", std::type_index(typeid(float))},
   {"Float", std::type_index(typeid(float))},
   {"bool", std::type_index(typeid(char))},
@@ -76,6 +81,10 @@ std::unordered_map<std::string, int>({
   {"Int", BCF_HT_INT},
   {"integer", BCF_HT_INT},
   {"Integer", BCF_HT_INT},
+  {"int64", BCF_HT_INT64},
+  {"Int64", BCF_HT_INT64},
+  {"integer64", BCF_HT_INT64},
+  {"Integer64", BCF_HT_INT64},
   {"float", BCF_HT_REAL},
   {"Float", BCF_HT_REAL},
   {"bool", BCF_HT_FLAG},
@@ -92,6 +101,7 @@ std::unordered_map<std::string, int>({
 
 std::unordered_map<std::string, int> VidMapper::m_INFO_field_operation_name_to_enum =
 std::unordered_map<std::string, int>({
+  {"none", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_NONE},
   {"sum", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_SUM},
   {"mean", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_MEAN},
   {"median", VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_MEDIAN},
@@ -154,7 +164,7 @@ void FieldLengthDescriptor::set_length_descriptor(const int length_dim_idx, cons
                                  || KnownFieldInfo::is_length_descriptor_ploidy_dependent(length_descriptor);
 }
 
-size_t FieldLengthDescriptor::get_num_elements(const unsigned num_ALT_alleles, const unsigned ploidy, const unsigned num_elements) {
+size_t FieldLengthDescriptor::get_num_elements(const unsigned num_ALT_alleles, const unsigned ploidy, const unsigned num_elements) const {
   assert(get_num_dimensions() == 1u);
   return KnownFieldInfo::get_num_elements_given_length_descriptor(get_length_descriptor(0u),
          num_ALT_alleles, ploidy, num_elements);
@@ -459,7 +469,7 @@ void VidMapper::verify_file_partitioning() const {
   for (auto file_idx=0ull; file_idx<m_file_idx_to_info.size(); ++file_idx) {
     auto& file_info = m_file_idx_to_info[file_idx];
     if (file_info.m_owner_idx < 0) {
-      std::cerr << "File " << file_info.m_name << " is not assigned to any partition\n";
+      logger.info("File {}  is not assigned to any partition", file_info.m_name);
       unassigned_files = true;
     }
   }
@@ -745,8 +755,7 @@ void VidMapper::parse_string_length_descriptor(
         && static_cast<size_t>(num_chars_traversed) == length_value_str_length) //whole string is an integer
       length_descriptor.set_num_elements(length_dim_idx, length_value_int);
     else {
-      std::cerr << "WARNING: unknown length descriptor " << length_value_str
-                << " for field " << field_name  << " ; setting to 'VAR'\n";
+      logger.warn("unknown length descriptor {} for field {}; setting to 'VAR'", length_value_str, field_name);
       length_descriptor.set_length_descriptor(length_dim_idx, BCF_VL_VAR);
     }
   } else
@@ -951,7 +960,7 @@ void VidMapper::check_for_missing_row_indexes()
   auto missing_row_idxs_exist = false;
   for (auto row_idx=0ll; static_cast<size_t>(row_idx)<m_row_idx_to_info.size(); ++row_idx)
     if (!(m_row_idx_to_info[row_idx].m_is_initialized)) {
-      std::cerr << "Sample/callset information missing for row " << row_idx << "\n";
+      logger.warn("Sample/callset information missing for row {}", row_idx);
       missing_row_idxs_exist = true;
     }
   if (missing_row_idxs_exist)
@@ -1142,7 +1151,7 @@ void FileBasedVidMapper::common_constructor_initialization(
       } else
         contig_name = (*dict_iter).name.GetString();
       if (m_contig_name_to_idx.find(contig_name) != m_contig_name_to_idx.end()) {
-        std::cerr << (std::string("Duplicate contig/chromosome name ")+contig_name+" found in vid file "+filename) << "\n";
+        logger.warn("Duplicate contig/chromosome name {} found in vid file {}", contig_name, filename);
         duplicate_contigs_exist = true;
       } else {
         VERIFY_OR_THROW(contig_info_dict.HasMember("tiledb_column_offset") && contig_info_dict["tiledb_column_offset"].IsInt64());
@@ -1178,10 +1187,10 @@ void FileBasedVidMapper::common_constructor_initialization(
       if (last_contig_idx >= 0) {
         const auto& last_contig_info = m_contig_idx_to_info[last_contig_idx];
         if (contig_info.m_tiledb_column_offset <= last_contig_end_column) {
-          std::cerr << (std::string("Contig/chromosome ")+contig_info.m_name+" begins at TileDB column "
-                        +std::to_string(contig_info.m_tiledb_column_offset)+" and intersects with contig/chromosome "+last_contig_info.m_name
-                        +" that spans columns [ "+std::to_string(last_contig_info.m_tiledb_column_offset)+", "
-                        +std::to_string(last_contig_info.m_tiledb_column_offset+last_contig_info.m_length-1)+" ]") << "\n";
+          logger.info("Contig/chromosome {} begins at TileDB column {} and intersects with contig/chromosome {} that spans columns [ {}, {} ]",
+                      contig_info.m_name, contig_info.m_tiledb_column_offset, last_contig_info.m_name,
+                      last_contig_info.m_tiledb_column_offset,
+                      last_contig_info.m_tiledb_column_offset+last_contig_info.m_length-1);
           overlapping_contigs_exist = true;
         }
       }
@@ -1225,7 +1234,7 @@ void FileBasedVidMapper::common_constructor_initialization(
       } else
         field_name = (*dict_iter).name.GetString();
       if (m_field_name_to_idx.find(field_name) != m_field_name_to_idx.end()) {
-        std::cerr << (std::string("Duplicate field name ")+field_name+" found in vid attribute \"fields\"") << "\n";
+        logger.warn("Duplicate field name {} found in vid attribute \"fields\"", field_name);
         duplicate_fields_exist = true;
         //advance loop
       } else {
@@ -1235,6 +1244,11 @@ void FileBasedVidMapper::common_constructor_initialization(
         //Map
         m_field_name_to_idx[field_name] = field_idx;
         m_field_idx_to_info[field_idx].set_info(field_name, field_idx);
+	//Field renamed due to collision in the VCF header
+	if(field_info_dict.HasMember("vcf_name")) {
+	  VERIFY_OR_THROW(field_info_dict["vcf_name"].IsString());
+	  m_field_idx_to_info[field_idx].m_vcf_name = field_info_dict["vcf_name"].GetString();
+	}
         if (field_info_dict.HasMember("vcf_field_class")) {
           //Array which specifies whether field if INFO, FORMAT, FILTER etc
           const auto& vcf_field_class_array = field_info_dict["vcf_field_class"];

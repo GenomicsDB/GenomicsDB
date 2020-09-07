@@ -199,16 +199,15 @@ int VidMapper::parse_contigs_from_vidmap(
         std::string("Duplicate contigs found: ")
         + contig_name);
     }
-
-    std::sort(
-      m_contig_begin_2_idx.begin(),
-      m_contig_begin_2_idx.end(),
-      contig_offset_idx_pair_cmp);
-    std::sort(
-      m_contig_end_2_idx.begin(),
-      m_contig_end_2_idx.end(),
-      contig_offset_idx_pair_cmp);
   }
+  std::sort(
+    m_contig_begin_2_idx.begin(),
+    m_contig_begin_2_idx.end(),
+    contig_offset_idx_pair_cmp);
+  std::sort(
+    m_contig_end_2_idx.begin(),
+    m_contig_end_2_idx.end(),
+    contig_offset_idx_pair_cmp);
 
   // Check that there are no spurious overlaps.
   // If found, throw an exception
@@ -280,6 +279,9 @@ int VidMapper::parse_infofields_from_vidmap(
     m_field_name_to_idx[field_name] = field_idx;
     m_field_idx_to_info[field_idx].set_info(field_name, field_idx);
     auto& ref = m_field_idx_to_info[field_idx];
+
+    if(vid_map_protobuf->fields(pb_field_idx).has_vcf_name())
+      ref.m_vcf_name = vid_map_protobuf->fields(pb_field_idx).vcf_name();
 
     // VCF class type can be an array of values: INFO, FORMAT and FILTER
     auto class_type_size =

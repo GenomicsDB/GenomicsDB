@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
   // to convert json file to protobuf
   // This to support removing the jsonfile as input
   genomicsdb_pb::ExportConfiguration export_config;
-  GenomicsDBConfigBase::get_pb_from_query_json_file(&export_config, json_config_file);
+  GenomicsDBConfigBase::get_pb_from_json_file(&export_config, json_config_file);
   GenomicsDBBCFGenerator bcf_reader(loader_json_config_file, &export_config, my_world_mpi_rank, page_size, std::max<size_t>(page_size, 1024u),
       output_format.c_str());
   while(!(bcf_reader.end()))

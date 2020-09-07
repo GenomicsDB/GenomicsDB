@@ -283,4 +283,42 @@ public final class GenomicsDBTestUtils {
 
     return new Object[][] { { tmpQFile.getAbsolutePath(), tmpLFile.getAbsolutePath(), tmpHFile.getAbsolutePath() } };
   }
+
+  // test query range bigger than query block size
+  @DataProvider(name="loaderQueryHostFilesTest6")
+  public static Object[][] loaderQueryHostFilesTest6() throws IOException {
+    String queryPreamble = "{\n\"workspace\": \"hdfs://tmp/ws\",\n\"array\": \"part\",\n \"query_block_size\":5000, \"query_block_size_margin\":1000,";
+    String loaderPreamble = "{\n\"row_based_partitioning\": false,\n\"column_partitions\" : [\n";
+    String loaderEpilogue = "\n],\n\"vid_mapping_file\" : \"tests/inputs/vid.json\"\n}";
+    String loaderPartEpilogue = "\"workspace\": \"hdfs://tmp/ws\", \"vcf_output_filename\": \"/tmp/test0.vcf.gz\"}";
+
+    String queryCol = "\"query_column_ranges\" : [ [ [ 9000, 24500]";
+    String loaderPart = "";
+    for(int i=0; i<3; i++) {
+       loaderPart += "{\"begin\": "+String.valueOf(i*10000)+", \"array\": \"part"+i+"\","+loaderPartEpilogue;
+       if (i<2) {
+         loaderPart += ",\n";
+       }
+    }
+    String query = queryPreamble + queryCol + " ] ]\n}"; 
+    String loader = loaderPreamble + loaderPart + loaderEpilogue;
+    File tmpQFile = File.createTempFile("query", ".json");
+    tmpQFile.deleteOnExit();
+    FileWriter fQ = new FileWriter(tmpQFile);
+    fQ.write(query);
+    fQ.close();
+    File tmpLFile = File.createTempFile("loader", ".json");
+    tmpLFile.deleteOnExit();
+    FileWriter fL = new FileWriter(tmpLFile);
+    fL.write(loader);
+    fL.close();
+    File tmpHFile = File.createTempFile("hostfile", "");
+    tmpHFile.deleteOnExit();
+    FileWriter fH = new FileWriter(tmpHFile);
+    fH.write("localhost");
+    fH.close();
+
+    return new Object[][] { { tmpQFile.getAbsolutePath(), tmpLFile.getAbsolutePath(), tmpHFile.getAbsolutePath() } };
+  }
+
 }

@@ -94,7 +94,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
       throws IOException, InterruptedException {
 
     String loaderJson;
-    String queryJson;
+    String query;
 
     GenomicsDBFeatureReader<VCONTEXT, SOURCE> featureReader;
     GenomicsDBRecordReader<VCONTEXT, SOURCE> recordReader;
@@ -105,11 +105,11 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
       Configuration configuration = taskAttemptContext.getConfiguration();
       loaderJson = configuration.get(GenomicsDBConfiguration.LOADERJSON);
       if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
-        queryJson = configuration.get(GenomicsDBConfiguration.QUERYPB);
+        query = configuration.get(GenomicsDBConfiguration.QUERYPB);
         isPB = true;
       }
       else {
-        queryJson = configuration.get(GenomicsDBConfiguration.QUERYJSON);
+        query = configuration.get(GenomicsDBConfiguration.QUERYJSON);
         isPB = false;
       }
     } else {
@@ -120,11 +120,11 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
       assert(configuration!=null);
       loaderJson = configuration.get(GenomicsDBConfiguration.LOADERJSON);
       if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
-        queryJson = configuration.get(GenomicsDBConfiguration.QUERYPB);
+        query = configuration.get(GenomicsDBConfiguration.QUERYPB);
         isPB = true;
       }
       else {
-        queryJson = configuration.get(GenomicsDBConfiguration.QUERYJSON);
+        query = configuration.get(GenomicsDBConfiguration.QUERYJSON);
         isPB = false;
       }
     }
@@ -134,7 +134,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration;
     try {
       exportConfiguration = 
-              GenomicsDBInput.createTargetExportConfigurationPB(queryJson, 
+              GenomicsDBInput.createTargetExportConfigurationPB(query, 
               gSplit.getPartitionInfo(),
               gSplit.getQueryInfoList(), isPB);
     }

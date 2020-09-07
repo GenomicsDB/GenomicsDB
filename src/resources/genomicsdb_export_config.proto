@@ -93,6 +93,6 @@ message ExportConfiguration {
   optional bool scan_full = 25;
   optional uint32 segment_size = 26;
   optional uint32 combined_vcf_records_buffer_size_limit = 27;
-  optional bool disable_file_locking_in_tiledb = 28;
+  optional bool enable_shared_posixfs_optimizations = 28;
   optional SparkConfig spark_config = 29;
 }

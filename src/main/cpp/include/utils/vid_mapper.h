@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2019 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -148,6 +149,7 @@ enum VCFFieldCombineOperationEnum {
   VCF_FIELD_COMBINE_OPERATION_ELEMENT_WISE_SUM,
   VCF_FIELD_COMBINE_OPERATION_CONCATENATE,
   VCF_FIELD_COMBINE_OPERATION_HISTOGRAM_SUM,
+  VCF_FIELD_COMBINE_OPERATION_NONE,
   VCF_FIELD_COMBINE_OPERATION_UNKNOWN_OPERATION
 };
 
@@ -237,7 +239,7 @@ class FieldLengthDescriptor {
     assert(m_is_length_ploidy_dependent);
     return (get_length_descriptor(0u) == BCF_VL_Phased_Ploidy);
   }
-  size_t get_num_elements(const unsigned num_ALT_alleles, const unsigned ploidy, const unsigned num_elements);
+  size_t get_num_elements(const unsigned num_ALT_alleles, const unsigned ploidy, const unsigned num_elements) const;
   void set_vcf_delimiter(const size_t dim_idx, const char* vcf_delim) {
     assert(vcf_delim);
     assert(dim_idx < m_vcf_delimiter_vec.size());

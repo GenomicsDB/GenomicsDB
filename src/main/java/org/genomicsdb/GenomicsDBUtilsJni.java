@@ -34,6 +34,8 @@ public class GenomicsDBUtilsJni {
         }
     }
 
+    public static native String jniLibraryVersion();
+
     /**
      * Create TileDB workspace
      *
@@ -114,5 +116,13 @@ public class GenomicsDBUtilsJni {
      * @return max valid row idx, -1 for error
      */
     public static native int jniGetMaxValidRowIndex(final String workspace, final String array);
+
+    /**
+     * Get array column bounds
+     * @param workspace path to workspace
+     * @param array name of workspace
+     * @return array of length 2 with with [0] = min column, [1] = max column
+     */
+    public static native long[] jniGetArrayColumnBounds(final String workspace, final String array);
 }
 

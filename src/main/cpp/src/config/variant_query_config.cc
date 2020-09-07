@@ -206,6 +206,11 @@ void VariantQueryConfig::read_from_file(const std::string& filename, const int r
   validate(rank);
 }
 
+void VariantQueryConfig::read_from_JSON_string(const std::string& str, const int rank) {
+  GenomicsDBConfigBase::read_from_JSON_string(str, rank);
+  validate(rank);
+}
+
 void VariantQueryConfig::validate(const int rank) {
   //Workspace
   VERIFY_OR_THROW(m_workspaces.size() && "No workspace specified");
@@ -225,6 +230,9 @@ void VariantQueryConfig::validate(const int rank) {
   if (!m_vid_mapper.is_initialized()) {
     if (m_vid_mapping_file.size() > 0) {
       m_vid_mapper = std::move(FileBasedVidMapper(m_vid_mapping_file));
+    }
+    if (m_callset_mapping_file.size() > 0) {
+      m_vid_mapper.parse_callsets_json(m_callset_mapping_file, true);
     }
   }
   

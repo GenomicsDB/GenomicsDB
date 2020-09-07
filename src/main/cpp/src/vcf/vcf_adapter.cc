@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -18,7 +19,7 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+ */
 
 #ifdef HTSDIR
 
@@ -26,6 +27,7 @@
 #include "vid_mapper.h"
 #include "htslib/tbx.h"
 #include "tiledb_utils.h"
+#include "logger.h"
 
 //ReferenceGenomeInfo functions
 void ReferenceGenomeInfo::initialize(const std::string& reference_genome) {
@@ -36,14 +38,14 @@ void ReferenceGenomeInfo::initialize(const std::string& reference_genome) {
   m_buffer.resize(32768u+8);     //32KB
 }
 
-char ReferenceGenomeInfo::get_reference_base_at_position(const char* contig, int pos) {
+char ReferenceGenomeInfo::get_reference_base_at_position(const char* contig, const int64_t pos) {
   //See if pos is within the last buffer read
   if (strcmp(m_reference_last_seq_read.c_str(), contig) == 0 && m_reference_last_read_pos <= pos) {
     int offset = pos - m_reference_last_read_pos;
     if (offset < m_reference_num_bases_read)
       return m_buffer[offset];
   }
-  int length = 0;
+  hts_pos_t length = 0;
   faidx_fetch_seq_into_buffer(m_reference_faidx, contig, pos, pos+m_buffer.size()-8u, &(m_buffer[0]), &length);
   assert(length > 0);
   m_reference_last_seq_read = contig;
@@ -84,7 +86,9 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
     if (description_idx >= 0)
       description_value = hrec->vals[description_idx];
     bcf_hdr_remove(hdr, field_type_idx, field_name.c_str());
-    bcf_hdr_sync(hdr);
+    if (bcf_hdr_sync(hdr)) {
+      logger.fatal(VCFAdapterException("Possible realloc() failure from bcf_hdr_sync() while adding missing field to hdr"));
+    }
     field_exists_in_vcf_hdr = false;
     old_field_idx_before_deletion = field_idx;
   }
@@ -154,6 +158,7 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
             header_line += "Flag";
             break;
           case BCF_HT_INT:
+          case BCF_HT_INT64:
             header_line += "Integer";
             break;
           case BCF_HT_REAL:
@@ -180,7 +185,9 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
     int line_length = 0;
     auto hrec = bcf_hdr_parse_line(hdr, header_line.c_str(), &line_length);
     bcf_hdr_add_hrec(hdr, hrec);
-    bcf_hdr_sync(hdr);
+    if (bcf_hdr_sync(hdr)) {
+      logger.fatal(VCFAdapterException("Possible realloc() failure from bcf_hdr_sync() while adding missing field to hdr"));
+    }
 #ifdef DEBUG
     if (old_field_idx_before_deletion >= 0)
       assert(bcf_hdr_id2int(hdr, BCF_DT_ID, field_name.c_str()) == old_field_idx_before_deletion);
@@ -224,7 +231,7 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
       //Check for compatible field types
       auto compatible_types = std::unordered_map<int, std::unordered_set<int>> {
         { BCF_HT_FLAG, { BCF_HT_FLAG } },
-        { BCF_HT_INT, { BCF_HT_INT } },
+        { BCF_HT_INT, { BCF_HT_INT, BCF_HT_INT64 } },
         { BCF_HT_REAL, { BCF_HT_REAL } },
         { BCF_HT_INT64, { BCF_HT_INT64 } },
         { BCF_HT_VOID, { BCF_HT_VOID } },
@@ -269,8 +276,9 @@ VCFAdapter::~VCFAdapter() {
     default:
       break; //do nothing
     }
-    if (status != 0)
-      std::cerr << "WARNING: error in creating index for output file "<<m_config_base_ptr->get_vcf_output_filename()<<"\n";
+    if (status != 0) {
+      logger.warn("error in creating index for output file {}", m_config_base_ptr->get_vcf_output_filename());
+    }
   }
   m_output_fptr = 0;
 #ifdef DO_PROFILING
@@ -321,8 +329,7 @@ void VCFAdapter::initialize(const GenomicsDBConfigBase& config_base) {
   if (m_open_output) {
     m_output_fptr = bcf_open(output_filename.c_str(), ("w"+output_format).c_str());
     if (m_output_fptr == 0) {
-      std::cerr << "Cannot write to output file "<< output_filename << ", exiting\n";
-      exit(-1);
+      logger.fatal(VCFAdapterException(logger.format("Cannot write to output file {}", output_filename)));
     }
     if (config_base.index_output_VCF() && !output_filename.empty()
         && !(output_filename.length() == 1u && output_filename[0] == '-')) {
@@ -345,20 +352,23 @@ bcf_hdr_t* VCFAdapter::initialize_default_header() {
   auto hdr = bcf_hdr_init("w");
   bcf_hdr_append(hdr, "##ALT=<ID=NON_REF,Description=\"Represents any possible alternative allele at this location\">");
   bcf_hdr_append(hdr, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"Stop position of the interval\">");
-  bcf_hdr_sync(hdr);
+  if (bcf_hdr_sync(hdr)) {
+    logger.fatal(VCFAdapterException("Posssible realloc() failure from bcf_hdr_sync() while initializing default header"));
+  }
   return hdr;
 }
 
 void VCFAdapter::print_header() {
-  bcf_hdr_write(m_output_fptr, m_template_vcf_hdr);
+  if (bcf_hdr_write(m_output_fptr, m_template_vcf_hdr)) {
+    logger.fatal(VCFAdapterException("bcf_hdr_write() failed while printing header"));
+  }
 }
 
 void VCFAdapter::handoff_output_bcf_line(bcf1_t*& line, const size_t bcf_record_size) {
-  auto write_status = bcf_write(m_output_fptr, m_template_vcf_hdr, line);
-  if (write_status != 0)
-    throw VCFAdapterException(std::string("Failed to write VCF/BCF record at position ")
-                              +bcf_hdr_id2name(m_template_vcf_hdr, line->rid)+", "
-                              +std::to_string(line->pos+1));
+  if (bcf_write(m_output_fptr, m_template_vcf_hdr, line)) {
+    logger.fatal(VCFAdapterException(logger.format("Failed to write VCF/BCF record at position {}, {}",
+                                                   bcf_hdr_id2name(m_template_vcf_hdr, line->rid), line->pos+1)));
+  }
 }
 
 BufferedVCFAdapter::BufferedVCFAdapter(unsigned num_circular_buffers, unsigned max_num_entries)
