@@ -19,6 +19,8 @@ if(PROTOBUF_FOUND)
 endif()
 find_package(Protobuf)
 
+Message(STATUS "Protobuf_LIBRARY=" ${Protobuf_LIBRARY})
+
 include(CheckCXXSourceCompiles)
 function(CHECK_IF_USING_PROTOBUF_V_3_0_0_BETA_1 FLAG_VAR_NAME)
   set(PB_test_source
