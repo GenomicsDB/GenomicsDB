@@ -31,13 +31,14 @@ public class GenomicsDBQueryInputFormat extends InputFormat<Interval, List<Varia
   @Override
   public List<InputSplit> getSplits(JobContext jobContext) throws IOException, InterruptedException {
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(configuration);
-    genomicsDBConfiguration.setLoaderJsonFile(
-            configuration.get(GenomicsDBConfiguration.LOADERJSON));
+    if (configuration.get(GenomicsDBConfiguration.LOADERJSON) != null) {
+      genomicsDBConfiguration.setLoaderJsonFile(
+          configuration.get(GenomicsDBConfiguration.LOADERJSON));
+    }
     if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
       genomicsDBConfiguration.setQueryJsonFile(
               configuration.get(GenomicsDBConfiguration.QUERYPB));
-    }
-    else {
+    } else if (configuration.get(GenomicsDBConfiguration.QUERYJSON) != null){
       genomicsDBConfiguration.setQueryJsonFile(
               configuration.get(GenomicsDBConfiguration.QUERYJSON));
     }

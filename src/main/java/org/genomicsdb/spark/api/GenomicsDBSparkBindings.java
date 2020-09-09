@@ -1,52 +1,71 @@
 package org.genomicsdb.spark.api;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.model.GenomicsDBImportConfiguration;
 import org.genomicsdb.reader.GenomicsDBQuery.Interval;
 import org.genomicsdb.reader.GenomicsDBQuery.VariantCall;
 import org.genomicsdb.spark.GenomicsDBConfiguration;
 
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.List;
 
+import com.googlecode.protobuf.format.JsonFormat;
+
+/**
+ * Example Invocation
+ * spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-1.3.1-SNAPSHOT-allinone.jar loader.json querypb.json true
+ *      querypb.json should be parseable by GenomicsDBExportConfiguration.ExportConfiguration
+ *  OR
+ *  spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-1.3.1-SNAPSHOT-allinone.jar loader.json query.json false
+ *  OR
+ *  spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-1.3.1-SNAPSHOT-allinone.jar loader.json query.json
+ */
 public class GenomicsDBSparkBindings {
-
-  static Class getClass(Type type){
-    if (type instanceof Class) {
-      return type.getClass();
-    } else if (type instanceof ParameterizedType) {
-      ParameterizedType parameterizedType = (ParameterizedType)type;
-      return parameterizedType.getRawType().getClass();
-    } else {
-      throw new RuntimeException("Cannot find class for type="+type.getTypeName());
-    }
-  }
-
   List<VariantCall> variantCalls;
 
-  @SuppressWarnings("unchecked")
-  public static void main(String[] args) {
-    System.out.println("Args Length="+args.length);
+  public static void main(String[] args) throws IOException {
+    if (args.length < 2) {
+      throw new RuntimeException("Usage: spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-<VERSION>-allinone.jar <loader.json> <query.json> [<is_pb>]"+
+              "Optional Argument 2 - <s_pb=True|False, default is false, if is_pb then query.json is a protobuf formatted file.");
+    }
 
     String loaderJsonFile = args[0];
     String queryJsonFile = args[1];
+    boolean isPB = false;
+    if (args.length == 3) {
+      isPB = new Boolean(args[2]).booleanValue();
+    }
 
     SparkConf conf = new SparkConf();
     conf.setAppName("GenomicsDB API Experimental Bindings");
     JavaSparkContext sc = new JavaSparkContext(conf);
 
     Configuration hadoopConf = sc.hadoopConfiguration();
-    hadoopConf.set(GenomicsDBConfiguration.LOADERJSON, loaderJsonFile);
-    hadoopConf.set(GenomicsDBConfiguration.QUERYJSON, queryJsonFile);
+    if (!loaderJsonFile.isEmpty()) {
+      hadoopConf.set(GenomicsDBConfiguration.LOADERJSON, loaderJsonFile);
+    }
+
+    if (isPB) {
+      String queryPBString = FileUtils.readFileToString(new File(queryJsonFile));
+      final GenomicsDBExportConfiguration.ExportConfiguration.Builder builder = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
+      JsonFormat.merge(queryPBString, builder);
+      queryPBString = Base64.getEncoder().encodeToString(builder.build().toByteArray());
+      hadoopConf.set(GenomicsDBConfiguration.QUERYPB, queryPBString);
+    } else {
+      hadoopConf.set(GenomicsDBConfiguration.QUERYJSON, queryJsonFile);
+    }
 
     Class variantCallListClass;
     try {
-      List<VariantCall> variantCallClass = new ArrayList<>();
-      variantCallListClass = Class.forName(variantCallClass.getClass().getGenericSuperclass().getTypeName());
+      variantCallListClass = Class.forName("java.util.List");
     } catch (ClassNotFoundException e) {
       e.printStackTrace();
       throw new RuntimeException(e.getLocalizedMessage());
@@ -60,6 +79,5 @@ public class GenomicsDBSparkBindings {
     for (Object variantObj : variantList) {
       System.out.println(variantObj);
     }
-
   }
 }

@@ -193,6 +193,9 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
       long begin = (long)obj0.get("begin");
       workspace = (String)obj0.get("workspace");
       array = (String)obj0.get("array");
+      if (array == null) {
+        array = (String)obj0.get("array_name");
+      }
       vcf_output_filename = (String)obj0.get("vcf_output_filename");
       partitionInfoList.add(new GenomicsDBPartitionInfo(begin, workspace, array, vcf_output_filename));
     }
