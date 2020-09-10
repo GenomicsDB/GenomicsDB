@@ -26,7 +26,7 @@
 #
 
 project(GenomicsDB)
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.6.2)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
