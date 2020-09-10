@@ -5,6 +5,9 @@
 
 find_path(PROTOBUF_INCLUDE_DIRS NAMES google/protobuf/service.h PATHS "${PROTOBUF_INCLUDE_DIR}" "${PROTOBUF_LIBRARY}/include")
 if(PROTOBUF_STATIC_LINKING OR BUILD_DISTRIBUTABLE_LIBRARY)
+    if (CMAKE_VERSION VERSION_GREATER 3.10.0)
+        set(Protobuf_USE_STATIC_LIBS ON)
+    endif()
     find_library(PROTOBUF_LIBRARIES NAMES libprotobuf.a protobuf PATHS "${PROTOBUF_LIBRARY}" "${PROTOBUF_LIBRARY}/lib64" "${PROTOBUF_LIBRARY}/lib")
 else()
     find_library(PROTOBUF_LIBRARIES NAMES protobuf PATHS "${PROTOBUF_LIBRARY}" "${PROTOBUF_LIBRARY}/lib64" "${PROTOBUF_LIBRARY}/lib")
@@ -17,6 +20,8 @@ if(PROTOBUF_FOUND)
     set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_INCLUDE_DIRS})
 endif()
 find_package(Protobuf)
+
+Message(STATUS "Protobuf_LIBRARY=" ${Protobuf_LIBRARY})
 
 include(CheckCXXSourceCompiles)
 function(CHECK_IF_USING_PROTOBUF_V_3_0_0_BETA_1 FLAG_VAR_NAME)
