@@ -77,11 +77,10 @@ set(GENOMICSDB_MAVEN_BUILD_DIR ${CMAKE_BINARY_DIR}/target CACHE PATH "Path to ma
 set(MAVEN_QUIET False CACHE BOOL "Do not print mvn messages")
 set(GENOMICSDB_SPARK_PROFILE "" CACHE STRING "Profile to choose Apache Spark version") # used in Maven builds
 
-set(LIBDBI_DIR "" CACHE PATH "Path to libdbi install directory")
-
 set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when intel optimized zlib is required")
 
 set(LIBDBI_DIR "" CACHE PATH "Path to libdbi install directory")
+
 set(ENABLE_LIBCURL True CACHE BOOL "Enable libcurl for use in htslib to read VCF files directly off S3/GCS/http(s) URLs")
 
 if (NOT CMAKE_BUILD_TYPE)
