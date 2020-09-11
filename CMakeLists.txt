@@ -170,11 +170,13 @@ endif()
 find_package(libuuid REQUIRED)
 include_directories(${LIBUUID_INCLUDE_DIR})
 
+#OpenSSL required by TileDB and CURL
+if(BUILD_DISTRIBUTABLE_LIBRARY)
+  set(OPENSSL_USE_STATIC_LIBS TRUE)
+endif()
+find_package(OpenSSL REQUIRED)
+
 if(ENABLE_LIBCURL)
-  if(BUILD_DISTRIBUTABLE_LIBRARY)
-    set(OPENSSL_USE_STATIC_LIBS TRUE)
-  endif()
-  find_package(OpenSSL REQUIRED)
   find_package(CURL REQUIRED)
 endif()
 
