@@ -1,7 +1,6 @@
 #
 # CMakeLists.txt
 #
-#
 # The MIT License
 #
 # Copyright (c) 2019-2020 Omics Data Automation, Inc.
@@ -26,20 +25,20 @@
 #
 
 project(GenomicsDB)
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.6)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   message(FATAL_ERROR CMAKE_CXX_COMPILER_ID " Compiler not yet supported. Exiting.")
 endif()
 
-#External sources
+#External dependencies. Can be overridden to point to custom locations
 set(HTSLIB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/htslib" CACHE PATH "Path to htslib source directory")
 set(TILEDB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/TileDB" CACHE PATH "Path to TileDB source directory")
 set(RAPIDJSON_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/dependencies/RapidJSON/include" CACHE PATH "Path to RapidJSON include directory")
 set(SPDLOG_INCLUDE_DIR  "${CMAKE_SOURCE_DIR}/dependencies/spdlog/include" CACHE PATH "Path to SpdLog include directory")
 
-#git tag
+#GIT_COMMIT_HASH derived from git tag to be used as part of GENOMICSDB_VERSION
 execute_process(
     COMMAND git log -1 --format=%h
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -47,33 +46,43 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 
-#Build parameters
-set(GENOMICSDB_RELEASE_VERSION "1.3.2-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+#Build parameters/options
+set(GENOMICSDB_RELEASE_VERSION "1.3.3-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 set(GENOMICSDB_VERSION "${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}" CACHE STRING "GenomicsDB full version string")
+
 set(DISABLE_MPI False CACHE BOOL "Disable use of any MPI compiler/libraries")
 set(DISABLE_OPENMP False CACHE BOOL "Disable OpenMP")
+
 set(BUILD_DISTRIBUTABLE_LIBRARY False CACHE BOOL "Build the TileDB/GenomicsDB library with minimal runtime dependencies")
 set(BUILD_JAVA False CACHE BOOL "Build Java/JNI interface for combined VCF records")
+
 set(HTSLIB_INSTALL_DIR "" CACHE PATH "Path to htslib install directory")
-set(OPENSSL_PREFIX_DIR "" CACHE PATH "OpenSSL installation prefix")
+
 set(GENOMICSDB_PROTOBUF_VERSION "3.0.2" CACHE STRING "Version of Google Protocol Buffer library")
 set(PROTOBUF_LIBRARY "" CACHE PATH "Path to protobuf headers and library")
 set(PROTOBUF_STATIC_LINKING True CACHE BOOL "Statically link Protobuf libraries")
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
+set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf files in build directory")
+
 set(USE_LIBCSV False CACHE BOOL "Disable library components that import data from csv files")
 set(LIBCSV_DIR "" CACHE PATH "Path to libcsv header and library")
+
 set(DO_PROFILING False CACHE BOOL "Collect some stats during execution - doesn't add much overhead")
 set(COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW False CACHE BOOL "Counting #cells traversed in columnar iterator")
 set(PROFILE_NUM_CELLS_TO_TRAVERSE_AT_EVERY_QUERY_INTERVAL False CACHE BOOL "Counting #cells traversed in columnar iterator in sliding window")
 set(USE_GPERFTOOLS False CACHE BOOL "Collect profiling information using gperftools")
 set(DO_MEMORY_PROFILING False CACHE BOOL "Collect memory consumption in parts of the combine gVCF program - high overhead")
+
 set(GENOMICSDB_MAVEN_BUILD_DIR ${CMAKE_BINARY_DIR}/target CACHE PATH "Path to maven build directory")
-set(LIBDBI_DIR "" CACHE PATH "Path to libdbi install directory")
 set(MAVEN_QUIET False CACHE BOOL "Do not print mvn messages")
 set(GENOMICSDB_SPARK_PROFILE "" CACHE STRING "Profile to choose Apache Spark version") # used in Maven builds
-set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when optimized zlib is used")
-set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf files in build directory")
+
+set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when intel optimized zlib is required")
+
+set(LIBDBI_DIR "" CACHE PATH "Path to libdbi install directory")
+
 set(ENABLE_LIBCURL True CACHE BOOL "Enable libcurl for use in htslib to read VCF files directly off S3/GCS/http(s) URLs")
+
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -160,11 +169,13 @@ endif()
 find_package(libuuid REQUIRED)
 include_directories(${LIBUUID_INCLUDE_DIR})
 
+#OpenSSL required by TileDB and CURL
+if(BUILD_DISTRIBUTABLE_LIBRARY)
+  set(OPENSSL_USE_STATIC_LIBS TRUE)
+endif()
+find_package(OpenSSL REQUIRED)
+
 if(ENABLE_LIBCURL)
-  if(BUILD_DISTRIBUTABLE_LIBRARY)
-    set(OPENSSL_USE_STATIC_LIBS TRUE)
-  endif()
-  find_package(OpenSSL REQUIRED)
   find_package(CURL REQUIRED)
 endif()
 

@@ -211,6 +211,16 @@ void VariantQueryConfig::read_from_JSON_string(const std::string& str, const int
   validate(rank);
 }
 
+void VariantQueryConfig::read_from_PB(const genomicsdb_pb::ExportConfiguration* export_config, const int rank) {
+  GenomicsDBConfigBase::read_from_PB(export_config, rank);
+  validate(rank);
+}
+
+void VariantQueryConfig::read_from_PB_binary_string(const std::string& str, const int rank) {
+  GenomicsDBConfigBase::read_from_PB_binary_string(str, rank);
+  validate(rank);
+}
+
 void VariantQueryConfig::validate(const int rank) {
   //Workspace
   VERIFY_OR_THROW(m_workspaces.size() && "No workspace specified");
