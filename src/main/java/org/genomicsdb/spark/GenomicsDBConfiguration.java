@@ -30,11 +30,7 @@ import org.json.simple.parser.ParseException;
 
 import org.genomicsdb.model.*;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Serializable;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -250,6 +246,13 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   void populateListFromJson(String jsonType) 
 		  throws FileNotFoundException, IOException, ParseException {
     JSONParser parser = new JSONParser();
+    String filename = this.get(jsonType, "");
+    if (filename.isEmpty()) {
+      throw new IOException(String.format("Could not find any artifact associated with type=%s in GenomicdDBConfiguration", jsonType));
+    }
+    if (!new File(filename).exists()) {
+      throw new IOException(String.format("Could not file=%s associated with type=%s", filename, jsonType));
+    }
     FileReader jsonReader = new FileReader(get(jsonType));
     try {
       JSONObject obj = (JSONObject)parser.parse(jsonReader);

@@ -193,12 +193,17 @@ def cleanup_and_exit(namenode, tmpdir, exit_code):
             pid = subprocess.Popen('hadoop fs -rm -r '+namenode+'/home/hadoop/.tiledb/', shell=True, stdout=subprocess.PIPE);
     sys.exit(exit_code);
 
+def print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string):
+    sys.stderr.write('Stdout: '+stdout_string+'\n')
+    sys.stderr.write('Stderr: '+stderr_string+'\n')
+    cleanup_and_exit(namenode, tmpdir, -1)
+
 def substitute_workspace_dir(jsonfile, wsdir):
     import fileinput
     for line in fileinput.input(jsonfile, inplace=True):
         print(line.replace("#WORKSPACE_DIR#", wsdir))
 
-def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_version, spark_master, spark_deploy):
+def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_version, spark_master, spark_deploy, namenode):
     sys.stdout.write("Sanity testing Spark Bindings...")
     import tarfile
     sanity_test_dir = tmpdir+'/sanity_test'
@@ -211,25 +216,33 @@ def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_ver
     substitute_workspace_dir(query_json, sanity_test_dir)
     substitute_workspace_dir(querypb_json, sanity_test_dir)
 
+    # Expected exception when run without json files
+    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar'
+    try:
+        pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout_string, stderr_string = pid.communicate()
+        if(pid.returncode == 0):
+            sys.stderr.write('Spark Query : '+spark_cmd+'. Expected a failure, but the test succeeded\n')
+            print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+    except:
+        sys.stderr.write('Expected exception, pass\n')
+    
     spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+loader_json+' '+query_json
-    pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE)
+    pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout_string, stderr_string = pid.communicate()
     if(pid.returncode != 0):
-        sys.stderr.write('Spark Query : '+spark_cmd+' failed\n')
-        sys.stderr.write('Stdout: '+stdout_string+'\n')
-        sys.stderr.write('Stderr: '+stderr_string+'\n')
-        cleanup_and_exit(none, tmpdir, -1)
+       sys.stderr.write('Spark Query : '+spark_cmd+' failed\n')
+       print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
 
     spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+loader_json+' '+querypb_json+' true'
-    pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE)
+    pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout_string, stderr_string = pid.communicate()
     if(pid.returncode != 0):
-        sys.stderr.write('Spark Query : '+spark_cmd+' failed\n')
-        sys.stderr.write('Stdout: '+stdout_string+'\n')
-        sys.stderr.write('Stderr: '+stderr_string+'\n')
-        cleanup_and_exit(none, tmpdir, -1)
+       sys.stderr.write('Spark Query : '+spark_cmd+' failed\n')
+       print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
 
     sys.stdout.write("Successful\n")
+    cleanup_and_exit(namenode, tmpdir, 0)
 
 def main():
     if(len(sys.argv) < 8):
@@ -257,7 +270,7 @@ def main():
     tmpdir = tempfile.mkdtemp()
     ws_dir=tmpdir+os.path.sep+'ws'
     jacoco, jacoco_report_cmd = common.setup_jacoco(os.path.abspath(sys.argv[1]), build_type)
-    sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_version, spark_master, spark_deploy)
+    sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_version, spark_master, spark_deploy, namenode)
     loader_tests = [
             { "name" : "t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.json',

@@ -31,12 +31,18 @@ public class GenomicsDBQueryInputFormat extends InputFormat<Interval, List<Varia
   @Override
   public List<InputSplit> getSplits(JobContext jobContext) throws IOException, InterruptedException {
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(configuration);
+
+    // At least a query in the form of json or protobuf should be passed
+    if (configuration.get(GenomicsDBConfiguration.QUERYPB) == null && configuration.get(GenomicsDBConfiguration.QUERYJSON) == null) {
+      throw new IOException("Query json or query protobuf has to be specified.");
+    }
+
     if (configuration.get(GenomicsDBConfiguration.LOADERJSON) != null) {
       genomicsDBConfiguration.setLoaderJsonFile(
           configuration.get(GenomicsDBConfiguration.LOADERJSON));
     }
     if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
-      genomicsDBConfiguration.setQueryJsonFile(
+      genomicsDBConfiguration.setQueryPB(
               configuration.get(GenomicsDBConfiguration.QUERYPB));
     } else if (configuration.get(GenomicsDBConfiguration.QUERYJSON) != null){
       genomicsDBConfiguration.setQueryJsonFile(
@@ -46,7 +52,7 @@ public class GenomicsDBQueryInputFormat extends InputFormat<Interval, List<Varia
       genomicsDBConfiguration.setHostFile(
               configuration.get(GenomicsDBConfiguration.MPIHOSTFILE));
     }
-
+    setConf(genomicsDBConfiguration);
     input.setGenomicsDBConfiguration(genomicsDBConfiguration);
     return (List)input.divideInput();
   }
@@ -82,8 +88,7 @@ public class GenomicsDBQueryInputFormat extends InputFormat<Interval, List<Varia
       if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
         queryJson = configuration.get(GenomicsDBConfiguration.QUERYPB);
         isPB = true;
-      }
-      else {
+      } else {
         queryJson = configuration.get(GenomicsDBConfiguration.QUERYJSON);
         isPB = false;
       }
@@ -253,6 +258,7 @@ public class GenomicsDBQueryInputFormat extends InputFormat<Interval, List<Varia
   }
 
   public GenomicsDBQueryInputFormat(GenomicsDBConfiguration conf) {
+    this.configuration = conf;
     input = new GenomicsDBInput<>(conf, null, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
   }
 

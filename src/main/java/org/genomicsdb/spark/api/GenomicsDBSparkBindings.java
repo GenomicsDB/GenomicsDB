@@ -31,7 +31,7 @@ import com.googlecode.protobuf.format.JsonFormat;
 public class GenomicsDBSparkBindings {
   List<VariantCall> variantCalls;
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws IOException, ClassNotFoundException {
     if (args.length < 2) {
       throw new RuntimeException("Usage: spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-<VERSION>-allinone.jar <loader.json> <query.json> [<is_pb>]"+
               "Optional Argument 2 - <s_pb=True|False, default is false, if is_pb then query.json is a protobuf formatted file.");
@@ -63,13 +63,7 @@ public class GenomicsDBSparkBindings {
       hadoopConf.set(GenomicsDBConfiguration.QUERYJSON, queryJsonFile);
     }
 
-    Class variantCallListClass;
-    try {
-      variantCallListClass = Class.forName("java.util.List");
-    } catch (ClassNotFoundException e) {
-      e.printStackTrace();
-      throw new RuntimeException(e.getLocalizedMessage());
-    }
+    Class variantCallListClass = Class.forName("java.util.List");
     JavaPairRDD<Interval, List<VariantCall>> variants = sc.newAPIHadoopRDD(hadoopConf,
             GenomicsDBQueryInputFormat.class, Interval.class, variantCallListClass);
 
