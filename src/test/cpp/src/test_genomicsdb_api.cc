@@ -31,6 +31,8 @@
 #include "genomicsdb_config_base.h"
 #include "tiledb_utils.h"
 
+#include "genomicsdb_export_config.pb.h"
+
 #include "test_base.h"
 
 #include <iostream>
@@ -431,6 +433,70 @@ TEST_CASE("api query_variant_calls with json", "[query_variant_calls_with_json]"
   delete gdb;
 
   CHECK_THROWS_AS(new GenomicsDB(query_json, GenomicsDB::JSON_FILE, loader_json, 1), GenomicsDBConfigException);
+}
+
+TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_protobuf]") {
+  using namespace genomicsdb_pb;
+
+  ExportConfiguration *config = new ExportConfiguration();
+
+  config->set_workspace(workspace);
+  config->set_callset_mapping_file(callset_mapping);
+  config->set_vid_mapping_file(vid_mapping);
+
+  // query_row_ranges
+  RowRangeList* row_ranges = config->add_query_row_ranges();
+  RowRange* row_range = row_ranges->add_range_list();
+  row_range->set_low(0);
+  row_range->set_high(3);
+
+  // query_column_ranges
+  GenomicsDBColumnOrIntervalList* column_ranges = config->add_query_column_ranges();
+  GenomicsDBColumnOrInterval* column_range = column_ranges->add_column_or_interval_list();
+
+  TileDBColumnInterval* tiledb_column_interval = new TileDBColumnInterval();
+  tiledb_column_interval->set_begin(0);
+  tiledb_column_interval->set_end(1000000000);
+
+  GenomicsDBColumnInterval* column_interval = new GenomicsDBColumnInterval();
+  column_interval->set_allocated_tiledb_column_interval(tiledb_column_interval);
+
+  column_range->set_allocated_column_interval(column_interval);
+
+  // query_attributes
+  config->add_attributes()->assign("GT");
+  config->add_attributes()->assign("DP");
+
+  config->set_reference_genome("inputs/chr1_10MB.fasta.gz");
+  config->set_segment_size(40);
+  config->set_vcf_header_filename("inputs/template_vcf_header.vcf");
+
+  std::string config_string;
+  CHECK(config->SerializeToString(&config_string));
+
+  // no array name set, should throw exception
+  CHECK_THROWS_AS(new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0), GenomicsDBConfigException);
+
+  config->set_array_name(array);
+  CHECK(config->SerializeToString(&config_string));
+
+  GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
+  gdb->query_variant_calls();
+  OneQueryIntervalProcessor one_query_interval_processor;
+  gdb->query_variant_calls(one_query_interval_processor);
+  delete gdb;
+
+  // try query with contig intervals instead of tiledb column intervals
+  ContigInterval* contig_interval = new ContigInterval();
+  contig_interval->set_contig("1");
+  contig_interval->set_begin(1);
+  contig_interval->set_end(249250621);
+  column_interval->Clear();
+  column_interval->set_allocated_contig_interval(contig_interval);
+  CHECK(config->SerializeToString(&config_string));
+  gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
+  gdb->query_variant_calls();
+  delete gdb;
 }
 
 TEST_CASE("api generate_vcf direct", "[query_generate_vcf_direct]") {
