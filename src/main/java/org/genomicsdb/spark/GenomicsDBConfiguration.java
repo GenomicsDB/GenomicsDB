@@ -248,10 +248,10 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     JSONParser parser = new JSONParser();
     String filename = this.get(jsonType, "");
     if (filename.isEmpty()) {
-      throw new IOException(String.format("Could not find any artifact associated with type=%s in GenomicdDBConfiguration", jsonType));
+      throw new IOException(String.format("No filename specified with type=%s in GenomicdDBConfiguration", jsonType));
     }
     if (!new File(filename).exists()) {
-      throw new IOException(String.format("Could not file=%s associated with type=%s", filename, jsonType));
+      throw new IOException(String.format("Could not find file=%s associated with type=%s", filename, jsonType));
     }
     FileReader jsonReader = new FileReader(get(jsonType));
     try {

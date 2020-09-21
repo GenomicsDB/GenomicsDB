@@ -3,6 +3,7 @@ package org.genomicsdb.spark;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 import org.genomicsdb.spark.api.GenomicsDBQueryInputFormat;
+import org.junit.rules.ExpectedException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -31,15 +32,33 @@ public class GenomicsDBQueryInputFormatTest {
     Assert.assertEquals(inputFormat.getConf().get(GenomicsDBConfiguration.MPIHOSTFILE), "hostfile");
   }
 
-  @Test
+  @Test(expectedExceptions = IOException.class)
   public void testNullBasicInputSplits() throws IOException, InterruptedException {
     final GenomicsDBQueryInputFormat tryNullInputFormat = new GenomicsDBQueryInputFormat(new GenomicsDBConfiguration());
     tryNullInputFormat.getSplits(null);
+  }
 
+  @Test(expectedExceptions = IOException.class)
+  public void testBasicInputSplitsNonExistentLoaderJSON() throws IOException, InterruptedException{
     final GenomicsDBConfiguration tryConfiguration = new GenomicsDBConfiguration();
     tryConfiguration.set(GenomicsDBConfiguration.LOADERJSON, "xxx");
     final GenomicsDBQueryInputFormat tryInputFormat = new GenomicsDBQueryInputFormat(tryConfiguration);
     tryInputFormat.getSplits(null);
   }
 
+  @Test
+  public void testBasicInputSplitsNonExistentQueryJSON() throws IOException, InterruptedException{
+    final GenomicsDBConfiguration tryConfiguration = new GenomicsDBConfiguration();
+    tryConfiguration.set(GenomicsDBConfiguration.QUERYJSON, "xxx");
+    final GenomicsDBQueryInputFormat tryInputFormat = new GenomicsDBQueryInputFormat(tryConfiguration);
+    Assert.assertNull(tryInputFormat.getSplits(null));
+  }
+
+  @Test
+  public void testBasicInputSplitsNonExistentQueryPB() throws IOException, InterruptedException{
+    final GenomicsDBConfiguration tryConfiguration = new GenomicsDBConfiguration();
+    tryConfiguration.set(GenomicsDBConfiguration.QUERYPB, "xxx");
+    final GenomicsDBQueryInputFormat tryInputFormat = new GenomicsDBQueryInputFormat(tryConfiguration);
+    Assert.assertNull(tryInputFormat.getSplits(null));
+  }
 }
