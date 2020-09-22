@@ -6,7 +6,6 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
-import org.genomicsdb.model.GenomicsDBImportConfiguration;
 import org.genomicsdb.reader.GenomicsDBQuery.Interval;
 import org.genomicsdb.reader.GenomicsDBQuery.VariantCall;
 import org.genomicsdb.spark.GenomicsDBConfiguration;
@@ -33,8 +32,8 @@ public class GenomicsDBSparkBindings {
 
   public static void main(String[] args) throws IOException, ClassNotFoundException {
     if (args.length < 2) {
-      throw new RuntimeException("Usage: spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-<VERSION>-allinone.jar <loader.json> <query.json> [<is_pb>]"+
-              "Optional Argument 2 - <s_pb=True|False, default is false, if is_pb then query.json is a protobuf formatted file.");
+      throw new RuntimeException("Usage: spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-<VERSION>-allinone.jar <loader.json> <query.json> [<is_serialized_pb>]"+
+              "Optional Argument 2 - <is_serialized_pb=True|False, default is false, if is_serialized_pb then query.json is a protobuf serialized file.");
     }
 
     String loaderJsonFile = args[0];
@@ -66,7 +65,6 @@ public class GenomicsDBSparkBindings {
     Class variantCallListClass = Class.forName("java.util.List");
     JavaPairRDD<Interval, List<VariantCall>> variants = sc.newAPIHadoopRDD(hadoopConf,
             GenomicsDBQueryInputFormat.class, Interval.class, variantCallListClass);
-
 
     System.out.println("Number of variants "+variants.count());
     List variantList = variants.collect();

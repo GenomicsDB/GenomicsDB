@@ -7,6 +7,7 @@ import org.junit.rules.ExpectedException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 
 public class GenomicsDBQueryInputFormatTest {
@@ -52,7 +53,6 @@ public class GenomicsDBQueryInputFormatTest {
     final GenomicsDBConfiguration tryConfiguration = new GenomicsDBConfiguration();
     tryConfiguration.set(GenomicsDBConfiguration.LOADERJSON, "");
     tryConfiguration.set(GenomicsDBConfiguration.QUERYPB, "yyy");
-    tryConfiguration.set(GenomicsDBConfiguration.MPIHOSTFILE, "zzz");
     final GenomicsDBQueryInputFormat tryInputFormat = new GenomicsDBQueryInputFormat(tryConfiguration);
     Assert.assertNull(tryInputFormat.getSplits(null));
   }
@@ -77,6 +77,15 @@ public class GenomicsDBQueryInputFormatTest {
   public void testBasicInputSplitsNonExistentQueryPB() throws IOException, InterruptedException{
     final GenomicsDBConfiguration tryConfiguration = new GenomicsDBConfiguration();
     tryConfiguration.set(GenomicsDBConfiguration.QUERYPB, "xxx");
+    final GenomicsDBQueryInputFormat tryInputFormat = new GenomicsDBQueryInputFormat(tryConfiguration);
+    Assert.assertNull(tryInputFormat.getSplits(null));
+  }
+
+  @Test(expectedExceptions = FileNotFoundException.class)
+  public void testBasicInputSplitsNonExistentMPIHost() throws IOException, InterruptedException {
+    final GenomicsDBConfiguration tryConfiguration = new GenomicsDBConfiguration();
+    tryConfiguration.set(GenomicsDBConfiguration.QUERYPB, "yyy");
+    tryConfiguration.set(GenomicsDBConfiguration.MPIHOSTFILE, "zzz");
     final GenomicsDBQueryInputFormat tryInputFormat = new GenomicsDBQueryInputFormat(tryConfiguration);
     Assert.assertNull(tryInputFormat.getSplits(null));
   }
