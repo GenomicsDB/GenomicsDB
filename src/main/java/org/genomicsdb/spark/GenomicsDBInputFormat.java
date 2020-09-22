@@ -65,6 +65,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
    * @throws FileNotFoundException  Thrown if creaing configuration object fails
    */
   @SuppressWarnings("unchecked")
+  @Override
   public List<InputSplit> getSplits(JobContext jobContext) throws FileNotFoundException {
 
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(configuration);
@@ -87,6 +88,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     return (List)input.divideInput();
   }
 
+  @Override
   public RecordReader<String, VCONTEXT>
     createRecordReader(InputSplit inputSplit, TaskAttemptContext taskAttemptContext)
       throws IOException, InterruptedException {

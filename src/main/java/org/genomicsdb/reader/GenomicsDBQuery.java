@@ -26,11 +26,12 @@ import org.genomicsdb.GenomicsDBLibLoader;
 import org.genomicsdb.exception.GenomicsDBException;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
+import java.io.Serializable;
 import java.util.*;
 
 public class GenomicsDBQuery {
 
-  static {
+    static {
     try {
       if (!GenomicsDBLibLoader.loadLibrary()) {
         throw new GenomicsDBException("Could not load genomicsdb native library");
@@ -45,7 +46,7 @@ public class GenomicsDBQuery {
     }
   }
 
-  public static class Pair {
+  public static class Pair implements Serializable {
     private long start;
     private long end;
     public Pair(long start, long end){
@@ -58,9 +59,14 @@ public class GenomicsDBQuery {
     public long getEnd(){
       return end;
     }
+
+    @Override
+    public String toString() {
+      return start+"-"+end;
+    }
   }
 
-  public static class VariantCall {
+  public static class VariantCall implements Serializable {
     long rowIndex;
     long colIndex;
     String sampleName;
@@ -93,9 +99,14 @@ public class GenomicsDBQuery {
     public Map<String, Object> getGenomicFields() {
       return genomicFields;
     }
+
+    @Override
+    public String toString() {
+      return rowIndex+genomic_interval.toString()+" "+genomicFields;
+    }
   }
 
-  public static class Interval {
+  public static class Interval implements Serializable {
     Pair interval = null;
     List<VariantCall> calls = new ArrayList<>();
     Interval() {}
@@ -110,6 +121,10 @@ public class GenomicsDBQuery {
     }
     public Pair getInterval() {
         return interval;
+    }
+    @Override
+    public String toString() {
+      return interval.toString();
     }
   }
 

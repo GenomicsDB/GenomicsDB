@@ -24,15 +24,16 @@ package org.genomicsdb
 
 import org.genomicsdb.spark.{GenomicsDBConfiguration, GenomicsDBInputFormat}
 import org.genomicsdb.spark.GenomicsDBInputFormat
-
 import htsjdk.tribble.readers.PositionalBufferedStream
 import htsjdk.variant.variantcontext.VariantContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
+import org.genomicsdb.reader.GenomicsDBQuery.{Interval, VariantCall}
+import org.genomicsdb.spark.api.GenomicsDBQueryInputFormat
 
 /**
-  * This factory class exposes the two ways RDD of variant contexts (htsjdk)
-  * can be retrieved from GenomicsDB
+  * This factory class exposes multiple ways of retrieving RDD of either variant contexts (htsjdk)
+  * or List of VariantCalls from GenomicsDB
   */
 object GenomicsDBScalaSparkFactory {
 
@@ -88,8 +89,36 @@ object GenomicsDBScalaSparkFactory {
     System.out.println(myrdd.count())
   }
 
+  def usingGenomicsDBQuery(args: Array[String]): Unit = {
+    val conf = new SparkConf().setAppName("GenomicsDBQuery API Test with Spark")
+
+    if (args.length == 4) {
+      val master = args(0)
+      val port = args(1)
+      conf.setMaster("spark://" + master + ":" + port)
+    }
+    val loaderJsonFile = if (args.length==4) args(2) else args(0)
+    val queryJsonFile = if (args.length==4) args(2) else args(1)
+
+    val sc = new SparkContext(conf)
+
+    val hadoopConf = sc.hadoopConfiguration
+    hadoopConf.set(GenomicsDBConfiguration.LOADERJSON, loaderJsonFile)
+    hadoopConf.set(GenomicsDBConfiguration.QUERYJSON, queryJsonFile)
+
+    val intervalRDDs: RDD[(Interval, List[VariantCall])] = sc.newAPIHadoopRDD(hadoopConf,
+      classOf[GenomicsDBQueryInputFormat], classOf[Interval], classOf[List[VariantCall]])
+
+    val count = intervalRDDs.count()
+    System.out.println("Count=" + count)
+
+    val intervals: Array[(Interval, List[VariantCall])] = intervalRDDs.collect()
+    intervals.foreach(println)
+  }
+
   def main(args: Array[String]): Unit = {
-    usingNewAPIHadoopRDD(args)
-//    usingGenomicsRDD(args)
+    //   usingNewAPIHadoopRDD(args)
+    //   usingGenomicsRDD(args)
+    usingGenomicsDBQuery(args)
   }
 }

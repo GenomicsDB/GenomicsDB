@@ -30,11 +30,7 @@ import org.json.simple.parser.ParseException;
 
 import org.genomicsdb.model.*;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Serializable;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -193,6 +189,9 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
       long begin = (long)obj0.get("begin");
       workspace = (String)obj0.get("workspace");
       array = (String)obj0.get("array");
+      if (array == null) {
+        array = (String)obj0.get("array_name");
+      }
       vcf_output_filename = (String)obj0.get("vcf_output_filename");
       partitionInfoList.add(new GenomicsDBPartitionInfo(begin, workspace, array, vcf_output_filename));
     }
@@ -247,6 +246,13 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   void populateListFromJson(String jsonType) 
 		  throws FileNotFoundException, IOException, ParseException {
     JSONParser parser = new JSONParser();
+    String filename = this.get(jsonType, "");
+    if (filename.isEmpty()) {
+      throw new IOException(String.format("No filename specified with type=%s in GenomicdDBConfiguration", jsonType));
+    }
+    if (!new File(filename).exists()) {
+      throw new IOException(String.format("Could not find file=%s associated with type=%s", filename, jsonType));
+    }
     FileReader jsonReader = new FileReader(get(jsonType));
     try {
       JSONObject obj = (JSONObject)parser.parse(jsonReader);
