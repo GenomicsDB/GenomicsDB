@@ -44,7 +44,17 @@ public class GenomicsDBQueryInputFormatTest {
     tryConfiguration.set(GenomicsDBConfiguration.LOADERJSON, "xxx");
     tryConfiguration.set(GenomicsDBConfiguration.QUERYPB, "yyy");
     final GenomicsDBQueryInputFormat tryInputFormat = new GenomicsDBQueryInputFormat(tryConfiguration);
-    tryInputFormat.getSplits(null);
+    Assert.assertNull(tryInputFormat.getSplits(null));
+  }
+
+  @Test
+  public void testBasicInputSplitsEmptyLoaderJSON() throws IOException, InterruptedException {
+    final GenomicsDBConfiguration tryConfiguration = new GenomicsDBConfiguration();
+    tryConfiguration.set(GenomicsDBConfiguration.LOADERJSON, "");
+    tryConfiguration.set(GenomicsDBConfiguration.QUERYPB, "yyy");
+    tryConfiguration.set(GenomicsDBConfiguration.MPIHOSTFILE, "zzz");
+    final GenomicsDBQueryInputFormat tryInputFormat = new GenomicsDBQueryInputFormat(tryConfiguration);
+    Assert.assertNull(tryInputFormat.getSplits(null));
   }
 
   @Test(expectedExceptions = IOException.class)
@@ -54,6 +64,7 @@ public class GenomicsDBQueryInputFormatTest {
     final GenomicsDBQueryInputFormat tryInputFormat = new GenomicsDBQueryInputFormat(tryConfiguration);
     tryInputFormat.getSplits(null);
   }
+
   @Test
   public void testBasicInputSplitsNonExistentQueryJSON() throws IOException, InterruptedException{
     final GenomicsDBConfiguration tryConfiguration = new GenomicsDBConfiguration();

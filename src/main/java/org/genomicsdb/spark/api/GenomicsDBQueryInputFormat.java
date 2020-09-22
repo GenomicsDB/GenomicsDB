@@ -158,14 +158,10 @@ public class GenomicsDBQueryInputFormat extends InputFormat<Interval, List<Varia
         String referenceGenome = null;
         Long segmentSize = 0L;
 
+        JSONObject jsonObject = null;
         try {
           JSONParser parser = new JSONParser();
-          JSONObject jsonObject = (JSONObject)parser.parse(new FileReader(configuration.get(GenomicsDBConfiguration.LOADERJSON)));
-          workspace = (String) jsonObject.get("workspace");
-          vidMappingFile = (String)jsonObject.get("vid_mapping_file");
-          callsetMappingFile = (String)jsonObject.get("callset_mapping_file");
-          referenceGenome = (String)jsonObject.get("reference_genome");
-          segmentSize = (Long)jsonObject.get("segment_size");
+          jsonObject = (JSONObject)parser.parse(new FileReader(configuration.get(GenomicsDBConfiguration.LOADERJSON)));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -174,46 +170,34 @@ public class GenomicsDBQueryInputFormat extends InputFormat<Interval, List<Varia
           e.printStackTrace();
         }
 
-        if (exportConfiguration.hasWorkspace()) {
-          workspace = exportConfiguration.getWorkspace();
-        }
-        if (exportConfiguration.hasVidMappingFile()) {
-          vidMappingFile = exportConfiguration.getVidMappingFile();
-        }
-        if (exportConfiguration.hasCallsetMappingFile()) {
-          callsetMappingFile = exportConfiguration.getCallsetMappingFile();
-        }
-        if (exportConfiguration.hasReferenceGenome()) {
-          exportConfiguration.getReferenceGenome();
-        }
-        if (exportConfiguration.hasSegmentSize()) {
-          exportConfiguration.getSegmentSize();
-        }
-
-        if (!check_configuration("workspace", workspace) ||
-                !check_configuration("vid_mapping_file", vidMappingFile) ||
-                !check_configuration("callset_mapping_file", callsetMappingFile) ||
-                !check_configuration("reference_genome", referenceGenome)) {
-          throw new RuntimeException("GenomicsDBConfiguration is incomplete. Add required configuration values and restart the operation");
-        }
-        List<String> attributesList = exportConfiguration.getAttributesList();
-
         assert (exportConfiguration.hasArrayName());
 
         long queryHandle;
-        if (segmentSize > 0) {
-          queryHandle= query.connect(workspace, vidMappingFile, callsetMappingFile, referenceGenome, attributesList, segmentSize.longValue());
+        if (jsonObject != null) {
+          workspace = (exportConfiguration.hasWorkspace())?exportConfiguration.getWorkspace():(String)jsonObject.get("workspace");
+          vidMappingFile = (exportConfiguration.hasVidMappingFile())?exportConfiguration.getVidMappingFile():(String)jsonObject.get("vid_mapping_file");
+          callsetMappingFile = (exportConfiguration.hasCallsetMappingFile())?exportConfiguration.getCallsetMappingFile():(String)jsonObject.get("callset_mapping_file");
+          referenceGenome = (exportConfiguration.hasReferenceGenome())?exportConfiguration.getReferenceGenome():(String)jsonObject.get("reference_genome");
+          segmentSize = (exportConfiguration.hasSegmentSize())?exportConfiguration.getSegmentSize():(Long)jsonObject.get("segment_size");
+          if (!check_configuration("workspace", workspace) ||
+                  !check_configuration("vid_mapping_file", vidMappingFile) ||
+                  !check_configuration("callset_mapping_file", callsetMappingFile) ||
+                  !check_configuration("reference_genome", referenceGenome)) {
+            throw new RuntimeException("GenomicsDBConfiguration is incomplete. Add required configuration values and restart the operation");
+          }
+          List<String> attributesList = exportConfiguration.getAttributesList();
+          if (segmentSize > 0) {
+            queryHandle = query.connect(workspace, vidMappingFile, callsetMappingFile, referenceGenome, attributesList, segmentSize.longValue());
+          } else {
+            queryHandle = query.connect(workspace, vidMappingFile, callsetMappingFile, referenceGenome, attributesList);
+          }
+          intervals = query.queryVariantCalls(queryHandle, exportConfiguration.getArrayName(),
+                  ToColumnRangePairs(exportConfiguration.getQueryColumnRanges(0).getColumnOrIntervalListList()),
+                  ToRowRangePairs(exportConfiguration.getQueryRowRanges(0).getRangeListList()));
         } else {
-          queryHandle = query.connect(workspace, vidMappingFile, callsetMappingFile, referenceGenome, attributesList);
+          queryHandle = query.connectExportConfiguration(exportConfiguration);
+          intervals = query.queryVariantCalls(queryHandle, exportConfiguration.getArrayName());
         }
-
-        /*long queryHandle = query.connect("/Users/nalini/GenomicsDB/build.distr/target/test/inputs/query1.json",
-                "/Users/nalini/GenomicsDB/build.distr/target/test/inputs/loader1.json");
-*/
-        intervals = query.queryVariantCalls(queryHandle, exportConfiguration.getArrayName(),
-                        ToColumnRangePairs(exportConfiguration.getQueryColumnRanges(0).getColumnOrIntervalListList()),
-                        ToRowRangePairs(exportConfiguration.getQueryRowRanges(0).getRangeListList()));
-
         query.disconnect(queryHandle);
 
         intervalIterator = intervals.iterator();
