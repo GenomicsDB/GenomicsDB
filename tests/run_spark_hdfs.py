@@ -242,7 +242,6 @@ def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_ver
        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
 
     sys.stdout.write("Successful\n")
-    cleanup_and_exit(namenode, tmpdir, 0)
 
 def main():
     if(len(sys.argv) < 8):

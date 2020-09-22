@@ -38,14 +38,22 @@ public class GenomicsDBQueryInputFormatTest {
     tryNullInputFormat.getSplits(null);
   }
 
+  @Test
+  public void testBasicInputSplitsNonExistentLoaderJSON() throws IOException, InterruptedException {
+    final GenomicsDBConfiguration tryConfiguration = new GenomicsDBConfiguration();
+    tryConfiguration.set(GenomicsDBConfiguration.LOADERJSON, "xxx");
+    tryConfiguration.set(GenomicsDBConfiguration.QUERYPB, "yyy");
+    final GenomicsDBQueryInputFormat tryInputFormat = new GenomicsDBQueryInputFormat(tryConfiguration);
+    tryInputFormat.getSplits(null);
+  }
+
   @Test(expectedExceptions = IOException.class)
-  public void testBasicInputSplitsNonExistentLoaderJSON() throws IOException, InterruptedException{
+  public void testBasicInputSplitsNoQueryJSONorPB() throws IOException, InterruptedException {
     final GenomicsDBConfiguration tryConfiguration = new GenomicsDBConfiguration();
     tryConfiguration.set(GenomicsDBConfiguration.LOADERJSON, "xxx");
     final GenomicsDBQueryInputFormat tryInputFormat = new GenomicsDBQueryInputFormat(tryConfiguration);
     tryInputFormat.getSplits(null);
   }
-
   @Test
   public void testBasicInputSplitsNonExistentQueryJSON() throws IOException, InterruptedException{
     final GenomicsDBConfiguration tryConfiguration = new GenomicsDBConfiguration();
