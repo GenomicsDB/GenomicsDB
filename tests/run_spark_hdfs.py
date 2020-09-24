@@ -198,10 +198,12 @@ def print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string):
     sys.stderr.write('Stderr: '+stderr_string+'\n')
     cleanup_and_exit(namenode, tmpdir, -1)
 
-def substitute_workspace_dir(jsonfile, wsdir):
+def substitute_placeholders(jsonfile, wsdir):
     import fileinput
     for line in fileinput.input(jsonfile, inplace=True):
         print(line.replace("#WORKSPACE_DIR#", wsdir))
+    for line in fileinput.input(jsonfile, inplace=True):
+        print(line.replace("#TESTS_DIR#", os.getcwd()))
 
 def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_version, spark_master, spark_deploy, namenode):
     sys.stdout.write("Sanity testing Spark Bindings...")
@@ -212,34 +214,39 @@ def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_ver
     loader_json = sanity_test_dir+'/t0_1_2.json'
     query_json = sanity_test_dir+'/query.json'
     querypb_json = sanity_test_dir+'/querypb.json'
-    substitute_workspace_dir(loader_json, sanity_test_dir)
-    substitute_workspace_dir(query_json, sanity_test_dir)
-    substitute_workspace_dir(querypb_json, sanity_test_dir)
+    substitute_placeholders(loader_json, sanity_test_dir)
+    substitute_placeholders(query_json, sanity_test_dir)
+    substitute_placeholders(querypb_json, sanity_test_dir)
 
     # Expected exception when run without json files
     spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar'
-    try:
-        pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        stdout_string, stderr_string = pid.communicate()
-        if(pid.returncode == 0):
-            sys.stderr.write('Spark Query : '+spark_cmd+'. Expected a failure, but the test succeeded\n')
-            print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
-    except:
-        sys.stderr.write('Expected exception, pass\n')
-    
+    pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_string, stderr_string = pid.communicate()
+    if(pid.returncode == 0):
+        sys.stderr.write('Spark Query : '+spark_cmd+'. Expected a failure, but the test succeeded\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+
+    output_string = "[012141-12295 {REF=C, DP_FORMAT=2, MIN_DP=0, ALT=[<NON_REF>], GQ=0, PL=[0, 0, 0], GT=0/0}, 112145-12277 {REF=C, DP_FORMAT=3, MIN_DP=0, ALT=[<NON_REF>], GQ=0, PL=[0, 0, 0], GT=0/0}, 017385-17385 {MQRankSum=-0.329000, AD=[58, 22, 17], MQ=31.719999, DP_FORMAT=80, ALT=[A, <NON_REF>], BaseQRankSum=-2.096000, GQ=99, PID=17385_G_A, ReadPosRankSum=0.005000, MQ0=8, GT=0/1, SB=[58, 0, 22, 0], RAW_MQ=5.500000, REF=G, ClippingRankSum=-1.859000, PL=[504, 0, 9807, 678, 1870, 2548], PGT=0|1}, 117385-17385 {MQRankSum=-1.369000, AD=[0, 120, 37], MQ=29.820000, DP_FORMAT=120, ALT=[T, <NON_REF>], BaseQRankSum=-2.074000, GQ=99, PID=17385_G_T, ReadPosRankSum=-0.101000, DP=120, MQ0=3, GT=1/1, SB=[0, 0, 0, 0], RAW_MQ=2.500000, REF=G, ClippingRankSum=0.555000, PL=[3336, 358, 0, 4536, 958, 7349], PGT=0|1}, 217385-17385 {MQRankSum=-0.432000, AD=[40, 36, 0], MQ=59.369999, DP_FORMAT=76, ALT=[A, <NON_REF>], BaseQRankSum=1.046000, GQ=99, ReadPosRankSum=2.055000, DP=76, MQ0=0, GT=0/1, SB=[9, 31, 13, 23], REF=G, ClippingRankSum=-2.242000, PL=[1018, 0, 1116, 1137, 1224, 2361]}]"
+
     spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+loader_json+' '+query_json
     pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout_string, stderr_string = pid.communicate()
     if(pid.returncode != 0):
-       sys.stderr.write('Spark Query : '+spark_cmd+' failed\n')
-       print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+        sys.stderr.write('Sanity test with query.json : '+spark_cmd+' failed\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+    if output_string not in stdout_string:
+        sys.stderr.write('Expected output not found in sanity test with query.json\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
 
     spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+loader_json+' '+querypb_json+' true'
     pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout_string, stderr_string = pid.communicate()
     if(pid.returncode != 0):
-       sys.stderr.write('Spark Query : '+spark_cmd+' failed\n')
-       print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+        sys.stderr.write('Sanity test with querypb.json : '+spark_cmd+' failed\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+    if output_string not in stdout_string:
+        sys.stderr.write('Expected output not found in sanity test with querypb.json\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
 
     sys.stdout.write("Successful\n")
 
