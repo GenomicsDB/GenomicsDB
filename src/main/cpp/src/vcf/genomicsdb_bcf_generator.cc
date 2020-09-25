@@ -48,7 +48,6 @@ GenomicsDBBCFGenerator::GenomicsDBBCFGenerator(const std::string& loader_config_
   }
   //Parse query protobuf - ensures that vid, callset may be obtained from loader (if exists)
   m_query_config.read_from_PB(query_config_pb, my_rank);
-  m_query_config.validate();
   if (!(loader_config_file.empty()))
     m_query_config.subset_query_column_ranges_based_on_partition(loader_config, my_rank);
   m_query_config.set_vcf_output_format(output_format);

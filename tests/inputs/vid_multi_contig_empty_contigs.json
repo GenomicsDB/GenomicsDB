@@ -1,0 +1,887 @@
+{
+    "contigs": [
+        {
+            "length": 2043,
+            "name": "scaffold_3121",
+            "tiledb_column_offset": 0
+        },
+        {
+            "length": 2622,
+            "name": "scaffold_3427",
+            "tiledb_column_offset": 2043
+        },
+        {
+            "length": 1653,
+            "name": "scaffold_3213",
+            "tiledb_column_offset": 4665
+        },
+        {
+            "length": 2317,
+            "name": "scaffold_3050",
+            "tiledb_column_offset": 6318
+        },
+        {
+            "length": 1181,
+            "name": "scaffold_3381",
+            "tiledb_column_offset": 8635
+        },
+        {
+            "length": 1331,
+            "name": "scaffold_3472",
+            "tiledb_column_offset": 9816
+        },
+        {
+            "length": 2749,
+            "name": "scaffold_2907",
+            "tiledb_column_offset": 11147
+        },
+        {
+            "length": 2329,
+            "name": "scaffold_3046",
+            "tiledb_column_offset": 13896
+        },
+        {
+            "length": 2813,
+            "name": "scaffold_3412",
+            "tiledb_column_offset": 16225
+        },
+        {
+            "length": 1992,
+            "name": "scaffold_3304",
+            "tiledb_column_offset": 19038
+        },
+        {
+            "length": 1283,
+            "name": "scaffold_3332",
+            "tiledb_column_offset": 21030
+        },
+        {
+            "length": 2466,
+            "name": "scaffold_3326",
+            "tiledb_column_offset": 22313
+        },
+        {
+            "length": 1594,
+            "name": "scaffold_3230",
+            "tiledb_column_offset": 24779
+        },
+        {
+            "length": 1884,
+            "name": "scaffold_3160",
+            "tiledb_column_offset": 26373
+        },
+        {
+            "length": 2418,
+            "name": "scaffold_3403",
+            "tiledb_column_offset": 28257
+        },
+        {
+            "length": 2950,
+            "name": "scaffold_2851",
+            "tiledb_column_offset": 30675
+        },
+        {
+            "length": 1094,
+            "name": "scaffold_3416",
+            "tiledb_column_offset": 33625
+        },
+        {
+            "length": 2888,
+            "name": "scaffold_3340",
+            "tiledb_column_offset": 34719
+        },
+        {
+            "length": 2734,
+            "name": "scaffold_2911",
+            "tiledb_column_offset": 37607
+        },
+        {
+            "length": 1032,
+            "name": "scaffold_3442",
+            "tiledb_column_offset": 40341
+        },
+        {
+            "length": 1022,
+            "name": "scaffold_3681",
+            "tiledb_column_offset": 41373
+        },
+        {
+            "length": 2826,
+            "name": "scaffold_2889",
+            "tiledb_column_offset": 42395
+        },
+        {
+            "length": 1337,
+            "name": "scaffold_3305",
+            "tiledb_column_offset": 45221
+        },
+        {
+            "length": 1924,
+            "name": "scaffold_3335",
+            "tiledb_column_offset": 46558
+        },
+        {
+            "length": 1314,
+            "name": "scaffold_3316",
+            "tiledb_column_offset": 48482
+        },
+        {
+            "length": 2028,
+            "name": "scaffold_3126",
+            "tiledb_column_offset": 49796
+        },
+        {
+            "length": 1230,
+            "name": "scaffold_3363",
+            "tiledb_column_offset": 51824
+        },
+        {
+            "length": 2966,
+            "name": "scaffold_2844",
+            "tiledb_column_offset": 53054
+        },
+        {
+            "length": 1155,
+            "name": "scaffold_3388",
+            "tiledb_column_offset": 56020
+        },
+        {
+            "length": 2448,
+            "name": "scaffold_3285",
+            "tiledb_column_offset": 57175
+        },
+        {
+            "length": 2573,
+            "name": "scaffold_2968",
+            "tiledb_column_offset": 59623
+        },
+        {
+            "length": 2965,
+            "name": "scaffold_3074",
+            "tiledb_column_offset": 62196
+        },
+        {
+            "length": 2815,
+            "name": "scaffold_3436",
+            "tiledb_column_offset": 65161
+        },
+        {
+            "length": 2781,
+            "name": "scaffold_3289",
+            "tiledb_column_offset": 67976
+        },
+        {
+            "length": 1441,
+            "name": "scaffold_3264",
+            "tiledb_column_offset": 70757
+        },
+        {
+            "length": 2717,
+            "name": "scaffold_2919",
+            "tiledb_column_offset": 72198
+        },
+        {
+            "length": 2139,
+            "name": "scaffold_3422",
+            "tiledb_column_offset": 74915
+        },
+        {
+            "length": 1141,
+            "name": "scaffold_3393",
+            "tiledb_column_offset": 77054
+        },
+        {
+            "length": 1156,
+            "name": "scaffold_3387",
+            "tiledb_column_offset": 78195
+        },
+        {
+            "length": 1003,
+            "name": "scaffold_3453",
+            "tiledb_column_offset": 79351
+        },
+        {
+            "length": 1840,
+            "name": "scaffold_3171",
+            "tiledb_column_offset": 80354
+        },
+        {
+            "length": 1208,
+            "name": "scaffold_3372",
+            "tiledb_column_offset": 82194
+        },
+        {
+            "length": 1153,
+            "name": "scaffold_3389",
+            "tiledb_column_offset": 83402
+        },
+        {
+            "length": 1665,
+            "name": "scaffold_3259",
+            "tiledb_column_offset": 84555
+        },
+        {
+            "length": 2674,
+            "name": "scaffold_2930",
+            "tiledb_column_offset": 86220
+        },
+        {
+            "length": 2114,
+            "name": "scaffold_3129",
+            "tiledb_column_offset": 88894
+        },
+        {
+            "length": 2336,
+            "name": "scaffold_3044",
+            "tiledb_column_offset": 91008
+        },
+        {
+            "length": 2230,
+            "name": "scaffold_3147",
+            "tiledb_column_offset": 93344
+        },
+        {
+            "length": 2936,
+            "name": "scaffold_2885",
+            "tiledb_column_offset": 95574
+        },
+        {
+            "length": 1858,
+            "name": "scaffold_3452",
+            "tiledb_column_offset": 98510
+        },
+        {
+            "length": 2247,
+            "name": "scaffold_3202",
+            "tiledb_column_offset": 100368
+        },
+        {
+            "length": 1970,
+            "name": "scaffold_3263",
+            "tiledb_column_offset": 102615
+        },
+        {
+            "length": 2537,
+            "name": "scaffold_3354",
+            "tiledb_column_offset": 104585
+        },
+        {
+            "length": 2599,
+            "name": "scaffold_3134",
+            "tiledb_column_offset": 107122
+        },
+        {
+            "length": 2564,
+            "name": "scaffold_3255",
+            "tiledb_column_offset": 109721
+        },
+        {
+            "length": 2574,
+            "name": "scaffold_3320",
+            "tiledb_column_offset": 112285
+        },
+        {
+            "length": 1130,
+            "name": "scaffold_3523",
+            "tiledb_column_offset": 114859
+        },
+        {
+            "length": 1048,
+            "name": "scaffold_3432",
+            "tiledb_column_offset": 115989
+        },
+        {
+            "length": 1965,
+            "name": "scaffold_3239",
+            "tiledb_column_offset": 117037
+        },
+        {
+            "length": 1669,
+            "name": "scaffold_3206",
+            "tiledb_column_offset": 119002
+        },
+        {
+            "length": 1040,
+            "name": "scaffold_3437",
+            "tiledb_column_offset": 120671
+        },
+        {
+            "length": 2707,
+            "name": "scaffold_2922",
+            "tiledb_column_offset": 121711
+        },
+        {
+            "length": 2710,
+            "name": "scaffold_3136",
+            "tiledb_column_offset": 124418
+        },
+        {
+            "length": 1613,
+            "name": "scaffold_3292",
+            "tiledb_column_offset": 127128
+        },
+        {
+            "length": 1147,
+            "name": "scaffold_3391",
+            "tiledb_column_offset": 128741
+        },
+        {
+            "length": 2903,
+            "name": "scaffold_3061",
+            "tiledb_column_offset": 129888
+        },
+        {
+            "length": 1485,
+            "name": "scaffold_3250",
+            "tiledb_column_offset": 132791
+        },
+        {
+            "length": 1920,
+            "name": "scaffold_3226",
+            "tiledb_column_offset": 134276
+        },
+        {
+            "length": 2929,
+            "name": "scaffold_2857",
+            "tiledb_column_offset": 136196
+        },
+        {
+            "length": 2635,
+            "name": "scaffold_3528",
+            "tiledb_column_offset": 139125
+        },
+        {
+            "length": 1298,
+            "name": "scaffold_3325",
+            "tiledb_column_offset": 141760
+        },
+        {
+            "length": 1362,
+            "name": "scaffold_3296",
+            "tiledb_column_offset": 143058
+        },
+        {
+            "length": 2443,
+            "name": "scaffold_3298",
+            "tiledb_column_offset": 144420
+        },
+        {
+            "length": 2704,
+            "name": "scaffold_2924",
+            "tiledb_column_offset": 146863
+        },
+        {
+            "length": 1898,
+            "name": "scaffold_3157",
+            "tiledb_column_offset": 149567
+        },
+        {
+            "length": 2931,
+            "name": "scaffold_2855",
+            "tiledb_column_offset": 151465
+        },
+        {
+            "length": 1417,
+            "name": "scaffold_3275",
+            "tiledb_column_offset": 154396
+        },
+        {
+            "length": 2593,
+            "name": "scaffold_3007",
+            "tiledb_column_offset": 155813
+        },
+        {
+            "length": 1470,
+            "name": "scaffold_3306",
+            "tiledb_column_offset": 158406
+        },
+        {
+            "length": 2709,
+            "name": "scaffold_3179",
+            "tiledb_column_offset": 159876
+        },
+        {
+            "length": 2290,
+            "name": "scaffold_3060",
+            "tiledb_column_offset": 162585
+        },
+        {
+            "length": 1606,
+            "name": "scaffold_3222",
+            "tiledb_column_offset": 164875
+        },
+        {
+            "length": 2796,
+            "name": "scaffold_3648",
+            "tiledb_column_offset": 166481
+        },
+        {
+            "length": 2485,
+            "name": "scaffold_3005",
+            "tiledb_column_offset": 169277
+        },
+        {
+            "length": 2530,
+            "name": "scaffold_3020",
+            "tiledb_column_offset": 171762
+        },
+        {
+            "length": 2061,
+            "name": "scaffold_3194",
+            "tiledb_column_offset": 174292
+        },
+        {
+            "length": 1293,
+            "name": "scaffold_3328",
+            "tiledb_column_offset": 176353
+        },
+        {
+            "length": 2376,
+            "name": "scaffold_3251",
+            "tiledb_column_offset": 177646
+        },
+        {
+            "length": 1702,
+            "name": "scaffold_3547",
+            "tiledb_column_offset": 180022
+        },
+        {
+            "length": 2686,
+            "name": "scaffold_3342",
+            "tiledb_column_offset": 181724
+        },
+        {
+            "length": 1964,
+            "name": "scaffold_3139",
+            "tiledb_column_offset": 184410
+        },
+        {
+            "length": 1448,
+            "name": "scaffold_3262",
+            "tiledb_column_offset": 186374
+        },
+        {
+            "length": 1863,
+            "name": "scaffold_3210",
+            "tiledb_column_offset": 187822
+        },
+        {
+            "length": 2544,
+            "name": "scaffold_2981",
+            "tiledb_column_offset": 189685
+        },
+        {
+            "length": 2669,
+            "name": "scaffold_2933",
+            "tiledb_column_offset": 192229
+        },
+        {
+            "length": 2299,
+            "name": "scaffold_3056",
+            "tiledb_column_offset": 194898
+        },
+        {
+            "length": 1105,
+            "name": "scaffold_3413",
+            "tiledb_column_offset": 197197
+        },
+        {
+            "length": 2391,
+            "name": "scaffold_3064",
+            "tiledb_column_offset": 198302
+        },
+        {
+            "length": 1243,
+            "name": "scaffold_3353",
+            "tiledb_column_offset": 200693
+        },
+        {
+            "length": 2832,
+            "name": "scaffold_2913",
+            "tiledb_column_offset": 201936
+        },
+        {
+            "length": 1028,
+            "name": "scaffold_3445",
+            "tiledb_column_offset": 204768
+        },
+        {
+            "length": 1200,
+            "name": "scaffold_3374",
+            "tiledb_column_offset": 205796
+        },
+        {
+            "length": 1641,
+            "name": "scaffold_3214",
+            "tiledb_column_offset": 206996
+        },
+        {
+            "length": 1189,
+            "name": "scaffold_3423",
+            "tiledb_column_offset": 208637
+        },
+        {
+            "length": 2137,
+            "name": "scaffold_3095",
+            "tiledb_column_offset": 209826
+        },
+        {
+            "length": 2576,
+            "name": "scaffold_2965",
+            "tiledb_column_offset": 211963
+        },
+        {
+            "length": 1239,
+            "name": "scaffold_3357",
+            "tiledb_column_offset": 214539
+        },
+        {
+            "length": 2419,
+            "name": "scaffold_3021",
+            "tiledb_column_offset": 215778
+        },
+        {
+            "length": 1597,
+            "name": "scaffold_3228",
+            "tiledb_column_offset": 218197
+        },
+        {
+            "length": 2080,
+            "name": "scaffold_3300",
+            "tiledb_column_offset": 219794
+        },
+        {
+            "length": 2357,
+            "name": "scaffold_3042",
+            "tiledb_column_offset": 221874
+        },
+        {
+            "length": 1324,
+            "name": "scaffold_3312",
+            "tiledb_column_offset": 224231
+        },
+        {
+            "length": 1011,
+            "name": "scaffold_3537",
+            "tiledb_column_offset": 225555
+        },
+        {
+            "length": 2824,
+            "name": "scaffold_3058",
+            "tiledb_column_offset": 226566
+        },
+        {
+            "length": 1075,
+            "name": "scaffold_3425",
+            "tiledb_column_offset": 229390
+        },
+        {
+            "length": 1055,
+            "name": "scaffold_3431",
+            "tiledb_column_offset": 230465
+        },
+        {
+            "length": 1220,
+            "name": "scaffold_3368",
+            "tiledb_column_offset": 231520
+        },
+        {
+            "length": 2618,
+            "name": "scaffold_2951",
+            "tiledb_column_offset": 232740
+        },
+        {
+            "length": 2921,
+            "name": "scaffold_3356",
+            "tiledb_column_offset": 235358
+        },
+        {
+            "length": 2637,
+            "name": "scaffold_3116",
+            "tiledb_column_offset": 238279
+        },
+        {
+            "length": 1463,
+            "name": "scaffold_3257",
+            "tiledb_column_offset": 240916
+        },
+        {
+            "length": 2690,
+            "name": "scaffold_3478",
+            "tiledb_column_offset": 242379
+        },
+        {
+            "length": 2254,
+            "name": "scaffold_3068",
+            "tiledb_column_offset": 245069
+        },
+        {
+            "length": 2908,
+            "name": "scaffold_3008",
+            "tiledb_column_offset": 247323
+        },
+        {
+            "length": 2797,
+            "name": "scaffold_2893",
+            "tiledb_column_offset": 250231
+        },
+        {
+            "length": 2159,
+            "name": "scaffold_3088",
+            "tiledb_column_offset": 253028
+        },
+        {
+            "length": 1431,
+            "name": "scaffold_3269",
+            "tiledb_column_offset": 255187
+        },
+        {
+            "length": 2263,
+            "name": "scaffold_3245",
+            "tiledb_column_offset": 256618
+        },
+        {
+            "length": 1726,
+            "name": "scaffold_3190",
+            "tiledb_column_offset": 258881
+        },
+        {
+            "length": 2300,
+            "name": "scaffold_3054",
+            "tiledb_column_offset": 260607
+        },
+        {
+            "length": 1162,
+            "name": "scaffold_3383",
+            "tiledb_column_offset": 262907
+        },
+        {
+            "length": 1260,
+            "name": "scaffold_3346",
+            "tiledb_column_offset": 264069
+        },
+        {
+            "length": 1705,
+            "name": "scaffold_3223",
+            "tiledb_column_offset": 265329
+        },
+        {
+            "length": 1027,
+            "name": "scaffold_3446",
+            "tiledb_column_offset": 267034
+        },
+        {
+            "length": 2985,
+            "name": "scaffold_3370",
+            "tiledb_column_offset": 268061
+        },
+        {
+            "length": 1483,
+            "name": "scaffold_3252",
+            "tiledb_column_offset": 271046
+        },
+        {
+            "length": 2603,
+            "name": "scaffold_3053",
+            "tiledb_column_offset": 272529
+        },
+        {
+            "length": 2123,
+            "name": "scaffold_3100",
+            "tiledb_column_offset": 275132
+        },
+        {
+            "length": 2988,
+            "name": "scaffold_2838",
+            "tiledb_column_offset": 277255
+        },
+        {
+            "length": 1426,
+            "name": "scaffold_3272",
+            "tiledb_column_offset": 280243
+        },
+        {
+            "length": 2287,
+            "name": "scaffold_3384",
+            "tiledb_column_offset": 281669
+        },
+        {
+            "length": 2983,
+            "name": "scaffold_2868",
+            "tiledb_column_offset": 283956
+        },
+        {
+            "length": 1131,
+            "name": "scaffold_3398",
+            "tiledb_column_offset": 286939
+        },
+        {
+            "length": 2869,
+            "name": "scaffold_3107",
+            "tiledb_column_offset": 288070
+        },
+        {
+            "length": 2633,
+            "name": "scaffold_3014",
+            "tiledb_column_offset": 290939
+        },
+        {
+            "length": 2412,
+            "name": "scaffold_3364",
+            "tiledb_column_offset": 293572
+        },
+        {
+            "length": 2534,
+            "name": "scaffold_2987",
+            "tiledb_column_offset": 295984
+        },
+        {
+            "length": 2934,
+            "name": "scaffold_3191",
+            "tiledb_column_offset": 298518
+        },
+        {
+            "length": 2214,
+            "name": "scaffold_3076",
+            "tiledb_column_offset": 301452
+        },
+        {
+            "length": 1501,
+            "name": "scaffold_3246",
+            "tiledb_column_offset": 303666
+        },
+        {
+            "length": 2971,
+            "name": "scaffold_3011",
+            "tiledb_column_offset": 305167
+        },
+        {
+            "length": 1258,
+            "name": "scaffold_3348",
+            "tiledb_column_offset": 308138
+        },
+        {
+            "length": 1591,
+            "name": "scaffold_3231",
+            "tiledb_column_offset": 309396
+        },
+        {
+            "length": 1020,
+            "name": "scaffold_3448",
+            "tiledb_column_offset": 310987
+        },
+        {
+            "length": 1235,
+            "name": "scaffold_3360",
+            "tiledb_column_offset": 312007
+        },
+        {
+            "length": 2879,
+            "name": "scaffold_3352",
+            "tiledb_column_offset": 313242
+        },
+        {
+            "length": 1369,
+            "name": "scaffold_3294",
+            "tiledb_column_offset": 316121
+        },
+        {
+            "length": 2935,
+            "name": "scaffold_2853",
+            "tiledb_column_offset": 317490
+        },
+        {
+            "length": 2408,
+            "name": "scaffold_3024",
+            "tiledb_column_offset": 320425
+        },
+        {
+            "length": 1074,
+            "name": "scaffold_3426",
+            "tiledb_column_offset": 322833
+        },
+        {
+            "length": 1639,
+            "name": "scaffold_3379",
+            "tiledb_column_offset": 323907
+        },
+        {
+            "length": 1034,
+            "name": "scaffold_3440",
+            "tiledb_column_offset": 325546
+        },
+        {
+            "length": 1938,
+            "name": "scaffold_3550",
+            "tiledb_column_offset": 326580
+        },
+        {
+            "length": 2846,
+            "name": "scaffold_2879",
+            "tiledb_column_offset": 328518
+        },
+        {
+            "length": 1482,
+            "name": "scaffold_3362",
+            "tiledb_column_offset": 331364
+        },
+        {
+            "length": 1544,
+            "name": "scaffold_3236",
+            "tiledb_column_offset": 332846
+        }
+    ],
+    "fields": [
+        {
+            "length": [ { "variable_length_descriptor": "var" } ], "name": "ID", "type": [ "char" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "1" } ], "name": "PASS", "type": [ "Integer" ], "vcf_field_class": [ "FILTER" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "R" } ], "name": "AD", "type": [ "Integer" ], "vcf_field_class": [ "FORMAT" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "1" } ], "name": "DP", "type": [ "Integer" ],"vcf_field_class": [ "FORMAT", "INFO" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "1" } ], "name": "GQ", "type": [ "Integer" ], "vcf_field_class": [ "FORMAT" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "PP" } ], "name": "GT", "type": [ "int" ], "vcf_field_class": [ "FORMAT" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "G" } ], "name": "PL", "type": [ "Integer" ], "vcf_field_class": [ "FORMAT" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "1" } ], "name": "BaseQRankSum", "type": [ "Float" ], "vcf_field_class": [ "INFO" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "1" } ], "name": "AN", "type": [ "Integer" ],"VCF_field_combine_operation":"sum", "vcf_field_class": [ "INFO" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "1" } ], "name": "HaplotypeScore", "type": [ "Float" ], "VCF_field_combine_operation":"sum","vcf_field_class": [ "INFO" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "A" } ], "name": "MLEAC", "type": [ "Integer" ], "VCF_field_combine_operation":"sum","vcf_field_class": [ "INFO" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "A" } ], "name": "MLEAF", "type": [ "Float" ], "VCF_field_combine_operation":"sum","vcf_field_class": [ "INFO" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "1" } ], "name": "MQ", "type": [ "Float" ], "VCF_field_combine_operation":"median","vcf_field_class": [ "INFO" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "1" } ], "name": "MQRankSum", "type": [ "Float" ], "vcf_field_class": [ "INFO" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "1" } ], "name": "NS", "type": [ "Integer" ], "VCF_field_combine_operation":"sum","vcf_field_class": [ "INFO" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "1" } ], "name": "ReadPosRankSum", "type": [ "Float" ], "vcf_field_class": [ "INFO" ]
+        },
+        {
+            "length": [ { "variable_length_descriptor": "1" } ], "name": "SB", "type": [ "Float" ], "VCF_field_combine_operation":"sum","vcf_field_class": [ "INFO" ]
+        }
+    ]
+}
