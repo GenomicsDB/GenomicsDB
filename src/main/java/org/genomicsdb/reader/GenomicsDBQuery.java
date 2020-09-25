@@ -102,7 +102,7 @@ public class GenomicsDBQuery {
 
     @Override
     public String toString() {
-      return rowIndex+genomic_interval.toString()+" "+genomicFields;
+      return "row="+rowIndex+" col="+colIndex+" "+sampleName+" "+contigName+":"+genomic_interval.toString()+" "+genomicFields;
     }
   }
 
