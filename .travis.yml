@@ -25,7 +25,15 @@ matrix:
         cache:
           directories: $HOME/.m2 $CACHE_DIR
 
-      - name: "Basic build OSX - 1"
+      - name: "Basic build OSX"
+        os: osx
+        osx_image: xcode9.3
+        language: generic
+        env: TOXENV=py34 INSTALL_TYPE=basic PROTOBUF_VERSION=3.0.0-beta-1 PROTOBUF_HOME=$TRAVIS_BUILD_DIR/dependencies/protobuf
+        cache:
+          directories: $HOME/.m2 $HOME/Library/Caches/Homebrew $CACHE_DIR
+
+      - name: "Basic build OSX - CI_tests - 1"
         os: osx
         osx_image: xcode9.3
         language: generic
@@ -33,7 +41,7 @@ matrix:
         cache:
           directories: $HOME/.m2 $HOME/Library/Caches/Homebrew $CACHE_DIR
 
-      - name: "Basic build OSX - 2"
+      - name: "Basic build OSX - CI_tests - 2"
         os: osx
         osx_image: xcode9.3
         language: generic
@@ -155,8 +163,13 @@ script:
         travis_wait 40 python2 $TRAVIS_BUILD_DIR/tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR local gs://$GS_BUCKET client $GENOMICSDB_RELEASE_VERSION $TRAVIS_BUILD_DIR/tests Coverage;
       elif [[ $TRAVIS_OS_NAME == osx && ! -f $CACHE_DIR/initialized ]]; then
         touch $CACHE_DIR/initialized;
+        ctest -R ctests && ctest -R api_tests;
       elif [[ $TRAVIS_OS_NAME == osx && -f $CACHE_DIR/initialized ]]; then
-        travis_wait 50 python2 $TRAVIS_BUILD_DIR/tests/run.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR Coverage $OSX_PHASE;
+        if [[ -z $OSX_PHASE ]]; then
+          ctest -R ctests && ctest -R api_tests && ctest -R javatests;
+        else
+          travis_wait 50 python2 $TRAVIS_BUILD_DIR/tests/run.py $GENOMICSDB_BUILD_DIR $GENOMICSDB_INSTALL_DIR Coverage $OSX_PHASE;
+        fi
       else
         make test ARGS=-V;
       fi
