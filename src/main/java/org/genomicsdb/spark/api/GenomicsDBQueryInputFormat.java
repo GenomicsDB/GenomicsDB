@@ -68,30 +68,18 @@ public class GenomicsDBQueryInputFormat extends InputFormat<Interval, List<Varia
 
     boolean isPB;
     if (taskAttemptContext != null) {
-      Configuration configuration = taskAttemptContext.getConfiguration();
-      loaderJson = configuration.get(GenomicsDBConfiguration.LOADERJSON);
-      if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
-        queryJson = configuration.get(GenomicsDBConfiguration.QUERYPB);
-        isPB = true;
-      }
-      else {
-        queryJson = configuration.get(GenomicsDBConfiguration.QUERYJSON);
-        isPB = false;
-      }
+      configuration = taskAttemptContext.getConfiguration();
     } else {
-      // If control comes here, means this method is called from
-      // GenomicsDBRDD. Hence, the configuration object must be
-      // set by setConf method, else this will lead to
-      // NullPointerException
       assert(configuration!=null);
-      loaderJson = configuration.get(GenomicsDBConfiguration.LOADERJSON);
-      if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
-        queryJson = configuration.get(GenomicsDBConfiguration.QUERYPB);
-        isPB = true;
-      } else {
-        queryJson = configuration.get(GenomicsDBConfiguration.QUERYJSON);
-        isPB = false;
-      }
+    }
+
+    loaderJson = configuration.get(GenomicsDBConfiguration.LOADERJSON);
+    if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
+      queryJson = configuration.get(GenomicsDBConfiguration.QUERYPB);
+      isPB = true;
+    } else {
+      queryJson = configuration.get(GenomicsDBConfiguration.QUERYJSON);
+      isPB = false;
     }
 
     // Need to amend query file being passed in based on inputSplit
