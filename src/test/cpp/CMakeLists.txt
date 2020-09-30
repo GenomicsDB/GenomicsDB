@@ -35,6 +35,7 @@ set(CPP_TEST_SOURCES
   src/test_multid_vector.cc
   src/test_pb.cc
   src/test_logger.cc
+  src/test_columnar_gvcf_iterator.cc
   )
 
 if(LIBDBI_FOUND)
