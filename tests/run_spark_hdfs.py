@@ -193,18 +193,76 @@ def cleanup_and_exit(namenode, tmpdir, exit_code):
             pid = subprocess.Popen('hadoop fs -rm -r '+namenode+'/home/hadoop/.tiledb/', shell=True, stdout=subprocess.PIPE);
     sys.exit(exit_code);
 
+def print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string):
+    sys.stderr.write('Stdout: '+stdout_string+'\n')
+    sys.stderr.write('Stderr: '+stderr_string+'\n')
+    cleanup_and_exit(namenode, tmpdir, -1)
+
+def substitute_placeholders(jsonfile, wsdir):
+    import fileinput
+    for line in fileinput.input(jsonfile, inplace=True):
+        print(line.replace("#WORKSPACE_DIR#", wsdir))
+    for line in fileinput.input(jsonfile, inplace=True):
+        print(line.replace("#TESTS_DIR#", os.getcwd()))
+
+def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_version, spark_master, spark_deploy, namenode):
+    sys.stdout.write("Sanity testing Spark Bindings...")
+    import tarfile
+    sanity_test_dir = tmpdir+'/sanity_test'
+    tar = tarfile.open('inputs/sanity.test.gz', 'r:gz')
+    tar.extractall(path=sanity_test_dir)
+    loader_json = sanity_test_dir+'/t0_1_2.json'
+    query_json = sanity_test_dir+'/query.json'
+    querypb_json = sanity_test_dir+'/querypb.json'
+    substitute_placeholders(loader_json, sanity_test_dir)
+    substitute_placeholders(query_json, sanity_test_dir)
+    substitute_placeholders(querypb_json, sanity_test_dir)
+
+    # Expected exception when run without json files
+    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar'
+    pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_string, stderr_string = pid.communicate()
+    if(pid.returncode == 0):
+        sys.stderr.write('Spark Query : '+spark_cmd+'. Expected a failure, but the test succeeded\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+
+    output_string = "[row=0 col=12140 HG00141 1:12141-12295 {REF=C, DP_FORMAT=2, MIN_DP=0, ALT=[<NON_REF>], GQ=0, PL=[0, 0, 0], GT=0/0}, row=1 col=12144 HG01958 1:12145-12277 {REF=C, DP_FORMAT=3, MIN_DP=0, ALT=[<NON_REF>], GQ=0, PL=[0, 0, 0], GT=0/0}, row=0 col=17384 HG00141 1:17385-17385 {MQRankSum=-0.329000, AD=[58, 22, 17], MQ=31.719999, DP_FORMAT=80, ALT=[A, <NON_REF>], BaseQRankSum=-2.096000, GQ=99, PID=17385_G_A, ReadPosRankSum=0.005000, MQ0=8, GT=0/1, SB=[58, 0, 22, 0], RAW_MQ=5.500000, REF=G, ClippingRankSum=-1.859000, PL=[504, 0, 9807, 678, 1870, 2548], PGT=0|1}, row=1 col=17384 HG01958 1:17385-17385 {MQRankSum=-1.369000, AD=[0, 120, 37], MQ=29.820000, DP_FORMAT=120, ALT=[T, <NON_REF>], BaseQRankSum=-2.074000, GQ=99, PID=17385_G_T, ReadPosRankSum=-0.101000, DP=120, MQ0=3, GT=1/1, SB=[0, 0, 0, 0], RAW_MQ=2.500000, REF=G, ClippingRankSum=0.555000, PL=[3336, 358, 0, 4536, 958, 7349], PGT=0|1}, row=2 col=17384 HG01530 1:17385-17385 {MQRankSum=-0.432000, AD=[40, 36, 0], MQ=59.369999, DP_FORMAT=76, ALT=[A, <NON_REF>], BaseQRankSum=1.046000, GQ=99, ReadPosRankSum=2.055000, DP=76, MQ0=0, GT=0/1, SB=[9, 31, 13, 23], REF=G, ClippingRankSum=-2.242000, PL=[1018, 0, 1116, 1137, 1224, 2361]}]"
+
+    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+loader_json+' '+query_json
+    pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_string, stderr_string = pid.communicate()
+    if(pid.returncode != 0):
+        sys.stderr.write('Sanity test with query.json : '+spark_cmd+' failed\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+    if output_string not in stdout_string:
+        sys.stderr.write('Expected output not found in sanity test with query.json\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+
+    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+loader_json+' '+querypb_json+' true'
+    pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_string, stderr_string = pid.communicate()
+    if(pid.returncode != 0):
+        sys.stderr.write('Sanity test with querypb.json : '+spark_cmd+' failed\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+    if output_string not in stdout_string:
+        sys.stderr.write('Expected output not found in sanity test with querypb.json\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+
+    sys.stdout.write("Successful\n")
+
 def main():
     if(len(sys.argv) < 8):
         sys.stderr.write('Usage: ./run_spark_hdfs.py <build_dir> <install_dir> <spark_master> <hdfs_namenode> <spark_deploy> <genomicsdb_version> <test_dir> [<build_type>]\n');
         sys.stderr.write('   Optional Argument 8 - build_type=Release|Coverage|...\n')
-        sys.exit(-1);
-    exe_path = sys.argv[2]+os.path.sep+'bin';
-    spark_master = sys.argv[3];
-    namenode = sys.argv[4];
-    jar_dir = sys.argv[1]+os.path.sep+'target';
-    spark_deploy = sys.argv[5];
-    genomicsdb_version = sys.argv[6];
-    test_dir = sys.argv[7];
+        sys.exit(-1)
+    exe_path = sys.argv[2]+os.path.sep+'bin'
+    lib_path = sys.argv[2]+os.path.sep+'lib'
+    spark_master = sys.argv[3]
+    namenode = sys.argv[4]
+    jar_dir = sys.argv[1]+os.path.sep+'target'
+    spark_deploy = sys.argv[5]
+    genomicsdb_version = sys.argv[6]
+    test_dir = sys.argv[7]
     if (len(sys.argv) == 9):
         build_type = sys.argv[8]
     else:
@@ -212,12 +270,13 @@ def main():
     #Switch to tests directory
     parent_dir=os.path.dirname(os.path.realpath(__file__))
     os.chdir(parent_dir)
-    hostfile_path=parent_dir+os.path.sep+'hostfile';
+    hostfile_path=parent_dir+os.path.sep+'hostfile'
     vid_path=parent_dir+os.path.sep;
-    template_vcf_header_path=parent_dir+os.path.sep+'inputs'+os.path.sep+'template_vcf_header.vcf';
+    template_vcf_header_path=parent_dir+os.path.sep+'inputs'+os.path.sep+'template_vcf_header.vcf'
     tmpdir = tempfile.mkdtemp()
-    ws_dir=tmpdir+os.path.sep+'ws';
+    ws_dir=tmpdir+os.path.sep+'ws'
     jacoco, jacoco_report_cmd = common.setup_jacoco(os.path.abspath(sys.argv[1]), build_type)
+    sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_version, spark_master, spark_deploy, namenode)
     loader_tests = [
             { "name" : "t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
