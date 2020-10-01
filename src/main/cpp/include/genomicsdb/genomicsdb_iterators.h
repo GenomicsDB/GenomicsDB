@@ -48,7 +48,7 @@ class GenomicsDBIteratorException : public std::exception {
 //Useful for the left sweep, tracking cells while producing VCF records etc
 class GenomicsDBLiveCellMarker {
  public:
-  GenomicsDBLiveCellMarker(const size_t num_markers, const unsigned num_fields) {
+  GenomicsDBLiveCellMarker(const unsigned num_fields, const size_t num_markers) {
     m_store_gvcf_specific_info = false;
     m_valid.resize(num_markers);
     m_initialized.resize(num_markers);
@@ -106,26 +106,26 @@ class GenomicsDBLiveCellMarker {
     assert(idx < m_valid.size());
     return m_valid[idx];
   }
-  inline void set_field_marker(const size_t idx, const unsigned field_idx,
+  inline void set_field_marker(const unsigned field_idx, const size_t idx,
                                GenomicsDBBuffer* buffer_ptr, const size_t index) {
     assert(field_idx < m_buffer_ptr_vec.size() && field_idx < m_indexes.size());
     assert(idx < m_buffer_ptr_vec[field_idx].size() && idx < m_indexes[field_idx].size());
     m_buffer_ptr_vec[field_idx][idx] = buffer_ptr;
     m_indexes[field_idx][idx] = index;
   }
-  inline GenomicsDBBuffer* get_buffer_pointer(const size_t idx, const unsigned field_idx) {
+  inline GenomicsDBBuffer* get_buffer_pointer(const unsigned field_idx, const size_t idx) {
     assert(m_initialized[idx] && m_valid[idx]);
     assert(field_idx < m_buffer_ptr_vec.size() && field_idx < m_indexes.size());
     assert(idx < m_buffer_ptr_vec[field_idx].size() && idx < m_indexes[field_idx].size());
     return m_buffer_ptr_vec[field_idx][idx];
   }
-  inline const GenomicsDBBuffer* get_buffer_pointer(const size_t idx, const unsigned field_idx) const {
+  inline const GenomicsDBBuffer* get_buffer_pointer(const unsigned field_idx, const size_t idx) const {
     assert(m_initialized[idx] && m_valid[idx]);
     assert(field_idx < m_buffer_ptr_vec.size() && field_idx < m_indexes.size());
     assert(idx < m_buffer_ptr_vec[field_idx].size() && idx < m_indexes[field_idx].size());
     return m_buffer_ptr_vec[field_idx][idx];
   }
-  inline size_t get_index(const size_t idx, const unsigned field_idx) const {
+  inline size_t get_index(const unsigned field_idx, const size_t idx) const {
     assert(m_initialized[idx] && m_valid[idx]);
     assert(field_idx < m_buffer_ptr_vec.size() && field_idx < m_indexes.size());
     assert(idx < m_buffer_ptr_vec[field_idx].size() && idx < m_indexes[field_idx].size());
@@ -311,8 +311,8 @@ class SingleCellTileDBIterator {
       return genomicsdb_columnar_field.get_live_buffer_list_tail_ptr();
     } else {
       const auto marker_idx = m_PQ_live_cell_markers.top().second;
-      index = m_live_cell_markers.get_index(marker_idx, field_query_idx);
-      return m_live_cell_markers.get_buffer_pointer(marker_idx, field_query_idx);
+      index = m_live_cell_markers.get_index(field_query_idx, marker_idx);
+      return m_live_cell_markers.get_buffer_pointer(field_query_idx, marker_idx);
     }
   }
   /*
@@ -485,13 +485,11 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
 	const int field_query_idx) const {
       assert(static_cast<size_t>(field_query_idx) < m_fields.size());
       auto& genomicsdb_columnar_field = m_fields[field_query_idx];
-      const auto buffer_ptr = m_live_cell_markers.get_buffer_pointer(marker_idx, field_query_idx);
-      const auto index = m_live_cell_markers.get_index(marker_idx, field_query_idx);
+      const auto buffer_ptr = m_live_cell_markers.get_buffer_pointer(field_query_idx, marker_idx);
+      const auto index = m_live_cell_markers.get_index(field_query_idx, marker_idx);
       return std::pair<const uint8_t*, size_t>(
-	  genomicsdb_columnar_field.get_pointer_to_data_in_buffer_at_index(
-	    buffer_ptr, index),
-	  genomicsdb_columnar_field.get_length_of_data_in_buffer_at_index(
-	    buffer_ptr, index));
+	  genomicsdb_columnar_field.get_pointer_to_data_in_buffer_at_index(buffer_ptr, index),
+	  genomicsdb_columnar_field.get_length_of_data_in_buffer_at_index(buffer_ptr, index));
     }
   private:
     /*

@@ -62,9 +62,11 @@ typedef std::string_view STRING_VIEW;
 #elif defined(STRING_VIEW_EXPERIMENTAL_FOUND)
 #include <experimental/string_view>
 typedef std::experimental::string_view STRING_VIEW;
-#endif
-//FIXME: define a simple class to mimic string_view behavior
+#else
+//TODO: define a simple class to mimic string_view behavior
 //to use with compilers which don't support string_view (for example, gcc 4.8)
+#error "TBD: Use a compiler with string_view support for now"
+#endif
 
 typedef std::pair<int64_t, int64_t> ColumnRange;
 typedef std::pair<int64_t, int64_t> TileDBRowRange;
