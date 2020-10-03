@@ -174,7 +174,7 @@ endif()
 
 find_package(StringView)
 if(NOT STRING_VIEW_FOUND AND NOT STRING_VIEW_EXPERIMENTAL_FOUND)
-  message(FATAL_ERROR "No string_view found")
+  message(FATAL_ERROR "No string_view found. Use a compiler that supports std::string_view for now")
 endif()
 
 find_package(libuuid REQUIRED)

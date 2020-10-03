@@ -53,7 +53,7 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
     m_in_find_intersecting_intervals_mode(false),
     m_in_simple_traversal_mode(false),
     m_at_new_query_column_interval(true),
-    m_live_cell_markers(query_config.get_num_rows_in_array(), query_config.get_num_queried_attributes()+1u), //+1 for coords
+    m_live_cell_markers(query_config.get_num_queried_attributes()+1u, query_config.get_num_rows_in_array()), //+1 for coords
     m_num_markers_initialized(0),
     m_PQ_live_cell_markers(),
     m_smallest_row_idx_in_array(query_config.get_smallest_row_idx_in_array()) {
@@ -412,7 +412,7 @@ void SingleCellTileDBIterator::initialize_live_cell_marker_from_tail(const size_
     auto& genomicsdb_columnar_field = m_fields[i];
     auto* genomicsdb_buffer_ptr = genomicsdb_columnar_field.get_live_buffer_list_tail_ptr();
     assert(genomicsdb_buffer_ptr);
-    m_live_cell_markers.set_field_marker(marker_idx, i, genomicsdb_buffer_ptr,
+    m_live_cell_markers.set_field_marker(i, marker_idx, genomicsdb_buffer_ptr,
                                          genomicsdb_columnar_field.get_curr_index_in_live_list_tail());
     genomicsdb_buffer_ptr->increment_num_live_entries();
   }
@@ -421,7 +421,7 @@ void SingleCellTileDBIterator::initialize_live_cell_marker_from_tail(const size_
 void SingleCellTileDBIterator::decrement_num_live_entries_in_live_cell_marker(const size_t marker_idx) {
   assert(m_live_cell_markers.is_valid(marker_idx) && m_live_cell_markers.is_initialized(marker_idx));
   for (auto i=0u; i<m_fields.size(); ++i) {
-    auto* buffer_ptr = m_live_cell_markers.get_buffer_pointer(marker_idx, i);
+    auto* buffer_ptr = m_live_cell_markers.get_buffer_pointer(i, marker_idx);
     buffer_ptr->decrement_num_live_entries(1u);
     if (buffer_ptr->get_num_live_entries() == 0u)
       m_fields[i].move_buffer_to_free_list(buffer_ptr);
@@ -675,8 +675,7 @@ void SingleCellTileDBIterator::print(const int field_query_idx, std::ostream& fp
   auto& genomicsdb_columnar_field = m_fields[field_query_idx];
   size_t index = 0ul;
   auto buffer_ptr = get_buffer_pointer_and_index(field_query_idx, index);
-  genomicsdb_columnar_field.print_data_in_buffer_at_index(fptr,
-      buffer_ptr, index);
+  genomicsdb_columnar_field.print_data_in_buffer_at_index(fptr, buffer_ptr, index);
 }
 
 void SingleCellTileDBIterator::increment_iterator_within_live_buffer_list_tail_ptr_for_fields() {
@@ -713,8 +712,7 @@ void SingleCellTileDBIterator::print_ALT(const int field_query_idx, std::ostream
   auto& genomicsdb_columnar_field = m_fields[field_query_idx];
   size_t index = 0ul;
   auto buffer_ptr = get_buffer_pointer_and_index(field_query_idx, index);
-  genomicsdb_columnar_field.print_ALT_data_in_buffer_at_index(fptr,
-      buffer_ptr, index);
+  genomicsdb_columnar_field.print_ALT_data_in_buffer_at_index(fptr, buffer_ptr, index);
 }
 
 void SingleCellTileDBIterator::print_csv(const int field_query_idx, std::ostream& fptr) const {
@@ -722,8 +720,7 @@ void SingleCellTileDBIterator::print_csv(const int field_query_idx, std::ostream
   auto& genomicsdb_columnar_field = m_fields[field_query_idx];
   size_t index = 0ul;
   auto buffer_ptr = get_buffer_pointer_and_index(field_query_idx, index);
-  genomicsdb_columnar_field.print_data_in_buffer_at_index_as_csv(fptr,
-      buffer_ptr, index);
+  genomicsdb_columnar_field.print_data_in_buffer_at_index_as_csv(fptr, buffer_ptr, index);
 }
 
 #ifdef DO_PROFILING
