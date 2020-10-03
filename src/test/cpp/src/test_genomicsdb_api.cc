@@ -560,3 +560,25 @@ TEST_CASE("api generate_vcf with json multiple threads", "[query_generate_with_j
     threads[i].join();
   }
 }
+
+/**
+ * Test case for annotating variants using a VCF data source.
+ */
+TEST_CASE("api annotate_variant_calls with protobuf", "[annotate_variant_calls_with_protobuf]") {
+  using namespace genomicsdb_pb;
+
+  ExportConfiguration *config = new ExportConfiguration();
+  AnnotationService* annotation_service = config->add_annotation_service();
+
+  // jDebug: This hard coded path will need to change.
+  const std::string vcf_file("/opt/omics.data/vcf/clinvar_20200720.vcf.gz");
+  const std::string data_source("clinvar");
+  annotation_service->set_is_vcf(true);
+  annotation_service->set_filename(vcf_file);
+  annotation_service->set_data_source(data_source);
+  annotation_service->add_attributes()->assign("ID");
+  annotation_service->add_attributes()->assign("CLNSIG");
+
+  // jDebug: this test isn't necessary, but it's helpful for me right now.
+  CHECK(annotation_service->attributes_size() == 2);
+}

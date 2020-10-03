@@ -54,6 +54,13 @@ message SparkConfig {
   optional int64 query_block_size_margin = 2;
 }
 
+message AnnotationService {
+  required string filename = 1;
+  repeated string attributes = 2;
+  required string data_source = 3;
+  optional bool is_vcf = 4;
+}
+
 message ExportConfiguration {
   required string workspace = 1;
   oneof array {
@@ -95,4 +102,5 @@ message ExportConfiguration {
   optional uint32 combined_vcf_records_buffer_size_limit = 27;
   optional bool enable_shared_posixfs_optimizations = 28;
   optional SparkConfig spark_config = 29;
+  repeated AnnotationService annotation_service = 30;
 }
