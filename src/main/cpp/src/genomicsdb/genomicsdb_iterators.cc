@@ -53,9 +53,9 @@ SingleCellTileDBIterator::SingleCellTileDBIterator(TileDB_CTX* tiledb_ctx,
     m_in_find_intersecting_intervals_mode(false),
     m_in_simple_traversal_mode(false),
     m_at_new_query_column_interval(true),
-    m_live_cell_markers(query_config.get_num_rows_in_array(), query_config.get_num_queried_attributes()+1u), //+1 for coords
+    m_live_cell_markers(query_config.get_num_queried_attributes()+1u, query_config.get_num_rows_in_array()), //+1 for coords
     m_num_markers_initialized(0),
-    m_PQ_live_cell_markers(m_live_cell_markers),
+    m_PQ_live_cell_markers(),
     m_smallest_row_idx_in_array(query_config.get_smallest_row_idx_in_array()) {
 #ifdef DO_PROFILING
   memset(m_num_cells_traversed_stats, 0, GenomicsDBIteratorStatsEnum::NUM_STATS*sizeof(uint64_t));
@@ -397,6 +397,39 @@ void SingleCellTileDBIterator::read_from_TileDB(const bool skip_cells) {
 #endif
 }
 
+void SingleCellTileDBIterator::initialize_live_cell_marker_from_tail(const size_t marker_idx, const int64_t* coords,
+    const int64_t END_field_value) {
+  const auto row_idx = coords[0];
+  const auto coords_column = coords[1];
+  assert(row_idx >= m_smallest_row_idx_in_array && m_query_config->is_queried_array_row_idx(row_idx));
+  assert(m_live_cell_markers.get_row_idx(marker_idx) == row_idx);
+  //Set initialized
+  m_live_cell_markers.set_initialized(marker_idx, true);
+  m_live_cell_markers.set_valid(marker_idx, true);
+  m_live_cell_markers.set_column_interval(marker_idx, coords_column, END_field_value);
+  //Track offsets for each field and keep the buffer alive
+  for (auto i=0u; i<m_fields.size(); ++i) {
+    auto& genomicsdb_columnar_field = m_fields[i];
+    auto* genomicsdb_buffer_ptr = genomicsdb_columnar_field.get_live_buffer_list_tail_ptr();
+    assert(genomicsdb_buffer_ptr);
+    m_live_cell_markers.set_field_marker(i, marker_idx, genomicsdb_buffer_ptr,
+                                         genomicsdb_columnar_field.get_curr_index_in_live_list_tail());
+    genomicsdb_buffer_ptr->increment_num_live_entries();
+  }
+}
+
+void SingleCellTileDBIterator::decrement_num_live_entries_in_live_cell_marker(const size_t marker_idx) {
+  assert(m_live_cell_markers.is_valid(marker_idx) && m_live_cell_markers.is_initialized(marker_idx));
+  for (auto i=0u; i<m_fields.size(); ++i) {
+    auto* buffer_ptr = m_live_cell_markers.get_buffer_pointer(i, marker_idx);
+    buffer_ptr->decrement_num_live_entries(1u);
+    if (buffer_ptr->get_num_live_entries() == 0u)
+      m_fields[i].move_buffer_to_free_list(buffer_ptr);
+  }
+  m_live_cell_markers.set_valid(marker_idx, false);
+  m_live_cell_markers.set_initialized(marker_idx, false);
+}
+
 void SingleCellTileDBIterator::handle_current_cell_in_find_intersecting_intervals_mode() {
   assert(m_in_find_intersecting_intervals_mode && !m_done_reading_from_TileDB);
   auto& coords_columnar_field = m_fields[m_fields.size()-1u];
@@ -414,12 +447,9 @@ void SingleCellTileDBIterator::handle_current_cell_in_find_intersecting_interval
                               )
                             ));
   auto row_idx = coords[0];
-  assert(row_idx >= m_smallest_row_idx_in_array && m_query_config->is_queried_array_row_idx(row_idx));
-  auto marker_idx = row_idx - m_smallest_row_idx_in_array;
-  assert(m_live_cell_markers.get_row_idx(marker_idx) == row_idx);
-  //Set initialized
+  auto marker_idx = get_marker_idx_for_tiledb_row_idx(row_idx);
+  //should not be initialize already
   assert(!(m_live_cell_markers.is_initialized(marker_idx)));
-  m_live_cell_markers.set_initialized(marker_idx, true);
   //Reference - value gets modified
   auto& coords_column = coords[1];
   assert(m_query_column_interval_idx < m_query_config->get_num_column_intervals());
@@ -428,34 +458,19 @@ void SingleCellTileDBIterator::handle_current_cell_in_find_intersecting_interval
   assert(is_duplicate_cell_at_end_position_that_begins_before_query_interval(coords_column,
          END_field_value, query_interval_begin));
   std::swap(coords_column, END_field_value);
-  m_live_cell_markers.set_valid(marker_idx, true);
+  initialize_live_cell_marker_from_tail(marker_idx, coords, END_field_value);
   //Add to PQ
-  m_live_cell_markers.set_column_interval(marker_idx, coords_column, END_field_value);
-  m_PQ_live_cell_markers.push(marker_idx);
-  //Track offsets for each field and keep the buffer alive
-  for (auto i=0u; i<m_fields.size(); ++i) {
-    auto& genomicsdb_columnar_field = m_fields[i];
-    auto* genomicsdb_buffer_ptr = genomicsdb_columnar_field.get_live_buffer_list_tail_ptr();
-    assert(genomicsdb_buffer_ptr);
-    m_live_cell_markers.set_field_marker(marker_idx, i, genomicsdb_buffer_ptr,
-                                         genomicsdb_columnar_field.get_curr_index_in_live_list_tail());
-    genomicsdb_buffer_ptr->increment_num_live_entries();
-  }
+  m_PQ_live_cell_markers.push(MarkerPQElementTy(coords[1], marker_idx));
   ++m_num_markers_initialized;
 }
 
 const SingleCellTileDBIterator& SingleCellTileDBIterator::operator++() {
   //Intervals intersecting the column begin still exist in PQ
   if (!m_PQ_live_cell_markers.empty()) {
-    auto marker_idx = m_PQ_live_cell_markers.top();
+    auto marker_idx = m_PQ_live_cell_markers.top().second;
     m_PQ_live_cell_markers.pop();
     //Decrease #live entries and move to free list if needed
-    for (auto i=0u; i<m_fields.size(); ++i) {
-      auto* buffer_ptr = m_live_cell_markers.get_buffer_pointer(marker_idx, i);
-      buffer_ptr->decrement_num_live_entries(1u);
-      if (buffer_ptr->get_num_live_entries() == 0u)
-        m_fields[i].move_buffer_to_free_list(buffer_ptr);
-    }
+    decrement_num_live_entries_in_live_cell_marker(marker_idx);
     m_at_new_query_column_interval = false;
     if (!m_PQ_live_cell_markers.empty())
       return *this;
@@ -547,7 +562,7 @@ bool SingleCellTileDBIterator::advance_coords_and_END_till_useful_cell_found(
         //keep incrementing iterator if hitting duplicates at end in simple traversal mode
         hitting_useless_cells = is_duplicate_cell_at_end_position(coords_column, END_field_value);
 #if defined(DO_PROFILING) && defined(COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW)
-        auto marker_idx = coords[0] - m_smallest_row_idx_in_array;
+        auto marker_idx = get_marker_idx_for_tiledb_row_idx(coords[0]);
         auto histogram_bin_idx = (m_cell_counts_since_last_cell_from_same_row[marker_idx]/
                                   COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW_HISTOGRAM_BIN_SIZE);
         if (histogram_bin_idx >= m_histogram_cell_counts_since_last_cell_from_same_row.size())
@@ -561,7 +576,7 @@ bool SingleCellTileDBIterator::advance_coords_and_END_till_useful_cell_found(
         assert(m_in_find_intersecting_intervals_mode);
         auto row_idx = coords[0];
         assert(row_idx >= m_smallest_row_idx_in_array);
-        auto marker_idx = row_idx - m_smallest_row_idx_in_array;
+        auto marker_idx = get_marker_idx_for_tiledb_row_idx(row_idx);
         assert(m_live_cell_markers.get_row_idx(marker_idx) == row_idx);
         //if the row is already initialized in the find intersecting intervals mode, can skip
         //this cell
@@ -660,8 +675,7 @@ void SingleCellTileDBIterator::print(const int field_query_idx, std::ostream& fp
   auto& genomicsdb_columnar_field = m_fields[field_query_idx];
   size_t index = 0ul;
   auto buffer_ptr = get_buffer_pointer_and_index(field_query_idx, index);
-  genomicsdb_columnar_field.print_data_in_buffer_at_index(fptr,
-      buffer_ptr, index);
+  genomicsdb_columnar_field.print_data_in_buffer_at_index(fptr, buffer_ptr, index);
 }
 
 void SingleCellTileDBIterator::increment_iterator_within_live_buffer_list_tail_ptr_for_fields() {
@@ -698,8 +712,7 @@ void SingleCellTileDBIterator::print_ALT(const int field_query_idx, std::ostream
   auto& genomicsdb_columnar_field = m_fields[field_query_idx];
   size_t index = 0ul;
   auto buffer_ptr = get_buffer_pointer_and_index(field_query_idx, index);
-  genomicsdb_columnar_field.print_ALT_data_in_buffer_at_index(fptr,
-      buffer_ptr, index);
+  genomicsdb_columnar_field.print_ALT_data_in_buffer_at_index(fptr, buffer_ptr, index);
 }
 
 void SingleCellTileDBIterator::print_csv(const int field_query_idx, std::ostream& fptr) const {
@@ -707,8 +720,7 @@ void SingleCellTileDBIterator::print_csv(const int field_query_idx, std::ostream
   auto& genomicsdb_columnar_field = m_fields[field_query_idx];
   size_t index = 0ul;
   auto buffer_ptr = get_buffer_pointer_and_index(field_query_idx, index);
-  genomicsdb_columnar_field.print_data_in_buffer_at_index_as_csv(fptr,
-      buffer_ptr, index);
+  genomicsdb_columnar_field.print_data_in_buffer_at_index_as_csv(fptr, buffer_ptr, index);
 }
 
 #ifdef DO_PROFILING
@@ -776,3 +788,211 @@ void SingleCellTileDBIterator::update_sliding_window_to_profile_num_cells_to_tra
   }
 }
 #endif
+
+//GVCF iterator
+GenomicsDBGVCFIterator::GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
+    const VidMapper* vid_mapper, const VariantArraySchema& variant_array_schema,
+    const std::string& array_path, const VariantQueryConfig& query_config, const size_t buffer_size)
+  : GenomicsDBGVCFIterator(tiledb_ctx,
+                             0,
+                             vid_mapper, variant_array_schema,
+                             array_path, query_config, buffer_size)
+{}
+
+GenomicsDBGVCFIterator::GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
+    const TileDB_Array* tiledb_array,
+    const VidMapper* vid_mapper, const VariantArraySchema& variant_array_schema,
+    const std::string& array_path, const VariantQueryConfig& query_config, const size_t buffer_size)
+  : SingleCellTileDBIterator(tiledb_ctx, tiledb_array,
+      vid_mapper, variant_array_schema, array_path, query_config, buffer_size),
+  m_current_start_position(-1ll),
+  m_current_end_position(-1ll),
+  m_next_start_position(-1ll),
+  m_num_calls_with_deletions_or_MNVs(0u),
+  m_cell(new GenomicsDBGVCFCell(this))
+{
+  m_REF_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_REF_IDX);
+  m_ALT_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_ALT_IDX);
+  m_live_cell_markers.prepare_for_gvcf_iterator();
+  //Constructor for SingleCellTileDBIterator invokes SingleCellTileDBIterator::begin_new_query_column_interval()
+  //So, it's safe to call GenomicsDBGVCFIterator::begin_new_query_column_interval()
+  begin_new_query_column_interval();
+}
+
+GenomicsDBGVCFIterator::~GenomicsDBGVCFIterator() {
+  if(m_cell)
+    delete m_cell;
+  m_cell = 0;
+}
+
+template<>
+void GenomicsDBGVCFIterator::update_num_deletions_and_MNVs<true>(const size_t marker_idx) {
+  const auto REF_ptr_length_pair = get_field_ptr_and_length_for_query_idx(marker_idx, m_REF_query_idx);
+  const auto ALT_ptr_length_pair = get_field_ptr_and_length_for_query_idx(marker_idx, m_ALT_query_idx);
+  STRING_VIEW REF(reinterpret_cast<const char*>(REF_ptr_length_pair.first), REF_ptr_length_pair.second);
+  //split up ALT
+  const char* ptr = reinterpret_cast<const char*>(ALT_ptr_length_pair.first);
+  size_t remaining_n = ALT_ptr_length_pair.second;
+  bool contains_deletion = false;
+  bool contains_MNV = false;
+  while(remaining_n > 0u) {
+   auto tmp = reinterpret_cast<const char*>(memchr(ptr, TILEDB_ALT_ALLELE_SEPARATOR[0], remaining_n));
+   const auto n = tmp ? (tmp-ptr) : remaining_n;
+   STRING_VIEW ALT(ptr, n);
+   contains_deletion = contains_deletion || VariantUtils::is_deletion(REF, ALT);
+   contains_MNV = contains_MNV || VariantUtils::is_MNV(REF, ALT);
+   ptr = tmp + 1;  //+1 for length of separator
+   remaining_n -= (n + (tmp ? 1 : 0));
+  }
+  m_live_cell_markers.set_contains_deletion(marker_idx, contains_deletion);
+  m_live_cell_markers.set_contains_MNV(marker_idx, contains_MNV);
+  if(contains_deletion || contains_MNV)
+    ++m_num_calls_with_deletions_or_MNVs;
+}
+
+template<>
+void GenomicsDBGVCFIterator::update_num_deletions_and_MNVs<false>(const size_t marker_idx) {
+  m_num_calls_with_deletions_or_MNVs -= (m_live_cell_markers.contains_deletion_or_MNV(marker_idx) ? 1 : 0);
+}
+
+void GenomicsDBGVCFIterator::begin_new_query_column_interval() {
+  //Assumes SingleCellTileDBIterator::begin_new_query_column_interval is already invoked
+  //Hence, the two loops execute only when SingleCellTileDBIterator::begin_new_query_column_interval
+  //has determined that there is valid data to work on
+  if(SingleCellTileDBIterator::end())
+    return;
+  const auto& coords_columnar_field = m_fields.back();
+  const auto& END_columnar_field = m_fields[m_END_query_idx];
+  m_num_calls_with_deletions_or_MNVs = 0u;
+  m_current_start_position = (m_query_config->get_num_column_intervals() == 0u)
+    ? -1ll : m_query_config->get_column_begin(m_query_column_interval_idx);
+  m_query_interval_limit = (m_query_config->get_num_column_intervals() == 0u)
+    ? m_variant_array_schema->dim_domains()[1].second
+    : m_query_config->get_column_end(m_query_column_interval_idx);
+  //m_current_start_position might have to be updated if
+  //(a) there are no intersecting intervals for query interval begin AND
+  //(b) there's valid data in simple traversal mode
+  if(m_PQ_live_cell_markers.empty() && !m_done_reading_from_TileDB)
+    m_current_start_position = (reinterpret_cast<const int64_t*>(
+	coords_columnar_field.get_pointer_to_data_in_buffer_at_index(
+	  coords_columnar_field.get_live_buffer_list_tail_ptr(),
+	  coords_columnar_field.get_curr_index_in_live_list_tail()
+	  )
+	))[1];
+  //All elements of m_PQ_live_cell_markers begin before the query interval
+  //and intersect the query interval - hence, the m_current_start_position
+  //of all elements of PQ is simply the start of the query interval
+  while(!m_PQ_live_cell_markers.empty()) {
+    auto marker_idx = m_PQ_live_cell_markers.top().second;
+    m_PQ_live_cell_markers.pop();
+    update_num_deletions_and_MNVs<true>(marker_idx);
+    m_end_set.insert(GVCFEndSetElementTy(m_live_cell_markers.get_end(marker_idx), marker_idx));
+  }
+  //There might be more elements which start at query interval begin
+  //which are accessed in simple traversal mode
+  fill_end_set_in_simple_traversal_mode();
+}
+
+const GenomicsDBGVCFIterator& GenomicsDBGVCFIterator::operator++() {
+  assert(!m_end_set.empty());
+  m_current_start_position = m_current_end_position+1;
+  //Past the limit, clean-up end set and move to next interval
+  if(m_current_start_position > m_query_interval_limit)
+    m_current_start_position = INT64_MAX;
+  auto iter = m_end_set.begin();
+  //Remove all entries that finish at or before m_current_end_position
+  for(;iter!=m_end_set.end();++iter) {
+    auto min_end_element = *iter;
+    const auto END_field_value = min_end_element.first;
+    const auto marker_idx = min_end_element.second;
+    if(END_field_value < m_current_start_position) {
+      update_num_deletions_and_MNVs<false>(marker_idx);
+      decrement_num_live_entries_in_live_cell_marker(marker_idx);
+    }
+    else
+      break;
+  }
+  if(iter == m_end_set.end()) { //all entries have END <= m_current_end_position
+    m_end_set.clear();
+    m_current_start_position = m_next_start_position;
+  }
+  else
+    m_end_set.erase(m_end_set.begin(), iter);
+  if(m_current_start_position == m_next_start_position)
+    fill_end_set_in_simple_traversal_mode();
+  else {
+    assert(!m_end_set.empty() || m_current_start_position == INT64_MAX);
+    update_current_end_position();
+  }
+  //No more valid data - move to next query interval if needed
+  if(m_end_set.empty() && m_done_reading_from_TileDB) {
+    SingleCellTileDBIterator::begin_new_query_column_interval();
+    GenomicsDBGVCFIterator::begin_new_query_column_interval();
+  }
+  m_at_new_query_column_interval = false;
+  return *this;
+}
+
+void GenomicsDBGVCFIterator::fill_end_set_in_simple_traversal_mode() {
+  //We keep searching till we find a cell whose start position is > m_current_start_position
+  //or no more cells exist for current query interval
+  m_next_start_position = -1;
+  const auto& coords_columnar_field = m_fields.back();
+  const auto& END_columnar_field = m_fields[m_END_query_idx];
+  while(!m_done_reading_from_TileDB && m_next_start_position == -1) {
+    const auto* coords = reinterpret_cast<const int64_t*>(
+	coords_columnar_field.get_pointer_to_data_in_buffer_at_index(
+	  coords_columnar_field.get_live_buffer_list_tail_ptr(),
+	  coords_columnar_field.get_curr_index_in_live_list_tail()
+	  )
+	);
+    const auto END_field_value = *(reinterpret_cast<const int64_t*>(
+	  END_columnar_field.get_pointer_to_data_in_buffer_at_index(
+	    END_columnar_field.get_live_buffer_list_tail_ptr(),
+	    END_columnar_field.get_curr_index_in_live_list_tail()
+	    )
+	  ));
+    const auto marker_idx = get_marker_idx_for_tiledb_row_idx(coords[0]);
+    if(coords[1] == m_current_start_position) {
+      assert(m_live_cell_markers.get_row_idx(marker_idx) == coords[0]);
+      //Handle overlapping intervals - this row already has an entry in the set
+      if(m_live_cell_markers.is_valid(marker_idx)) {
+	//Remove from m_end_set
+	auto iter = m_end_set.find(GVCFEndSetElementTy(m_live_cell_markers.get_end(marker_idx), marker_idx));
+	assert(iter != m_end_set.end());
+	m_end_set.erase(iter);
+        update_num_deletions_and_MNVs<false>(marker_idx);
+	//Decrement num live entries
+	decrement_num_live_entries_in_live_cell_marker(marker_idx);
+      }
+      //Add new cell, initialize live marker from tail of buffer and increment live entries
+      initialize_live_cell_marker_from_tail(marker_idx, coords, END_field_value);
+      update_num_deletions_and_MNVs<true>(marker_idx);
+      m_end_set.insert(GVCFEndSetElementTy(END_field_value, marker_idx));
+      advance_to_next_useful_cell(1u);
+    }
+    else
+      m_next_start_position = coords[1];
+  }
+  update_current_end_position();
+}
+
+void GenomicsDBGVCFIterator::update_current_end_position() {
+  if(m_next_start_position < 0) {
+    if(m_query_config->get_num_column_intervals() == 0u) {
+      auto& dim_domains = m_variant_array_schema->dim_domains();
+      m_next_start_position = dim_domains[1].second;
+    }
+    else
+      m_next_start_position = m_query_config->get_column_end(m_query_column_interval_idx);
+    //to avoid wrap-around
+    m_next_start_position = std::min(m_next_start_position, INT64_MAX-1)+1;
+  }
+  if(m_num_calls_with_deletions_or_MNVs > 0u)
+    m_current_end_position = m_current_start_position; //to put spanning deletions
+  else {
+    const auto min_END_field_value = m_end_set.empty() ? INT64_MAX
+      : (*(m_end_set.begin())).first;
+    m_current_end_position = std::min(min_END_field_value, m_next_start_position-1);
+  }
+}

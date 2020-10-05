@@ -187,4 +187,13 @@ class GenomicsDBColumnarCell {
   const SingleCellTileDBIterator* m_iterator;
 };
 
+class GenomicsDBGVCFCell {
+  public:
+    GenomicsDBGVCFCell(const GenomicsDBGVCFIterator* iter) {
+      m_iterator = iter;
+    }
+  private:
+    const GenomicsDBGVCFIterator* m_iterator;
+};
+
 #endif

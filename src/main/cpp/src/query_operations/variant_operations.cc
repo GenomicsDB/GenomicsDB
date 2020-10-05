@@ -325,15 +325,15 @@ void SingleVariantOperatorBase::clear() {
   m_merged_alt_alleles.clear();
 }
 
-void SingleVariantOperatorBase::operate(Variant& variant, const VariantQueryConfig& query_config) {
+void SingleVariantOperatorBase::operate(Variant& variant) {
   m_merged_reference_allele.resize(0u);
   m_merged_alt_alleles.clear();
   //REF allele
-  VariantOperations::merge_reference_allele(variant, query_config, m_merged_reference_allele);
+  VariantOperations::merge_reference_allele(variant, *m_query_config, m_merged_reference_allele);
   //ALT alleles
   //set #rows to number of calls
   m_alleles_LUT.resize_luts_if_needed(variant.get_num_calls(), 10u);    //arbitrary non-0 second arg, will be resized correctly anyway
-  VariantOperations::merge_alt_alleles(variant, query_config, m_merged_reference_allele, m_alleles_LUT,
+  VariantOperations::merge_alt_alleles(variant, *m_query_config, m_merged_reference_allele, m_alleles_LUT,
                                        m_merged_alt_alleles, m_NON_REF_exists);
   //is pure reference block if REF is 1 char, and ALT contains only <NON_REF>
   m_is_reference_block_only = (m_merged_reference_allele.length() == 1u && m_merged_alt_alleles.size() == 1u &&
@@ -342,15 +342,15 @@ void SingleVariantOperatorBase::operate(Variant& variant, const VariantQueryConf
   m_remapping_needed = !m_is_reference_block_only;
 }
 
-void InterestingLocationsPrinter::operate(Variant& variant, const VariantQueryConfig& query_config) {
+void InterestingLocationsPrinter::operate(Variant& variant) {
   auto num_valid_calls = 0ull;
   auto num_ref_block_calls = 0ull;
   auto num_begin_at_position = 0ull;
   //Valid calls
   for (const auto& curr_call : variant) {
     ++num_valid_calls;
-    const auto& ref = get_known_field<VariantFieldString, true>(curr_call, query_config, GVCF_REF_IDX);
-    const auto&  alt_field = get_known_field<VariantFieldALTData, true>(curr_call, query_config, GVCF_ALT_IDX);
+    const auto& ref = get_known_field<VariantFieldString, true>(curr_call, *m_query_config, GVCF_REF_IDX);
+    const auto&  alt_field = get_known_field<VariantFieldALTData, true>(curr_call, *m_query_config, GVCF_ALT_IDX);
     if (ref->get().length() == 1u && alt_field->get().size() == 1u
         && alt_field->get()[0u].length() == 1u
         && alt_field->get()[0u][0u] == TILEDB_NON_REF_VARIANT_REPRESENTATION[0u])
@@ -363,8 +363,8 @@ void InterestingLocationsPrinter::operate(Variant& variant, const VariantQueryCo
 }
 
 //Dummy genotyping operator
-void DummyGenotypingOperator::operate(Variant& variant, const VariantQueryConfig& query_config) {
-  variant.set_query_config(&query_config);
+void DummyGenotypingOperator::operate(Variant& variant) {
+  variant.set_query_config(m_query_config);
   VariantOperations::do_dummy_genotyping(variant, *m_output_stream);
 }
 
@@ -372,7 +372,7 @@ void DummyGenotypingOperator::operate(Variant& variant, const VariantQueryConfig
 GA4GHOperator::GA4GHOperator(const VariantQueryConfig& query_config,
                              const VidMapper& vid_mapper,
 			     const bool skip_remapping_INFO_fields_with_sum_combine_operation)
-  : SingleVariantOperatorBase(&vid_mapper) {
+  : SingleVariantOperatorBase(&vid_mapper, &query_config) {
   m_GT_query_idx = UNDEFINED_ATTRIBUTE_IDX_VALUE;
   m_max_diploid_alt_alleles_that_can_be_genotyped =
     query_config.get_max_diploid_alt_alleles_that_can_be_genotyped();
@@ -620,13 +620,14 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
   return false;
 }
 
-void GA4GHOperator::operate(Variant& variant, const VariantQueryConfig& query_config) {
+void GA4GHOperator::operate(Variant& variant) {
   //Compute merged REF and ALT
-  SingleVariantOperatorBase::operate(variant, query_config);
+  SingleVariantOperatorBase::operate(variant);
   //Copy variant to m_remapped_variant - only simple elements, not all fields
   m_remapped_variant.deep_copy_simple_members(variant);
   //Setup code for re-ordering PL/AD etc field elements in m_remapped_variant
   const unsigned num_merged_alleles = m_merged_alt_alleles.size()+1u;        //+1 for REF allele
+  const VariantQueryConfig& query_config = *m_query_config;
   //Known fields that need to be re-mapped
   if (m_remapping_needed) {
     //if GT field is queried

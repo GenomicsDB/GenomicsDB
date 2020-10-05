@@ -87,6 +87,7 @@ if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 set(USE_HDFS True CACHE BOOL "Enables HDFS support")
+set(BUILD_FOR_ARCH "" CACHE STRING "Arch for which to build - values passed to -march= option for gcc")
 
 #See https://cmake.org/Wiki/CMake_RPATH_handling#Common_questions
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH True)
@@ -100,6 +101,11 @@ enable_testing()
 #Platform check modules
 include(CheckIncludeFileCXX)
 include(CheckCXXSymbolExists)
+   
+#Optimization flag
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND BUILD_FOR_ARCH)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${BUILD_FOR_ARCH}")
+endif()
 
 if(BUILD_DISTRIBUTABLE_LIBRARY)
     set(DISABLE_MPI True)
@@ -164,6 +170,11 @@ add_definitions(-DGENOMICSDB_VERSION=\"${GENOMICSDB_VERSION}\")
 
 if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
   add_definitions(-D_FORTIFY_SOURCE=2)
+endif()
+
+find_package(StringView)
+if(NOT STRING_VIEW_FOUND AND NOT STRING_VIEW_EXPERIMENTAL_FOUND)
+  message(FATAL_ERROR "No string_view found. Use a compiler that supports std::string_view for now")
 endif()
 
 find_package(libuuid REQUIRED)
