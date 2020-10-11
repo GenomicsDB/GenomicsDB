@@ -44,6 +44,8 @@
 #include <typeinfo>
 #include <vector>
 
+#include "genomicsdb_export_config.pb.h"
+
 // Override project visibility set to hidden for api
 #if (defined __GNUC__ && __GNUC__ >= 4) || defined __INTEL_COMPILER
 #  define GENOMICSDB_EXPORT __attribute__((visibility("default")))
@@ -242,6 +244,21 @@ class VariantCall;
 class VariantQueryConfig;
 
 /**
+  Add vcf variant annotation to the genomic fields
+*/
+class AnnotationService {
+  public:
+    const std::string DATA_SOURCE_FIELD_SEPARATOR = "_AA_";
+    AnnotationService();
+    void read_configuration(const std::string& str);
+    void annotate();
+
+    std::vector<genomicsdb_pb::AnnotationSource> m_annotate_sources;
+
+
+};
+
+/**
  * Experimental Query Interface to GenomicsDB for Arrays partitioned by columns
  * Concurrency support is provided via query json files for now - see 
  *     https://github.com/GenomicsDB/GenomicsDB/wiki/Querying-GenomicsDB#json-configuration-file-for-a-query
@@ -385,6 +402,7 @@ class GenomicsDB {
   void* m_storage_manager = nullptr; // Pointer to VariantStorageManager instance
   void* m_vid_mapper = nullptr;      // Pointer to VidMapper instance
   void* m_query_config = nullptr;    // Pointer to a base VariantQueryConfig instance
+  void* m_annotation_service = nullptr; // Pointer to annotation service instance (see how others like m_storage_manager get cast)
 
   int m_concurrency_rank = 0;
 

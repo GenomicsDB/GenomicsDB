@@ -44,7 +44,9 @@
 #include "variant_query_config.h"
 #include "vcf_adapter.h"
 #include "vid_mapper_pb.h"
+#include "genomicsdb_export_config.pb.h"
 
+#define TO_ANNOTATION_SERVICE(X) (reinterpret_cast<AnnotationService *>(static_cast<void *>(X)))
 #define TO_VARIANT_QUERY_CONFIG(X) (reinterpret_cast<VariantQueryConfig *>(static_cast<void *>(X)))
 #define TO_VARIANT_STORAGE_MANAGER(X) (reinterpret_cast<VariantStorageManager *>(static_cast<void *>(X)))
 #define TO_VID_MAPPER(X) (reinterpret_cast<VidMapper *>(static_cast<void *>(X)))
@@ -86,6 +88,31 @@ void check(const std::string& workspace,
   VERIFY(!vid_mapping_file.empty() && "Vid Mapping File cannot be empty");
 }
 
+/**
+Default constructor for AnnotationService
+*/
+AnnotationService::AnnotationService() {
+  printf("jDebug 90: AnnotationService constructor\n");
+}
+
+/**
+  Read annotation configuration from a pointer to the ExportConfiguration. Create copies of the AnnotationSources.
+*/
+void AnnotationService::read_configuration(const std::string& str) {
+  // Read the configuration
+  genomicsdb_pb::ExportConfiguration export_config;
+  export_config.ParseFromString(str);
+
+  // Create a copy of each AnnotationSource
+  for(auto i=0; i<export_config.annotation_source_size(); ++i) {
+    genomicsdb_pb::AnnotationSource annotation_source = export_config.annotation_source(i);
+    m_annotate_sources.push_back(annotation_source);
+  }
+}
+
+void AnnotationService::annotate() {
+  //printf("m_annotate_sources.size=%d\n", m_annotate_sources.size());
+}
 
 GenomicsDB::GenomicsDB(const std::string& workspace,
                        const std::string& callset_mapping_file,
@@ -94,7 +121,7 @@ GenomicsDB::GenomicsDB(const std::string& workspace,
                        const std::vector<std::string>attributes,
                        const uint64_t segment_size) {
   check(workspace, segment_size, callset_mapping_file, vid_mapping_file, reference_genome);
-    
+
   // Create base query configuration
   m_query_config = new VariantQueryConfig();
 
@@ -136,11 +163,20 @@ GenomicsDB::GenomicsDB(const std::string& query_configuration,
       query_config->read_from_file(query_configuration, concurrency_rank); break;
     case JSON_STRING:
       query_config->read_from_JSON_string(query_configuration, concurrency_rank); break;
-    case PROTOBUF_BINARY_STRING:
-      query_config->read_from_PB_binary_string(query_configuration, concurrency_rank); break;
+    case PROTOBUF_BINARY_STRING: {
+      query_config->read_from_PB_binary_string(query_configuration, concurrency_rank);
+
+      // Create an annotationService class.
+      m_annotation_service = new AnnotationService(); // deserialise the query config in the constructor
+      AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
+      annotation_service->read_configuration(query_configuration);
+      break;
+    }
     default:
       throw GenomicsDBException("Unsupported query configuration type specified to the GenomicsDB constructor");
   }
+
+  //jdebug query_config->has_annotation_service();
 
   check(query_config->get_workspace(concurrency_rank),
         query_config->get_segment_size(),
@@ -188,10 +224,32 @@ std::map<std::string, genomic_field_type_t> create_genomic_field_types(const Var
   return genomic_field_types;
 }
 
+/**
+  Take the map created by create_genomic_field_types and add annotation fields to it.
+*/
+void add_annotation_field_types(std::map<std::string, genomic_field_type_t> &genomic_field_types, const AnnotationService &annotation_service) {
+  for (auto& x: genomic_field_types) {
+    printf("jDebug254: first=%s\n", x.first.c_str());
+  }
+
+  for(genomicsdb_pb::AnnotationSource annotation_source: annotation_service.m_annotate_sources) {
+    for(std::string info_field: annotation_source.attributes()) {
+      const std::string attribute_name = annotation_source.data_source() + annotation_service.DATA_SOURCE_FIELD_SEPARATOR + info_field;
+      printf("jDebug256: Adding field type for: %s\n", attribute_name.c_str());
+      const std::type_index type_index = typeid(std::string);
+      genomic_field_types.insert(std::make_pair(attribute_name,
+                                                genomic_field_type_t(type_index,
+                                                                     false,
+                                                                     0,
+                                                                     1,
+                                                                     false)));
+    }
+  }
+}
+
 GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
                                                genomicsdb_ranges_t column_ranges,
                                                genomicsdb_ranges_t row_ranges) {
-  
   // Create Variant Config for given concurrency_rank
   VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   VariantQueryConfig query_config(*base_query_config);
@@ -205,6 +263,7 @@ GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
 
   query_config.validate();
 
+  AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
   return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_VECTOR(query_variants(array, &query_config)),
                             create_genomic_field_types(query_config));
 }
@@ -250,7 +309,7 @@ std::vector<Variant>* GenomicsDB::query_variants(const std::string& array, Varia
 
   // TODO: Should not need this map, but required for associating variant field names with indices in Variant
   m_query_configs_map.emplace(array, *query_config);
-  
+
   return pvariants;
 }
 
@@ -274,6 +333,7 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProc
 
   query_config.validate();
 
+  printf("jDebug5");
   return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, &query_config, processor)),
                                 create_genomic_field_types(query_config));
 }
@@ -286,8 +346,18 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls() {
 GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProcessor& processor) {
   VariantQueryConfig* query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   const std::string& array = query_config->get_array_name(m_concurrency_rank);
+  std::map<std::string, genomic_field_type_t> genomic_field_types = create_genomic_field_types(*query_config);
+
+  AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
+  add_annotation_field_types(genomic_field_types, *annotation_service);
+
+  // jDebug For debugging: print all the attributres in the genomic_field_types map
+  // for (auto& x: genomic_field_types) {
+  //   printf("jDebug376: first=%s\n", x.first.c_str());
+  // }
+
   return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, query_config, processor)),
-                                create_genomic_field_types(*query_config));
+                                genomic_field_types);
 }
 
 VidMapper* get_vid_mapper(void* vid_mapper, void* query_config) {
@@ -361,15 +431,30 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
       genomic_field_t field_vec(query_config.get_query_attribute_name(i),
                                 cell.get_field_ptr_for_query_idx(i),
                                 cell.get_field_length(i));
+
       genomic_fields.push_back(field_vec);
+
+      // jDebug: use the "REF" value pointer
+      if(query_config.get_query_attribute_name(i).compare("REF") == 0) {
+        printf("jDebug439: %s\n", field_vec.str_value().c_str());
+        genomic_field_t field_vec_annotation("clinvar_AA_ID",
+                                  cell.get_field_ptr_for_query_idx(i),
+                                  cell.get_field_length(i));
+        genomic_fields.push_back(field_vec_annotation);
+      }
     }
   }
+
+  // Nalini's code: Cycle through annotations and update genomic_fields
+  // for (auto i=1u; i<query_config.get_annotation_service(); i++) {
+  //    genomic_fields.push_back(create_genomic_field(query_config.get_annotation_service(i)));
+  // }
 
   std::string sample_name;
   if (!m_vid_mapper.get_callset_name(coords[0], sample_name)) {
     sample_name = "NONE";
   }
-   
+
   m_variant_call_processor.process(sample_name, coords, genomic_interval, genomic_fields);
 }
 
@@ -444,7 +529,7 @@ void GenomicsDB::generate_vcf(const std::string& array,
 
   query_config.validate();
 
-  generate_vcf(array, &query_config, output, output_format, overwrite); 
+  generate_vcf(array, &query_config, output, output_format, overwrite);
 }
 
 void GenomicsDB::generate_vcf(const std::string& output, const std::string& output_format, bool overwrite) {
@@ -604,6 +689,7 @@ std::vector<genomic_field_t> GenomicsDB::get_genomic_fields(const std::string& a
 
 GenomicsDBVariantCalls GenomicsDB::get_variant_calls(const std::string& array, const genomicsdb_variant_t* variant) {
   std::vector<VariantCall>* variant_calls = const_cast<std::vector<VariantCall>*>(&(TO_VARIANT(variant)->get_calls()));
+
   return GenomicsDBResults<genomicsdb_variant_call_t>(TO_GENOMICSDB_VARIANT_CALL_VECTOR(variant_calls),
                                                       create_genomic_field_types(*get_query_config_for(array)));
 }
