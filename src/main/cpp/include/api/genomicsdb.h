@@ -187,16 +187,19 @@ class GenomicsDBResults {
  public:
   GenomicsDBResults(std::vector<T>* results, std::map<std::string, genomic_field_type_t> genomic_field_types)
       : m_results(results), m_current_pos(0),
-        m_genomic_field_types(std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types))) {};
+        m_genomic_field_types(std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types))) {
+          printf("jDebug 5: GenomicsDBResults::GenomicsDBResults\n");
+        };
   ~GenomicsDBResults() { free(); };
   const std::shared_ptr<std::map<std::string, genomic_field_type_t>> get_genomic_field_types() const {
+    printf("jDebug 99: GenomicsDBResults::get_genomic_field_types");
     return m_genomic_field_types;
   }
   const genomic_field_type_t get_genomic_field_type(const std::string& name) const {
     if (m_genomic_field_types->find(name) != m_genomic_field_types->end()) {
       return m_genomic_field_types->at(name);
     } else {
-      throw GenomicsDBException("Genomic Field="+name+" does not seem to have an associated type");
+      throw GenomicsDBException("Genomic Field="+name+" does not seem to have an associated type (1)");
     }
   }
   GENOMICSDB_EXPORT std::size_t size() const noexcept;
@@ -226,7 +229,13 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
     if (m_genomic_field_types->find(name) != m_genomic_field_types->end()) {
       return m_genomic_field_types->at(name);
     } else {
-      throw GenomicsDBException("Genomic Field="+name+" does not seem to have an associated type");
+
+      // jDebug:
+      // for (auto& x: *m_genomic_field_types) {
+      //   printf("jDebug234 exceptionComing: first=%s\n", x.first.c_str());
+      // }
+
+      throw GenomicsDBException("Genomic Field="+name+" does not seem to have an associated type (2)");
     }
   }
   virtual void process(const interval_t& interval);
@@ -248,10 +257,16 @@ class VariantQueryConfig;
 */
 class AnnotationService {
   public:
+    const std::string jDebugAttribute = "clinvar_AA_ID";
+    std::string jDebugValue = "abcdef";
+    // const void* jDebugValuePtr = reinterpret_cast<void*>(&jDebugValue[0]);
+    void* jDebugValuePtr = reinterpret_cast<void*>(&jDebugValue[0]);
+    // const void* jDebugValuePtr = reinterpret_cast<void*>(&jDebugValue);
+
     const std::string DATA_SOURCE_FIELD_SEPARATOR = "_AA_";
     AnnotationService();
     void read_configuration(const std::string& str);
-    void annotate();
+    void annotate(std::vector<genomic_field_t>& genomic_fields) const;
 
     std::vector<genomicsdb_pb::AnnotationSource> m_annotate_sources;
 
@@ -260,7 +275,7 @@ class AnnotationService {
 
 /**
  * Experimental Query Interface to GenomicsDB for Arrays partitioned by columns
- * Concurrency support is provided via query json files for now - see 
+ * Concurrency support is provided via query json files for now - see
  *     https://github.com/GenomicsDB/GenomicsDB/wiki/Querying-GenomicsDB#json-configuration-file-for-a-query
  *     https://github.com/GenomicsDB/GenomicsDB/wiki/MPI-with-GenomicsDB
  */
@@ -274,7 +289,7 @@ class GenomicsDB {
    *   callset_mapping_file
    *   vid_mapping_file
    *   reference_genome
-   *   attributes, optional 
+   *   attributes, optional
    *   segment_size, optional
    * Throws GenomicsDBException
    */
@@ -292,7 +307,7 @@ class GenomicsDB {
    *   loader_config_json_file, optional - describe the loader configuration in a JSON file.
    *           If a configuration key exists in both the query and the loader configuration, the query
    *           configuration takes precedence
-   *   concurrency_rank, optional - if greater than 0, 
+   *   concurrency_rank, optional - if greater than 0,
    *           the constraints(workspace, array, column and row ranges) are surmised
    *           using the rank as an index into their corresponding vectors
    * Throws GenomicsDBException
@@ -345,7 +360,7 @@ class GenomicsDB {
                                                                const std::string& array,
                                                                genomicsdb_ranges_t column_ranges=SCAN_FULL,
                                                                genomicsdb_ranges_t row_ranges={});
- 
+
   /**
    * Query using set configuration for variant calls. Useful when using parallelism paradigms(MPI, Intel TBB)
    * Variant Calls are similar to GACall in GA4GH API.
@@ -384,7 +399,7 @@ class GenomicsDB {
   GENOMICSDB_EXPORT GenomicsDBVariantCalls get_variant_calls(const std::string& array, const genomicsdb_variant_t* variant);
 
   GENOMICSDB_EXPORT int64_t get_row(const genomicsdb_variant_call_t* variant_call);
-  
+
  private:
   std::vector<Variant>*  query_variants(const std::string& array,
                                         VariantQueryConfig *query_config);
@@ -408,8 +423,8 @@ class GenomicsDB {
 
   //TODO: Get VariantFields to have names instead of indices at the point of building the data structure, so
   //      we don't have to maintain m_query_configs_map
-  // Associate array names with VariantQueryConfig 
-  std::map<std::string, VariantQueryConfig> m_query_configs_map; 
+  // Associate array names with VariantQueryConfig
+  std::map<std::string, VariantQueryConfig> m_query_configs_map;
 };
 
 // genomicsdb_variant_t specialization of GenomicsDBResults template

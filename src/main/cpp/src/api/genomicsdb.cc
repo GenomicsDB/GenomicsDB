@@ -110,8 +110,10 @@ void AnnotationService::read_configuration(const std::string& str) {
   }
 }
 
-void AnnotationService::annotate() {
-  //printf("m_annotate_sources.size=%d\n", m_annotate_sources.size());
+void AnnotationService::annotate(std::vector<genomic_field_t>& genomic_fields) const {
+  printf("jDebug 5: AnnotationService::annotate: m_annotate_sources.size=%lu\n", m_annotate_sources.size());
+  genomic_field_t field_vec_annotation(jDebugAttribute, &jDebugValue, 1);
+  genomic_fields.push_back(field_vec_annotation);
 }
 
 GenomicsDB::GenomicsDB(const std::string& workspace,
@@ -203,6 +205,7 @@ GenomicsDB::~GenomicsDB() {
 }
 
 std::map<std::string, genomic_field_type_t> create_genomic_field_types(const VariantQueryConfig &query_config) {
+  printf("jDebug n: create_genomic_field_types\n");
   std::map<std::string, genomic_field_type_t> genomic_field_types;
   for (auto i=0u; i<query_config.get_num_queried_attributes(); i++) {
     const std::string attribute_name = query_config.get_query_attribute_name(i);
@@ -229,13 +232,13 @@ std::map<std::string, genomic_field_type_t> create_genomic_field_types(const Var
 */
 void add_annotation_field_types(std::map<std::string, genomic_field_type_t> &genomic_field_types, const AnnotationService &annotation_service) {
   for (auto& x: genomic_field_types) {
-    printf("jDebug254: first=%s\n", x.first.c_str());
+    printf("jDebug -2: add_annotation_field_types: existing field types: first=%s\n", x.first.c_str());
   }
 
   for(genomicsdb_pb::AnnotationSource annotation_source: annotation_service.m_annotate_sources) {
     for(std::string info_field: annotation_source.attributes()) {
       const std::string attribute_name = annotation_source.data_source() + annotation_service.DATA_SOURCE_FIELD_SEPARATOR + info_field;
-      printf("jDebug256: Adding field type for: %s\n", attribute_name.c_str());
+      printf("jDebug -2: add_annotation_field_types: Adding field type for: %s\n", attribute_name.c_str());
       const std::type_index type_index = typeid(std::string);
       genomic_field_types.insert(std::make_pair(attribute_name,
                                                 genomic_field_type_t(type_index,
@@ -263,7 +266,6 @@ GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
 
   query_config.validate();
 
-  AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
   return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_VECTOR(query_variants(array, &query_config)),
                             create_genomic_field_types(query_config));
 }
@@ -333,7 +335,7 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProc
 
   query_config.validate();
 
-  printf("jDebug5");
+  printf("jDebug 5\n");
   return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, &query_config, processor)),
                                 create_genomic_field_types(query_config));
 }
@@ -352,9 +354,11 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProc
   add_annotation_field_types(genomic_field_types, *annotation_service);
 
   // jDebug For debugging: print all the attributres in the genomic_field_types map
-  // for (auto& x: genomic_field_types) {
-  //   printf("jDebug376: first=%s\n", x.first.c_str());
-  // }
+  for (auto& x: genomic_field_types) {
+    printf("jDebug 0: GenomicsDB::query_variant_calls: first=%s\n", x.first.c_str());
+  }
+
+  printf("jDebug 1: GenomicsDB::query_variant_calls\n");
 
   return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, query_config, processor)),
                                 genomic_field_types);
@@ -370,22 +374,32 @@ VidMapper* get_vid_mapper(void* vid_mapper, void* query_config) {
 
 class GatherVariantCalls : public SingleCellOperatorBase {
  public:
-  GatherVariantCalls(GenomicsDBVariantCallProcessor& variant_call_processor, const VariantQueryConfig& query_config) :
+   const std::string jDebugGaAttribute = "clinvar_AA_ID";
+   std::string jDebugGaValue = "abcdef";
+   void* jDebugGaValuePtr = reinterpret_cast<void*>(&jDebugGaValue[0]);
+
+  GatherVariantCalls(GenomicsDBVariantCallProcessor& variant_call_processor, const VariantQueryConfig& query_config, const AnnotationService &annotation_service) :
       SingleCellOperatorBase(), m_variant_call_processor(variant_call_processor), m_vid_mapper(query_config.get_vid_mapper()) {
-    initialize(query_config);
+        printf("jDebug 2: GatherVariantCalls::GatherVariantCalls\n");
+        this->annotation_service = &annotation_service;
+    initialize(query_config, annotation_service);
   }
   void operate(VariantCall& call, const VariantQueryConfig& query_config, const VariantArraySchema& schema);
   void operate_on_columnar_cell(const GenomicsDBColumnarCell& cell, const VariantQueryConfig& query_config,
                                 const VariantArraySchema& schema);
  private:
-  void initialize(const VariantQueryConfig& query_config);
+  void initialize(const VariantQueryConfig& query_config, const AnnotationService &annotation_service);
   GenomicsDBVariantCallProcessor& m_variant_call_processor;
   const VidMapper& m_vid_mapper;
   std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
+  const AnnotationService* annotation_service;
 };
 
-void GatherVariantCalls::initialize(const VariantQueryConfig& query_config) {
-  m_variant_call_processor.initialize(create_genomic_field_types(query_config));
+void GatherVariantCalls::initialize(const VariantQueryConfig& query_config, const AnnotationService &annotation_service) {
+  printf("jDebug 3: GatherVariantCalls::initialize\n");
+  std::map<std::string, genomic_field_type_t> genomic_field_types = create_genomic_field_types(query_config);
+  add_annotation_field_types(genomic_field_types, annotation_service);
+  m_variant_call_processor.initialize(genomic_field_types);
 };
 
 void GatherVariantCalls::operate(VariantCall& variant_call,
@@ -424,6 +438,7 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
   genomic_interval_t genomic_interval(std::move(contig_name),
                                       std::make_pair(contig_position, contig_position+end_position-coords[1]));
 
+  printf("jDebug 4: GatherVariantCalls::operate_on_columnar_cell\n");
   std::vector<genomic_field_t> genomic_fields;
   // Ignore first field as it is "END"
   for (auto i=1u; i<query_config.get_num_queried_attributes(); i++) {
@@ -432,16 +447,8 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
                                 cell.get_field_ptr_for_query_idx(i),
                                 cell.get_field_length(i));
 
+      // printf("jDebug 4.1: len=%zu, val=%s\n", cell.get_field_length(i), field_vec.str_value().c_str());
       genomic_fields.push_back(field_vec);
-
-      // jDebug: use the "REF" value pointer
-      if(query_config.get_query_attribute_name(i).compare("REF") == 0) {
-        printf("jDebug439: %s\n", field_vec.str_value().c_str());
-        genomic_field_t field_vec_annotation("clinvar_AA_ID",
-                                  cell.get_field_ptr_for_query_idx(i),
-                                  cell.get_field_length(i));
-        genomic_fields.push_back(field_vec_annotation);
-      }
     }
   }
 
@@ -450,11 +457,24 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
   //    genomic_fields.push_back(create_genomic_field(query_config.get_annotation_service(i)));
   // }
 
+    genomic_field_t field_vec_annotation_1(annotation_service->jDebugAttribute, annotation_service->jDebugValuePtr, 1);
+    genomic_fields.push_back(field_vec_annotation_1);
+
+    genomic_field_t field_vec_annotation_2(jDebugGaAttribute, jDebugGaValuePtr, 1);
+    genomic_fields.push_back(field_vec_annotation_2);
+
+    annotation_service->annotate(genomic_fields);
+
+  for (auto& x: genomic_fields) {
+    printf("jDebug 4.3: GenomicsDB::operate_on_columnar_cell: name=%s, value=%s\n", x.name.c_str(), x.str_value().c_str());
+  }
+
   std::string sample_name;
   if (!m_vid_mapper.get_callset_name(coords[0], sample_name)) {
     sample_name = "NONE";
   }
 
+  printf("jDebug 4.5: GatherVariantCalls::operate_on_columnar_cell\n");
   m_variant_call_processor.process(sample_name, coords, genomic_interval, genomic_fields);
 }
 
@@ -497,7 +517,9 @@ std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& arr
   } else {
     vid_mapper = const_cast<VidMapper *>(&query_config->get_vid_mapper());
   }
-  GatherVariantCalls gather_variant_calls(processor, *query_config);
+
+  AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
+  GatherVariantCalls gather_variant_calls(processor, *query_config, *annotation_service);
   query_processor->iterate_over_cells(query_processor->get_array_descriptor(), *query_config, gather_variant_calls, true);
 
   delete query_processor;
@@ -689,7 +711,7 @@ std::vector<genomic_field_t> GenomicsDB::get_genomic_fields(const std::string& a
 
 GenomicsDBVariantCalls GenomicsDB::get_variant_calls(const std::string& array, const genomicsdb_variant_t* variant) {
   std::vector<VariantCall>* variant_calls = const_cast<std::vector<VariantCall>*>(&(TO_VARIANT(variant)->get_calls()));
-
+  printf("jDebug: 3c\n");
   return GenomicsDBResults<genomicsdb_variant_call_t>(TO_GENOMICSDB_VARIANT_CALL_VECTOR(variant_calls),
                                                       create_genomic_field_types(*get_query_config_for(array)));
 }
