@@ -564,7 +564,7 @@ TEST_CASE("api generate_vcf with json multiple threads", "[query_generate_with_j
 /**
  * Test case for annotating variants using a VCF data source.
  */
-TEST_CASE("api annotate query_variant_calls with protobuf II", "[annotate_variant_calls_with_protobuf_2]") {
+TEST_CASE("api annotate query_variant_calls with protobuf", "[annotate_variant_calls_with_protobuf]") {
   using namespace genomicsdb_pb;
 
   ExportConfiguration *config = new ExportConfiguration();
@@ -619,7 +619,7 @@ TEST_CASE("api annotate query_variant_calls with protobuf II", "[annotate_varian
 
   GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
   gdb->query_variant_calls();
-  OneQueryIntervalProcessor one_query_interval_processor;
-  gdb->query_variant_calls(one_query_interval_processor);
+  // OneQueryIntervalProcessor one_query_interval_processor;
+  // gdb->query_variant_calls(one_query_interval_processor);
   delete gdb;
 }

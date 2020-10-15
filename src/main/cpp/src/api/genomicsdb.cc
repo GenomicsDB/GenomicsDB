@@ -110,10 +110,12 @@ void AnnotationService::read_configuration(const std::string& str) {
   }
 }
 
-void AnnotationService::annotate(std::vector<genomic_field_t>& genomic_fields) const {
+void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::string& ref, std::string& alt, std::vector<genomic_field_t>& genomic_fields) const {
   printf("jDebug 5: AnnotationService::annotate: m_annotate_sources.size=%lu\n", m_annotate_sources.size());
-  genomic_field_t field_vec_annotation(jDebugAttribute, &jDebugValue, 1);
-  genomic_fields.push_back(field_vec_annotation);
+
+  // Example:
+  genomic_field_t field_vec_annotation_1(jDebugAttribute, jDebugValue.data(), jDebugValue.size());
+  genomic_fields.push_back(field_vec_annotation_1);
 }
 
 GenomicsDB::GenomicsDB(const std::string& workspace,
@@ -239,11 +241,11 @@ void add_annotation_field_types(std::map<std::string, genomic_field_type_t> &gen
     for(std::string info_field: annotation_source.attributes()) {
       const std::string attribute_name = annotation_source.data_source() + annotation_service.DATA_SOURCE_FIELD_SEPARATOR + info_field;
       printf("jDebug -2: add_annotation_field_types: Adding field type for: %s\n", attribute_name.c_str());
-      const std::type_index type_index = typeid(std::string);
+      const std::type_index type_index = typeid(char);
       genomic_field_types.insert(std::make_pair(attribute_name,
                                                 genomic_field_type_t(type_index,
                                                                      false,
-                                                                     0,
+                                                                     1,
                                                                      1,
                                                                      false)));
     }
@@ -439,31 +441,35 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
                                       std::make_pair(contig_position, contig_position+end_position-coords[1]));
 
   printf("jDebug 4: GatherVariantCalls::operate_on_columnar_cell\n");
+
   std::vector<genomic_field_t> genomic_fields;
+
+  // jDebug: Need to find out what the right way to get ALT and REF(s) is
+  std::string jDebugRef;
+  std::string jDebugAlt;
+
   // Ignore first field as it is "END"
   for (auto i=1u; i<query_config.get_num_queried_attributes(); i++) {
     if (cell.is_valid(i)) {
       genomic_field_t field_vec(query_config.get_query_attribute_name(i),
                                 cell.get_field_ptr_for_query_idx(i),
                                 cell.get_field_length(i));
-
-      // printf("jDebug 4.1: len=%zu, val=%s\n", cell.get_field_length(i), field_vec.str_value().c_str());
       genomic_fields.push_back(field_vec);
+
+      if(query_config.get_query_attribute_name(i) == "REF") {
+        jDebugRef = field_vec.str_value();
+      } else if(query_config.get_query_attribute_name(i) == "ALT" && field_vec.get_num_elements() > 1) {
+        jDebugAlt = field_vec.str_value().substr(0, field_vec.str_value().find_first_of("|"));
+      }
     }
   }
 
-  // Nalini's code: Cycle through annotations and update genomic_fields
-  // for (auto i=1u; i<query_config.get_annotation_service(); i++) {
-  //    genomic_fields.push_back(create_genomic_field(query_config.get_annotation_service(i)));
-  // }
+  printf("jDebug: 4.1: GenomicsDB::operate_on_columnar_cell: contigName=%s, coords1=%lld, contig_positionA=%lld, contig_positionB=%lld, REF=%s, jDebugAlt=%s\n",
+          contig_name.c_str(), coords[1], contig_position, contig_position+end_position-coords[1], jDebugRef.c_str(), jDebugAlt.c_str());
 
-    genomic_field_t field_vec_annotation_1(annotation_service->jDebugAttribute, annotation_service->jDebugValuePtr, 1);
-    genomic_fields.push_back(field_vec_annotation_1);
-
-    genomic_field_t field_vec_annotation_2(jDebugGaAttribute, jDebugGaValuePtr, 1);
-    genomic_fields.push_back(field_vec_annotation_2);
-
-    annotation_service->annotate(genomic_fields);
+  if(!jDebugAlt.empty()) {
+    annotation_service->annotate(genomic_interval, jDebugRef, jDebugAlt, genomic_fields);
+  }
 
   for (auto& x: genomic_fields) {
     printf("jDebug 4.3: GenomicsDB::operate_on_columnar_cell: name=%s, value=%s\n", x.name.c_str(), x.str_value().c_str());

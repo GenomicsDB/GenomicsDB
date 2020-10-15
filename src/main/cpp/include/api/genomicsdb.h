@@ -258,16 +258,26 @@ class VariantQueryConfig;
 class AnnotationService {
   public:
     const std::string jDebugAttribute = "clinvar_AA_ID";
-    std::string jDebugValue = "abcdef";
-    // const void* jDebugValuePtr = reinterpret_cast<void*>(&jDebugValue[0]);
-    void* jDebugValuePtr = reinterpret_cast<void*>(&jDebugValue[0]);
-    // const void* jDebugValuePtr = reinterpret_cast<void*>(&jDebugValue);
+    const std::string jDebugValue = "abcdefgh";
 
-    const std::string DATA_SOURCE_FIELD_SEPARATOR = "_AA_";
+    // Default constructor
     AnnotationService();
-    void read_configuration(const std::string& str);
-    void annotate(std::vector<genomic_field_t>& genomic_fields) const;
 
+    // Buffer which associates genomic location with a list of annotation values.
+    // The dataSource and info field which point to this value are stored elsewhere
+    // Example: value_buffer["chr1-123456-A-G"] = { "val1", "val2", val3 };
+    std::map<std::string, std::vector<std::string>> value_buffer;
+
+    // Value which separates dataSource and info field
+    const std::string DATA_SOURCE_FIELD_SEPARATOR = "_AA_";
+
+    // Read configuration from an ExportConfiguration
+    void read_configuration(const std::string& str);
+
+    //
+    void annotate(genomic_interval_t &genomic_interval, std::string& ref, std::string& alt, std::vector<genomic_field_t>& genomic_fields) const;
+
+    // List of configured annotation data sources
     std::vector<genomicsdb_pb::AnnotationSource> m_annotate_sources;
 
 
