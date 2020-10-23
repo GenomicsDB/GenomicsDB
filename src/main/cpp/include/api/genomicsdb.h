@@ -187,12 +187,9 @@ class GenomicsDBResults {
  public:
   GenomicsDBResults(std::vector<T>* results, std::map<std::string, genomic_field_type_t> genomic_field_types)
       : m_results(results), m_current_pos(0),
-        m_genomic_field_types(std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types))) {
-          printf("jDebug 5: GenomicsDBResults::GenomicsDBResults\n");
-        };
+        m_genomic_field_types(std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types))) {};
   ~GenomicsDBResults() { free(); };
   const std::shared_ptr<std::map<std::string, genomic_field_type_t>> get_genomic_field_types() const {
-    printf("jDebug 99: GenomicsDBResults::get_genomic_field_types");
     return m_genomic_field_types;
   }
   const genomic_field_type_t get_genomic_field_type(const std::string& name) const {
@@ -282,7 +279,7 @@ class AnnotationService {
 
 /**
  * Experimental Query Interface to GenomicsDB for Arrays partitioned by columns
- * Concurrency support is provided via query json files for now - see
+ * Concurrency support is provided via query json files for now - see 
  *     https://github.com/GenomicsDB/GenomicsDB/wiki/Querying-GenomicsDB#json-configuration-file-for-a-query
  *     https://github.com/GenomicsDB/GenomicsDB/wiki/MPI-with-GenomicsDB
  */
@@ -296,7 +293,7 @@ class GenomicsDB {
    *   callset_mapping_file
    *   vid_mapping_file
    *   reference_genome
-   *   attributes, optional
+   *   attributes, optional 
    *   segment_size, optional
    * Throws GenomicsDBException
    */
@@ -314,7 +311,7 @@ class GenomicsDB {
    *   loader_config_json_file, optional - describe the loader configuration in a JSON file.
    *           If a configuration key exists in both the query and the loader configuration, the query
    *           configuration takes precedence
-   *   concurrency_rank, optional - if greater than 0,
+   *   concurrency_rank, optional - if greater than 0, 
    *           the constraints(workspace, array, column and row ranges) are surmised
    *           using the rank as an index into their corresponding vectors
    * Throws GenomicsDBException
@@ -431,8 +428,8 @@ class GenomicsDB {
 
   //TODO: Get VariantFields to have names instead of indices at the point of building the data structure, so
   //      we don't have to maintain m_query_configs_map
-  // Associate array names with VariantQueryConfig
-  std::map<std::string, VariantQueryConfig> m_query_configs_map;
+  // Associate array names with VariantQueryConfig 
+  std::map<std::string, VariantQueryConfig> m_query_configs_map; 
 };
 
 // genomicsdb_variant_t specialization of GenomicsDBResults template
