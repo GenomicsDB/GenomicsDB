@@ -257,9 +257,6 @@ class VariantQueryConfig;
 */
 class AnnotationService {
   public:
-    const std::string jDebugAttribute = "clinvar_AA_ID";
-    const std::string jDebugValue = "abcdefgh";
-
     // Default constructor
     AnnotationService();
 
@@ -275,12 +272,12 @@ class AnnotationService {
     void read_configuration(const std::string& str);
 
     //
-    void annotate(genomic_interval_t &genomic_interval, std::string& ref, std::string& alt, std::vector<genomic_field_t>& genomic_fields) const;
+    void annotate(genomic_interval_t &genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) const;
+
+    genomic_field_t get_genomic_field(const std::string &data_source, const std::string &info_attribute, const char *value, const int32_t value_length) const;
 
     // List of configured annotation data sources
     std::vector<genomicsdb_pb::AnnotationSource> m_annotate_sources;
-
-
 };
 
 /**
@@ -416,6 +413,7 @@ class GenomicsDB {
   std::vector<VariantCall>* query_variant_calls(const std::string& array,
                                                 VariantQueryConfig *query_config,
                                                 GenomicsDBVariantCallProcessor& processor);
+
   void generate_vcf(const std::string& array,
                     VariantQueryConfig* query_config,
                     const std::string& output,
