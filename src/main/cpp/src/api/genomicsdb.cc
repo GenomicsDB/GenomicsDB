@@ -138,10 +138,10 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
     bcf_hdr_t *hdr = bcf_hdr_read(vcfInFile);
     VERIFY(hdr && "Could not read VCF header");
 
-    // I'm not sure what this does
+    // I'm not sure what this does. Whatever it is, it takes a really long time.
     regidx_t *reg_idx = NULL;
-    reg_idx = regidx_init(annotation_source.filename().c_str(), NULL, NULL, 0, NULL);
-    VERIFY(reg_idx && "Unable to read file");
+    // reg_idx = regidx_init(annotation_source.filename().c_str(), NULL, NULL, 0, NULL);
+    // VERIFY(reg_idx && "Unable to read file");
 
     // Read the tbi index file
     tbx_t *tbx = tbx_index_load3(annotation_source.filename().c_str(), NULL, 0);
@@ -149,14 +149,14 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
 
     // Query using chromosome and position range
 
-    std::string variantQuery;
+    // std::string variantQuery;
     // jDebug: the test suite doesn't have any positions that match clinvar so I'm remapping one of them:
-    if(ref.compare("G") == 0 && alt.compare("A") == 0) {
-        // printf("jDebug: 5.2: AnnotationService::annotate: remap 1-17385-G-A to 1-865716-G-A\n");
-          variantQuery = "1:865716-865716";
-    } else {
-    /*std::string*/ variantQuery = genomic_interval.contig_name + ":" + std::to_string(genomic_interval.interval.first) + "-" + std::to_string(genomic_interval.interval.second);
-    }
+    // if(ref.compare("G") == 0 && alt.compare("A") == 0) {
+    //     // printf("jDebug: 5.2: AnnotationService::annotate: remap 1-17385-G-A to 1-865716-G-A\n");
+    //       variantQuery = "1:865716-865716";
+    // } else {
+    std::string variantQuery = genomic_interval.contig_name + ":" + std::to_string(genomic_interval.interval.first) + "-" + std::to_string(genomic_interval.interval.second);
+    // }
 
     hts_itr_t *itr = tbx_itr_querys(tbx, variantQuery.c_str());
     VERIFY(itr && "Problem opening iterator");
