@@ -293,7 +293,7 @@ class GenomicsDB {
    *   callset_mapping_file
    *   vid_mapping_file
    *   reference_genome
-   *   attributes, optional 
+   *   attributes, optional
    *   segment_size, optional
    * Throws GenomicsDBException
    */
@@ -311,7 +311,7 @@ class GenomicsDB {
    *   loader_config_json_file, optional - describe the loader configuration in a JSON file.
    *           If a configuration key exists in both the query and the loader configuration, the query
    *           configuration takes precedence
-   *   concurrency_rank, optional - if greater than 0, 
+   *   concurrency_rank, optional - if greater than 0,
    *           the constraints(workspace, array, column and row ranges) are surmised
    *           using the rank as an index into their corresponding vectors
    * Throws GenomicsDBException
@@ -428,8 +428,8 @@ class GenomicsDB {
 
   //TODO: Get VariantFields to have names instead of indices at the point of building the data structure, so
   //      we don't have to maintain m_query_configs_map
-  // Associate array names with VariantQueryConfig 
-  std::map<std::string, VariantQueryConfig> m_query_configs_map; 
+  // Associate array names with VariantQueryConfig
+  std::map<std::string, VariantQueryConfig> m_query_configs_map;
 };
 
 // genomicsdb_variant_t specialization of GenomicsDBResults template

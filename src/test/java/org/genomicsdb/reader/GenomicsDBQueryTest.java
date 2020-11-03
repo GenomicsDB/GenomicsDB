@@ -362,18 +362,26 @@ public class GenomicsDBQueryTest {
                                                 .setBegin(0)
                                                 .setEnd(1000000000)))))
                 .addAnnotationSource(AnnotationSource.newBuilder()
+                        .setDataSource("clinvar")
+                        .setFilename("/opt/omics.data/vcf/clinvar_20200720.vcf.gz")
                         .addAttributes("ID")
                         .addAttributes("CLNSIG")
-                        .setIsVcf(true)
-                        .setFilename("/opt/omics.data/vcf/clinvar_20200720.vcf.gz")
-                        .setDataSource("clinvar"))
+                        .setIsVcf(true))
                 .addAnnotationSource(AnnotationSource.newBuilder()
+                        .setDataSource("COSMIC")
+                        .setFilename("/opt/omics.data/vcf/COSMIC.vcf.bgz")
                         .addAttributes("CNT")
                         .addAttributes("LEGACY_ID")
                         .addAttributes("SNP")
-                        .setIsVcf(true)
-                        .setFilename("/opt/omics.data/vcf/COSMIC.vcf.bgz")
-                        .setDataSource("COSMIC"))
+                        .setIsVcf(true))
+                .addAnnotationSource(AnnotationSource.newBuilder()
+                        .setDataSource("gnomAD")
+                        .setFilename("/opt/omics.data/vcf/gnomad.exomes.r2.1.1.sites.1.vcf.bgz")
+                        .addAttributes("ID")
+                        .addAttributes("variant_type")
+                        .addAttributes("AF_afr")
+                        .addAttributes("AF_female")
+                        .setIsVcf(true))
                 .build();
 
         GenomicsDBQuery query = new GenomicsDBQuery();
@@ -399,9 +407,17 @@ public class GenomicsDBQueryTest {
         //                .get("clinvar_AA_CLNSIG")
         //                .equals("Uncertain_significance"));
 
-        //        printAllGenomicFields(intervals);
+        printAllGenomicFields(intervals);
 
         query.disconnect(genomicsDBHandle);
+    }
+
+    private String[] getVariantAlts(String alt) {
+        if (alt == null) {
+            return null;
+        } else {
+            return alt.substring(1, alt.length() - 1).split(",");
+        }
     }
 
     private void printAllGenomicFields(List<Interval> intervals) {
@@ -411,8 +427,14 @@ public class GenomicsDBQueryTest {
             intervalNumber++;
             for (VariantCall call : interval.getCalls()) {
                 callNumber++;
+
+                System.out.println(String.format("Variant call: %s-%d-%s-%s", call.getContigName(),
+                        call.getGenomic_interval().getStart(),
+                        call.getGenomicFields().get("REF"),
+                        getVariantAlts((String) call.getGenomicFields().get("ALT"))[0]));
+
                 for (Map.Entry<String, Object> field : call.getGenomicFields().entrySet()) {
-                    System.out.println(String.format("%d.%d: %s=%s", intervalNumber, callNumber, field.getKey(),
+                    System.out.println(String.format("  %d.%d:  %s=%s", intervalNumber, callNumber, field.getKey(),
                             field.getValue()));
                 }
             }

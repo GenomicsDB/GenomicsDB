@@ -625,7 +625,7 @@ TEST_CASE("api annotate query_variant_calls with protobuf", "[annotate_variant_c
   delete gdb;
 }
 
-TEST_CASE("api annotate query_variant_calls with cosmic", "[annotate_variant_calls_with_cosmic]") {
+TEST_CASE("api annotate query_variant_calls with cosmic", "[annotate_variant_calls_with_gnomad]") {
   using namespace genomicsdb_pb;
 
   ExportConfiguration *config = new ExportConfiguration();
@@ -664,14 +664,21 @@ TEST_CASE("api annotate query_variant_calls with cosmic", "[annotate_variant_cal
   AnnotationSource* annotation_source = config->add_annotation_source();
 
   // jDebug: This hard coded path will need to change.
-  const std::string vcf_file("/opt/kdlapplocal/megasus/COSMIC-GRCh37_v91_CosmicCodingMuts.normal.vcf.bgz");
-  const std::string data_source("COSMIC");
+  const std::string vcf_file("/opt/omics.data/vcf/gnomad.exomes.r2.1.1.sites.1.vcf.bgz");
+  const std::string data_source("gnomAD");
   annotation_source->set_is_vcf(true);
   annotation_source->set_filename(vcf_file);
   annotation_source->set_data_source(data_source);
-  annotation_source->add_attributes()->assign("LEGACY_ID");
-  annotation_source->add_attributes()->assign("CNT");
-  annotation_source->add_attributes()->assign("GENE");
+
+  // ID and variant_type will show up, but the numeric values aren't supported yet
+  annotation_source->add_attributes()->assign("ID");
+  annotation_source->add_attributes()->assign("variant_type");
+  annotation_source->add_attributes()->assign("AC");
+  annotation_source->add_attributes()->assign("AN");
+  annotation_source->add_attributes()->assign("AF");
+  annotation_source->add_attributes()->assign("AF_afr");
+  annotation_source->add_attributes()->assign("AF_female");
+
 
   std::string config_string;
   CHECK(config->SerializeToString(&config_string));

@@ -124,6 +124,12 @@ genomic_field_t AnnotationService::get_genomic_field(const std::string &data_sou
   return genomic_annotation;
 }
 
+/**
+  Annotate a genomic location using all of the configured data sources. Annotations
+  are stored in the genomic_fields vector with the name of the field set to the result of
+  concatonating the dataSource (ie ClinVar) with a separator (see AnnotationService.DATA_SOURCE_FIELD_SEPARATOR),
+  and the INFO field label.
+ */
 void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) const {
   for(genomicsdb_pb::AnnotationSource annotation_source: m_annotate_sources) {
     // Open the VCF file
@@ -148,15 +154,7 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
     VERIFY(tbx && "Could not load .tbi index");
 
     // Query using chromosome and position range
-
-    // std::string variantQuery;
-    // jDebug: the test suite doesn't have any positions that match clinvar so I'm remapping one of them:
-    // if(ref.compare("G") == 0 && alt.compare("A") == 0) {
-    //     // printf("jDebug: 5.2: AnnotationService::annotate: remap 1-17385-G-A to 1-865716-G-A\n");
-    //       variantQuery = "1:865716-865716";
-    // } else {
     std::string variantQuery = genomic_interval.contig_name + ":" + std::to_string(genomic_interval.interval.first) + "-" + std::to_string(genomic_interval.interval.second);
-    // }
 
     hts_itr_t *itr = tbx_itr_querys(tbx, variantQuery.c_str());
     VERIFY(itr && "Problem opening iterator");
@@ -185,7 +183,7 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
 
       // The query is constrained by chromosome and position but not by allele.  Need to add code here which
       // compares the matches alt and ref alleles to see if they match what we are looking for.
-      bcf_unpack((bcf1_t*)rec, BCF_UN_ALL);
+      bcf_unpack((bcf1_t*)rec, BCF_UN_ALL); // Using BCF_UN_INFO is probably a little faster
 
       if(ref.compare(rec->d.allele[0]) != 0) {
         // REF doesn't match
@@ -198,21 +196,31 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
 
       // iteration over the list of INFO fields we are interested in
       for(auto info_attribute: annotation_source.attributes()) {
+        // bcf_info_t *info = rec->d.info;
+
           // If the request is for "ID" then give the VCF row ID
           if(info_attribute == "ID") {
             genomic_fields.push_back(get_genomic_field(annotation_source.data_source(), info_attribute, rec->d.id, strlen(rec->d.id)));
-          } else if(bcf_get_info_string(hdr, rec, info_attribute.c_str(), &infoValue, &infoValueLength) > 0) {
-            genomic_fields.push_back(get_genomic_field(annotation_source.data_source(), info_attribute, infoValue, infoValueLength));
           } else {
-            // info field not found
+            // Look for the info field
+            int res = bcf_get_info_string(hdr, rec, info_attribute.c_str(), &infoValue, &infoValueLength);
+            if(res > 0) {
+              genomic_fields.push_back(get_genomic_field(annotation_source.data_source(), info_attribute, infoValue, infoValueLength));
+            } else if (res == -2) {
+              // "clash between types defined in the header and encountered in the VCF record"
+              // We need to modify this section so it determines the info field type and then uses the correct
+              // bcf_get_info_* method.
+            } else {
+              // info field not found
+            }
           }
       }
    }
 
    regidx_destroy(reg_idx);
 
-   // jDebug: this function wasn't found so there's probably a leak:
-   // regitr_destroy(itr);
+   // jDebug: this function wasn't found so there's probably a leak: regitr_destroy(itr);
+   bcf_itr_destroy(itr);
 
     int ret = hts_close(vcfInFile);
     VERIFY(ret == 0 && "Non-zero status when trying to close VCF file");
@@ -554,43 +562,11 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
     }
   }
 
-  // Example:
-          // assert(query_config.is_defined_query_idx_for_known_field_enum(GVCF_END_IDX));
-          // auto end_query_idx = query_config.get_query_idx_for_known_field_enum(GVCF_END_IDX);
-          // auto end_position = *(reinterpret_cast<const int64_t*>(cell.get_field_ptr_for_query_idx(end_query_idx)));
-
-          // From example code
-  // assert(query_config.is_defined_query_idx_for_known_field_enum(GVCF_REF_IDX));
-  // auto ref_idx = query_config.get_query_idx_for_known_field_enum(GVCF_REF_IDX);
-  // auto ref_base = *(reinterpret_cast<const std::string*>(cell.get_field_ptr_for_query_idx(ref_idx)));
-  // printf("jDebug: 4.2a: ref_idx=%d, refBase=%s\n", ref_idx, ref_base.c_str());
-  //
-  // assert(query_config.is_defined_query_idx_for_known_field_enum(GVCF_ALT_IDX));
-  // auto alt_idx = query_config.get_query_idx_for_known_field_enum(GVCF_ALT_IDX);
-  // auto alt_base = *(reinterpret_cast<const std::string*>(cell.get_field_ptr_for_query_idx(alt_idx)));
-  // printf("jDebug: 4.2b: alt_idx=%d, alt_base=%s\n", alt_idx, alt_base.c_str());
-
-    // Things i've tried
-  // printf("jDebug: 4.2a: field length: %d", cell.get_field_size_in_bytes(ref_idx));
-  // //   // auto ref_base = *(cell.get_field_ptr_for_query_idx<char>(ref_idx));
-  // // // auto ref_base = (cell.get_field_ptr_for_query_idx<std::string>(ref_idx));
-
-  // annotation_service->jDebug(**ref_base);
-
-  // This works, though i get a warning
-  // auto alt_idx = query_config.get_query_idx_for_known_field_enum(GVCF_ALT_IDX);
-  // printf("jDebug: 4.2b0: size=%d, length=%zu\n", cell.get_field_size_in_bytes(alt_idx), cell.get_field_length(alt_idx));
-  // auto alt_base = (cell.get_field_ptr_for_query_idx<std::string>(alt_idx)); // this works
-
   if(!jDebugAlt.empty() && m_annotation_service != nullptr) {
     // annotation_service->annotate(genomic_interval, jDebugRef, jDebugAlt, genomic_fields);
     AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
     annotation_service->annotate(genomic_interval, jDebugRef, jDebugAlt, genomic_fields);
   }
-
-  // for (auto& x: genomic_fields) {
-  //   printf("jDebug 4.3: GenomicsDB::operate_on_columnar_cell: name=%s, value=%s\n", x.name.c_str(), x.str_value().c_str());
-  // }
 
   std::string sample_name;
   if (!m_vid_mapper.get_callset_name(coords[0], sample_name)) {
