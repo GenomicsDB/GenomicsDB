@@ -32,8 +32,10 @@ retry() {
 }
 
 download_spark() {
-  retry wget -nv --trust-server-names "https://archive.apache.org/dist/spark/spark-$SPARK_VER/$SPARK.tgz"
-  sudo tar -zxf $SPARK.tgz --directory $INSTALL_DIR &&
+  if [[ ! -f $CACHE_DIR/$SPARK.tgz ]]; then
+    retry wget -nv --trust-server-names "https://archive.apache.org/dist/spark/spark-$SPARK_VER/$SPARK.tgz" -O $CACHE_DIR/$SPARK.tgz
+  fi
+  sudo tar -zxf $CACHE_DIR/$SPARK.tgz --directory $INSTALL_DIR &&
   sudo chown -R $USER:$USER $SPARK_DIR &&
   sudo ln -s $INSTALL_DIR/$SPARK $SPARK_LOCAL_DIR &&
   get_gcs_connector &&
