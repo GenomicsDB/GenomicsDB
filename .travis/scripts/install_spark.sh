@@ -60,6 +60,7 @@ configure_spark() {
 }
 
 install_spark() {
+  echo "Installing Spark..."
   download_spark &&
   configure_spark &&
   echo "Install Spark successful"
