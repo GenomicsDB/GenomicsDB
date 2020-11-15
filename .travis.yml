@@ -1,8 +1,7 @@
 sudo: required
-dist: trusty
 
 language: python
-python: "3.4"
+python: "3.6"
 
 env:
     global:
@@ -20,6 +19,7 @@ matrix:
     include:
       - name: "Basic build Linux"
         os: linux
+        dist: trusty
         env: INSTALL_TYPE=basic
         services: postgres
         cache:
@@ -51,6 +51,7 @@ matrix:
 
       - name: "Spark/HDFS Linux"
         os: linux
+        dist: trusty
         env: INSTALL_TYPE=hdfs
         services: postgres
         cache:

@@ -6,7 +6,7 @@
 INSTALL_DIR=${INSTALL_DIR:-/usr}
 USER=`whoami`
 
-HADOOP=hadoop-${HADOOP_VER:-2.7.7}
+HADOOP=hadoop-${HADOOP_VER:-2.9.2}
 HADOOP_DIR=${INSTALL_DIR}/$HADOOP
 
 install_prereqs() {
@@ -30,8 +30,10 @@ download_gcs_connector() {
 }
 
 download_hadoop() {
-  wget -nv --trust-server-names "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=hadoop/common/$HADOOP/$HADOOP.tar.gz" &&
-  sudo tar -xzf $HADOOP.tar.gz --directory $INSTALL_DIR &&
+  if [[ ! -f $CACHE_DIR/$HADOOP.tar.gz ]]; then
+    wget -nv --trust-server-names "https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename=hadoop/common/$HADOOP/$HADOOP.tar.gz" -O $CACHE_DIR/$HADOOP.tar.gz
+  fi
+  sudo tar -xzf $CACHE_DIR/$HADOOP.tar.gz --directory $INSTALL_DIR &&
   sudo chown -R $USER:$USER $HADOOP_DIR &&
   download_gcs_connector &&
   echo "download_hadoop successful" 
@@ -63,6 +65,7 @@ setup_paths() {
 }
 
 install_hadoop() {
+  echo "Installing Hadoop..."
   install_prereqs &&
   download_hadoop &&
   configure_hadoop &&
