@@ -101,4 +101,13 @@ class GenomicsDBImporterJni {
      * @return true if the whole import process is completed, false otherwise
      */
     native boolean jniImportBatch(long genomicsDBImporterHandle, long[] exhaustedBufferIdentifiers);
+
+    /**
+     * Consolidate TileDB array
+     *
+     * @param workspace path to workspace directory
+     * @param arrayName array name
+     */
+    public static native void jniConsolidateTileDBArray(final String workspace, final String arrayName);
+
 }

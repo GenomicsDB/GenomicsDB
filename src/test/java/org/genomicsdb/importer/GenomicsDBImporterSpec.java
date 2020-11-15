@@ -546,26 +546,15 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
         catch (GenomicsDBException e) {
         }
 
-        JSONParser parser = new JSONParser();
-        try {
-            // check backup callset
-            FileReader fileReader = new FileReader(tempCallsetJsonFile.getAbsolutePath()+".inc.backup");
-            JSONObject jsonObject = (JSONObject) parser.parse(fileReader);
-            JSONArray callsetArray = (JSONArray) jsonObject.get("callsets");
-            Assert.assertEquals(callsetArray.size(), 2);
-
-            fileReader = new FileReader(tempCallsetJsonFile.getAbsolutePath()+".fragmentlist");
-            LineNumberReader lnr = new LineNumberReader(fileReader);
-            String line;
-            while((line = lnr.readLine()) != null) {
-                Assert.assertTrue(fragmentList.contains(line));
-            }
-
-            // check number of fragments
-            Assert.assertEquals(lnr.getLineNumber(), 2);
-        } catch (ParseException p) {
-            p.printStackTrace();
+        FileReader fileReader = new FileReader(tempCallsetJsonFile.getAbsolutePath()+".fragmentlist");
+        LineNumberReader lnr = new LineNumberReader(fileReader);
+        String line;
+        while((line = lnr.readLine()) != null) {
+            Assert.assertTrue(fragmentList.contains(line));
         }
+
+        // check number of fragments
+        Assert.assertEquals(lnr.getLineNumber(), 2);
     }
 
     @BeforeMethod

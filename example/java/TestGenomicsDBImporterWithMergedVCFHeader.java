@@ -32,9 +32,14 @@ public final class TestGenomicsDBImporterWithMergedVCFHeader {
 
   public static void main(String[] args) throws IOException, GenomicsDBException, ParseException, InterruptedException {
     // this expects --coalesce-multiple-contigs to be the last argument, if it exists
-    int numPartitions = 0;
+    // similarly --consolidate-only. and they should be mututally exclusive
+    int numPartitions = 0, doConsolidate = -1;
     if (args[args.length-2].equals("--coalesce-multiple-contigs")) {
       numPartitions = Integer.parseInt(args[args.length-1]);
+      args = Arrays.copyOf(args, args.length-2);
+    }
+    else if (args[args.length-2].equals("--consolidate-only")) {
+      doConsolidate = Integer.parseInt(args[args.length-1]);
       args = Arrays.copyOf(args, args.length-2);
     }
     CommandLineImportConfig config = new CommandLineImportConfig("TestGenomicsDBImporterWithMergedVCFHeader", args);
@@ -42,7 +47,12 @@ public final class TestGenomicsDBImporterWithMergedVCFHeader {
     if (numPartitions > 0) {
       importer.coalesceContigsIntoNumPartitions(numPartitions);
     }
-    importer.executeImport();
+    if (doConsolidate >= 0) {
+      importer.doConsolidate(doConsolidate);
+    }
+    else{
+      importer.executeImport();
+    }
   }
 
 }
