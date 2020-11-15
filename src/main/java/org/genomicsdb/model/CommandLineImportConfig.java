@@ -29,6 +29,8 @@ public class CommandLineImportConfig extends ImportConfig {
     private String array = "";
     private String vcfOutputFilename = "";
     private boolean readVcfUsingHtslib = false;
+    private int coalesceContigs = 0;
+    private int consolidateOnly = -1;
 
     private Consumer<String[]> chromInterToPartitionList = par -> {
         GenomicsDBImportConfiguration.Partition.Builder partitionBuilder = GenomicsDBImportConfiguration.Partition.newBuilder();
@@ -80,7 +82,7 @@ public class CommandLineImportConfig extends ImportConfig {
     }
 
     private LongOpt[] resolveLongOpt() {
-        LongOpt[] longopts = new LongOpt[14];
+        LongOpt[] longopts = new LongOpt[16];
         longopts[0] = new LongOpt("use_samples_in_order", LongOpt.NO_ARGUMENT, null,
                 ArgsIdxEnum.ARGS_IDX_USE_SAMPLES_IN_ORDER.idx());
         longopts[1] = new LongOpt("fail_if_updating", LongOpt.NO_ARGUMENT, null,
@@ -106,6 +108,10 @@ public class CommandLineImportConfig extends ImportConfig {
             ArgsIdxEnum.ARGS_IDX_READ_INPUT_VCF_USING_HTSLIB.idx());
         longopts[13] = new LongOpt("incremental_import", LongOpt.REQUIRED_ARGUMENT, null,
                 ArgsIdxEnum.ARGS_IDX_INCREMENTAL_IMPORT.idx());
+        longopts[14] = new LongOpt("coalesce-multiple-contigs", LongOpt.REQUIRED_ARGUMENT, null,
+                ArgsIdxEnum.ARGS_IDX_COALESCE_CONTIGS.idx());
+        longopts[15] = new LongOpt("consolidate-only", LongOpt.REQUIRED_ARGUMENT, null,
+                ArgsIdxEnum.ARGS_IDX_CONSOLIDATE_ONLY.idx());
         return longopts;
     }
 
@@ -162,6 +168,12 @@ public class CommandLineImportConfig extends ImportConfig {
                             case ARGS_IDX_INCREMENTAL_IMPORT:
                                 this.setIncrementalImport(true);
                                 configurationBuilder.setLbCallsetRowIdx(Long.parseLong(commandArgs.getOptarg()));
+                                break;
+                            case ARGS_IDX_COALESCE_CONTIGS:
+                                coalesceContigs = Integer.parseInt(commandArgs.getOptarg());
+                                break;
+                            case ARGS_IDX_CONSOLIDATE_ONLY:
+                                consolidateOnly = Integer.parseInt(commandArgs.getOptarg());
                                 break;
                             default:
                                 throwIllegalArgumentException(commandArgs);
@@ -226,6 +238,14 @@ public class CommandLineImportConfig extends ImportConfig {
         return sampleToReaderMap;
     }
 
+    public int getNumberCoalesceContigs() {
+        return coalesceContigs;
+    }
+
+    public int getConsolidateOnlyThreads() {
+       return consolidateOnly;
+    }
+
     public enum ArgsIdxEnum {
         ARGS_IDX_USE_SAMPLES_IN_ORDER(1000),
         ARGS_IDX_FAIL_IF_UPDATING(1001),
@@ -238,7 +258,9 @@ public class CommandLineImportConfig extends ImportConfig {
         ARGS_IDX_SEGMENT_SIZE(1008),
         ARGS_IDX_READ_INPUT_VCF_USING_HTSLIB(1009),
         ARGS_IDX_INCREMENTAL_IMPORT(1010),
-        ARGS_IDX_AFTER_LAST_ARG_IDX(1011);
+        ARGS_IDX_COALESCE_CONTIGS(1011),
+        ARGS_IDX_CONSOLIDATE_ONLY(1012),
+        ARGS_IDX_AFTER_LAST_ARG_IDX(1013);
         private final int mArgsIdx;
 
         ArgsIdxEnum(final int idx) {
