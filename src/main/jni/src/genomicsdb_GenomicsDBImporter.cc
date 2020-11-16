@@ -312,7 +312,7 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniCopyCallsetMap
 
 
 JNIEXPORT void JNICALL
-Java_org_genomicsdb_GenomicsDBUtilsJni_jniConsolidateTileDBArray
+Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniConsolidateTileDBArray
   (JNIEnv *env, 
    jclass currClass, 
    jstring workspace, 

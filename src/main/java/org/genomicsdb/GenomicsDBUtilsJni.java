@@ -49,14 +49,6 @@ public class GenomicsDBUtilsJni {
     public static native int jniCreateTileDBWorkspace(final String workspace, final boolean replace);
 
     /**
-     * Consolidate TileDB array
-     *
-     * @param workspace path to workspace directory
-     * @param arrayName array name
-     */
-    public static native void jniConsolidateTileDBArray(final String workspace, final String arrayName);
-
-    /**
      * Checks if GenomicsDB array exists.
      * @param workspace workspace
      * @param arrayName array

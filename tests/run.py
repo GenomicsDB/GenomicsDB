@@ -318,14 +318,19 @@ def test_query_compatibility_with_old_schema_verion_1(tmpdir):
         cleanup_and_exit(tmpdir, -1)
     sys.stdout.write("Successful\n")
 
-def run_cmd(cmd, expected_to_pass):
+def run_cmd(cmd, expected_to_pass, errstring='Sanity check : ', tmpdir=None):
     pid = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
     stdout_string, stderr_string = pid.communicate()
     if(expected_to_pass and pid.returncode != 0):
-        sys.stderr.write('Sanity check : '+cmd+' failed\n');
+        sys.stderr.write(errstring+cmd+' failed\n');
         sys.stderr.write(stdout_string)
         sys.stderr.write(stderr_string)
-        sys.exit(-1);
+        if tmpdir:
+            cleanup_and_exit(tmpdir, -1)
+        else:
+            sys.exit(-1)
+    
+    return stdout_string
 
 def tool_sanity_checks(exe_path):
     gt_mpi_gather_path = exe_path+os.path.sep+'gt_mpi_gather';
@@ -629,6 +634,7 @@ def main():
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.0.json',
                 'callset_mapping_file1': 'inputs/callsets/t0_1_2.1.json',
                 'chromosome_intervals': [ '1:1-12160', '1:12161-12200', '1:12201-18000' ],
+                'consolidate_only': '3',
                 "vid_mapping_file": "inputs/vid_phased_GT.json",
                 'generate_array_name_from_partition_bounds': True,
                 "query_params": [
@@ -642,6 +648,7 @@ def main():
                         "vid_mapping_file": "inputs/vid_phased_GT.json",
                         "golden_output": {
                         "java_vcf"   : "golden_outputs/java_genomicsdb_importer_from_vcfs_t0_1_2_multi_contig_vcf_0_18000",
+                        "consolidate_java_vcf"   : "golden_outputs/java_genomicsdb_importer_from_vcfs_t0_1_2_multi_contig_vcf_0_18000",
                         } },
                     {
                         "query_contig_interval": {
@@ -838,6 +845,7 @@ def main():
                 'callset_mapping_file': 'inputs/callsets/t6_7_8.0.json',
                 'callset_mapping_file1': 'inputs/callsets/t6_7_8.1.json',
                 'chromosome_intervals': [ '1:1-8029500','1:8029501-8029501', '1:8029502-10000000' ],
+                'consolidate_only': '2',
                 "vid_mapping_file": "inputs/vid_phased_GT.json",
                 'generate_array_name_from_partition_bounds': True,
                 "query_params": [
@@ -845,6 +853,7 @@ def main():
                         "vid_mapping_file": "inputs/vid_phased_GT.json",
                         "golden_output": {
                         "java_vcf"   : "golden_outputs/java_t6_7_8_vcf_at_0",
+                        "consolidate_java_vcf"   : "golden_outputs/java_t6_7_8_vcf_at_0",
                         } },
                     {
                         "query_contig_interval": {
@@ -1443,6 +1452,7 @@ def main():
               'size_per_column_partition': 4096,
               'generate_array_name_from_partition_bounds': True,
               'coalesce_to_num_partitions': '2',
+              'consolidate_only': '0',
               'chromosome_intervals': [ '1:1-249250621', '2:1-243199373', '3:1-198022430', '4:1-191154276' ],
               "query_params": [
                   {
@@ -1459,6 +1469,7 @@ def main():
                       }]
                   }], "golden_output": {
                       "java_vcf"   : "golden_outputs/multi_contig_java_vcf",
+                      "consolidate_java_vcf"   : "golden_outputs/multi_contig_java_vcf",
                       } },
                ],
             },
@@ -1469,6 +1480,7 @@ def main():
               'size_per_column_partition': 4096,
               'generate_array_name_from_partition_bounds': True,
               'coalesce_to_num_partitions': '7',
+              'consolidate_only': '1',
               'chromosome_intervals': multi_contig_empty_contigs_intervals,
               "query_params": [
                   {
@@ -1485,6 +1497,7 @@ def main():
                       }]
                   }], "golden_output": {
                       "java_vcf"   : "golden_outputs/multi_contig_empty_contigs_java_vcf",
+                      "consolidate_java_vcf"   : "golden_outputs/multi_contig_empty_contigs_java_vcf",
                       } },
                ],
             },
@@ -1543,7 +1556,10 @@ def main():
             if('coalesce_to_num_partitions' in test_params_dict):
                 coalesce_arg = ' --coalesce-multiple-contigs '+test_params_dict['coalesce_to_num_partitions']
             import_cmd = 'java'+jacoco+' -ea TestGenomicsDBImporterWithMergedVCFHeader --size_per_column_partition 16384 ' \
-                                   '--segment_size 10485760'+arg_list+file_list+coalesce_arg
+                                   '--segment_size 10485760'+arg_list+file_list
+            if('consolidate_only' in test_params_dict):
+                import_cmd_consolidate = import_cmd + ' --consolidate-only '+test_params_dict['consolidate_only']
+            import_cmd = import_cmd + coalesce_arg
             if(test_name.find('incremental') != -1):
                 incremental_load = True
                 file_list = ''
@@ -1556,13 +1572,8 @@ def main():
                                                '--segment_size 10485760 --incremental '+str(count)+arg_list+file_list+coalesce_arg
         else:
             import_cmd = exe_path+os.path.sep+'vcf2genomicsdb '+loader_json_filename
-        pid = subprocess.Popen(import_cmd, shell=True, stdout=subprocess.PIPE);
-        stdout_string = pid.communicate()[0]
-        if(pid.returncode != 0):
-            sys.stderr.write('Loader test: '+test_name+' failed\n');
-            sys.stderr.write(import_cmd+'\n')
-            sys.stderr.write(stdout_string+'\n')
-            cleanup_and_exit(tmpdir, -1);
+        
+        stdout_string = run_cmd(import_cmd, True, 'Loader test: '+test_name, tmpdir)
         md5sum_hash_str = str(hashlib.md5(stdout_string).hexdigest())
         if('golden_output' in test_params_dict):
             golden_stdout, golden_md5sum = get_file_content_and_md5sum(test_params_dict['golden_output']);
@@ -1580,13 +1591,7 @@ def main():
                     cleanup_and_exit(tmpdir, -1);
 
         if incremental_load:
-            pid = subprocess.Popen(import_cmd_incremental, shell=True, stdout=subprocess.PIPE);
-            stdout_string = pid.communicate()[0]
-            if(pid.returncode != 0):
-                sys.stderr.write('Loader test: '+test_name+' failed\n');
-                sys.stderr.write(import_cmd_incremental+'\n')
-                sys.stderr.write(stdout_string+'\n')
-                cleanup_and_exit(tmpdir, -1);
+            stdout_string = run_cmd(import_cmd_incremental, True, 'Loader test: '+test_name, tmpdir)
 
         if('query_params' in test_params_dict):
             for query_param_dict in test_params_dict['query_params']:
@@ -1607,6 +1612,7 @@ def main():
                         ('vcf','--produce-Broad-GVCF -p 128'),
                         ('batched_vcf','--produce-Broad-GVCF -p 128'),
                         ('java_vcf', ''),
+                        ('consolidate_java_vcf', ''),
                         ('consolidate_and_vcf', '--produce-Broad-GVCF'), #keep as the last query test
                         ]
                 for query_type,cmd_line_param in query_types_list:
@@ -1617,7 +1623,7 @@ def main():
                         if(query_type.find('java_vcf') != -1):
                             modify_query_column_ranges_for_PB(test_query_dict)
                         query_json_filename = create_json_file(tmpdir, test_name, query_type, test_query_dict)
-                        if(query_type == 'java_vcf'):
+                        if(query_type.find('java_vcf') != -1):
                             loader_argument = loader_json_filename;
                             misc_args = ''
                             if("query_without_loader" in query_param_dict and query_param_dict["query_without_loader"]):
@@ -1629,9 +1635,10 @@ def main():
                                                 query_contig_interval_dict['end'])
                             if('pass_as_vcf' in query_param_dict and query_param_dict['pass_as_vcf']):
                                 misc_args += ' --pass_as_vcf '
+                            if query_type == "consolidate_java_vcf":
+                                run_cmd(import_cmd_consolidate, True, 'Consolidate only: {} '.format(test_name), tmpdir)
                             query_command = 'java'+jacoco+' -ea TestGenomicsDB --query -l '+loader_argument+' '+query_json_filename \
                                 + ' ' + misc_args;
-                            pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE);
                         else:
                             if(query_type == 'consolidate_and_vcf'):
                                 retcode = subprocess.call(exe_path+os.path.sep+'consolidate_genomicsdb_array '+ws_dir+' '+test_name,
@@ -1645,12 +1652,7 @@ def main():
                             query_command = (exe_path+os.path.sep+'gt_mpi_gather -s %d'+loader_argument
                                 + ' -j '
                                 +query_json_filename+' '+cmd_line_param)%(test_query_dict['segment_size']);
-                            pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE);
-                        stdout_string = pid.communicate()[0]
-                        if(pid.returncode != 0):
-                            sys.stderr.write('Command '+query_command+'\n')
-                            sys.stderr.write('Query test: '+test_name+'-'+query_type+' failed\n');
-                            cleanup_and_exit(tmpdir, -1);
+                        stdout_string = run_cmd(query_command, True, 'Query test: {}-{} '.format(test_name, query_type), tmpdir)
                         md5sum_hash_str = str(hashlib.md5(stdout_string).hexdigest())
                         golden_stdout, golden_md5sum = get_file_content_and_md5sum(query_param_dict['golden_output'][query_type]);
                         if(golden_md5sum != md5sum_hash_str):
