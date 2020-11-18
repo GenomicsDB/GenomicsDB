@@ -31,7 +31,8 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
-import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
+//import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
+import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
@@ -48,7 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public class GenomicsDBInputPartitionReader implements InputPartitionReader<InternalRow> {
+public class GenomicsDBInputPartitionReader implements PartitionReader<InternalRow> {
 
   private GenomicsDBFeatureReader<VariantContext, PositionalBufferedStream> fReader;
   private CloseableTribbleIterator<VariantContext> iterator;

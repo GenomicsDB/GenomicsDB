@@ -23,9 +23,15 @@
 package org.genomicsdb.spark;
 
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.sources.v2.DataSourceOptions;
-import org.apache.spark.sql.sources.v2.reader.DataSourceReader;
-import org.apache.spark.sql.sources.v2.reader.InputPartition;
+//import org.apache.spark.sql.sources.v2.DataSourceOptions;
+//import org.apache.spark.sql.sources.v2.reader.DataSourceReader;
+//import org.apache.spark.sql.sources.v2.reader.InputPartition;
+import org.apache.spark.sql.connector.read.Batch;
+import org.apache.spark.sql.connector.read.InputPartition;
+import org.apache.spark.sql.connector.read.PartitionReaderFactory;
+import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+
 import org.apache.spark.sql.types.*;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -40,21 +46,33 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class GenomicsDBDataSourceReader implements DataSourceReader {
+//public class GenomicsDBDataSourceReader implements DataSourceReader {
 
-  GenomicsDBInput<GenomicsDBInputPartition> input;
+public class GenomicsDBBatch implements Batch {
 
-  public GenomicsDBDataSourceReader() {}
+  private GenomicsDBInput<GenomicsDBInputPartition> input;
+  private final StructType schema;
+  private final Map<String, String> properties;
+  private final CaseInsensitiveStringMap options;
 
-  public GenomicsDBDataSourceReader(StructType schema, DataSourceOptions options) {
-    setSchemaOptions(options, schema);
+  //public GenomicsDBDataSourceReader() {}
+
+  public GenomicsDBBatch(StructType schema, Map<String, String> properties, 
+      CaseInsensitiveStringMap options) {
+    this.schema = schema;
+    this.properties = properties;
+    this.options = options;
+    this.input = setSchemaOptions(options, schema);
   }
 
-  public GenomicsDBDataSourceReader(DataSourceOptions options) {
-    setSchemaOptions(options, null);
-  }
 
-  private void setSchemaOptions(DataSourceOptions options, StructType schema)
+  /**
+   * TODO documentation
+   * @param options todo 
+   * @param schema todo
+   * @return GenomcsDBInput
+   **/
+  private GenomicsDBInput<GenomicsDBInputPartition> setSchemaOptions(Map<String, String> options, StructType schema)
       throws RuntimeException {
     StructField[] fields = new StructField[] {
           new StructField("contig", DataTypes.StringType, false, Metadata.empty()),
@@ -76,30 +94,30 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
     //                             StructField("encodedGenotypes", VectorType, false))
 
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration();
-    if(options.get(GenomicsDBConfiguration.LOADERJSON).isPresent()) {
-      genomicsDBConfiguration.setLoaderJsonFile(options.get(GenomicsDBConfiguration.LOADERJSON).get());
+    if(options.containsKey(GenomicsDBConfiguration.LOADERJSON)) {
+      genomicsDBConfiguration.setLoaderJsonFile(options.get(GenomicsDBConfiguration.LOADERJSON));
     }
     else {
       throw new RuntimeException("Must specify "+GenomicsDBConfiguration.LOADERJSON);
     }
-    if(options.get(GenomicsDBConfiguration.QUERYPB).isPresent()) {
-      genomicsDBConfiguration.setQueryPB(options.get(GenomicsDBConfiguration.QUERYPB).get());
+    if(options.containsKey(GenomicsDBConfiguration.QUERYPB)) {
+      genomicsDBConfiguration.setQueryPB(options.get(GenomicsDBConfiguration.QUERYPB));
     }
-    else if(options.get(GenomicsDBConfiguration.QUERYJSON).isPresent()) {
-      genomicsDBConfiguration.setQueryJsonFile(options.get(GenomicsDBConfiguration.QUERYJSON).get());
+    else if(options.containsKey(GenomicsDBConfiguration.QUERYJSON)) {
+      genomicsDBConfiguration.setQueryJsonFile(options.get(GenomicsDBConfiguration.QUERYJSON));
     }
     else {
       throw new RuntimeException("Must specify either "+GenomicsDBConfiguration.QUERYJSON+
               " or "+GenomicsDBConfiguration.QUERYPB);
     }
-    if(options.get(GenomicsDBConfiguration.MPIHOSTFILE).isPresent()) {
+    if(options.containsKey(GenomicsDBConfiguration.MPIHOSTFILE)) {
       try {
-        genomicsDBConfiguration.setHostFile(options.get(GenomicsDBConfiguration.MPIHOSTFILE).get());
+        genomicsDBConfiguration.setHostFile(options.get(GenomicsDBConfiguration.MPIHOSTFILE));
       } catch (FileNotFoundException e) {
         e.printStackTrace();
       }
     }
-    Map<String, GenomicsDBVidSchema> vMap = buildVidSchemaMap(options.get(GenomicsDBConfiguration.LOADERJSON).get());
+    Map<String, GenomicsDBVidSchema> vMap = buildVidSchemaMap(options.get(GenomicsDBConfiguration.LOADERJSON));
 
     StructType finalSchema = defaultSchema;
     if (schema != null) {
@@ -150,13 +168,22 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
                     sf.name(), DataType.fromDDL(dtypeDDL), sf.nullable(), sf.metadata()));
       }
     }
+    Long blocksize = new Long(1);
+    Long maxblock = Long.MAX_VALUE;
+    if (options.get("genomicsdb.minqueryblocksize") != null){
+      blocksize = Long.valueOf(options.get("genomicsdb.minqueryblocksize"));
+    }
+    if (options.get("genomicsdb.maxqueryblocksize") != null){
+      maxblock = Long.valueOf(options.get("genomicsdb.maxqueryblocksize"));
+    }
     input = new GenomicsDBInput<>(
             genomicsDBConfiguration,
             finalSchema,
             vMap,
-            options.getLong("genomicsdb.minqueryblocksize", 1),
-            options.getLong("genomicsdb.maxqueryblocksize", Long.MAX_VALUE),
+            blocksize,
+            maxblock,
             GenomicsDBInputPartition.class);
+    return input;
   }
 
   private Map<String, GenomicsDBVidSchema> buildVidSchemaMap(String loader) {
@@ -230,12 +257,14 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
 
   @Override
   @SuppressWarnings("unchecked")
-  public List<InputPartition<InternalRow>> planInputPartitions() {
-    return (List)input.divideInput();
+  public InputPartition[] planInputPartitions(){
+    InputPartition[] ipartitions = new InputPartition[0];
+    return input.divideInput().toArray(ipartitions);
   }
-
+  
   @Override
-  public StructType readSchema() {
-    return input.getSchema();
-  }
+  public PartitionReaderFactory createReaderFactory(){
+    return new GenomicsDBPartitionReaderFactory();
+  }  
+
 }

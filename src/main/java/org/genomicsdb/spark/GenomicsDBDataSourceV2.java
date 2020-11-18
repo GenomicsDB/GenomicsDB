@@ -20,6 +20,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/**
 package org.genomicsdb.spark;
 
 import org.apache.spark.sql.sources.v2.ReadSupport;
@@ -48,3 +49,4 @@ public class GenomicsDBDataSourceV2 implements ReadSupport, DataSourceRegister {
     return "org.genomicsdb.v2";
   }
 }
+**/

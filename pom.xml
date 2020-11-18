@@ -57,9 +57,10 @@
 
   <properties>
     <java.version>1.8</java.version>
-    <spark.version>2.4.0</spark.version>
-    <spark.core.artifactid>spark-core_2.11</spark.core.artifactid>
-    <spark.sql.artifactid>spark-sql_2.11</spark.sql.artifactid>
+    <scala.main>2.12</scala.main>
+    <spark.version>3.0.1</spark.version>
+    <spark.core.artifactid>spark-core_${scala.main}</spark.core.artifactid>
+    <spark.sql.artifactid>spark-sql_${scala.main}</spark.sql.artifactid>
     <htsjdk.version>2.10.0</htsjdk.version>
     <json.simple.version>[1.1.1,)</json.simple.version>
     <log4j.version>[2.13.0,)</log4j.version>

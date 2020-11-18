@@ -23,15 +23,15 @@
 package org.genomicsdb.spark;
 
 import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.sources.v2.reader.InputPartition;
-import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
+//import org.apache.spark.sql.sources.v2.reader.InputPartition;
+//import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
+import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.types.StructType;
 
 import java.util.Map;
 import java.util.ArrayList;
 
-public class GenomicsDBInputPartition
-    implements InputPartition<InternalRow>, GenomicsDBInputInterface {
+public class GenomicsDBInputPartition implements InputPartition, GenomicsDBInputInterface {
 
   private String loader;
   private String query;
@@ -65,10 +65,6 @@ public class GenomicsDBInputPartition
     this.schema = schema;
   }
 
-  @Override
-  public InputPartitionReader<InternalRow> createPartitionReader() {
-    return new GenomicsDBInputPartitionReader(this);
-  }
 
   @Override
   public String[] preferredLocations() {
