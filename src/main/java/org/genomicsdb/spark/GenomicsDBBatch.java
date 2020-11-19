@@ -72,7 +72,7 @@ public class GenomicsDBBatch implements Batch {
    * @param schema todo
    * @return GenomcsDBInput
    **/
-  private GenomicsDBInput<GenomicsDBInputPartition> setSchemaOptions(Map<String, String> options, StructType schema)
+  private GenomicsDBInput<GenomicsDBInputPartition> setSchemaOptions(CaseInsensitiveStringMap options, StructType schema)
       throws RuntimeException {
     StructField[] fields = new StructField[] {
           new StructField("contig", DataTypes.StringType, false, Metadata.empty()),

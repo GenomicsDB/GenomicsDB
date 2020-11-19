@@ -45,7 +45,7 @@ import static org.apache.spark.sql.functions.col;
 
 import com.googlecode.protobuf.format.JsonFormat;
 
-public final class TestGenomicsDBDataSourceV2 {
+public final class TestGenomicsDBSource {
 
   public static String[] floatFields = {
     "BaseQRankSum", "ClippingRankSum", "MQRankSum", "ReadPosRankSum", "MQ", "RAW_MQ", "MLEAF"
@@ -170,7 +170,7 @@ public final class TestGenomicsDBDataSourceV2 {
           System.exit(-1);
       }
     }
-    SparkSession spark = SparkSession.builder().appName("TestGenomicsDBDataSourceV2").getOrCreate();
+    SparkSession spark = SparkSession.builder().appName("TestGenomicsDBSource").getOrCreate();
 
     Path dstdir = Paths.get("").toAbsolutePath();
     Path qSrc = Paths.get(queryFile);
@@ -202,7 +202,7 @@ public final class TestGenomicsDBDataSourceV2 {
 
     Dataset<Row> variants;
     DataFrameReader reader = spark.read()
-            .format("org.genomicsdb.spark.GenomicsDBDataSourceV2")
+            .format("org.genomicsdb.spark.GenomicsDBSource")
             .schema(schema)
             .option("genomicsdb.input.loaderjsonfile", lDstFile.getName());
     if (!hostfile.isEmpty()) {

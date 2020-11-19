@@ -435,7 +435,7 @@ if(BUILD_JAVA)
         ./src/main/java/org/genomicsdb/spark/GenomicsDBPartitionInfo.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBRecordReader.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBQueryInfo.java
-	./src/main/java/org/genomicsdb/spark/GenomicsDBDataSourceV2.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBSource.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBBatch.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartition.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartitionReader.java
@@ -507,7 +507,7 @@ if(BUILD_JAVA)
         ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDB.java
         ${CMAKE_SOURCE_DIR}/example/java/TestBufferStreamGenomicsDBImporter.java
         ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDBSparkHDFS.java
-        ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDBDataSourceV2.java
+        ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDBSource.java
         ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDBImporterWithMergedVCFHeader.java)
 
     add_jar(genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples
