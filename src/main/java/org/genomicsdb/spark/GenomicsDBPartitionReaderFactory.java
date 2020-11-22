@@ -10,7 +10,7 @@ import java.io.FileNotFoundException;
 import java.net.URISyntaxException;
 
 public class GenomicsDBPartitionReaderFactory implements PartitionReaderFactory{
-  
+ 
   public GenomicsDBPartitionReaderFactory(){}
 
   @Override

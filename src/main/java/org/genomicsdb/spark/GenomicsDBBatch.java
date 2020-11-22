@@ -23,9 +23,6 @@
 package org.genomicsdb.spark;
 
 import org.apache.spark.sql.catalyst.InternalRow;
-//import org.apache.spark.sql.sources.v2.DataSourceOptions;
-//import org.apache.spark.sql.sources.v2.reader.DataSourceReader;
-//import org.apache.spark.sql.sources.v2.reader.InputPartition;
 import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
@@ -46,33 +43,20 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-//public class GenomicsDBDataSourceReader implements DataSourceReader {
-
 public class GenomicsDBBatch implements Batch {
 
-  private GenomicsDBInput<GenomicsDBInputPartition> input;
-  private final StructType schema;
+  GenomicsDBInput<GenomicsDBInputPartition> input;
   private final Map<String, String> properties;
   private final CaseInsensitiveStringMap options;
 
-  //public GenomicsDBDataSourceReader() {}
-
   public GenomicsDBBatch(StructType schema, Map<String, String> properties, 
       CaseInsensitiveStringMap options) {
-    this.schema = schema;
     this.properties = properties;
     this.options = options;
-    this.input = setSchemaOptions(options, schema);
+    setSchemaOptions(options, schema);
   }
 
-
-  /**
-   * TODO documentation
-   * @param options todo 
-   * @param schema todo
-   * @return GenomcsDBInput
-   **/
-  private GenomicsDBInput<GenomicsDBInputPartition> setSchemaOptions(CaseInsensitiveStringMap options, StructType schema)
+  private void setSchemaOptions(CaseInsensitiveStringMap options, StructType schema)
       throws RuntimeException {
     StructField[] fields = new StructField[] {
           new StructField("contig", DataTypes.StringType, false, Metadata.empty()),
@@ -124,7 +108,7 @@ public class GenomicsDBBatch implements Batch {
       for (StructField sf : JavaConverters.asJavaIterableConverter(schema.toIterable()).asJava()) {
         GenomicsDBVidSchema field = vMap.get(sf.name());
         if (field == null) {
-          throw new RuntimeException("Schema field " + sf.name() + " not available in vid");
+          continue;
         }
         String typeName;
         // could use some sort of reflection to go from java class to scala
@@ -183,7 +167,7 @@ public class GenomicsDBBatch implements Batch {
             blocksize,
             maxblock,
             GenomicsDBInputPartition.class);
-    return input;
+    //return finalSchema;
   }
 
   private Map<String, GenomicsDBVidSchema> buildVidSchemaMap(String loader) {
@@ -256,15 +240,18 @@ public class GenomicsDBBatch implements Batch {
   }
 
   @Override
-  @SuppressWarnings("unchecked")
+  //@SuppressWarnings("unchecked")
   public InputPartition[] planInputPartitions(){
-    InputPartition[] ipartitions = new InputPartition[0];
-    return input.divideInput().toArray(ipartitions);
+    //TODO convert divideInput to a function that returns array type
+    List<GenomicsDBInputPartition> partitionsList = input.divideInput();
+    GenomicsDBInputPartition[] ipartitions = new GenomicsDBInputPartition[partitionsList.size()];
+    ipartitions = partitionsList.toArray(ipartitions);
+    return ipartitions;
   }
   
   @Override
   public PartitionReaderFactory createReaderFactory(){
-    return new GenomicsDBPartitionReaderFactory();
+    return new GenomicsDBPartitionReaderFactory(); 
   }  
 
 }

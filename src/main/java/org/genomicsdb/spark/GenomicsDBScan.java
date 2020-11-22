@@ -29,7 +29,7 @@ public class GenomicsDBScan implements Scan {
 
   @Override
   public String description(){
-    return "genomicsdb_scan";
+    return "GenomicsDBSource Scan";
   }
 
   @Override 

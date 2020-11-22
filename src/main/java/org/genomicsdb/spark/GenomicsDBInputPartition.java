@@ -23,8 +23,6 @@
 package org.genomicsdb.spark;
 
 import org.apache.spark.sql.catalyst.InternalRow;
-//import org.apache.spark.sql.sources.v2.reader.InputPartition;
-//import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.types.StructType;
 
@@ -43,7 +41,7 @@ public class GenomicsDBInputPartition implements InputPartition, GenomicsDBInput
   private StructType schema;
   private Map<String, GenomicsDBVidSchema> vMap;
 
-  public GenomicsDBInputPartition() {}
+  public GenomicsDBInputPartition(){}
 
   public GenomicsDBInputPartition(String host, GenomicsDBConfiguration gConf, StructType schema) {
     hosts = new String[1];

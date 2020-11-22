@@ -27,9 +27,8 @@ public class GenomicsDBTable implements SupportsRead {
   }
 
   @Override 
-  // TODO what is this actually naming
   public String name(){
-    return "genomicsdb";
+    return "GenomicsDBSource";
   }
 
   @Override public StructType schema() {

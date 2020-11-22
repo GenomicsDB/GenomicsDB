@@ -436,10 +436,14 @@ if(BUILD_JAVA)
         ./src/main/java/org/genomicsdb/spark/GenomicsDBRecordReader.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBQueryInfo.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBSource.java
-	./src/main/java/org/genomicsdb/spark/GenomicsDBBatch.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBTable.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBScan.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBScanBuilder.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBBatch.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartition.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartitionReader.java
-	./src/main/java/org/genomicsdb/spark/GenomicsDBInput.java
+	./src/main/java/org/genomicsdb/spark/GenomicsDBPartitionReaderFactory.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBInput.java
         ./src/main/java/org/genomicsdb/Constants.java
         ./src/main/java/org/genomicsdb/GenomicsDBLibLoader.java
         ./src/main/scala/org/genomicsdb/GenomicsDBContext.scala

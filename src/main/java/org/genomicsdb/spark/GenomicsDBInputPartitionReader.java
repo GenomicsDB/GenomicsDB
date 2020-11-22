@@ -38,6 +38,7 @@ import org.apache.spark.unsafe.types.UTF8String;
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
 import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.apache.spark.sql.types.StructType;
 
 import org.json.simple.parser.ParseException;
 import scala.collection.JavaConverters;
@@ -54,8 +55,6 @@ public class GenomicsDBInputPartitionReader implements PartitionReader<InternalR
   private GenomicsDBFeatureReader<VariantContext, PositionalBufferedStream> fReader;
   private CloseableTribbleIterator<VariantContext> iterator;
   private GenomicsDBInputPartition inputPartition;
-
-  public GenomicsDBInputPartitionReader() {}
 
   public GenomicsDBInputPartitionReader(GenomicsDBInputPartition iPartition) {
     inputPartition = iPartition;
