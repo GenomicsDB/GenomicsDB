@@ -497,7 +497,7 @@ def main():
                     vid_path_final=vid_path+query_param_dict['vid_mapping_file'];
                 else:
                     vid_path_final=vid_path+"inputs"+os.path.sep+"vid.json";
-                spark_cmd_v2 = 'spark-submit --class TestGenomicsDBDataSourceV2 --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --vid '+vid_path_final+' --spark_master '+spark_master;
+                spark_cmd_v2 = 'spark-submit --class TestGenomicsDBSource --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --vid '+vid_path_final+' --spark_master '+spark_master;
                 if (test_name == "t6_7_8"):
                   spark_cmd_v2 = spark_cmd_v2 + ' --use-query-protobuf';
                 if (test_name == "t0_overlapping"):
@@ -505,7 +505,7 @@ def main():
                 pid = subprocess.Popen(spark_cmd_v2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
                 stdout_string, stderr_string = pid.communicate()
                 if(pid.returncode != 0):
-                    sys.stderr.write('Query test V2: '+test_name+' with query file '+query_json_filename+' failed\n');
+                    sys.stderr.write('Query test GenomicsDBSource: '+test_name+' with query file '+query_json_filename+' failed\n');
                     sys.stderr.write('Spark command was: '+spark_cmd_v2+'\n');
                     sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
                     sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
@@ -518,9 +518,9 @@ def main():
                     json_golden = get_json_from_file(query_param_dict['golden_output']['spark']+'_v2');
                     checkdiff = jsondiff.diff(stdout_json, json_golden);
                     if (not checkdiff):
-                        sys.stdout.write('Query test V2: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions passed\n');
+                        sys.stdout.write('Query test GenomicsDBSource: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions passed\n');
                     else:
-                        sys.stdout.write('Mismatch in query test V2: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions\n');
+                        sys.stdout.write('Mismatch in query test GenomicsDBSource: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions\n');
                         print(checkdiff);
                         sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
                         sys.stderr.write('Spark stderr was: '+stderr_string+'\n');

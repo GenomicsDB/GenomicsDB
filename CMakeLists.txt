@@ -440,7 +440,8 @@ if(BUILD_JAVA)
         ./src/main/java/org/genomicsdb/spark/GenomicsDBScan.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBScanBuilder.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBBatch.java
-	./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartition.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBSchemaFactory.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartition.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartitionReader.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBPartitionReaderFactory.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBInput.java

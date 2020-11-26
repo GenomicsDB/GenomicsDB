@@ -26,7 +26,7 @@ public class GenomicsDBSource implements TableProvider {
    *
    **/
   public StructType inferSchema(CaseInsensitiveStringMap options){
-    return null;
+    return GenomicsDBSchemaFactory.defaultSchema();
   }
 
   @Override

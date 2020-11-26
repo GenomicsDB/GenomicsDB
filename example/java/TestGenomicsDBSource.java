@@ -31,6 +31,8 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.spark.GenomicsDBSchemaFactory;
+import org.genomicsdb.spark.GenomicsDBVidSchema;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -95,7 +97,7 @@ public final class TestGenomicsDBSource {
         for (Object attrObj : attrArray) {
           String attr = (String) attrObj;
           if (attr.equals("DP_FORMAT")) {
-            schemaArray.add(new StructField(attr, DataTypes.NullType, true, Metadata.empty()));
+            schemaArray.add(DataTypes.createStructField(attr, DataTypes.NullType, true));
           } else if (!(attr.equals("GT")
               || attr.equals("REF")
               || attr.equals("FILTER")
@@ -106,7 +108,7 @@ public final class TestGenomicsDBSource {
             // these will all be nulltype, and the datasourcev2 api for genomicsdb
             // takes care of correctly assigning the datatype from VID mapping
             if (fieldClass != null) {
-              schemaArray.add(new StructField(attr, DataTypes.NullType, true, Metadata.empty()));
+              schemaArray.add(DataTypes.createStructField(attr, DataTypes.NullType, true));
             }
           }
         }
@@ -195,7 +197,9 @@ public final class TestGenomicsDBSource {
 
     StructType schema = null;
     try {
-      schema = getSchemaFromQuery(new File(queryFile), vidMapping);
+      GenomicsDBSchemaFactory schemaBuilder = new GenomicsDBSchemaFactory(loaderFile);
+      StructType querySchema = getSchemaFromQuery(new File(queryFile), vidMapping);
+      schema = schemaBuilder.buildSchemaWithVid(querySchema.fields());
     } catch (ParseException e) {
       e.printStackTrace();
     }
@@ -223,7 +227,7 @@ public final class TestGenomicsDBSource {
     variants = reader.load();
 
     String tempDir = "./" + UUID.randomUUID().toString();
-
+    
     // change number format for our floats so they're easier to read/compare
     for (String s : floatFields) {
       if (schemaContainsField(schema, s)) {
