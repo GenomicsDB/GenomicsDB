@@ -71,7 +71,7 @@ if(TILEDB_SOURCE_DIR)
 
     find_path(TILEDB_INCLUDE_DIR NAMES tiledb.h HINTS "${TILEDB_SOURCE_DIR}/core/include/c_api")
     find_package_handle_standard_args(TileDB "Could not find TileDB headers ${DEFAULT_MSG}" TILEDB_INCLUDE_DIR)
-    add_subdirectory(${TILEDB_SOURCE_DIR} EXCLUDE_FROM_ALL)
+    add_subdirectory(${TILEDB_SOURCE_DIR} dependencies/TileDB EXCLUDE_FROM_ALL)
 else()
     find_path(TILEDB_INCLUDE_DIR NAMES "tiledb.h" HINTS "${TILEDB_INSTALL_DIR}/include")
     find_library(TILEDB_LIBRARY NAMES libtiledb.a tiledb HINTS "${TILEDB_INSTALL_DIR}" "${TILEDB_INSTALL_DIR}/lib64" "${TILEDB_INSTALL_DIR}/lib")

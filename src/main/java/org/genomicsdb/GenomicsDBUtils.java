@@ -85,16 +85,6 @@ public class GenomicsDBUtils {
     } 
 
     /**
-     * Consolidate TileDB array
-     *
-     * @param workspace path to workspace directory
-     * @param arrayName array name
-     */
-    public static void consolidateTileDBArray(final String workspace, final String arrayName) {
-        GenomicsDBUtilsJni.jniConsolidateTileDBArray(workspace, arrayName);
-    }
-
-    /**
      * Checks if GenomicsDB array exists.
      * @param workspace workspace
      * @param arrayName arrayName
