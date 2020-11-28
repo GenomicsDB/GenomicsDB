@@ -43,6 +43,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Represents a physical plan, logical table scan is converted to this at runtime.
+ * Defines a factory that is sent to an executor, thus Datasource partitions are planned here.
+ **/
 public class GenomicsDBBatch implements Batch {
 
   GenomicsDBInput<GenomicsDBInputPartition> input;
@@ -59,30 +63,7 @@ public class GenomicsDBBatch implements Batch {
   private void setSchemaOptions(CaseInsensitiveStringMap options, StructType schema)
       throws RuntimeException {
 
-    GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration();
-    if(options.containsKey(GenomicsDBConfiguration.LOADERJSON)) {
-      genomicsDBConfiguration.setLoaderJsonFile(options.get(GenomicsDBConfiguration.LOADERJSON));
-    }
-    else {
-      throw new RuntimeException("Must specify "+GenomicsDBConfiguration.LOADERJSON);
-    }
-    if(options.containsKey(GenomicsDBConfiguration.QUERYPB)) {
-      genomicsDBConfiguration.setQueryPB(options.get(GenomicsDBConfiguration.QUERYPB));
-    }
-    else if(options.containsKey(GenomicsDBConfiguration.QUERYJSON)) {
-      genomicsDBConfiguration.setQueryJsonFile(options.get(GenomicsDBConfiguration.QUERYJSON));
-    }
-    else {
-      throw new RuntimeException("Must specify either "+GenomicsDBConfiguration.QUERYJSON+
-              " or "+GenomicsDBConfiguration.QUERYPB);
-    }
-    if(options.containsKey(GenomicsDBConfiguration.MPIHOSTFILE)) {
-      try {
-        genomicsDBConfiguration.setHostFile(options.get(GenomicsDBConfiguration.MPIHOSTFILE));
-      } catch (FileNotFoundException e) {
-        e.printStackTrace();
-      }
-    }
+    GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(options);
 
     GenomicsDBSchemaFactory schemaBuilder = 
       new GenomicsDBSchemaFactory(options.get(GenomicsDBConfiguration.LOADERJSON));
@@ -114,7 +95,6 @@ public class GenomicsDBBatch implements Batch {
   @Override
   //@SuppressWarnings("unchecked")
   public InputPartition[] planInputPartitions(){
-    //TODO convert divideInput to a function that returns array type
     List<GenomicsDBInputPartition> partitionsList = input.divideInput();
     GenomicsDBInputPartition[] ipartitions = new GenomicsDBInputPartition[partitionsList.size()];
     ipartitions = partitionsList.toArray(ipartitions);

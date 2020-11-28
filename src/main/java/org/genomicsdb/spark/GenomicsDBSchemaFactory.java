@@ -21,6 +21,15 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.HashSet;
 
+/**
+ * Defines the default schema and provides methods to extend upon the default schema. 
+ * Can build a vid map that is used for GenomicsDBInput, and will also ensure that types 
+ * are validated using DataType DDL.
+ *
+ * When a vid map is needed, an instance should be defined with a constructor. When 
+ * the vid map is not needed, such as from the scala api - then this is treated as a 
+ * utility class.
+ **/
 public class GenomicsDBSchemaFactory {
 
   private final Map<String, GenomicsDBVidSchema> vidMap;

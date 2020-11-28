@@ -7,6 +7,9 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 import java.util.Map;
 
+/**
+ * Scan is a logical plan of a GenomicsDB Scan.
+ **/
 public class GenomicsDBScan implements Scan {
 
   private final StructType schema;

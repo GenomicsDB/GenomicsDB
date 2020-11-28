@@ -10,6 +10,9 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Represents an instance of GenomicsDB. 
+ **/
 public class GenomicsDBTable implements SupportsRead {
 
   private final StructType schema;
@@ -36,7 +39,6 @@ public class GenomicsDBTable implements SupportsRead {
   }
 
   @Override
-  // TODO what are the capabilities?
   public Set<TableCapability> capabilities() {
     if (capabilities == null) {
       this.capabilities = new HashSet<>();

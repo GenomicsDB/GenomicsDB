@@ -7,6 +7,9 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 import java.util.Map;
 
+/**
+ * Returns a Scan instance to create a logical plan.
+ **/
 public class GenomicsDBScanBuilder implements ScanBuilder {
 
   private final StructType schema;

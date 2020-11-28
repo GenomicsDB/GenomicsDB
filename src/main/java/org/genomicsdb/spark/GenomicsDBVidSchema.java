@@ -24,6 +24,9 @@ package org.genomicsdb.spark;
 
 import java.io.Serializable;
 
+/**
+ * The base class for a field from the vid mapping file.
+ **/
 public class GenomicsDBVidSchema implements Serializable {
 
   boolean isInfo;
@@ -52,6 +55,7 @@ public class GenomicsDBVidSchema implements Serializable {
    * Set the appropriate types to the default schema.
    * Could consider reflection in the future. 
    * Include unboxing Double to float
+   * @return string datatype for java/scala compat.
    **/
   public String getDataType(){
     String typeName;

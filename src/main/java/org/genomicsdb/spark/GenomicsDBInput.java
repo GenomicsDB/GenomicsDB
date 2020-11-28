@@ -202,7 +202,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     */
   public List<T> divideInput() {
 
-    if (genomicsDBConfiguration.get(GenomicsDBConfiguration.LOADERPB) != null) {
+    if (genomicsDBConfiguration.hasProtoLoader()){
       genomicsDBConfiguration.populateListFromPB(GenomicsDBConfiguration.LOADERPB);
     } else {
       try {
@@ -214,7 +214,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       }
     }
 
-    if (genomicsDBConfiguration.get(GenomicsDBConfiguration.QUERYPB) != null) {
+    if (genomicsDBConfiguration.hasProtoQuery()) {
       genomicsDBConfiguration.populateListFromPB(GenomicsDBConfiguration.QUERYPB);
     } else {
       try {

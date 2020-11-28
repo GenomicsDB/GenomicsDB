@@ -27,6 +27,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 import org.genomicsdb.model.*;
 
@@ -37,6 +38,7 @@ import java.util.Scanner;
 import java.util.Iterator;
 import java.util.Base64;
 import java.lang.RuntimeException;
+import java.io.FileNotFoundException;
 
 /**
  * The configuration class enables users to use Java/Scala
@@ -67,6 +69,7 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   public GenomicsDBConfiguration() {
     super();
   }
+  
   public GenomicsDBConfiguration(Configuration configuration) throws FileNotFoundException {
     super(configuration);
   }
@@ -83,6 +86,35 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     for (GenomicsDBPartitionInfo info : list) {
       addPartitions(info);
     }
+  }
+
+  public GenomicsDBConfiguration(CaseInsensitiveStringMap options) throws RuntimeException{
+    
+    if(options.containsKey(LOADERJSON)) {
+      this.setLoaderJsonFile(options.get(LOADERJSON));
+    }
+    else {
+      throw new RuntimeException("Must specify "+LOADERJSON);
+    }
+    
+    if(options.containsKey(QUERYPB)) {
+      this.setQueryPB(options.get(QUERYPB));
+    }
+    else if(options.containsKey(QUERYJSON)) {
+      this.setQueryJsonFile(options.get(QUERYJSON));
+    }
+    else {
+      throw new RuntimeException("Must specify either "+QUERYJSON+" or "+QUERYPB);
+    }
+    
+    if(options.containsKey(MPIHOSTFILE)) {
+      try {
+        this.setHostFile(options.get(MPIHOSTFILE));
+      } catch (FileNotFoundException e) {
+        e.printStackTrace();
+      }
+    }
+
   }
 
   // <String> left for backward compatibility to Java 7
@@ -102,6 +134,14 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   public GenomicsDBConfiguration setQueryPB(String pb) {
     set(QUERYPB, pb);
     return this;
+  }
+
+  public Boolean hasProtoLoader(){
+    return this.get(LOADERPB) != null;
+  }
+
+  public Boolean hasProtoQuery(){
+    return this.get(QUERYPB) != null;
   }
 
   /**

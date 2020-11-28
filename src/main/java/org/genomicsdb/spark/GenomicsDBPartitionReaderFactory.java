@@ -9,6 +9,9 @@ import org.apache.spark.sql.types.StructType;
 import java.io.FileNotFoundException;
 import java.net.URISyntaxException;
 
+/**
+ * Creates an instance of PartitionReader for every partition.
+ **/
 public class GenomicsDBPartitionReaderFactory implements PartitionReaderFactory{
  
   public GenomicsDBPartitionReaderFactory(){}
