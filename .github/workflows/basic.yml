@@ -1,0 +1,83 @@
+name: Basic workflow to build and test GenomicsDB
+
+on: [push, pull_request]
+
+env:
+  PREREQS_ENV: ${{github.workspace}}/prereqs.sh
+  PREREQS_INSTALL_DIR: ${{github.workspace}}/prereqs
+  CMAKE_BUILD_TYPE: Coverage
+  CMAKE_INSTALL_PREFIX: release
+  GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
+  GENOMICSDB_RELEASE_VERSION: x.y.z.test
+
+jobs:
+  ci_job:
+    strategy:
+      matrix:
+        os: [ubuntu-18.04]
+
+    runs-on: ${{matrix.os}}
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: actions/setup-python@v2
+      with:
+        python-version: 3.6
+
+    - name: Cache built prerequisite artifacts like protobuf
+      uses: actions/cache@v2
+      with:
+        path: ${{env.PREREQS_INSTALL_DIR}}
+        key: ${{matrix.os}}-cache-prereqs-v1
+
+    - name: Cache Maven artifacts
+      uses: actions/cache@v2
+      with:
+        path: ~/.m2/repository
+        key: ${{matrix.os}}-cache-m2-v1
+
+    # TODO: See https://github.com/actions/cache/pull/285 using platform-indepenedent "pip cache dir"
+    - name: Cache Python artifacts for Ubuntu 
+      uses: actions/cache@v2
+      if: startsWith(matrix.os, 'ubuntu')
+      with:
+        path: ~/.cache/pip
+        key: ${{matrix.os}}-pip-${{matrix.python-version}}-v1
+
+    - name: Cache Python artifacts for MacOS
+      uses: actions/cache@v2
+      if: startsWith(matrix.os, 'macOS')
+      with:
+        path: ~/Library/Caches/pip
+        key: ${{matrix.os}}-pip-${{matrix.python-version}}-v1
+
+    - name: Install Prerequisites
+      shell: bash
+      working-directory: ${{github.workspace}}/scripts/prereqs
+      run: sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
+
+    - name: Create Build Directory
+      shell: bash
+      run: mkdir -p $GENOMICSDB_BUILD_DIR
+
+    - name: Configure CMake Build
+      shell: bash
+      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
+      run: |
+        source $PREREQS_ENV
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DBUILD_JAVA=1
+
+    - name: Build and Test
+      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
+      shell: bash
+      run: |
+        source $PREREQS_ENV
+        make -j4
+        make install
+        python -m pip install --upgrade pip
+        python -m pip install jsondiff
+        make test ARGS=-V
+
+    - name: Upload Coverage to CodeCov
+      uses: codecov/codecov-action@v1
