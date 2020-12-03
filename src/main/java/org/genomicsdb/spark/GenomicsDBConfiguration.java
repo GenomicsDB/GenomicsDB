@@ -31,9 +31,11 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 import org.genomicsdb.model.*;
 
+import scala.collection.JavaConverters;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.Iterator;
 import java.util.Base64;
@@ -89,7 +91,10 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   }
 
   public GenomicsDBConfiguration(CaseInsensitiveStringMap options) throws RuntimeException{
-    
+    setOptions(options);
+  }
+
+  public void setOptions(CaseInsensitiveStringMap options){
     if(options.containsKey(LOADERJSON)) {
       this.setLoaderJsonFile(options.get(LOADERJSON));
     }
@@ -114,7 +119,6 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
         e.printStackTrace();
       }
     }
-
   }
 
   // <String> left for backward compatibility to Java 7
@@ -134,6 +138,26 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   public GenomicsDBConfiguration setQueryPB(String pb) {
     set(QUERYPB, pb);
     return this;
+  }
+
+  public String getLoaderJsonFile() {
+    return get(LOADERJSON);
+  }
+
+  public String getLoaderPB() {
+    return get(LOADERPB);
+  }
+
+  public String getQueryJsonFile() {
+    return get(QUERYJSON);
+  }
+
+  public String getQueryPB() {
+    return get(QUERYPB);
+  }
+
+  public String getHostFile() {
+    return get(MPIHOSTFILE);
   }
 
   public Boolean hasProtoLoader(){

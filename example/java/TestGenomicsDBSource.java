@@ -173,7 +173,8 @@ public final class TestGenomicsDBSource {
       }
     }
     SparkSession spark = SparkSession.builder().appName("TestGenomicsDBSource").getOrCreate();
-
+    spark.sparkContext().setLogLevel("OFF");
+    
     Path dstdir = Paths.get("").toAbsolutePath();
     Path qSrc = Paths.get(queryFile);
     Path lSrc = Paths.get(loaderFile);

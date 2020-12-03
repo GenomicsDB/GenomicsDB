@@ -428,6 +428,7 @@ if(BUILD_JAVA)
         ./src/main/java/org/genomicsdb/reader/GenomicsDBFeatureReader.java
         ./src/main/java/org/genomicsdb/reader/GenomicsDBQueryStream.java
         ./src/main/java/org/genomicsdb/reader/GenomicsDBTimer.java
+        ./src/main/java/org/genomicsdb/reader/Function1Builder.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBConfiguration.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBInputFormat.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBInputSplit.java
@@ -436,6 +437,8 @@ if(BUILD_JAVA)
         ./src/main/java/org/genomicsdb/spark/GenomicsDBRecordReader.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBQueryInfo.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBSource.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBDataSource.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBRelation.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBTable.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBScan.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBScanBuilder.java
