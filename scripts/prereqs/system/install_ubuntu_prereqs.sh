@@ -32,14 +32,14 @@ install_jdk8() {
   if [[ ! -z $JAVAC ]]; then
     JDK_VERSION=$($JAVAC -version 2>&1 | awk '/version/{print $2}')
   fi
-	if [[ -z $JDK_VERSION || $JDK_VERSION < "1.8" ]]; then 
-	  apt-get -y install openjdk-8-jdk icedtea-plugin &&
-		  apt-get update -q &&
-		  pushd $HOME &&
-		  git clone https://github.com/michaelklishin/jdk_switcher.git &&
-		  source jdk_switcher/jdk_switcher.sh && jdk_switcher use openjdk8 &&
-		  echo "export JAVA_HOME=$JAVA_HOME" >> $PREREQS_ENV &&
-		  popd
+  if [[ -z $JDK_VERSION || $JDK_VERSION < "1.8" ]]; then
+    apt-get -y install openjdk-8-jdk icedtea-plugin &&
+      apt-get update -q &&
+      pushd $HOME &&
+      git clone https://github.com/michaelklishin/jdk_switcher.git &&
+      source jdk_switcher/jdk_switcher.sh && jdk_switcher use openjdk8 &&
+      echo "export JAVA_HOME=$JAVA_HOME" >> $PREREQS_ENV &&
+      popd
   fi
 }
 
@@ -50,9 +50,9 @@ install_cmake3() {
   fi
   if [[ -z $CMAKE_VERSION || CMAKE_VERSION < "3.6" ]]; then
     echo "Installing cmake..."
-	  wget -nv https://github.com/Kitware/CMake/releases/download/v3.19.1/cmake-3.19.1-Linux-x86_64.sh -P /tmp &&
-		  chmod +x /tmp/cmake-3.19.1-Linux-x86_64.sh &&
-		  /tmp/cmake-3.19.1-Linux-x86_64.sh --prefix=/usr/local --skip-license
+    wget -nv https://github.com/Kitware/CMake/releases/download/v3.19.1/cmake-3.19.1-Linux-x86_64.sh -P /tmp &&
+      chmod +x /tmp/cmake-3.19.1-Linux-x86_64.sh &&
+      /tmp/cmake-3.19.1-Linux-x86_64.sh --prefix=/usr/local --skip-license
   fi
 }
 
@@ -84,23 +84,23 @@ install_R() {
   apt-get -y install gnupg &&
   apt-get install -y software-properties-common &&
   apt-get update -q &&
-	apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9 &&
-	add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu bionic-cran40/' &&
+  apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9 &&
+  add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu bionic-cran40/' &&
   apt-get -y install libxml2-dev &&
-	apt-get update -q &&
-	apt-get -y install r-base
+  apt-get update -q &&
+  apt-get -y install r-base
 }
 
 install_system_prerequisites() {
-	apt-get update -q &&
+  apt-get update -q &&
     install_package tzdata &&
-		install_package install 1 &&
+    install_package install 1 &&
     install_package lcov 1 &&
     install_package mpich &&
     install_package zlib1g-dev &&
     install_package libssl-dev &&
     install_package rsync 1 &&
-		install_package	libidn11 &&
+    install_package libidn11 &&
     install_package uuid-dev &&
     install_package libcurl4-openssl-dev &&
     install_package wget 1 &&
@@ -113,12 +113,12 @@ install_system_prerequisites() {
     install_package git &&
     install_package libcsv-dev &&
     install_package sudo 1 &&
-		apt-get update -q &&
+    apt-get update -q &&
     install_gcc &&
-		install_jdk8 &&
+    install_jdk8 &&
     install_cmake3 &&
-		install_R &&
-		apt-get clean &&
-		apt-get purge -y &&
+    install_R &&
+    apt-get clean &&
+    apt-get purge -y &&
     rm -rf /var/lib/apt/lists*
 }
