@@ -401,13 +401,6 @@
       </properties>
     </profile>
     <profile>
-      <id>spark2</id>
-      <properties>
-        <scala.main>2.11</scala.main>
-        <spark.main>2.4.0.</spark.main>
-      </properties>
-    </profile>
-    <profile>
       <id>default_profile</id>
       <activation>
         <activeByDefault>true</activeByDefault>

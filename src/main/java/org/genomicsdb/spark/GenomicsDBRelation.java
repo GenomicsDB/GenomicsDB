@@ -32,23 +32,24 @@ public class GenomicsDBRelation extends BaseRelation implements TableScan {
   public GenomicsDBRelation(){}
 
   public GenomicsDBRelation(SQLContext sqlContext, scala.collection.immutable.Map<String,String> parameters){
-    CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(JavaConverters.mapAsJavaMapConverter(parameters).asJava());
-    this.sqlCon = sqlContext;
-    this.gdbConf = new GenomicsDBConfiguration(options);
-    GenomicsDBSchemaFactory schemaBuilder =
-      new GenomicsDBSchemaFactory(options.get(GenomicsDBConfiguration.LOADERJSON));
-    this.schema = schemaBuilder.defaultSchema();
-    this.vMap = schemaBuilder.getVidMap();
-    setInput(options);
+    setInstance(sqlContext, parameters, null);
   }
 
-  public GenomicsDBRelation(SQLContext sqlContext, StructType schema, scala.collection.immutable.Map<String,String> parameters){
+  public GenomicsDBRelation(SQLContext sqlContext, StructType struct, scala.collection.immutable.Map<String,String> parameters){
+    setInstance(sqlContext, parameters, struct);
+  }
+
+  private void setInstance(SQLContext sqlContext, scala.collection.immutable.Map<String,String> parameters, StructType struct){
     this.sqlCon = sqlContext;
     CaseInsensitiveStringMap options = new CaseInsensitiveStringMap(JavaConverters.mapAsJavaMapConverter(parameters).asJava());
     this.gdbConf = new GenomicsDBConfiguration(options);
     GenomicsDBSchemaFactory schemaBuilder =
       new GenomicsDBSchemaFactory(options.get(GenomicsDBConfiguration.LOADERJSON));
-    this.schema = schemaBuilder.buildSchemaWithVid(schema.fields());
+    if (schema != null){
+      this.schema = schemaBuilder.defaultSchema();
+    }else{
+      this.schema = schemaBuilder.buildSchemaWithVid(schema.fields());
+    }
     this.vMap = schemaBuilder.getVidMap();
     setInput(options); 
   }

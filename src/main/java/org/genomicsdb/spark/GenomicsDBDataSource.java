@@ -47,6 +47,6 @@ public class GenomicsDBDataSource implements RelationProvider, SchemaRelationPro
   @Override
   public String shortName() {
     // TODO need to add stuff to META-INF/services to make this work
-    return "org.genomicsdb.sources";
+    return "genomicsdb";
   }
 }
