@@ -428,8 +428,8 @@ def main():
     java_import_dir = tmpdir+os.path.sep + 'java_import'
     os.mkdir(java_import_dir)
     test_pb_configs(tmpdir, ctest_dir)
-    common.setup_classpath(build_dir)
-    jacoco, jacoco_report_cmd = common.setup_jacoco(build_dir, build_type)
+    common.setup_classpath(install_dir)
+    jacoco, jacoco_report_cmd = common.setup_jacoco(build_dir, install_dir, build_type)
     loader_tests0 = [
             { "name" : "t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
