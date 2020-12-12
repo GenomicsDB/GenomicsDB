@@ -14,6 +14,8 @@ cd proto
 
 ## Step2: Setup package
 
+sed -i 's/import genomicsdb_/from . import genomicsdb_/g' genomicsdbproto/*.py
+
 cp ../../LICENSE .
 
 cat << EOF > README.md
