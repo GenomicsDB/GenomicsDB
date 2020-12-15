@@ -54,7 +54,7 @@ MAVEN_VERSION=3.6.3
 ################################# Should not have to change anything below ############################
 
 CENTOS_VERSION=0
-PARENT_DIR="$(dirname $(readlink -f $0))"
+PARENT_DIR="$(dirname $(python -c "import os; import sys; print(os.path.realpath(sys.argv[1]))" $0))"
 
 # $1 - path variable name
 # $2 - path variable value
