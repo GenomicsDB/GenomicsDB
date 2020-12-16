@@ -63,15 +63,15 @@ jobs:
       if: matrix.type == 'hdfs'
       uses: actions/cache@v2
       with:
-        path: ~/hadoop-${{env.HADOOP_VER}}
-        key: dfs-${{env.HADOOP_VER}}-v1
+        path: ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
+        key: dfs-${{env.HADOOP_VER}}-v2
 
     - name: Cache Spark
       if: matrix.type == 'hdfs'
       uses: actions/cache@v2
       with:
-        path: ~/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}
-        key: spark-${{env.SPARK_VER}}-${{env.SPARK_HADOOP_VER}}-v1
+        path: ${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}
+        key: spark-${{env.SPARK_VER}}-${{env.SPARK_HADOOP_VER}}-v2
 
     - name: Install Prerequisites ubuntu
       shell: bash

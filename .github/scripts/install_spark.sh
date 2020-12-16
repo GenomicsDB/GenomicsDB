@@ -55,7 +55,7 @@ configure_spark() {
 }
 
 install_spark() {
-  if [[ ! -f ${SPARK_LOCAL_DIR}/conf/slaves ]]; then
+  if [[ ! -f ${SPARK_DIR}/conf/slaves ]]; then
     echo "Installing Spark..."
     download_spark &&
     configure_spark &&
@@ -66,5 +66,6 @@ install_spark() {
 }
 
 install_spark &&
+if [[ ! -L ${SPARK_LOCAL_DIR} ]]; then sudo ln -s $INSTALL_DIR/$SPARK $SPARK_LOCAL_DIR; fi &&
 ${SPARK_LOCAL_DIR}/sbin/start-master.sh &&
 echo "Started spark"
