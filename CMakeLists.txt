@@ -83,6 +83,8 @@ set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when intel optimized zli
 
 set(LIBDBI_DIR "" CACHE PATH "Path to libdbi install directory")
 
+set(FMT_PREFIX_DIR "" CACHE PATH "Path to fmt library")
+
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -207,6 +209,10 @@ include_directories(${TILEDB_INCLUDE_DIR})
 
 #librt
 find_library(LIBRT_LIBRARY rt)
+
+#fmt library
+find_package(fmt REQUIRED)
+include_directories(${FMT_INCLUDE_DIR})
 
 #pgsql driver and dbi libs
 #find_package(libdbi)
@@ -350,7 +356,7 @@ if(SAFESTRINGLIB_FOUND)
     set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES} ${SAFESTRINGLIB_LIBRARY})
 endif()
 set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES}
-  ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBUUID_LIBRARY})
+  ${FMT_LIBRARY} ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBUUID_LIBRARY})
 
 if(IPPROOT AND ${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   find_package(IPP REQUIRED)

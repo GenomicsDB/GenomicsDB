@@ -103,6 +103,9 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   static bool compute_valid_histogram_sum_2D_vector_and_stringify(const Variant& variant,
       const VariantQueryConfig& query_config,
       const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
+  void operate_on_columnar_cell(const GenomicsDBGVCFCell& variant);
+  template<class WriterTy>
+    bool write_vcf_line(const GenomicsDBGVCFCell& variant);
  private:
   bool m_use_missing_values_not_vector_end;
   VCFAdapter* m_vcf_adapter;
@@ -155,6 +158,7 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
 #ifdef DO_MEMORY_PROFILING
   uint64_t m_next_memory_limit;
 #endif
+  AbstractVCFWriterBase* m_writer_base_ptr;
 };
 
 #endif //ifdef HTSDIR
