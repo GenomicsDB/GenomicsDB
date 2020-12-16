@@ -477,6 +477,9 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
     const AllelesCombiner& get_alleles_combiner() const {
       return m_alleles_combiner;
     }
+    inline ColumnRange get_column_range() const {
+      return ColumnRange(m_current_start_position, m_current_end_position);
+    }
   private:
     /*
      * Keep filling m_end_set with cells from TileDB as long as the coords[1] == m_current_start_position
