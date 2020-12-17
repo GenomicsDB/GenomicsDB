@@ -40,6 +40,13 @@ download_spark() {
   echo "download_spark successful"
 }
 
+setup_spark_env() {
+  echo "export SPARK_HOME=${SPARK_LOCAL_DIR}" >> $SPARK_ENV &&
+  echo "export PATH=${SPARK_LOCAL_DIR}/bin:${SPARK_LOCAL_DIR}/sbin:$PATH" >> $SPARK_ENV &&
+  echo "export CLASSPATH=${SPARK_LOCAL_DIR}/jars/gcs-connector-latest-hadoop2.jar:$CLASSPATH" >> $SPARK_ENV &&
+  source $SPARK_ENV
+}
+
 configure_spark() {
   echo "export SPARK_HOME=${SPARK_LOCAL_DIR}" >> $SPARK_ENV &&
   echo "export PATH=${SPARK_LOCAL_DIR}/bin:${SPARK_LOCAL_DIR}/sbin:$PATH" >> $SPARK_ENV &&
@@ -67,5 +74,6 @@ install_spark() {
 
 install_spark &&
 if [[ ! -L ${SPARK_LOCAL_DIR} ]]; then sudo ln -s $INSTALL_DIR/$SPARK $SPARK_LOCAL_DIR; fi &&
+setup_spark_env &&
 ${SPARK_LOCAL_DIR}/sbin/start-master.sh &&
 echo "Started spark"

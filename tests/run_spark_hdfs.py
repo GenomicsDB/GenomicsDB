@@ -259,7 +259,7 @@ def main():
     lib_path = sys.argv[2]+os.path.sep+'lib'
     spark_master = sys.argv[3]
     namenode = sys.argv[4]
-    jar_dir = sys.argv[2]+os.path.sep+'bin'
+    jar_dir = sys.argv[1]+os.path.sep+'target'
     spark_deploy = sys.argv[5]
     genomicsdb_version = sys.argv[6]
     test_dir = sys.argv[7]
@@ -275,7 +275,7 @@ def main():
     template_vcf_header_path=parent_dir+os.path.sep+'inputs'+os.path.sep+'template_vcf_header.vcf'
     tmpdir = tempfile.mkdtemp()
     ws_dir=tmpdir+os.path.sep+'ws'
-    jacoco, jacoco_report_cmd = common.setup_jacoco(os.path.abspath(sys.argv[1]), sys.argv[2], build_type)
+    jacoco, jacoco_report_cmd = common.setup_jacoco(os.path.abspath(sys.argv[1]), build_type)
     sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_version, spark_master, spark_deploy, namenode)
     loader_tests = [
             { "name" : "t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
