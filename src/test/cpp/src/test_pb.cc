@@ -25,8 +25,7 @@
 #include "json_config.h"
 #include "variant_query_config.h"
 #include "genomicsdb_export_config.pb.h"
-
-extern std::string g_pb_query_json_file;
+#include "test_common.h"
 
 void check_equal_query_config(const GenomicsDBConfigBase& json_config, const GenomicsDBConfigBase& pb_config) {
   CHECK(pb_config.get_workspace(0) == json_config.get_workspace(0));
@@ -118,11 +117,11 @@ void check_equal_vid_config(const VidMapper& json, const VidMapper& pb) {
 
 TEST_CASE("pb_query_config_test", "[protobuf_config]")
 {
-  if(!g_pb_query_json_file.empty()) {
+  if(!g_query_json_file.empty()) {
     GenomicsDBConfigBase json_config;
-    json_config.read_from_file(g_pb_query_json_file, 0);
+    json_config.read_from_file(g_query_json_file, 0);
     genomicsdb_pb::ExportConfiguration export_config;
-    GenomicsDBConfigBase::get_pb_from_json_file(&export_config, g_pb_query_json_file);
+    GenomicsDBConfigBase::get_pb_from_json_file(&export_config, g_query_json_file);
     CHECK(export_config.IsInitialized());
     GenomicsDBConfigBase pb_config;
     pb_config.read_from_PB(&export_config, 0);

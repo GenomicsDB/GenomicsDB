@@ -29,6 +29,7 @@
 #include "vid_mapper.h"
 #include "tiledb.h"
 #include "timer.h"
+#include "variant_query_config.h"
 
 //Exceptions thrown
 class GenomicsDBIteratorException : public std::exception {
@@ -152,6 +153,8 @@ class GenomicsDBLiveCellMarker {
     assert(idx < m_contains_MNV.size());
     return m_contains_deletion[idx] || m_contains_MNV[idx];
   }
+  std::vector<bool>::const_iterator valid_begin() const { return m_valid.begin(); }
+  std::vector<bool>::const_iterator valid_end() const { return m_valid.end(); }
  private:
   //Outermost vector - 1 per cell
   //Keeping the theme of columnar structures
@@ -429,6 +432,46 @@ class SingleCellTileDBIterator {
     const GenomicsDBColumnarField& coords_columnar_field);
 #endif //PROFILE_NUM_CELLS_TO_TRAVERSE_AT_EVERY_QUERY_INTERVAL
 #endif //DO_PROFILING
+ public:
+  class valid_marker_iterator {
+    public:
+      valid_marker_iterator(const std::vector<bool>::const_iterator& iter, const std::vector<bool>::const_iterator& end,
+          const size_t idx)
+        : m_iter(iter), m_end(end), m_idx(idx) {
+          if(m_iter != m_end && !(*m_iter)) {
+            auto valid_iter = std::find(m_iter, m_end, true);
+            m_idx += std::distance(m_iter, valid_iter);
+            m_iter = valid_iter;
+          }
+        }
+      bool operator !=(const valid_marker_iterator& other) const {
+        return (m_iter != other.m_iter || m_idx != other.m_idx);
+      }
+      size_t operator *() const {
+        return m_idx;
+      }
+      valid_marker_iterator& operator ++() {
+        ++m_iter;
+        ++m_idx;
+        if(m_iter != m_end && !(*m_iter)) {
+          auto valid_iter = std::find(m_iter, m_end, true);
+          m_idx += std::distance(m_iter, valid_iter);
+          m_iter = valid_iter;
+        }
+        return *this;
+      }
+    private:
+      std::vector<bool>::const_iterator m_iter;
+      std::vector<bool>::const_iterator m_end;
+      size_t m_idx;
+  };
+  valid_marker_iterator begin_valid_marker() const {
+    return valid_marker_iterator(m_live_cell_markers.valid_begin(), m_live_cell_markers.valid_end(), 0u);
+  }
+  valid_marker_iterator end_valid_marker() const {
+    return valid_marker_iterator(m_live_cell_markers.valid_end(), m_live_cell_markers.valid_end(),
+        m_query_config->get_num_rows_to_query());
+  }
 };
 
 /*
@@ -490,6 +533,24 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
       return std::pair<const uint8_t*, size_t>(
 	  genomicsdb_columnar_field.get_pointer_to_data_in_buffer_at_index(buffer_ptr, index),
 	  genomicsdb_columnar_field.get_length_of_data_in_buffer_at_index(buffer_ptr, index));
+    }
+    //Returns current variant interval
+    ColumnRange get_current_variant_interval() const {
+      return ColumnRange(m_current_start_position, m_current_end_position);
+    }
+    //Valid markers and fields
+    bool is_valid_marker(const size_t marker_idx) const {
+      return m_live_cell_markers.is_valid(marker_idx);
+    }
+    //Marker idx must be valid before using this function
+    bool is_field_valid_for_valid_marker(const unsigned field_idx, const size_t idx) const {
+      auto gdb_buffer_ptr = m_live_cell_markers.get_buffer_pointer(field_idx, idx);
+      auto index = m_live_cell_markers.get_index(field_idx, idx);
+      return m_fields[field_idx].is_valid_data_in_buffer_at_index(gdb_buffer_ptr, index);
+    }
+    //Marker idx need not be valid before calling this function
+    bool is_field_valid_for_marker(const unsigned field_idx, const size_t idx) const {
+      return is_valid_marker(idx) && is_field_valid_for_valid_marker(field_idx, idx);
     }
   private:
     /*
