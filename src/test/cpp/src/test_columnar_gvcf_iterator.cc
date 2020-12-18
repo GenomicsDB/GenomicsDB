@@ -92,7 +92,8 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
   REQUIRE(fptr != 0);
   auto hdr = bcf_hdr_read(fptr);
   REQUIRE(hdr != 0);
-  REQUIRE(bcf_hdr_nsamples(hdr) == query_config.get_num_rows_to_query());
+  if(!query_config.sites_only_query())
+    REQUIRE(bcf_hdr_nsamples(hdr) == query_config.get_num_rows_to_query());
   auto rec = bcf_init();
   //Check SB and GQ fields since they have no allele dependence and are unmodified from input to output
   unsigned SB_query_idx = 0u;

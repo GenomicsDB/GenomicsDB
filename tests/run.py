@@ -154,17 +154,25 @@ def create_loader_json(ws_dir, test_name, test_params_dict):
         test_dict['reference_genome'] =  test_params_dict['reference_genome']
     return test_dict;
 
-def run_cmd(cmd, expected_to_pass, errstring='Sanity check : ', tmpdir=None, print_if_error=True):
-    pid = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
-    stdout_string, stderr_string = pid.communicate()
-    is_success = (pid.returncode == 0)
+def run_cmd(cmd, expected_to_pass, errstring='Sanity check : ', tmpdir=None, print_if_error=True,
+        dont_capture_output=False):
+    if(dont_capture_output):
+        returncode = subprocess.call(cmd, shell=True)
+        stdout_string = None
+        stderr_string = None
+    else:
+        pid = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout_string, stderr_string = pid.communicate()
+        returncode = pid.returncode
+    is_success = (returncode == 0)
     if(not is_success):
         if(print_if_error):
-            sys.stderr.write(errstring+ ' -- failed command -- '+cmd+'\n');
-            sys.stderr.write('STDOUT:\n')
-            sys.stderr.write(stdout_string)
-            sys.stderr.write('STDERR:\n')
-            sys.stderr.write(stderr_string)
+            sys.stderr.write(errstring+ ' -- failed command -- '+cmd+'\n')
+            if(not dont_capture_output):
+                sys.stderr.write('STDOUT:\n')
+                sys.stderr.write(stdout_string)
+                sys.stderr.write('STDERR:\n')
+                sys.stderr.write(stderr_string)
         if(expected_to_pass):
             cleanup_and_exit(None, -1)
     return (is_success, stdout_string, stderr_string)
@@ -1673,6 +1681,16 @@ def main():
                                 if(json_diff_result):
                                     print(json.dumps(json_diff_result, indent=4, separators=(',', ': ')));
                                 cleanup_and_exit(None, -1);
+                        #ignore some corner cases for now
+                        if(query_type == 'vcf'
+                            and 'query_filter' not in query_param_dict
+                            and test_name.find('t0_1_2_combined') == -1
+                            ):
+                            cmd = ctest_dir+'/ctests columnar_gvcf_iterator_test ' \
+                                    + ' --query-json-file ' + query_json_filename \
+                                    + ' --golden-output-file '+query_param_dict['golden_output'][query_type] \
+                                    + ' --loader-json-file '+loader_json_filename
+                            run_cmd(cmd, True, 'Ctests '+test_name, dont_capture_output=True)
     test_with_java_options(top_tmpdir, lib_path, jacoco)
     test_pre_1_0_0_query_compatibility(top_tmpdir)
     test_query_compatibility_with_old_schema_verion_1(top_tmpdir)
