@@ -32,7 +32,7 @@ import java.util.ArrayList;
  * divided from a large amount of data to be distributed to many workers. Currently intended to be
  * implemeented by GenomicsDBInputSplit and GenomicsDBInputPartition
  */
-interface GenomicsDBInputInterface {
+public interface GenomicsDBInputInterface {
   default void setHost(String h) {}
 
   default void setGenomicsDBConf(GenomicsDBConfiguration g) {}

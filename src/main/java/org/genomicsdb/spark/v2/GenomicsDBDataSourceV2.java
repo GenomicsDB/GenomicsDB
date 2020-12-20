@@ -20,33 +20,31 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.genomicsdb.spark;
+package org.genomicsdb.spark.v2;
 
-import org.apache.spark.sql.sources.BaseRelation;
-import org.apache.spark.sql.sources.RelationProvider;
-import org.apache.spark.sql.sources.SchemaRelationProvider;
+import org.apache.spark.sql.sources.v2.ReadSupport;
+import org.apache.spark.sql.sources.v2.reader.DataSourceReader;
+import org.apache.spark.sql.sources.v2.DataSourceOptions;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.sources.DataSourceRegister;
-import org.apache.spark.sql.SQLContext;
 
-public class GenomicsDBDataSource implements RelationProvider, SchemaRelationProvider, DataSourceRegister {
+public class GenomicsDBDataSourceV2 implements ReadSupport, DataSourceRegister {
 
-  public GenomicsDBDataSource() {}
-
-  @Override
-  public BaseRelation createRelation(SQLContext sqlContext, scala.collection.immutable.Map<String,String> parameters){
-    return new GenomicsDBRelation(sqlContext, parameters);
+  public GenomicsDBDataSourceV2() {
   }
 
-  @Override
-  public BaseRelation createRelation(SQLContext sqlContext, scala.collection.immutable.Map<String,String> parameters, 
-      StructType schema){
-    return new GenomicsDBRelation(sqlContext, schema, parameters);
+  public DataSourceReader createReader(DataSourceOptions options) {
+    GenomicsDBDataSourceReader gDSR = new GenomicsDBDataSourceReader(options);
+    return gDSR;
   }
 
-  @Override
+  public DataSourceReader createReader(StructType schema, DataSourceOptions options) {
+    GenomicsDBDataSourceReader gDSR = new GenomicsDBDataSourceReader(schema, options);
+    return gDSR;
+  }
+
   public String shortName() {
     // TODO need to add stuff to META-INF/services to make this work
-    return "genomicsdb";
+    return "org.genomicsdb.v2";
   }
 }

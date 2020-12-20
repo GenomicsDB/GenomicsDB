@@ -20,7 +20,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.genomicsdb.spark;
+package org.genomicsdb.spark.sources;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.Batch;
@@ -35,6 +35,10 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import scala.collection.JavaConverters;
+
+import org.genomicsdb.spark.GenomicsDBInput;
+import org.genomicsdb.spark.GenomicsDBConfiguration;
+import org.genomicsdb.spark.GenomicsDBSchemaFactory;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;

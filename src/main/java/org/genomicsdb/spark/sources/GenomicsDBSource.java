@@ -1,4 +1,4 @@
-package org.genomicsdb.spark;
+package org.genomicsdb.spark.sources;
 
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
@@ -6,6 +6,8 @@ import org.apache.spark.sql.connector.expressions.Transform;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.types.*;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+
+import org.genomicsdb.spark.GenomicsDBSchemaFactory;
 
 import java.util.Map;
 

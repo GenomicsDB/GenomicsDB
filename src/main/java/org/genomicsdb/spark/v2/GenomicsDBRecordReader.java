@@ -20,7 +20,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.genomicsdb.spark;
+package org.genomicsdb.spark.v2;
 
 import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.tribble.Feature;

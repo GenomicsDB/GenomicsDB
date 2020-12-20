@@ -1,4 +1,4 @@
-package org.genomicsdb.spark;
+package org.genomicsdb.spark.sources;
 
 import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.Scan;

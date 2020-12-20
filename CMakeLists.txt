@@ -428,25 +428,13 @@ if(BUILD_JAVA)
         ./src/main/java/org/genomicsdb/reader/GenomicsDBFeatureReader.java
         ./src/main/java/org/genomicsdb/reader/GenomicsDBQueryStream.java
         ./src/main/java/org/genomicsdb/reader/GenomicsDBTimer.java
-        ./src/main/java/org/genomicsdb/reader/Function1Builder.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBConfiguration.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBInputFormat.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBInputSplit.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBJavaSparkFactory.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBPartitionInfo.java
-        ./src/main/java/org/genomicsdb/spark/GenomicsDBRecordReader.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBQueryInfo.java
-        ./src/main/java/org/genomicsdb/spark/GenomicsDBSource.java
-        ./src/main/java/org/genomicsdb/spark/GenomicsDBDataSource.java
-        ./src/main/java/org/genomicsdb/spark/GenomicsDBRelation.java
-        ./src/main/java/org/genomicsdb/spark/GenomicsDBTable.java
-        ./src/main/java/org/genomicsdb/spark/GenomicsDBScan.java
-        ./src/main/java/org/genomicsdb/spark/GenomicsDBScanBuilder.java
-        ./src/main/java/org/genomicsdb/spark/GenomicsDBBatch.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBSchemaFactory.java
-        ./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartition.java
-	./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartitionReader.java
-	./src/main/java/org/genomicsdb/spark/GenomicsDBPartitionReaderFactory.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBInput.java
         ./src/main/java/org/genomicsdb/Constants.java
         ./src/main/java/org/genomicsdb/GenomicsDBLibLoader.java
@@ -465,6 +453,31 @@ if(BUILD_JAVA)
         ./src/test/java/org/genomicsdb/model/ImportConfigSpec.java
         ./src/test/java/org/genomicsdb/GenomicsDBTestUtils.java
         )
+    
+    if(GENOMICSDB_SPARK_PROFILE)
+      set(JAVA_SCALA_SOURCES 
+          ${JAVA_SCALA_SOURCES}
+          ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBDataSourceReader.java
+          ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBDataSourceV2.java
+          ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBRecordReader.java
+          ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBInputPartition.java
+	  ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBInputPartitionReader.java
+        )
+    else()
+      set(JAVA_SCALA_SOURCES
+          ${JAVA_SCALA_SOURCES}
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBRecordReader.java
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBSource.java
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBTable.java
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBScan.java
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBScanBuilder.java
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBBatch.java
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBInputPartition.java
+	  ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBInputPartitionReader.java
+	  ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBPartitionReaderFactory.java
+        )
+    endif()
+    
     if(PROTOBUF_REGENERATE)
         #Must be set here - see https://cmake.org/cmake/help/v3.3/command/set_source_files_properties.html
         set_source_files_properties(${PROTOBUF_GENERATED_JAVA_SRCS} PROPERTIES GENERATED True)
@@ -474,11 +487,6 @@ if(BUILD_JAVA)
     else()
         set(JAVA_SCALA_SOURCES ${JAVA_SCALA_SOURCES} ${PROTOBUF_GENERATED_JAVA_SRCS})
         set(MAVEN_PROTOBUF_REGENERATE_ARGS "")
-    endif()
-    if(GENOMICSDB_SPARK_PROFILE)
-        set(MAVEN_PROFILE "-P${GENOMICSDB_SPARK_PROFILE}")
-    else()
-        set(MAVEN_PROFILE "")
     endif()
     set(MAVEN_QUIET_ARGS "")
     if(MAVEN_QUIET)
@@ -492,6 +500,17 @@ if(BUILD_JAVA)
         -Dgenomicsdb_lib_directory=$<TARGET_FILE_DIR:tiledbgenomicsdb>
         -Dprotobuf.version=${GENOMICSDB_PROTOBUF_VERSION}
         ${MAVEN_PROTOBUF_REGENERATE_ARGS})
+
+    if(GENOMICSDB_SPARK_PROFILE)
+        message(STATUS "Setting maven profile to ${GENOMICSDB_SPARK_PROFILE}" )
+        set(MAVEN_PROFILE "-P${GENOMICSDB_SPARK_PROFILE}")
+        set(MAVEN_ARGS ${MAVEN_ARGS} ${MAVEN_PROFILE})
+        message(${MAVEN_ARGS})
+    else()
+        set(MAVEN_PROFILE "")
+        message(${MAVEN_ARGS})
+    endif()
+
     #Maven build - depends on dynamic library
     add_custom_command(
         OUTPUT ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-allinone.jar

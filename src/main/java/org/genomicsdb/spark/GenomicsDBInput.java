@@ -23,6 +23,7 @@
 package org.genomicsdb.spark;
 
 import org.genomicsdb.model.*;
+import org.genomicsdb.spark.sources.GenomicsDBInputPartition;
 
 import org.apache.spark.sql.types.StructType;
 
@@ -163,7 +164,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     }
     else {
       try {
-        Class c = Class.forName("org.genomicsdb.spark.GenomicsDBInputPartition");
+        Class c = Class.forName("org.genomicsdb.spark.sources.GenomicsDBInputPartition");
         if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
           instance.setPartitionInfo(part);
           instance.setQueryInfoList(qrangeList);

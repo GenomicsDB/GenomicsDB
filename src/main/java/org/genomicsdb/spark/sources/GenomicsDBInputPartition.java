@@ -20,11 +20,16 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.genomicsdb.spark;
+package org.genomicsdb.spark.sources;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.types.StructType;
+import org.genomicsdb.spark.GenomicsDBInputInterface;
+import org.genomicsdb.spark.GenomicsDBPartitionInfo;
+import org.genomicsdb.spark.GenomicsDBVidSchema;
+import org.genomicsdb.spark.GenomicsDBQueryInfo;
+import org.genomicsdb.spark.GenomicsDBConfiguration;
 
 import java.util.Map;
 import java.util.ArrayList;

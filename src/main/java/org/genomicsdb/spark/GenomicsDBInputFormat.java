@@ -25,6 +25,7 @@ package org.genomicsdb.spark;
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
 import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.spark.sources.GenomicsDBRecordReader;
 
 import htsjdk.tribble.Feature;
 import htsjdk.tribble.FeatureCodec;
