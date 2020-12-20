@@ -122,31 +122,31 @@ class GenomicsDBBuffer {
   /*
    * Get raw byte buffer in read-write mode
    */
-  inline std::vector<uint8_t>& get_buffer() {
+  inline std::vector<uint8_t>& get_data_vector() {
     return m_buffer;
   }
   /*
    * Get raw byte buffer in read-only mode
    */
-  inline const std::vector<uint8_t>& get_buffer() const {
+  inline const std::vector<uint8_t>& get_data_vector() const {
     return m_buffer;
   }
   /*
    * Get pointer into raw byte buffer in read-write mode
    */
-  inline uint8_t* get_buffer_pointer() {
+  inline uint8_t* get_raw_pointer() {
     return &(m_buffer[0]);
   }
   /*
    * Get pointer into raw byte buffer in read-only mode
    */
-  inline const uint8_t* get_buffer_pointer() const {
+  inline const uint8_t* get_raw_pointer() const {
     return &(m_buffer[0]);
   }
   /*
    * Get raw byte buffer size in bytes
    */
-  inline size_t get_buffer_size_in_bytes() const {
+  inline size_t get_data_vector_size_in_bytes() const {
     return m_buffer.size();
   }
   /*inline std::vector<size_t>& get_offsets() { return m_offsets; }*/
@@ -292,7 +292,7 @@ class GenomicsDBCoordinatesIteratorInBuffer
 {
  public:
   GenomicsDBCoordinatesIteratorInBuffer(const GenomicsDBBuffer* coords_buffer, const size_t cell_idx) {
-    m_buffer = reinterpret_cast<const int64_t*>(coords_buffer->get_buffer_pointer());
+    m_buffer = reinterpret_cast<const int64_t*>(coords_buffer->get_raw_pointer());
     m_num_filled_entries = coords_buffer->get_num_filled_entries();
     m_cell_idx = cell_idx;
   }
@@ -357,16 +357,16 @@ class GenomicsDBColumnarField {
       add_new_buffer();
     return m_free_buffer_list_head_ptr;
   }
-  GenomicsDBBuffer* get_live_buffer_list_head_ptr() {
+  GenomicsDBBuffer* get_live_buffer_list_head() {
     return m_live_buffer_list_head_ptr;
   }
-  GenomicsDBBuffer* get_live_buffer_list_tail_ptr() {
+  GenomicsDBBuffer* get_live_buffer_list_tail() {
     return m_live_buffer_list_tail_ptr;
   }
-  const GenomicsDBBuffer* get_live_buffer_list_head_ptr() const {
+  const GenomicsDBBuffer* get_live_buffer_list_head() const {
     return m_live_buffer_list_head_ptr;
   }
-  const GenomicsDBBuffer* get_live_buffer_list_tail_ptr() const {
+  const GenomicsDBBuffer* get_live_buffer_list_tail() const {
     return m_live_buffer_list_tail_ptr;
   }
   void move_buffer_to_live_list(GenomicsDBBuffer* buffer);
@@ -391,21 +391,21 @@ class GenomicsDBColumnarField {
     return m_curr_index_in_live_buffer_list_tail;
   }
   //Get pointer to data in GenomicsDBBuffer*
-  inline const uint8_t* get_pointer_to_data_in_buffer_at_index(const GenomicsDBBuffer* buffer_ptr,
+  inline const uint8_t* get_raw_pointer_to_data_in_buffer_at_index(const GenomicsDBBuffer* buffer_ptr,
       const size_t index) const {
     assert(buffer_ptr);
     if (m_length_descriptor == BCF_VL_FIXED)
-      return buffer_ptr->get_buffer_pointer() + (m_fixed_length_field_size*index);
+      return buffer_ptr->get_raw_pointer() + (m_fixed_length_field_size*index);
     else
-      return buffer_ptr->get_buffer_pointer() + buffer_ptr->get_offset(index);
+      return buffer_ptr->get_raw_pointer() + buffer_ptr->get_offset(index);
   }
-  inline uint8_t* get_pointer_to_data_in_buffer_at_index(GenomicsDBBuffer* buffer_ptr,
+  inline uint8_t* get_raw_pointer_to_data_in_buffer_at_index(GenomicsDBBuffer* buffer_ptr,
       const size_t index) {
     assert(buffer_ptr);
     if (m_length_descriptor == BCF_VL_FIXED)
-      return buffer_ptr->get_buffer_pointer() + (m_fixed_length_field_size*index);
+      return buffer_ptr->get_raw_pointer() + (m_fixed_length_field_size*index);
     else
-      return buffer_ptr->get_buffer_pointer() + buffer_ptr->get_offset(index);
+      return buffer_ptr->get_raw_pointer() + buffer_ptr->get_offset(index);
   }
   //Get num bytes for current idx in buffer
   inline size_t get_size_of_data_in_buffer_at_index(const GenomicsDBBuffer* buffer_ptr,
