@@ -575,6 +575,11 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
     unsigned m_REF_query_idx;
     unsigned m_ALT_query_idx;
     GenomicsDBGVCFCell* m_cell;
+#ifdef DO_PROFILING
+    std::vector<uint64_t> m_num_times_initialized;
+    std::vector<uint64_t> m_num_times_invalidated;
+    uint64_t m_bin_size;
+#endif
 };
 
 #endif

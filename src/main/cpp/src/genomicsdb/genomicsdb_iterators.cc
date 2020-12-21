@@ -797,6 +797,8 @@ GenomicsDBGVCFIterator::GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
                              array_path, query_config, buffer_size)
 {}
 
+#define INIT_INVALID_HISTOGRAM_NUM_BINS 20u
+
 GenomicsDBGVCFIterator::GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
     const TileDB_Array* tiledb_array,
     const VidMapper* vid_mapper, const VariantArraySchema& variant_array_schema,
@@ -808,6 +810,11 @@ GenomicsDBGVCFIterator::GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
   m_next_start_position(-1ll),
   m_num_calls_with_deletions_or_MNVs(0u),
   m_cell(new GenomicsDBGVCFCell(this))
+#ifdef DO_PROFILING
+  , m_num_times_initialized(INIT_INVALID_HISTOGRAM_NUM_BINS, 0u),
+  m_num_times_invalidated(INIT_INVALID_HISTOGRAM_NUM_BINS, 0u),
+  m_bin_size((m_query_config->get_num_rows_to_query()+INIT_INVALID_HISTOGRAM_NUM_BINS-1)/INIT_INVALID_HISTOGRAM_NUM_BINS)
+#endif
 {
   m_REF_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_REF_IDX);
   m_ALT_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_ALT_IDX);
@@ -821,6 +828,11 @@ GenomicsDBGVCFIterator::~GenomicsDBGVCFIterator() {
   if(m_cell)
     delete m_cell;
   m_cell = 0;
+#ifdef DO_PROFILING
+  std::cerr << "INIT INVALID HISTOGRAM\n";
+  for(auto i=0u;i<INIT_INVALID_HISTOGRAM_NUM_BINS;++i)
+    std::cerr << i*m_bin_size << " "<<m_num_times_initialized[i] << " " <<m_num_times_invalidated[i] <<"\n";
+#endif
 }
 
 template<>
@@ -898,6 +910,9 @@ const GenomicsDBGVCFIterator& GenomicsDBGVCFIterator::operator++() {
   if(m_current_start_position > m_query_interval_limit)
     m_current_start_position = INT64_MAX;
   auto iter = m_end_set.begin();
+#ifdef DO_PROFILING
+  auto num_times_invalidated = 0ull;
+#endif
   //Remove all entries that finish at or before m_current_end_position
   for(;iter!=m_end_set.end();++iter) {
     auto min_end_element = *iter;
@@ -906,10 +921,16 @@ const GenomicsDBGVCFIterator& GenomicsDBGVCFIterator::operator++() {
     if(END_field_value < m_current_start_position) {
       update_num_deletions_and_MNVs<false>(row_query_idx);
       decrement_num_live_entries_in_live_cell_marker(row_query_idx);
+#ifdef DO_PROFILING
+      ++num_times_invalidated;
+#endif
     }
     else
       break;
   }
+#ifdef DO_PROFILING
+  ++(m_num_times_invalidated[num_times_invalidated/m_bin_size]);
+#endif
   if(iter == m_end_set.end()) { //all entries have END <= m_current_end_position
     m_end_set.clear();
     m_current_start_position = m_next_start_position;
@@ -937,6 +958,9 @@ void GenomicsDBGVCFIterator::fill_end_set_in_simple_traversal_mode() {
   m_next_start_position = -1;
   const auto& coords_columnar_field = m_fields.back();
   const auto& END_columnar_field = m_fields[m_END_query_idx];
+#ifdef DO_PROFILING
+  auto num_times_initialized = 0ull;
+#endif
   while(!m_done_reading_from_TileDB && m_next_start_position == -1) {
     const auto* coords = reinterpret_cast<const int64_t*>(
 	coords_columnar_field.get_raw_pointer_to_data_in_buffer_at_index(
@@ -968,10 +992,16 @@ void GenomicsDBGVCFIterator::fill_end_set_in_simple_traversal_mode() {
       update_num_deletions_and_MNVs<true>(row_query_idx);
       m_end_set.insert(GVCFEndSetElementTy(END_field_value, row_query_idx));
       advance_to_next_useful_cell(1u);
+#ifdef DO_PROFILING
+      ++num_times_initialized;
+#endif
     }
     else
       m_next_start_position = coords[1];
   }
+#ifdef DO_PROFILING
+  ++(m_num_times_initialized[num_times_initialized/m_bin_size]);
+#endif
   update_current_end_position();
 }
 
