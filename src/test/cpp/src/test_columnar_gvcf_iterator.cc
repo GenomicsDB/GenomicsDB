@@ -124,18 +124,18 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
         for(auto i=0;i<bcf_hdr_nsamples(hdr);++i) {
           int64_t row_idx = 0;
           REQUIRE(vid_mapper.get_tiledb_row_idx(row_idx, bcf_hdr_int2id(hdr, BCF_DT_SAMPLE, i)));
-          auto marker_idx = query_config.get_query_row_idx_for_array_row_idx(row_idx);
+          auto row_query_idx_idx = query_config.get_query_row_idx_for_array_row_idx(row_idx);
           if(num_output == -3)
-            CHECK((!columnar_gvcf_iter->is_valid(marker_idx)
-                || !columnar_gvcf_iter->is_field_valid_for_marker(query_field_idx, marker_idx)));
+            CHECK((!columnar_gvcf_iter->is_valid(row_query_idx_idx)
+                || !columnar_gvcf_iter->is_field_valid_for_row_query_idx(query_field_idx, row_query_idx_idx)));
           else {
             auto num_per_sample = num_output/bcf_hdr_nsamples(hdr);
             auto one_valid = false;
             for(auto j=0;j<num_per_sample;++j)
               one_valid = one_valid || is_bcf_valid_value<int>(vcf_buffer_ptr[i*num_per_sample+j]);
             if(one_valid) {
-              CHECK(columnar_gvcf_iter->is_field_valid_for_marker(query_field_idx, marker_idx));
-              auto ptr_length_pair = columnar_gvcf_iter->get_field_ptr_and_length_for_query_idx(marker_idx,
+              CHECK(columnar_gvcf_iter->is_field_valid_for_row_query_idx(query_field_idx, row_query_idx_idx));
+              auto ptr_length_pair = columnar_gvcf_iter->get_raw_pointer_and_length_for_query_idx(row_query_idx_idx,
                   query_field_idx);
               for(auto j=0;j<num_per_sample;++j) {
                 auto val = vcf_buffer_ptr[i*num_per_sample+j];
@@ -146,8 +146,8 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
               }
             }
             else
-              CHECK((!columnar_gvcf_iter->is_valid(marker_idx)
-                    || !columnar_gvcf_iter->is_field_valid_for_marker(query_field_idx, marker_idx)));
+              CHECK((!columnar_gvcf_iter->is_valid(row_query_idx_idx)
+                    || !columnar_gvcf_iter->is_field_valid_for_row_query_idx(query_field_idx, row_query_idx_idx)));
           }
         }
       }

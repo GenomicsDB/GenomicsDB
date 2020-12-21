@@ -323,13 +323,13 @@ void GenomicsDBColumnarField::move_all_buffers_from_live_list_to_free_list() {
 }
 
 void GenomicsDBColumnarField::set_valid_vector_in_live_buffer_list_tail_ptr() {
-  auto buffer_ptr = get_live_buffer_list_tail_ptr();
+  auto buffer_ptr = get_live_buffer_list_tail();
   assert(buffer_ptr);
   auto& valid_vector = buffer_ptr->get_valid_vector();
   if (m_length_descriptor == BCF_VL_FIXED)
     for (auto i=0ull; i<buffer_ptr->get_num_live_entries(); ++i) {
       assert(i < valid_vector.size());
-      valid_vector[i] = m_check_tiledb_valid_element(buffer_ptr->get_buffer_pointer() + (m_fixed_length_field_size*i),
+      valid_vector[i] = m_check_tiledb_valid_element(buffer_ptr->get_raw_pointer() + (m_fixed_length_field_size*i),
                         m_fixed_length_field_num_elements);
     } else
     for (auto i=0ull; i<buffer_ptr->get_num_live_entries(); ++i) {
@@ -340,13 +340,13 @@ void GenomicsDBColumnarField::set_valid_vector_in_live_buffer_list_tail_ptr() {
 
 void GenomicsDBColumnarField::print_data_in_buffer_at_index(std::ostream& fptr,
     const GenomicsDBBuffer* buffer_ptr, const size_t index) const {
-  m_print(fptr, get_pointer_to_data_in_buffer_at_index(buffer_ptr, index),
+  m_print(fptr, get_raw_pointer_to_data_in_buffer_at_index(buffer_ptr, index),
           get_length_of_data_in_buffer_at_index(buffer_ptr, index));
 }
 
 void GenomicsDBColumnarField::print_ALT_data_in_buffer_at_index(std::ostream& fptr,
     const GenomicsDBBuffer* buffer_ptr, const size_t index) const {
-  auto curr_ptr = reinterpret_cast<const void*>(get_pointer_to_data_in_buffer_at_index(buffer_ptr, index));
+  auto curr_ptr = reinterpret_cast<const void*>(get_raw_pointer_to_data_in_buffer_at_index(buffer_ptr, index));
   auto total_length = get_length_of_data_in_buffer_at_index(buffer_ptr, index);
   auto first = true;
   auto remaining_bytes = total_length;
@@ -377,7 +377,7 @@ void GenomicsDBColumnarField::print_ALT_data_in_buffer_at_index(std::ostream& fp
 
 void GenomicsDBColumnarField::print_data_in_buffer_at_index_as_csv(std::ostream& fptr,
     const GenomicsDBBuffer* buffer_ptr, const size_t index) const {
-  m_print_csv(fptr, get_pointer_to_data_in_buffer_at_index(buffer_ptr, index),
+  m_print_csv(fptr, get_raw_pointer_to_data_in_buffer_at_index(buffer_ptr, index),
               get_length_of_data_in_buffer_at_index(buffer_ptr, index),
               m_length_descriptor != BCF_VL_FIXED, buffer_ptr->is_valid(index));
 }

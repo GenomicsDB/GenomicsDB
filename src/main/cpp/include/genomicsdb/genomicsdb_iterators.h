@@ -49,16 +49,16 @@ class GenomicsDBIteratorException : public std::exception {
 //Useful for the left sweep, tracking cells while producing VCF records etc
 class GenomicsDBLiveCellMarker {
  public:
-  GenomicsDBLiveCellMarker(const unsigned num_fields, const size_t num_markers) {
+  GenomicsDBLiveCellMarker(const unsigned num_fields, const size_t num_queried_rows) {
     m_store_gvcf_specific_info = false;
-    m_valid.resize(num_markers);
-    m_initialized.resize(num_markers);
-    m_row.resize(num_markers);
-    m_begin.resize(num_markers);
-    m_end.resize(num_markers);
+    m_valid.resize(num_queried_rows);
+    m_initialized.resize(num_queried_rows);
+    m_row.resize(num_queried_rows);
+    m_begin.resize(num_queried_rows);
+    m_end.resize(num_queried_rows);
     for (auto i=0ull; i<num_fields; ++i) {
-      m_buffer_ptr_vec.emplace_back(num_markers, static_cast<GenomicsDBBuffer*>(0));
-      m_indexes.emplace_back(num_markers);
+      m_buffer_ptr_vec.emplace_back(num_queried_rows, static_cast<GenomicsDBBuffer*>(0));
+      m_indexes.emplace_back(num_queried_rows);
     }
     reset();
   }
@@ -74,9 +74,9 @@ class GenomicsDBLiveCellMarker {
   }
   inline void prepare_for_gvcf_iterator() {
     m_store_gvcf_specific_info = true;
-    const auto num_markers = m_valid.size();
-    m_contains_deletion.resize(num_markers);
-    m_contains_MNV.resize(num_markers);
+    const auto num_queried_rows = m_valid.size();
+    m_contains_deletion.resize(num_queried_rows);
+    m_contains_MNV.resize(num_queried_rows);
   }
   inline void set_row_idx(const size_t idx, const int64_t row_idx) {
     assert(idx < m_row.size());
@@ -114,13 +114,13 @@ class GenomicsDBLiveCellMarker {
     m_buffer_ptr_vec[field_idx][idx] = buffer_ptr;
     m_indexes[field_idx][idx] = index;
   }
-  inline GenomicsDBBuffer* get_buffer_pointer(const unsigned field_idx, const size_t idx) {
+  inline GenomicsDBBuffer* get_buffer(const unsigned field_idx, const size_t idx) {
     assert(m_initialized[idx] && m_valid[idx]);
     assert(field_idx < m_buffer_ptr_vec.size() && field_idx < m_indexes.size());
     assert(idx < m_buffer_ptr_vec[field_idx].size() && idx < m_indexes[field_idx].size());
     return m_buffer_ptr_vec[field_idx][idx];
   }
-  inline const GenomicsDBBuffer* get_buffer_pointer(const unsigned field_idx, const size_t idx) const {
+  inline const GenomicsDBBuffer* get_buffer(const unsigned field_idx, const size_t idx) const {
     assert(m_initialized[idx] && m_valid[idx]);
     assert(field_idx < m_buffer_ptr_vec.size() && field_idx < m_indexes.size());
     assert(idx < m_buffer_ptr_vec[field_idx].size() && idx < m_indexes[field_idx].size());
@@ -174,15 +174,15 @@ class GenomicsDBLiveCellMarker {
 };
 
 //m_PQ_live_cell_markers is a min-heap ordered in column major order
-//Elements of the heap are pairs<column, marker_idx>
-//Earlier only the marker was stored in the heap and the column was obtained by
+//Elements of the heap are pairs<column, row_query_idx>
+//Earlier only the row_query_idx was stored in the heap and the column was obtained by
 //accessing the live cell markers. Storing the column in the heap helps improve
 //locality of accesses in the heap.
-typedef std::pair<int64_t, size_t> MarkerPQElementTy;
+typedef std::pair<int64_t, size_t> ColumnRowQueryIdxPair;
 
 class GenomicsDBLiveCellMarkerColumnMajorComparator {
   public:
-    bool operator()(const MarkerPQElementTy& a, const MarkerPQElementTy& b) const {
+    bool operator()(const ColumnRowQueryIdxPair& a, const ColumnRowQueryIdxPair& b) const {
       return !((a.first < b.first) || (a.first == b.first && a.second < b.second));
     }
 };
@@ -226,41 +226,37 @@ class SingleCellTileDBIterator {
    */
   const SingleCellTileDBIterator& operator++();
   //Get pointer, length, size for current cell for field corresponding to query_idx
-  inline const uint8_t* get_field_ptr_for_query_idx(const int query_idx) const {
+  inline const uint8_t* get_raw_field_pointer_for_query_idx(const int query_idx) const {
     assert(static_cast<size_t>(query_idx) < m_fields.size());
     auto& genomicsdb_columnar_field = m_fields[query_idx];
-    size_t index = 0ul;
-    auto buffer_ptr = get_buffer_pointer_and_index(query_idx, index);
-    return genomicsdb_columnar_field.get_pointer_to_data_in_buffer_at_index(
-             buffer_ptr, index);
+    auto x = get_buffer_and_index(query_idx);
+    return genomicsdb_columnar_field.get_raw_pointer_to_data_in_buffer_at_index(
+             x.first, x.second);
   }
   inline size_t get_field_length(const int query_idx) const {
     assert(static_cast<size_t>(query_idx) < m_fields.size());
     auto& genomicsdb_columnar_field = m_fields[query_idx];
-    size_t index = 0ul;
-    auto buffer_ptr = get_buffer_pointer_and_index(query_idx, index);
+    auto x = get_buffer_and_index(query_idx);
     return genomicsdb_columnar_field.get_length_of_data_in_buffer_at_index(
-             buffer_ptr, index);
+             x.first, x.second);
   }
   inline size_t get_field_size_in_bytes(const int query_idx) const {
     assert(static_cast<size_t>(query_idx) < m_fields.size());
     auto& genomicsdb_columnar_field = m_fields[query_idx];
-    size_t index = 0ul;
-    auto buffer_ptr = get_buffer_pointer_and_index(query_idx, index);
+    auto x = get_buffer_and_index(query_idx);
     return genomicsdb_columnar_field.get_size_of_data_in_buffer_at_index(
-             buffer_ptr, index);
+             x.first, x.second);
   }
   inline bool is_valid(const int query_idx) const {
     assert(static_cast<size_t>(query_idx) < m_fields.size());
     auto& genomicsdb_columnar_field = m_fields[query_idx];
-    size_t index = 0ul;
-    auto buffer_ptr = get_buffer_pointer_and_index(query_idx, index);
+    auto x = get_buffer_and_index(query_idx);
     return genomicsdb_columnar_field.is_valid_data_in_buffer_at_index(
-             buffer_ptr, index);
+             x.first, x.second);
   }
   inline const int64_t* get_coordinates() const {
     auto coords_query_idx = m_fields.size()-1u;
-    return reinterpret_cast<const int64_t*>(get_field_ptr_for_query_idx(coords_query_idx));
+    return reinterpret_cast<const int64_t*>(get_raw_field_pointer_for_query_idx(coords_query_idx));
   }
   void print(const int query_idx, std::ostream& fptr=std::cout) const;
   void print_ALT(const int query_idx, std::ostream& fptr=std::cout) const;
@@ -301,37 +297,10 @@ class SingleCellTileDBIterator {
    *              m_query_attribute_idx_num_cells_to_increment_vec
    */
   void read_from_TileDB(const bool skip_cells);
-  //Given the columnar field object, get the buffer pointer and index in the buffer
-  //Response depends on whether this is a cell that begins before the query interval begin
-  //or cell >= query interval begin
-  inline const GenomicsDBBuffer* get_buffer_pointer_and_index(const int field_query_idx, size_t& index) const {
-    assert(static_cast<const size_t>(field_query_idx) < m_fields.size());
-    auto& genomicsdb_columnar_field = m_fields[field_query_idx];
-    //No more markers for intervals intersecting query interval begin
-    //get data from live list tail
-    if (m_PQ_live_cell_markers.empty()) {
-      index = genomicsdb_columnar_field.get_curr_index_in_live_list_tail();
-      return genomicsdb_columnar_field.get_live_buffer_list_tail_ptr();
-    } else {
-      const auto marker_idx = m_PQ_live_cell_markers.top().second;
-      index = m_live_cell_markers.get_index(field_query_idx, marker_idx);
-      return m_live_cell_markers.get_buffer_pointer(field_query_idx, marker_idx);
-    }
-  }
-  /*
-   * Optimization for skipping useless cells
-   * Useless are determined using the coords and the END value
-   * a) in simple traversal mode, a cell is useless if END < coords[1] (END cell) OR
-   * b) in find intersecting intervals mode, a cell is useless if the corresponding row marker is
-   * already initialized OR
-   * c) the row is not part of the query
-   * Once the number of contiguous useless cells are determined, fields other than coords and END
-   * can be skipped in one shot
-   */
-  void increment_iterator_within_live_buffer_list_tail_ptr_for_fields();
-#ifdef DO_PROFILING
-  void increment_num_cells_traversed_stats(const uint64_t num_cells_incremented);
-#endif
+  //Helper functions
+  void decrement_num_live_entries_in_live_cell_marker(const size_t row_query_idx);
+  void initialize_live_cell_marker_from_tail(const size_t row_query_idx, const int64_t* coords,
+      const int64_t END);
   /*
    * Advance indexes till a useful cell is found
    * Return true iff the current query interval has valid cells after increment
@@ -342,9 +311,10 @@ class SingleCellTileDBIterator {
    * A cell is "useful" iff
    *   its row is part of the queried rows
    *   in simple traversal mode - END >= begin
-   *   in find intersecting intervals mode the row marker is !initialized
+   *   in find intersecting intervals mode the row_query_idx is !initialized
    */
   bool advance_to_next_useful_cell(const uint64_t min_num_cells_to_increment);
+ private:
   /*
    * num_cells_incremented - returns the actual #cells passed over
    */
@@ -353,14 +323,6 @@ class SingleCellTileDBIterator {
     uint64_t& num_cells_incremented);
   bool advance_coords_and_END(const uint64_t num_cells_to_advance);
   void advance_fields_other_than_coords_END(const uint64_t num_cells_to_increment);
-  /*
-   * Return marker idx given TileDB row
-   */
-  inline uint64_t get_marker_idx_for_tiledb_row_idx(const int64_t row_idx) const {
-    assert(row_idx >= m_smallest_row_idx_in_array);
-    auto marker_idx = row_idx - m_smallest_row_idx_in_array;
-    return marker_idx;
-  }
   bool keep_advancing_in_find_intersecting_intervals_mode() const;
   inline bool is_duplicate_cell_at_end_position(const int64_t coords_column_value, const int64_t END_field_value) const {
     return coords_column_value > END_field_value;
@@ -371,10 +333,37 @@ class SingleCellTileDBIterator {
     return is_duplicate_cell_at_end_position(coords_column_value, END_field_value)
            && (static_cast<uint64_t>(END_field_value) < query_column);
   }
-  //Helper functions
-  void decrement_num_live_entries_in_live_cell_marker(const size_t marker_idx);
-  void initialize_live_cell_marker_from_tail(const size_t marker_idx, const int64_t* coords,
-      const int64_t END);
+  /*
+   * Optimization for skipping useless cells
+   * Useless are determined using the coords and the END value
+   * a) in simple traversal mode, a cell is useless if END < coords[1] (END cell) OR
+   * b) in find intersecting intervals mode, a cell is useless if the corresponding row_query_idx is
+   * already initialized OR
+   * c) the row is not part of the query
+   * Once the number of contiguous useless cells are determined, fields other than coords and END
+   * can be skipped in one shot
+   */
+  void increment_iterator_within_live_buffer_list_tail_ptr_for_fields();
+#ifdef DO_PROFILING
+  void increment_num_cells_traversed_stats(const uint64_t num_cells_incremented);
+#endif
+  //Given the columnar field object, get the buffer pointer and index in the buffer
+  //Response depends on whether this is a cell that begins before the query interval begin
+  //or cell >= query interval begin
+  inline std::pair<const GenomicsDBBuffer*,size_t> get_buffer_and_index(const int field_query_idx) const {
+    assert(static_cast<const size_t>(field_query_idx) < m_fields.size());
+    auto& genomicsdb_columnar_field = m_fields[field_query_idx];
+    //No more markers for intervals intersecting query interval begin
+    //get data from live list tail
+    if (m_PQ_live_cell_markers.empty())
+      return std::pair<const GenomicsDBBuffer*,size_t>(genomicsdb_columnar_field.get_live_buffer_list_tail() ,
+          genomicsdb_columnar_field.get_curr_index_in_live_list_tail());
+    else {
+      const auto row_query_idx = m_PQ_live_cell_markers.top().second;
+      return std::pair<const GenomicsDBBuffer*,size_t>(m_live_cell_markers.get_buffer(field_query_idx, row_query_idx),
+          m_live_cell_markers.get_index(field_query_idx, row_query_idx));
+    }
+  }
  protected:
   bool m_done_reading_from_TileDB;
   bool m_in_find_intersecting_intervals_mode;
@@ -392,10 +381,9 @@ class SingleCellTileDBIterator {
   //Cell markers for handling the sweep operation
   GenomicsDBLiveCellMarker m_live_cell_markers;
   //Cell markers in column major order
-  std::priority_queue<MarkerPQElementTy, std::vector<MarkerPQElementTy>,
+  std::priority_queue<ColumnRowQueryIdxPair, std::vector<ColumnRowQueryIdxPair>,
       GenomicsDBLiveCellMarkerColumnMajorComparator> m_PQ_live_cell_markers;
-  uint64_t m_num_markers_initialized;
-  int64_t m_smallest_row_idx_in_array;
+  uint64_t m_num_queried_rows_initialized;
   //Contains query idx for only the fields that must be fetched from TileDB in the next round
   //The first time all fields are queried - in subsequent iterations only those fields whose
   //buffers are consumed completely are queried
@@ -433,9 +421,9 @@ class SingleCellTileDBIterator {
 #endif //PROFILE_NUM_CELLS_TO_TRAVERSE_AT_EVERY_QUERY_INTERVAL
 #endif //DO_PROFILING
  public:
-  class valid_marker_iterator {
+  class valid_row_query_idx_iterator {
     public:
-      valid_marker_iterator(const std::vector<bool>::const_iterator& iter, const std::vector<bool>::const_iterator& end,
+      valid_row_query_idx_iterator(const std::vector<bool>::const_iterator& iter, const std::vector<bool>::const_iterator& end,
           const size_t idx)
         : m_iter(iter), m_end(end), m_idx(idx) {
           if(m_iter != m_end && !(*m_iter)) {
@@ -444,13 +432,13 @@ class SingleCellTileDBIterator {
             m_iter = valid_iter;
           }
         }
-      bool operator !=(const valid_marker_iterator& other) const {
+      bool operator !=(const valid_row_query_idx_iterator& other) const {
         return (m_iter != other.m_iter || m_idx != other.m_idx);
       }
       size_t operator *() const {
         return m_idx;
       }
-      valid_marker_iterator& operator ++() {
+      valid_row_query_idx_iterator& operator ++() {
         ++m_iter;
         ++m_idx;
         if(m_iter != m_end && !(*m_iter)) {
@@ -465,11 +453,11 @@ class SingleCellTileDBIterator {
       std::vector<bool>::const_iterator m_end;
       size_t m_idx;
   };
-  valid_marker_iterator begin_valid_marker() const {
-    return valid_marker_iterator(m_live_cell_markers.valid_begin(), m_live_cell_markers.valid_end(), 0u);
+  valid_row_query_idx_iterator begin_valid_row_query_idx() const {
+    return valid_row_query_idx_iterator(m_live_cell_markers.valid_begin(), m_live_cell_markers.valid_end(), 0u);
   }
-  valid_marker_iterator end_valid_marker() const {
-    return valid_marker_iterator(m_live_cell_markers.valid_end(), m_live_cell_markers.valid_end(),
+  valid_row_query_idx_iterator end_valid_row_query_idx() const {
+    return valid_row_query_idx_iterator(m_live_cell_markers.valid_end(), m_live_cell_markers.valid_end(),
         m_query_config->get_num_rows_to_query());
   }
 };
@@ -485,7 +473,7 @@ class SingleCellTileDBIterator {
  * the element to delete and re-push all the elements we popped.
  * This is not optimal (see lines 472-480 in query_variants.cc)
  * Instead of a heap, we use a tree (STL set) whose elements contain
- * (a) END position (b) marker idx [proxy for sample idx]
+ * (a) END position (b) row_query_idx
  * This allows us to perform 'pops' and the above deletions in O(log(n)) time
  * , albeit with a higher constant for pops relative to a heap.
  * See STL doc for find() function to determine how a set can do the deletion
@@ -524,33 +512,34 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
     inline bool end() const {
       return SingleCellTileDBIterator::end() && m_end_set.empty();
     }
-    inline std::pair<const uint8_t*, size_t> get_field_ptr_and_length_for_query_idx(const size_t marker_idx,
+    inline std::pair<const uint8_t*, size_t> get_raw_pointer_and_length_for_query_idx(const size_t row_query_idx,
 	const int field_query_idx) const {
       assert(static_cast<size_t>(field_query_idx) < m_fields.size());
       auto& genomicsdb_columnar_field = m_fields[field_query_idx];
-      const auto buffer_ptr = m_live_cell_markers.get_buffer_pointer(field_query_idx, marker_idx);
-      const auto index = m_live_cell_markers.get_index(field_query_idx, marker_idx);
+      const auto buffer_ptr = m_live_cell_markers.get_buffer(field_query_idx, row_query_idx);
+      const auto index = m_live_cell_markers.get_index(field_query_idx, row_query_idx);
       return std::pair<const uint8_t*, size_t>(
-	  genomicsdb_columnar_field.get_pointer_to_data_in_buffer_at_index(buffer_ptr, index),
+	  genomicsdb_columnar_field.get_raw_pointer_to_data_in_buffer_at_index(buffer_ptr, index),
 	  genomicsdb_columnar_field.get_length_of_data_in_buffer_at_index(buffer_ptr, index));
     }
     //Returns current variant interval
     ColumnRange get_current_variant_interval() const {
       return ColumnRange(m_current_start_position, m_current_end_position);
     }
-    //Valid markers and fields
-    bool is_valid_marker(const size_t marker_idx) const {
-      return m_live_cell_markers.is_valid(marker_idx);
+    //returns true if the row_query_idx is valid for current iteration (ie the sample
+    //corresponding to row_query_idx
+    bool is_valid_row_query_idx(const size_t row_query_idx) const {
+      return m_live_cell_markers.is_valid(row_query_idx);
     }
-    //Marker idx must be valid before using this function
-    bool is_field_valid_for_valid_marker(const unsigned field_idx, const size_t idx) const {
-      auto gdb_buffer_ptr = m_live_cell_markers.get_buffer_pointer(field_idx, idx);
+    //row corresponding to idx must be valid before using this function
+    bool is_field_valid_for_valid_row_query_idx(const unsigned field_idx, const size_t idx) const {
+      auto gdb_buffer_ptr = m_live_cell_markers.get_buffer(field_idx, idx);
       auto index = m_live_cell_markers.get_index(field_idx, idx);
       return m_fields[field_idx].is_valid_data_in_buffer_at_index(gdb_buffer_ptr, index);
     }
-    //Marker idx need not be valid before calling this function
-    bool is_field_valid_for_marker(const unsigned field_idx, const size_t idx) const {
-      return is_valid_marker(idx) && is_field_valid_for_valid_marker(field_idx, idx);
+    //Row corresponding to idx need not be valid before calling this function
+    bool is_field_valid_for_row_query_idx(const unsigned field_idx, const size_t idx) const {
+      return is_valid_row_query_idx(idx) && is_field_valid_for_valid_row_query_idx(field_idx, idx);
     }
   private:
     /*
@@ -558,7 +547,7 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
      * false meaning call is being invalidated from the markers
      */
     template<bool new_cell>
-    void update_num_deletions_and_MNVs(const size_t marker_idx);
+    void update_num_deletions_and_MNVs(const size_t row_query_idx);
     /*
      * Keep filling m_end_set with cells from TileDB as long as the coords[1] == m_current_start_position
      * The moment you hit a cell with coords[1] > m_current_start_position, store its value

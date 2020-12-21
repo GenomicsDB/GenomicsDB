@@ -154,7 +154,7 @@ class GenomicsDBColumnarCell {
   GenomicsDBColumnarCell& operator=(const GenomicsDBColumnarCell& other) = delete;
   template<typename T=void>
   inline const T* get_field_ptr_for_query_idx(const int query_idx) const {
-    return reinterpret_cast<const T*>(m_iterator->get_field_ptr_for_query_idx(query_idx));
+    return reinterpret_cast<const T*>(m_iterator->get_raw_field_pointer_for_query_idx(query_idx));
   }
   inline size_t get_field_length(const int query_idx) const {
     return m_iterator->get_field_length(query_idx);
