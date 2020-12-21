@@ -32,6 +32,8 @@ from collections import OrderedDict
 import jsondiff
 import errno
 import distutils.spawn
+import uuid
+import tarfile
 
 import common
 
@@ -152,6 +154,29 @@ def create_loader_json(ws_dir, test_name, test_params_dict):
         test_dict['reference_genome'] =  test_params_dict['reference_genome']
     return test_dict;
 
+def run_cmd(cmd, expected_to_pass, errstring='Sanity check : ', tmpdir=None, print_if_error=True,
+        dont_capture_output=False):
+    if(dont_capture_output):
+        returncode = subprocess.call(cmd, shell=True)
+        stdout_string = None
+        stderr_string = None
+    else:
+        pid = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout_string, stderr_string = pid.communicate()
+        returncode = pid.returncode
+    is_success = (returncode == 0)
+    if(not is_success):
+        if(print_if_error):
+            sys.stderr.write(errstring+ ' -- failed command -- '+cmd+'\n')
+            if(not dont_capture_output):
+                sys.stderr.write('STDOUT:\n')
+                sys.stderr.write(stdout_string)
+                sys.stderr.write('STDERR:\n')
+                sys.stderr.write(stderr_string)
+        if(expected_to_pass):
+            cleanup_and_exit(None, -1)
+    return (is_success, stdout_string, stderr_string)
+
 def get_file_content_and_md5sum(filename):
     with open(filename, 'rb') as fptr:
         data = fptr.read();
@@ -189,37 +214,28 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
     with open(outfilename, "w") as out_fd:
         out_fd.write(outfile_string)
     bcf_cmd = bcftools_path+' view -Oz -o '+outfilename+'.gz '+outfilename+' && '+bcftools_path+' index -f -t '+outfilename+'.gz'
-    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    bcf_stdout = pid.communicate()[0]
-    if(pid.returncode != 0):
-        sys.stderr.write('Call to bcftools failed. Cmd: '+bcf_cmd+'\n')
-        sys.stderr.write('Returned: '+bcf_stdout+'\n')
+    success,bcf_stdout,stderr_string = run_cmd(bcf_cmd, False, 'Call to bcftools failed ')
+    if(not success):
         return True
 
     with open(outfilename_golden, "w") as out_golden_fd:
         out_golden_fd.write(golden_string)
     bcf_cmd = bcftools_path+' view -Oz -o '+outfilename_golden+'.gz '+outfilename_golden+' && '+bcftools_path+' index -f -t '+outfilename_golden+'.gz'
-    pid = subprocess.Popen(bcf_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    bcf_stdout = pid.communicate()[0]
-    if(pid.returncode != 0):
-        sys.stderr.write('Call to bcftools failed. Cmd: '+bcf_cmd+'\n')
-        sys.stderr.write('Returned: '+bcf_stdout+'\n')
+    success,bcf_stdout,stderr_string = run_cmd(bcf_cmd, False, 'Call to bcftools failed ')
+    if(not success):
         return True
 
     vcfdiff_cmd = exe_path+os.path.sep+'vcfdiff '+outfilename+'.gz '+outfilename_golden+'.gz'
-    pid = subprocess.Popen(vcfdiff_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    vcfdiff_stdout = pid.communicate()[0]
-    if(pid.returncode != 0):
-        sys.stderr.write('vcfdiff cmd failed. Cmd: '+vcfdiff_cmd+'\n')
+    success, vcfdiff_stdout,stderr_string = run_cmd(vcfdiff_cmd, False, 'vcfdiff cmd failed ')
+    if(not success):
+        return True
+    
+    if(len(vcfdiff_stdout) == 0):
+        return False
+    else:
+        sys.stderr.write('vcfdiff check failed. Cmd: '+vcfdiff_cmd+'\n')
         sys.stderr.write('Returned: '+vcfdiff_stdout+'\n')
         return True
-    else:
-        if(len(vcfdiff_stdout) == 0):
-            return False
-        else:
-            sys.stderr.write('vcfdiff check failed. Cmd: '+vcfdiff_cmd+'\n')
-            sys.stderr.write('Returned: '+vcfdiff_stdout+'\n')
-            return True
 
 def create_json_file(tmpdir, test_name, query_type, test_dict):
     query_json_filename = tmpdir+os.path.sep+test_name+ (('_'+query_type) if query_type else '') +'.json'
@@ -229,7 +245,7 @@ def create_json_file(tmpdir, test_name, query_type, test_dict):
     return query_json_filename
 
 def cleanup_and_exit(tmpdir, exit_code):
-    if(exit_code == 0):
+    if(exit_code == 0 and tmpdir):
         shutil.rmtree(tmpdir, ignore_errors=True)
     sys.exit(exit_code);
 
@@ -240,7 +256,6 @@ def substitute_workspace_dir(jsonfile, wsdir):
 
 def test_with_java_options(tmpdir, lib_path, jacoco):
     sys.stdout.write("Testing with Java Options...\n")
-    import tarfile
     compatDir = tmpdir+'/compat_100_test'
     tar = tarfile.open('inputs/compatibility.pre.1.0.0.test.tar')
     tar.extractall(path=compatDir)
@@ -251,11 +266,8 @@ def test_with_java_options(tmpdir, lib_path, jacoco):
 
     # Sanity Test java options supported by GenomicsDB
     query_command = 'java'+jacoco+' -Dgenomicsdb.library.path='+lib_path+' -DGATK_STACKTRACE_ON_USER_EXCEPTION=true -ea TestGenomicsDB --query -l '+loader_json+' '+query_json
-    pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE)
-    stdout_string = pid.communicate()[0]
-    if(pid.returncode != 0):
-        sys.stderr.write('Query with java options : '+query_command+' failed\n')
-        cleanup_and_exit(tmpdir, -1)
+    query_java_options_success, stdout_string, stderr_string = run_cmd(query_command, True,
+        'Query with java options failed ')
     actual_md5sum = str(hashlib.md5(stdout_string).hexdigest())
     golden_str, golden_md5sum = get_file_content_and_md5sum('golden_outputs/java_t0_1_2_vcf_at_0')
     if (actual_md5sum != golden_md5sum):
@@ -263,18 +275,16 @@ def test_with_java_options(tmpdir, lib_path, jacoco):
         cleanup_and_exit(tmpdir, -1)
 
     # Test if exception stack trace is logged when there is no tiledb_workspace for example
-    import os
     os.remove(compatDir+'/ws/__tiledb_workspace.tdb')
-    pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT);
-    stdout_string = pid.communicate()[0]
-    if (stdout_string.find('Native Stack Trace:') < 0):
+    query_java_options_success, stdout_string, stderr_string = run_cmd(query_command, False,
+        '', print_if_error=False)
+    if (stderr_string.find('Native Stack Trace:') < 0):
         sys.stderr.write('Query with java options did not throw expected exception: '+query_command+' failed\n')
-        cleanup_and_exit(tmpdir, -1)
+        cleanup_and_exit(None, -1)
     sys.stdout.write("Successful\n")
 
 def test_pre_1_0_0_query_compatibility(tmpdir):
     sys.stdout.write("Testing compatibility with workspace/arrays from releases before 1.0.0...") 
-    import tarfile
     compatDir = tmpdir+'/compat_100_test'
     tar = tarfile.open('inputs/compatibility.pre.1.0.0.test.tar')
     tar.extractall(path=compatDir)
@@ -283,11 +293,7 @@ def test_pre_1_0_0_query_compatibility(tmpdir):
     substitute_workspace_dir(loader_json, compatDir)
     substitute_workspace_dir(query_json, compatDir)
     query_command = 'java -ea TestGenomicsDB --query -l '+loader_json+' '+query_json
-    pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE);
-    stdout_string = pid.communicate()[0]
-    if(pid.returncode != 0):
-        sys.stderr.write('Compatibility Test Query : '+query_command+' failed\n');
-        cleanup_and_exit(tmpdir, -1);
+    success, stdout_string, stderr_string = run_cmd(query_command, True, 'Compatibility Test Query failed ')
     actual_md5sum = str(hashlib.md5(stdout_string).hexdigest())
     golden_str, golden_md5sum = get_file_content_and_md5sum('golden_outputs/java_t0_1_2_vcf_at_0')
     if (actual_md5sum != golden_md5sum):
@@ -297,7 +303,6 @@ def test_pre_1_0_0_query_compatibility(tmpdir):
 
 def test_query_compatibility_with_old_schema_verion_1(tmpdir):
     sys.stdout.write("Testing query compatibility with arrays created with old array schema version 1...") 
-    import tarfile
     compatDir = tmpdir+'/compat_schema_version_1_test'
     tar = tarfile.open('inputs/compatibility.array.schema.version.1.tar')
     tar.extractall(path=compatDir)
@@ -306,31 +311,13 @@ def test_query_compatibility_with_old_schema_verion_1(tmpdir):
     substitute_workspace_dir(loader_json, compatDir)
     substitute_workspace_dir(query_json, compatDir)
     query_command = 'java -ea TestGenomicsDB --query -l '+loader_json+' '+query_json
-    pid = subprocess.Popen(query_command, shell=True, stdout=subprocess.PIPE);
-    stdout_string = pid.communicate()[0]
-    if(pid.returncode != 0):
-        sys.stderr.write('Compatibility Test Query : '+query_command+' failed\n');
-        cleanup_and_exit(tmpdir, -1);
+    success, stdout_string,stderr_string = run_cmd(query_command, True, 'Compatibility Test Query failed ')
     actual_md5sum = str(hashlib.md5(stdout_string).hexdigest())
     golden_str, golden_md5sum = get_file_content_and_md5sum('golden_outputs/java_t0_1_2_vcf_sites_only_at_0')
     if (actual_md5sum != golden_md5sum):
         sys.stderr.write('Compatibility Test Query : '+query_command+' failed. Results did not match with golden output.\n');
         cleanup_and_exit(tmpdir, -1)
     sys.stdout.write("Successful\n")
-
-def run_cmd(cmd, expected_to_pass, errstring='Sanity check : ', tmpdir=None):
-    pid = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
-    stdout_string, stderr_string = pid.communicate()
-    if(expected_to_pass and pid.returncode != 0):
-        sys.stderr.write(errstring+cmd+' failed\n');
-        sys.stderr.write(stdout_string)
-        sys.stderr.write(stderr_string)
-        if tmpdir:
-            cleanup_and_exit(tmpdir, -1)
-        else:
-            sys.exit(-1)
-    
-    return stdout_string
 
 def tool_sanity_checks(exe_path):
     gt_mpi_gather_path = exe_path+os.path.sep+'gt_mpi_gather';
@@ -339,16 +326,16 @@ def tool_sanity_checks(exe_path):
     except os.error:
         sys.stderr.write("Could not find " + gt_mpi_gather_path + '\n');
         sys.exit(-1);
-    run_cmd(gt_mpi_gather_path, False);
+    run_cmd(gt_mpi_gather_path, False, print_if_error=False);
     run_cmd(gt_mpi_gather_path + ' --help', True);
     run_cmd(gt_mpi_gather_path + ' --h', True);
     run_cmd(gt_mpi_gather_path + ' --version', True);
-    run_cmd(gt_mpi_gather_path + ' --gibberish', False);
-    run_cmd(gt_mpi_gather_path + ' -j non_existent_query_json', False);
-    run_cmd(gt_mpi_gather_path + ' -j inputs/tools/non_existent_callset.json', False);
-    run_cmd(gt_mpi_gather_path + ' -j inputs/tools/non_existent_vidmap.json', False);
-    run_cmd(gt_mpi_gather_path + ' -j inputs/tools/non_existent_workspace_array.json', False);
-    run_cmd(gt_mpi_gather_path + ' -j inputs/tools/unparseable_query.json', False);
+    run_cmd(gt_mpi_gather_path + ' --gibberish', False, print_if_error=False);
+    run_cmd(gt_mpi_gather_path + ' -j non_existent_query_json', False, print_if_error=False);
+    run_cmd(gt_mpi_gather_path + ' -j inputs/tools/non_existent_callset.json', False, print_if_error=False);
+    run_cmd(gt_mpi_gather_path + ' -j inputs/tools/non_existent_vidmap.json', False, print_if_error=False);
+    run_cmd(gt_mpi_gather_path + ' -j inputs/tools/non_existent_workspace_array.json', False, print_if_error=False);
+    run_cmd(gt_mpi_gather_path + ' -j inputs/tools/unparseable_query.json', False, print_if_error=False);
 
 def test_pb_configs(tmpdir, ctest_dir):
     pb_query_test_configs = [
@@ -394,11 +381,8 @@ def test_pb_configs(tmpdir, ctest_dir):
             del query_dict['scan_full']
         modify_query_column_ranges_for_PB(query_dict)
         query_json_filename = create_json_file(tmpdir, 'pb_test', None, query_dict)
-        cmd = ctest_dir+'/ctests pb_query_config_test --pb-query-json-file '+query_json_filename
-        exit_code = subprocess.call(cmd, shell=True)
-        if(exit_code != 0):
-            sys.stderr.write('Failed command: '+cmd+'\n')
-            cleanup_and_exit(tmpdir, exit_code)
+        cmd = ctest_dir+'/ctests pb_query_config_test --query-json-file '+query_json_filename
+        run_cmd(cmd, True, 'PB query configs test')
 
 def main():
     #Initial Setup
@@ -422,12 +406,11 @@ def main():
     #Switch to tests directory
     parent_dir=os.path.dirname(os.path.realpath(__file__))
     os.chdir(parent_dir)
-    tmpdir = tempfile.mkdtemp()
+    top_tmpdir = tempfile.mkdtemp()
     bcftools_path = distutils.spawn.find_executable("bcftools")
-    top_ws_dir=tmpdir+os.path.sep+'ws';
-    java_import_dir = tmpdir+os.path.sep + 'java_import'
+    java_import_dir = top_tmpdir+os.path.sep + 'java_import'
     os.mkdir(java_import_dir)
-    test_pb_configs(tmpdir, ctest_dir)
+    test_pb_configs(top_tmpdir, ctest_dir)
     common.setup_classpath(build_dir)
     jacoco, jacoco_report_cmd = common.setup_jacoco(build_dir, build_type)
     loader_tests0 = [
@@ -1508,9 +1491,24 @@ def main():
         loader_tests = loader_tests0
     else:
         loader_tests = loader_tests1
+    test_names_set = set()
     for test_params_dict in loader_tests:
         test_name = test_params_dict['name']
-        ws_dir = top_ws_dir
+        if(test_name in test_names_set):
+          new_name = test_name+'_'+str(uuid.uuid4())
+          sys.stderr.write('Duplicate test names in loader_tests '+test_name+' renamed to '+new_name+'\n')
+          test_name = new_name
+        test_names_set.add(test_name)
+        #New tmpdir per test
+        tmpdir = top_tmpdir + os.path.sep + test_name
+        try:
+          os.makedirs(tmpdir, 0o755)
+        except os.error as e:
+          if(e.errno == errno.EEXIST):
+            pass
+          else:
+            raise e
+        ws_dir = tmpdir + os.path.sep + 'ws'
         if(test_name.find('java_genomicsdb_importer_from_vcfs') != -1):
             ws_dir = java_import_dir+os.path.sep+test_name
         test_loader_dict = create_loader_json(ws_dir, test_name, test_params_dict);
@@ -1522,7 +1520,7 @@ def main():
         if(test_name.find('java_genomicsdb_importer_from_vcfs_incremental') != -1):
             incr_callset = test_loader_dict["callset_mapping_file"]
             test_loader_dict["callset_mapping_file"] = incr_callset.replace('.0', '')
-        loader_json_filename = create_json_file(tmpdir, test_name, None, test_loader_dict)
+        loader_json_filename = create_json_file(tmpdir, 'loader', None, test_loader_dict)
         if(test_name  == 'java_t0_1_2'):
             import_cmd = 'java'+jacoco+' -ea TestGenomicsDB --load '+loader_json_filename
 
@@ -1573,7 +1571,7 @@ def main():
         else:
             import_cmd = exe_path+os.path.sep+'vcf2genomicsdb '+loader_json_filename
         
-        stdout_string = run_cmd(import_cmd, True, 'Loader test: '+test_name, tmpdir)
+        loader_cmd_success,stdout_string,stderr_string = run_cmd(import_cmd, True, 'Loader test: '+test_name)
         md5sum_hash_str = str(hashlib.md5(stdout_string).hexdigest())
         if('golden_output' in test_params_dict):
             golden_stdout, golden_md5sum = get_file_content_and_md5sum(test_params_dict['golden_output']);
@@ -1582,16 +1580,16 @@ def main():
                 if(bcftools_path is None):
                     sys.stderr.write('Did not find bcftools in path. If you are able to add that to the path, we can get a more precise diff\n')
                 else:
-                    outfilename = tmpdir+os.path.sep+test_name+'.vcf'
-                    outfilename_golden = tmpdir+os.path.sep+test_name+'_golden'+'.vcf'
+                    outfilename = tmpdir+os.path.sep+test_name+'_loader.vcf'
+                    outfilename_golden = tmpdir+os.path.sep+test_name+'_loader_golden'+'.vcf'
                     is_error = (bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, stdout_string, golden_stdout))
                 if(is_error):
                     sys.stderr.write('Loader stdout mismatch for test: '+test_name+'\n');
                     print_diff(golden_stdout, stdout_string);
-                    cleanup_and_exit(tmpdir, -1);
+                    cleanup_and_exit(None, -1)
 
         if incremental_load:
-            stdout_string = run_cmd(import_cmd_incremental, True, 'Loader test: '+test_name, tmpdir)
+            inc_load_success,stdout_string,stderr_string = run_cmd(import_cmd_incremental, True, 'Loader test: '+test_name)
 
         if('query_params' in test_params_dict):
             for query_param_dict in test_params_dict['query_params']:
@@ -1622,7 +1620,7 @@ def main():
                             test_query_dict['attributes'] = vcf_attributes_order;
                         if(query_type.find('java_vcf') != -1):
                             modify_query_column_ranges_for_PB(test_query_dict)
-                        query_json_filename = create_json_file(tmpdir, test_name, query_type, test_query_dict)
+                        query_json_filename = create_json_file(tmpdir, 'q', query_type, test_query_dict)
                         if(query_type.find('java_vcf') != -1):
                             loader_argument = loader_json_filename;
                             misc_args = ''
@@ -1636,23 +1634,21 @@ def main():
                             if('pass_as_vcf' in query_param_dict and query_param_dict['pass_as_vcf']):
                                 misc_args += ' --pass_as_vcf '
                             if query_type == "consolidate_java_vcf":
-                                run_cmd(import_cmd_consolidate, True, 'Consolidate only: {} '.format(test_name), tmpdir)
+                                run_cmd(import_cmd_consolidate, True, 'Consolidate only: {} '.format(test_name))
                             query_command = 'java'+jacoco+' -ea TestGenomicsDB --query -l '+loader_argument+' '+query_json_filename \
                                 + ' ' + misc_args;
                         else:
                             if(query_type == 'consolidate_and_vcf'):
-                                retcode = subprocess.call(exe_path+os.path.sep+'consolidate_genomicsdb_array '+ws_dir+' '+test_name,
-                                        shell=True)
-                                if(retcode != 0):
-                                    sys.stderr.write('TileDB array consolidation failed '+ws_dir+' '+test_name+'\n');
-                                    cleanup_and_exit(tmpdir, -1);
+                                run_cmd(exe_path+os.path.sep+'consolidate_genomicsdb_array '+ws_dir+' '+test_name,
+                                    True, 'TileDB array consolidation failed for test '+test_name+' : ')
                             loader_argument = ' -l '+loader_json_filename;
                             if("query_without_loader" in query_param_dict and query_param_dict["query_without_loader"]):
                                 loader_argument = ''
                             query_command = (exe_path+os.path.sep+'gt_mpi_gather -s %d'+loader_argument
                                 + ' -j '
                                 +query_json_filename+' '+cmd_line_param)%(test_query_dict['segment_size']);
-                        stdout_string = run_cmd(query_command, True, 'Query test: {}-{} '.format(test_name, query_type), tmpdir)
+                        query_success,stdout_string,stderr_string = run_cmd(query_command, True,
+                                'Query test: {}-{} '.format(test_name, query_type))
                         md5sum_hash_str = str(hashlib.md5(stdout_string).hexdigest())
                         golden_stdout, golden_md5sum = get_file_content_and_md5sum(query_param_dict['golden_output'][query_type]);
                         if(golden_md5sum != md5sum_hash_str):
@@ -1684,15 +1680,22 @@ def main():
                                 print_diff(golden_stdout, stdout_string);
                                 if(json_diff_result):
                                     print(json.dumps(json_diff_result, indent=4, separators=(',', ': ')));
-                                cleanup_and_exit(tmpdir, -1);
-        shutil.rmtree(ws_dir, ignore_errors=True)
-    test_with_java_options(tmpdir, lib_path, jacoco)
-    test_pre_1_0_0_query_compatibility(tmpdir)
-    test_query_compatibility_with_old_schema_verion_1(tmpdir)
+                                cleanup_and_exit(None, -1);
+                        #ignore some corner cases for now
+                        if(query_type == 'vcf'
+                            and 'query_filter' not in query_param_dict
+                            and test_name.find('t0_1_2_combined') == -1
+                            ):
+                            cmd = ctest_dir+'/ctests columnar_gvcf_iterator_test ' \
+                                    + ' --query-json-file ' + query_json_filename \
+                                    + ' --golden-output-file '+query_param_dict['golden_output'][query_type] \
+                                    + ' --loader-json-file '+loader_json_filename
+                            run_cmd(cmd, True, 'Ctests '+test_name, dont_capture_output=True)
+    test_with_java_options(top_tmpdir, lib_path, jacoco)
+    test_pre_1_0_0_query_compatibility(top_tmpdir)
+    test_query_compatibility_with_old_schema_verion_1(top_tmpdir)
     rc = common.report_jacoco_coverage(jacoco_report_cmd)
-    if (rc != 0):
-        cleanup_and_exit(tmpdir, -1);
-    cleanup_and_exit(tmpdir, 0)
+    cleanup_and_exit(top_tmpdir, rc)
 
 if __name__ == '__main__':
     main()
