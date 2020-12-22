@@ -29,3 +29,4 @@ brew list mpich &>/dev/null || brew install mpich
 brew list ossp-uuid &>/dev/null || brew install ossp-uuid
 brew list libcsdb &>/dev/null || brew install libcsv
 brew list automake &> /dev/null || brew install automake
+brew list openssl &> /dev/null || brew install openssl

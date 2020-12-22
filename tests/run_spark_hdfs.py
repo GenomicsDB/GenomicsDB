@@ -160,18 +160,18 @@ def move_arrays_to_hdfs(ws_dir, namenode):
         sys.exit(-1);
 
 def get_file_content_and_md5sum(filename):
-    with open(filename, 'rb') as fptr:
+    with open(filename, 'r') as fptr:
         data = fptr.read();
         data_list = data.splitlines(True);
         data_list_filter = [k for k in data_list if not k.startswith('##')];
         data_filter = "".join(data_list_filter);
-        md5sum_hash_str = str(hashlib.md5(data_filter).hexdigest());
+        md5sum_hash_str = str(hashlib.md5(data_filter.encode('utf-8')).hexdigest());
 
         fptr.close();
         return (data_filter, md5sum_hash_str);
 
 def get_json_from_file(filename):
-    with open(filename, 'rb') as fptr:
+    with open(filename, 'r') as fptr:
         data = fptr.read();
         json_out = json.loads(data)
         fptr.close();
@@ -194,8 +194,8 @@ def cleanup_and_exit(namenode, tmpdir, exit_code):
     sys.exit(exit_code);
 
 def print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string):
-    sys.stderr.write('Stdout: '+stdout_string+'\n')
-    sys.stderr.write('Stderr: '+stderr_string+'\n')
+    sys.stderr.write('Stdout: '+stdout_string.decode('utf-8')+'\n')
+    sys.stderr.write('Stderr: '+stderr_string.decode('utf-8')+'\n')
     cleanup_and_exit(namenode, tmpdir, -1)
 
 def substitute_placeholders(jsonfile, wsdir):
@@ -234,7 +234,7 @@ def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_ver
     if(pid.returncode != 0):
         sys.stderr.write('Sanity test with query.json : '+spark_cmd+' failed\n')
         print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
-    if output_string not in stdout_string:
+    if output_string not in stdout_string.decode('utf-8'):
         sys.stderr.write('Expected output not found in sanity test with query.json\n')
         print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
 
@@ -244,7 +244,7 @@ def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_ver
     if(pid.returncode != 0):
         sys.stderr.write('Sanity test with querypb.json : '+spark_cmd+' failed\n')
         print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
-    if output_string not in stdout_string:
+    if output_string not in stdout_string.decode('utf-8'):
         sys.stderr.write('Expected output not found in sanity test with querypb.json\n')
         print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
 
@@ -430,7 +430,7 @@ def main():
             if("://" in namenode):
                 test_loader_dict = add_hdfs_to_loader_json(test_loader_dict, namenode);
             loader_json_filename = tmpdir+os.path.sep+test_name+'-loader.json'
-            with open(loader_json_filename, 'wb') as fptr:
+            with open(loader_json_filename, 'w') as fptr:
                 json.dump(test_loader_dict, fptr, indent=4, separators=(',', ': '));
                 fptr.close();
             # invoke vcf2genomicsdb -r <rank> where <rank> goes from 0 to num partitions
@@ -449,7 +449,7 @@ def main():
                     cleanup_and_exit(namenode, tmpdir, -1);
                 else:
                     sys.stdout.write('Loading passed for test: '+test_name+' rank '+str(i)+'\n');
-            with open(loader_json_filename, 'wb') as fptr:
+            with open(loader_json_filename, 'w') as fptr:
                 json.dump(test_loader_dict, fptr, indent=4, separators=(',', ': '));
                 fptr.close();
             for query_param_dict in test_params_dict['query_params']:
@@ -459,7 +459,7 @@ def main():
                     test_query_dict = create_query_json(ws_dir, test_name, query_param_dict, test_dir)
                 test_query_dict['query_attributes'] = vcf_query_attributes_order;
                 query_json_filename = tmpdir+os.path.sep+test_name+'-query.json'
-                with open(query_json_filename, 'wb') as fptr:
+                with open(query_json_filename, 'w') as fptr:
                     json.dump(test_query_dict, fptr, indent=4, separators=(',', ': '));
                     fptr.close();
                 spark_cmd = 'spark-submit --class TestGenomicsDBSparkHDFS --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --template_vcf_header '+template_vcf_header_path+' --spark_master '+spark_master+' --jar_dir '+jar_dir;
@@ -476,10 +476,10 @@ def main():
                     sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
                     sys.stderr.write('Query file was: '+json.dumps(test_query_dict)+'\n');
                     cleanup_and_exit(namenode, tmpdir, -1);
-                stdout_list = stdout_string.splitlines(True);
+                stdout_list = stdout_string.decode('utf-8').splitlines(True);
                 stdout_list_filter = [k for k in stdout_list if not k.startswith('##')];
                 stdout_filter = "".join(stdout_list_filter);
-                md5sum_hash_str = str(hashlib.md5(stdout_filter).hexdigest())
+                md5sum_hash_str = str(hashlib.md5(stdout_filter.encode('utf-8')).hexdigest())
                 if('golden_output' in query_param_dict and 'spark' in query_param_dict['golden_output']):
                     golden_stdout, golden_md5sum = get_file_content_and_md5sum(query_param_dict['golden_output']['spark']);
                     if(golden_md5sum != md5sum_hash_str):
@@ -511,7 +511,7 @@ def main():
                     sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
                     sys.stderr.write('Query file was: '+json.dumps(test_query_dict)+'\n');
                     cleanup_and_exit(namenode, tmpdir, -1);
-                stdout_list = stdout_string.splitlines(True);
+                stdout_list = stdout_string.decode('utf-8').splitlines(True);
                 stdout_filter = "".join(stdout_list);
                 stdout_json = json.loads(stdout_filter);
                 if('golden_output' in query_param_dict and 'spark' in query_param_dict['golden_output']):
