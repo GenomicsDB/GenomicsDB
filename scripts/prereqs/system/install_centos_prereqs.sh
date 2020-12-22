@@ -70,7 +70,7 @@ install_test_prerequisites() {
   fi
 }
 
-install_prerequisites_centos() {
+install_system_prerequisites() {
 	yum update -y -q &&
 	  yum install -y sudo &&
 	  yum install -y -q which wget git make &&
