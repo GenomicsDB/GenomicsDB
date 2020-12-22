@@ -37,6 +37,8 @@ import org.apache.spark.unsafe.types.UTF8String;
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
 import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.spark.GenomicsDBVidSchema;
+import org.genomicsdb.spark.GenomicsDBInput;
 
 import org.json.simple.parser.ParseException;
 import scala.collection.JavaConverters;

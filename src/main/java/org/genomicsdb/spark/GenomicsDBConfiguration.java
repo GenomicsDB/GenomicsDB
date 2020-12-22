@@ -27,7 +27,6 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 import org.genomicsdb.model.*;
 
@@ -90,11 +89,11 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     }
   }
 
-  public GenomicsDBConfiguration(CaseInsensitiveStringMap options) throws RuntimeException{
+  public GenomicsDBConfiguration(Map<String,String> options) throws RuntimeException{
     setOptions(options);
   }
 
-  public void setOptions(CaseInsensitiveStringMap options){
+  public void setOptions(Map<String,String> options){
     if(options.containsKey(LOADERJSON)) {
       this.setLoaderJsonFile(options.get(LOADERJSON));
     }

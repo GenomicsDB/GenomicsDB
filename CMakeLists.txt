@@ -503,12 +503,11 @@ if(BUILD_JAVA)
 
     if(GENOMICSDB_SPARK_PROFILE)
         message(STATUS "Setting maven profile to ${GENOMICSDB_SPARK_PROFILE}" )
-        set(MAVEN_PROFILE "-P${GENOMICSDB_SPARK_PROFILE}")
+        set(MAVEN_PROFILE 
+          -P${GENOMICSDB_SPARK_PROFILE})
         set(MAVEN_ARGS ${MAVEN_ARGS} ${MAVEN_PROFILE})
-        message(${MAVEN_ARGS})
     else()
         set(MAVEN_PROFILE "")
-        message(${MAVEN_ARGS})
     endif()
 
     #Maven build - depends on dynamic library
@@ -527,7 +526,7 @@ if(BUILD_JAVA)
 
     add_test(NAME javatests
         COMMAND mvn test
-          ${MAVEN_ARGS}
+        ${MAVEN_ARGS}
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
     set(GENOMICSDB_EXAMPLE_SOURCES

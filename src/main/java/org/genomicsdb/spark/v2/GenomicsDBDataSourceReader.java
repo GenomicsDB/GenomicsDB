@@ -65,8 +65,8 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
     GenomicsDBSchemaFactory schemaBuilder = 
       new GenomicsDBSchemaFactory(options.get(GenomicsDBConfiguration.LOADERJSON).get());
     StructType finalSchema = null;
-    if (schema == null){ 
-      finalSchema = schemaBuilder.defaultSchema();
+    if (schema != null){ 
+      finalSchema = schema;
     } else { 
       finalSchema = schemaBuilder.buildSchemaWithVid(schema.fields()); 
     }

@@ -67,7 +67,7 @@ public class GenomicsDBBatch implements Batch {
   private void setSchemaOptions(CaseInsensitiveStringMap options, StructType schema)
       throws RuntimeException {
 
-    GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(options);
+    GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration((Map<String,String>)options);
 
     GenomicsDBSchemaFactory schemaBuilder = 
       new GenomicsDBSchemaFactory(options.get(GenomicsDBConfiguration.LOADERJSON));
