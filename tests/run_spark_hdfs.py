@@ -507,8 +507,8 @@ def main():
                 if(pid.returncode != 0):
                     sys.stderr.write('Query test GenomicsDBSource: '+test_name+' with query file '+query_json_filename+' failed\n');
                     sys.stderr.write('Spark command was: '+spark_cmd_v2+'\n');
-                    sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
-                    sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
+                    sys.stderr.write('Spark stdout was: '+stdout_string.decode('utf-8')+'\n');
+                    sys.stderr.write('Spark stderr was: '+stderr_string.decode('utf-8')+'\n');
                     sys.stderr.write('Query file was: '+json.dumps(test_query_dict)+'\n');
                     cleanup_and_exit(namenode, tmpdir, -1);
                 stdout_list = stdout_string.decode('utf-8').splitlines(True);
