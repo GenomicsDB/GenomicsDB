@@ -478,12 +478,6 @@
       </build>
     </profile>
     <profile>
-      <id>spark_core-2.10</id>
-      <properties>
-        <spark.core.artifactid>spark_core_2.10</spark.core.artifactid>
-      </properties>
-    </profile>
-    <profile>
       <id>default_profile</id>
       <activation>
         <activeByDefault>true</activeByDefault>
