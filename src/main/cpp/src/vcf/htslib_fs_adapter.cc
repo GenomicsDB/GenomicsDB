@@ -50,7 +50,11 @@ void *genomicsdb_filesystem_init(const char *filename) {
     errno = EIO;
     return NULL;
   }
-  return tiledb_ctx;
+  if (is_file(tiledb_ctx, filename)) {
+    return tiledb_ctx;
+  } else {
+    return NULL;
+  }
 }
 
 size_t genomicsdb_filesize(void *context, const char *filename) {

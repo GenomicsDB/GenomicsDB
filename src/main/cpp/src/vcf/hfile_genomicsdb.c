@@ -20,6 +20,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include "assert.h"
+
 #include "hfile_internal.h"
 #include "hfile_genomicsdb.h"
 
@@ -34,15 +36,14 @@ typedef struct {
 
 static ssize_t genomicsdb_read(hFILE* fpv, void *buffer, size_t nbytes) {
   hFILE_genomicsdb *fp = (hFILE_genomicsdb *)fpv;
-  if (fp->offset+nbytes > fp->length) {
-    nbytes = fp->length - fp->offset;
+  size_t avail = fp->length - fp->offset;
+  if (nbytes > avail) nbytes = avail;
+  if (nbytes) {
+    ssize_t length = genomicsdb_filesystem_read(fp->context, fp->filename, fp->offset, buffer, nbytes);
+    assert(length == nbytes);
   }
-  ssize_t length = genomicsdb_filesystem_read(fp->context, fp->filename, fp->offset, buffer, nbytes);
-  if (length >= 0) {
-    fp->offset += length;
-    return length;
-  }
-  return -1;
+  fp->offset += nbytes;
+  return nbytes;
 }
 
 static ssize_t genomicsdb_write(hFILE* fpv, const void *buffer, size_t nbytes) {
@@ -115,7 +116,3 @@ int hfile_plugin_init(struct hFILE_plugin *self) {
   hfile_add_scheme_handler("hdfs", &genomicsdb_handler);
   return 0;
 }
-
-
-
-
