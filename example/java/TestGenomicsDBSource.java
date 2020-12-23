@@ -201,6 +201,10 @@ public final class TestGenomicsDBSource {
       GenomicsDBSchemaFactory schemaBuilder = new GenomicsDBSchemaFactory(loaderFile);
       StructType querySchema = getSchemaFromQuery(new File(queryFile), vidMapping);
       schema = schemaBuilder.buildSchemaWithVid(querySchema.fields());
+      
+      // test building schema without vid
+      StructType schemaTest = GenomicsDBSchemaFactory.buildSchema(querySchema.fields());
+
     } catch (ParseException e) {
       e.printStackTrace();
     }
