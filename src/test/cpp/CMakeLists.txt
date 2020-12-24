@@ -36,6 +36,7 @@ set(CPP_TEST_SOURCES
   src/test_pb.cc
   src/test_logger.cc
   src/test_columnar_gvcf_iterator.cc
+  src/test_htslib_plugin.cc
   )
 
 if(LIBDBI_FOUND)

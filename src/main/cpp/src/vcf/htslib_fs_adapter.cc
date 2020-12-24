@@ -42,19 +42,21 @@ void genomicsdb_htslib_plugin_initialize(const char* filename) {
 }
 
 void *genomicsdb_filesystem_init(const char *filename) {
-  TileDB_CTX* tiledb_ctx;
-  TileDB_Config tiledb_config;
-  memset(&tiledb_config, 0, sizeof(TileDB_Config));
-  tiledb_config.home_ = filename;
-  if (tiledb_ctx_init(&tiledb_ctx, &tiledb_config)) {
-    errno = EIO;
-    return NULL;
+  if (filename && filename[0] != '\0') {
+    TileDB_CTX* tiledb_ctx;
+    TileDB_Config tiledb_config;
+    memset(&tiledb_config, 0, sizeof(TileDB_Config));
+    tiledb_config.home_ = filename;
+    if (tiledb_ctx_init(&tiledb_ctx, &tiledb_config)) {
+      errno = EIO;
+      return NULL;
+    }
+    // htslib plugins support only read/write of files
+    if (!is_dir(tiledb_ctx, filename)) {
+      return tiledb_ctx;
+    }
   }
-  if (is_file(tiledb_ctx, filename)) {
-    return tiledb_ctx;
-  } else {
-    return NULL;
-  }
+  return NULL;
 }
 
 size_t genomicsdb_filesize(void *context, const char *filename) {
@@ -78,7 +80,9 @@ ssize_t genomicsdb_filesystem_write(void *context, const char *filename, const v
 }
 
 int genomicsdb_filesystem_close(void *context, const char *filename) {
-  return close_file(reinterpret_cast<TileDB_CTX *>(context), filename);
+  int rc = close_file(reinterpret_cast<TileDB_CTX *>(context), filename);
+  tiledb_ctx_finalize(reinterpret_cast<TileDB_CTX *>(context));
+  return rc;
 }
 
 
