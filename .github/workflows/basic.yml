@@ -142,6 +142,27 @@ jobs:
         python -m pip install jsondiff
         python tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $CMAKE_INSTALL_PREFIX local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $GITHUB_WORKSPACE/tests org.genomicsdb.spark.sources.GenomicsDBSource Coverage;
 
+    # Spark 2, Data Source V2 API testing starts here
+
+    - name: Cache Spark2
+      if: matrix.type == 'hdfs'
+      uses: actions/cache@v2
+      env: 
+        SPARK_VER: 2.4.0
+      with:
+        path: ${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}
+        key: spark-${{env.SPARK_VER}}-${{env.SPARK_HADOOP_VER}}-v2
+
+    - name: Install spark2 dependencies
+      if: matrix.type == 'hdfs'
+      shell: bash
+      working-directory:  ${{github.workspace}}
+      run: |
+        SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
+      env:
+        INSTALL_DIR: ${{runner.workspace}}
+        SPARK_VER: 2.4.0
+
     - name: Configure CMake Build with Spark2 profile ubuntu
       shell: bash
       if: startsWith(matrix.os, 'ubuntu')
