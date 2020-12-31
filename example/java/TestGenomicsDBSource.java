@@ -125,25 +125,26 @@ public final class TestGenomicsDBSource {
 
   public static void main(final String[] args) throws IOException,
          org.json.simple.parser.ParseException {
-    LongOpt[] longopts = new LongOpt[6];
+    LongOpt[] longopts = new LongOpt[7];
     longopts[0] = new LongOpt("loader", LongOpt.REQUIRED_ARGUMENT, null, 'l');
     longopts[1] = new LongOpt("query", LongOpt.REQUIRED_ARGUMENT, null, 'q');
     longopts[2] = new LongOpt("vid", LongOpt.REQUIRED_ARGUMENT, null, 'v');
     longopts[3] = new LongOpt("hostfile", LongOpt.REQUIRED_ARGUMENT, null, 'h');
     longopts[4] = new LongOpt("spark_master", LongOpt.REQUIRED_ARGUMENT, null, 's');
-    longopts[5] = new LongOpt("use-query-protobuf", LongOpt.NO_ARGUMENT, null, 'p');
+    longopts[5] = new LongOpt("gdb_datasource", LongOpt.REQUIRED_ARGUMENT, null, 'd');
+    longopts[6] = new LongOpt("use-query-protobuf", LongOpt.NO_ARGUMENT, null, 'p');
 
     if (args.length < 8) {
       System.err.println(
           "Usage:\n\t--loader <loader.json> --query <query.json> --vid <vid.json> "
-              + "--spark_master <sparkMaster>"
+              + "--spark_master <sparkMaster> --gdb_datasource <gdbDataSource>"
               +"\nOptional args:\n--hostfile <hostfile> --use-query-protobuf");
       System.exit(-1);
     }
-    String loaderFile, queryFile, hostfile, vidMapping, sparkMaster, jarDir;
+    String loaderFile, queryFile, hostfile, vidMapping, sparkMaster, gdbDataSource, jarDir;
     boolean useQueryProtobuf = false;
-    loaderFile = queryFile = hostfile = sparkMaster = vidMapping = "";
-    Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:s:v:p", longopts);
+    loaderFile = queryFile = hostfile = sparkMaster = gdbDataSource = vidMapping = "";
+    Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:s:d:v:p", longopts);
     int c = -1;
     String optarg;
 
@@ -163,6 +164,9 @@ public final class TestGenomicsDBSource {
           break;
         case 's':
           sparkMaster = g.getOptarg();
+          break;
+        case 'd':
+          gdbDataSource = g.getOptarg();
           break;
         case 'p':
           useQueryProtobuf = true;
@@ -211,7 +215,7 @@ public final class TestGenomicsDBSource {
 
     Dataset<Row> variants;
     DataFrameReader reader = spark.read()
-            .format("org.genomicsdb.spark.sources.GenomicsDBSource")
+            .format(gdbDataSource)
             .schema(schema)
             .option("genomicsdb.input.loaderjsonfile", lDstFile.getName());
     if (!hostfile.isEmpty()) {
