@@ -66,13 +66,8 @@ class GenomicsDBConfigBase {
     return m_sorted_column_partitions;
   }
   const std::vector<ColumnRange>& get_query_column_ranges(const int rank) const;
-  void set_query_column_ranges(const std::vector<ColumnRange>& column_ranges);
+  void set_query_column_ranges(const std::vector<ColumnRange>& column_ranges);  
 
-	// jDebug: this doesn't work because   AnnotationService  isn't defined. 
-  // const std::vector<AnnotationService>& get_annotation_service(const int rank) const;
-//  void set_annotation_service(const std::vector<AnnotationService>& annotation_service);
-  
-  
   const std::vector<TileDBRowRange>& get_query_row_ranges(const int rank) const;
   void set_query_row_ranges(const std::vector<TileDBRowRange>& row_ranges);
   inline const std::string& get_query_filter() const {

@@ -44,8 +44,6 @@
 #include <typeinfo>
 #include <vector>
 
-#include "genomicsdb_export_config.pb.h"
-
 // Override project visibility set to hidden for api
 #if (defined __GNUC__ && __GNUC__ >= 4) || defined __INTEL_COMPILER
 #  define GENOMICSDB_EXPORT __attribute__((visibility("default")))
@@ -250,36 +248,8 @@ class VariantCall;
 class VariantQueryConfig;
 
 /**
-  Add vcf variant annotation to the genomic fields
-*/
-class AnnotationService {
-  public:
-    // Default constructor
-    AnnotationService();
-
-    // Buffer which associates genomic location with a list of annotation values.
-    // The dataSource and info field which point to this value are stored elsewhere
-    // Example: value_buffer["chr1-123456-A-G"] = { "val1", "val2", val3 };
-    std::map<std::string, std::vector<std::string>> value_buffer;
-
-    // Value which separates dataSource and info field
-    const std::string DATA_SOURCE_FIELD_SEPARATOR = "_AA_";
-
-    // Read configuration from an ExportConfiguration
-    void read_configuration(const std::string& str);
-
-    //
-    void annotate(genomic_interval_t &genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) const;
-
-    genomic_field_t get_genomic_field(const std::string &data_source, const std::string &info_attribute, const char *value, const int32_t value_length) const;
-
-    // List of configured annotation data sources
-    std::vector<genomicsdb_pb::AnnotationSource> m_annotate_sources;
-};
-
-/**
  * Experimental Query Interface to GenomicsDB for Arrays partitioned by columns
- * Concurrency support is provided via query json files for now - see 
+ * Concurrency support is provided via query json files for now - see
  *     https://github.com/GenomicsDB/GenomicsDB/wiki/Querying-GenomicsDB#json-configuration-file-for-a-query
  *     https://github.com/GenomicsDB/GenomicsDB/wiki/MPI-with-GenomicsDB
  */

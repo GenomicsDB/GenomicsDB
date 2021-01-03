@@ -53,8 +53,7 @@ message SparkConfig {
   optional int64 query_block_size = 1;
   optional int64 query_block_size_margin = 2;
 }
-
-// This name should be changed  (eg AnnotationConfig) since AnnotationService is also a class in genomicsdb.h  
+  
 message AnnotationSource {
   required string filename = 1;
   repeated string attributes = 2;
