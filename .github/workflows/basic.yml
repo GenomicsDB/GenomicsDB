@@ -153,11 +153,12 @@ jobs:
         path: ${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}
         key: spark-${{env.SPARK_VER}}-${{env.SPARK_HADOOP_VER}}-v2
 
-    - name: Install spark2 dependencies
+    - name: Install spark 2 and hadoop dependencies
       if: matrix.type == 'hdfs'
       shell: bash
       working-directory:  ${{github.workspace}}
       run: |
+        source $GITHUB_WORKSPACE/.github/scripts/install_hadoop.sh
         SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
       env:
         INSTALL_DIR: ${{runner.workspace}}
