@@ -1,4 +1,4 @@
-name: Basic workflow to build and test GenomicsDB
+name: Workflow to build and test GenomicsDB Spark API with Spark2
 
 on: [push, pull_request]
 
@@ -11,14 +11,14 @@ env:
   GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
   GENOMICSDB_RELEASE_VERSION: x.y.z.test
   HADOOP_VER: 3.2.1
-  SPARK_VER: 3.0.1
+  SPARK_VER: 2.4.2
   SPARK_HADOOP_VER: 2.7
 
 jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-18.04,macos-10.15]
+        os: [ubuntu-18.04]
         type: [basic]
         include:
           - os: ubuntu-18.04
@@ -48,27 +48,17 @@ jobs:
     # TODO: See https://github.com/actions/cache/pull/285 using platform-indepenedent "pip cache dir"
     - name: Cache Python artifacts for Ubuntu 
       uses: actions/cache@v2
-      if: startsWith(matrix.os, 'ubuntu')
       with:
         path: ~/.cache/pip
         key: ${{matrix.os}}-pip-${{matrix.python-version}}-v1
 
-    - name: Cache Python artifacts for MacOS
-      uses: actions/cache@v2
-      if: startsWith(matrix.os, 'macos')
-      with:
-        path: ~/Library/Caches/pip
-        key: ${{matrix.os}}-pip-${{matrix.python-version}}-v1
-
     - name: Cache Distributed FileSystems
-      if: matrix.type == 'hdfs'
       uses: actions/cache@v2
       with:
         path: ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
         key: dfs-${{env.HADOOP_VER}}-v2
 
     - name: Cache Spark
-      if: matrix.type == 'hdfs'
       uses: actions/cache@v2
       with:
         path: ${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}
@@ -76,22 +66,14 @@ jobs:
 
     - name: Install Prerequisites ubuntu
       shell: bash
-      if: startsWith(matrix.os, 'ubuntu')
       working-directory: ${{github.workspace}}/scripts/prereqs
       run: sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
-
-    - name: Install Prerequisites macos
-      shell: bash
-      if: startsWith(matrix.os, 'macos')
-      working-directory: ${{github.workspace}}/scripts/prereqs
-      run: INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh true
 
     - name: Create Build Directory
       shell: bash
       run: mkdir -p $GENOMICSDB_BUILD_DIR
 
-    - name: Install spark and hadoop dependencies
-      if: matrix.type == 'hdfs'
+    - name: Install spark2 and hadoop dependencies
       shell: bash
       working-directory:  ${{github.workspace}}
       run: |
@@ -102,19 +84,10 @@ jobs:
 
     - name: Configure CMake Build ubuntu
       shell: bash
-      if: startsWith(matrix.os, 'ubuntu')
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
         source $PREREQS_ENV
         cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1
-
-    - name: Configure CMake Build macos
-      shell: bash
-      if: startsWith(matrix.os, 'macos')
-      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
-      run: |
-        source $PREREQS_ENV
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1
 
     - name: Build
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
@@ -125,7 +98,6 @@ jobs:
         make install
 
     - name: Test
-      if: matrix.type == 'basic'
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
@@ -133,8 +105,7 @@ jobs:
         python2 -m pip install jsondiff
         make test ARGS=-V
 
-    - name: Test - Distributed FileSystems
-      if: matrix.type == 'hdfs'
+    - name: Test - Distributed FileSystems with Spark2
       shell: bash
       working-directory:  ${{github.workspace}}
       run: |
