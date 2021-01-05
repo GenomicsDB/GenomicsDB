@@ -46,7 +46,7 @@ configure_passphraseless_ssh() {
 EOF
   sudo mv sshd_config /etc/ssh/sshd_config &&
   sudo systemctl restart ssh &&
-  ssh-keygen -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa &&
+  ssh-keygen -q -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa &&
   cat ~/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys &&
   chmod 600 ~/.ssh/authorized_keys &&
   chmod 700 ~/.ssh &&
