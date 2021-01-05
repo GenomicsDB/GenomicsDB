@@ -1,6 +1,6 @@
 name: Workflow to build and test GenomicsDB Spark API with Spark2
 
-on: [push, pull_request]
+on: [push] #, pull_request]
 
 env:
   PREREQS_ENV: ${{github.workspace}}/prereqs.sh
@@ -19,10 +19,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-18.04]
-        type: [basic]
-        include:
-          - os: ubuntu-18.04
-            type: hdfs
+        type: [hdfs]
 
     runs-on: ${{matrix.os}}
 
