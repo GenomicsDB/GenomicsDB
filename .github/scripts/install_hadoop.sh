@@ -8,7 +8,7 @@ USER=`whoami`
 
 HADOOP=hadoop-${HADOOP_VER:-3.2.1}
 HADOOP_DIR=${INSTALL_DIR}/$HADOOP
-HADOOP_ENV=$HADOOP_DIR/hadoop.env
+HADOOP_ENV=${HADOOP_ENV:-$HOME/hadoop_env.sh}
 
 install_prereqs() {
   if [[ -f /usr/java/latest ]]; then
