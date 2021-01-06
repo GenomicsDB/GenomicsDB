@@ -1,6 +1,5 @@
 
 
-
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
@@ -8,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Index &mdash; GenomicsDB  documentation</title>
+  <title>Building + Installing &mdash; GenomicsDB  documentation</title>
   
 
   
@@ -35,8 +34,10 @@
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
     
-    <link rel="index" title="Index" href="#" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Import / ETL" href="import-etl.html" />
+    <link rel="prev" title="Supported Storage" href="storage.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -82,7 +83,7 @@
             
             
               <p class="caption"><span class="caption-text">GenomicsDB Docs</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="overview.html">Overview (DOCUMENTATION WORK-IN-PROGRESS)</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="overview.html#concepts-terminology">Concepts + Terminology</a></li>
 </ul>
@@ -92,10 +93,10 @@
 <li class="toctree-l2"><a class="reference internal" href="storage.html#cloud">Cloud</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="building-installing.html">Building + Installing</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="building-installing.html#bash">Bash</a></li>
-<li class="toctree-l2"><a class="reference internal" href="building-installing.html#docker">Docker</a></li>
-<li class="toctree-l2"><a class="reference internal" href="building-installing.html#cli-tools">CLI Tools</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Building + Installing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#bash">Bash</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#docker">Docker</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cli-tools">CLI Tools</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="import-etl.html">Import / ETL</a><ul>
@@ -191,12 +192,14 @@
     
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
         
-      <li>Index</li>
+      <li>Building + Installing</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
+            <a href="_sources/building-installing.rst.txt" rel="nofollow"> View page source</a>
+          
         
       </li>
     
@@ -208,11 +211,84 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
+  <div class="section" id="building-installing">
+<span id="id1"></span><h1>Building + Installing<a class="headerlink" href="#building-installing" title="Permalink to this headline">¶</a></h1>
+<p>This section refers to building and installing the core GenomicsDB executables and tools. For including published artifacts in your code, see the appropriate <a class="reference internal" href="apis.html#api-docs"><span class="std std-ref">API docs</span></a> and <em>Examples</em> sections.
+For more details on dependencies and manually compiling GenomicsDB, see the <a class="reference external" href="https://github.com/GenomicsDB/GenomicsDB/wiki/Compiling-GenomicsDB#building">old docs</a> for now.</p>
+<div class="section" id="bash">
+<h2>Bash<a class="headerlink" href="#bash" title="Permalink to this headline">¶</a></h2>
+<p>The script <em>install_prereqs.sh</em> is meant to work with Docker, but should work on any Linux distribution from a bash shell. Note that <em>install_prereqs.sh</em> requires sudo-able access.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Clone GenomicsDB and change to scripts directory</span>
+git clone https://github.com/GenomicsDB/GenomicsDB <span class="o">&amp;&amp;</span> <span class="nb">cd</span> GenomicsDB/scripts/
 
-<h1 id="index">Index</h1>
+<span class="c1"># Install the prerequisites to build GenomicsDB and create a genomicsdb_prereqs.sh in $HOME</span>
+sudo prereqs/install_prereqs.sh
+<span class="nb">source</span> <span class="nv">$HOME</span>/genomicsdb_prereqs.sh
+cmake -DCMAKE_PREFIX_INSTALL<span class="o">=</span><span class="nv">$HOME</span> /path/to/GenomicsDB <span class="c1"># simplest</span>
 
-<div class="genindex-jumpbox">
- 
+<span class="c1"># Build and install the include/lib/bin files to $HOME</span>
+make <span class="o">&amp;&amp;</span> make install
+</pre></div>
+</div>
+</div>
+<div class="section" id="docker">
+<h2>Docker<a class="headerlink" href="#docker" title="Permalink to this headline">¶</a></h2>
+<p>To build and install GenomicsDB using Docker, specify the following <em>optional</em> build arguments</p>
+<table class="colwidths-given docutils align-default">
+<colgroup>
+<col style="width: 67%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Build Argument</p></th>
+<th class="head"><p>Default</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>os=ubuntu:trusty|centos:7|&lt;linux_base:ver&gt;</p></td>
+<td><p>centos:7</p></td>
+</tr>
+<tr class="row-odd"><td><p>user=&lt;user_name&gt;</p></td>
+<td><p>genomicsdb</p></td>
+</tr>
+<tr class="row-even"><td><p>branch=master|develop|&lt;any_branch&gt;</p></td>
+<td><p>master</p></td>
+</tr>
+<tr class="row-odd"><td><p>install_dir=&lt;my_install_dir&gt;</p></td>
+<td><p>/usr/local</p></td>
+</tr>
+<tr class="row-even"><td><p>distributable_jar=true|false</p></td>
+<td><p>false</p></td>
+</tr>
+<tr class="row-odd"><td><p>enable_bindings=java</p></td>
+<td><p>none</p></td>
+</tr>
+</tbody>
+</table>
+<p>Examples:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker build --build-arg <span class="nv">os</span><span class="o">=</span>ubuntu:trusty --build-arg <span class="nv">branch</span><span class="o">=</span>develop --build-arg <span class="nv">install_dir</span><span class="o">=</span>/home/<span class="nv">$USER</span> -t genomicsdb:build .
+</pre></div>
+</div>
+<p>To run and enter the bash shell:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use the -t argument value used with docker build ...</span>
+docker run -it genomicsdb:build
+</pre></div>
+</div>
+<p>To build and copy all built artifacts from the docker image:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">docker_os</span><span class="o">=</span>centos
+<span class="nb">export</span> <span class="nv">docker_repo</span><span class="o">=</span>genomicsdb
+<span class="nb">export</span> <span class="nv">docker_tag</span><span class="o">=</span><span class="sb">`</span>date <span class="s2">&quot;+%Y-%m-%d-%H:%M:%S&quot;</span><span class="sb">`</span>
+docker build --build-arg <span class="nv">os</span><span class="o">=</span><span class="nv">$docker_os</span> --build-arg <span class="nv">install_dir</span><span class="o">=</span>/tmp/artifacts -t <span class="nv">$docker_repo</span>:<span class="nv">$docker_tag</span> .
+docker create -it --name genomicsdb <span class="nv">$docker_repo</span>:<span class="nv">$docker_tag</span> bash
+docker cp genomicsdb:/tmp/artifacts <span class="nv">$docker_os</span>
+docker rm -fv genomicsdb
+</pre></div>
+</div>
+</div>
+<div class="section" id="cli-tools">
+<h2>CLI Tools<a class="headerlink" href="#cli-tools" title="Permalink to this headline">¶</a></h2>
+<p>The CLI tools are compiled using <em>cmake</em> during the build process and placed in &lt;build-dir&gt;/tools.</p>
+</div>
 </div>
 
 
@@ -220,6 +296,15 @@
            
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="import-etl.html" class="btn btn-neutral float-right" title="Import / ETL" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="storage.html" class="btn btn-neutral float-left" title="Supported Storage" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
   
 
   <hr/>

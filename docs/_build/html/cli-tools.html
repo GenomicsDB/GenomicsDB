@@ -1,6 +1,5 @@
 
 
-
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
@@ -8,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Index &mdash; GenomicsDB  documentation</title>
+  <title>CLI Tools &mdash; GenomicsDB  documentation</title>
   
 
   
@@ -35,8 +34,10 @@
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
     
-    <link rel="index" title="Index" href="#" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Notebooks" href="examples/notebooks.html" />
+    <link rel="prev" title="APIs" href="apis.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -120,7 +121,7 @@
 <li class="toctree-l1"><a class="reference internal" href="common-issues.html">Common Issues</a></li>
 </ul>
 <p class="caption"><span class="caption-text">API Docs</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="apis.html">APIs</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="apis.html#overview">Overview</a></li>
 <li class="toctree-l2"><a class="reference internal" href="apis.html#c">C++</a></li>
@@ -134,7 +135,7 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="cli-tools.html">CLI Tools</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">CLI Tools</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Examples</span></p>
 <ul>
@@ -191,12 +192,14 @@
     
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
         
-      <li>Index</li>
+      <li>CLI Tools</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
+            <a href="_sources/cli-tools.rst.txt" rel="nofollow"> View page source</a>
+          
         
       </li>
     
@@ -208,11 +211,34 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-
-<h1 id="index">Index</h1>
-
-<div class="genindex-jumpbox">
- 
+  <div class="section" id="cli-tools">
+<span id="id1"></span><h1>CLI Tools<a class="headerlink" href="#cli-tools" title="Permalink to this headline">¶</a></h1>
+<p>GenomicsDB contains several native command line tools. The artifacts are not published online.
+Users need to <a class="reference internal" href="building-installing.html#building-installing"><span class="std std-ref">build and install</span></a> GenomicsDB.</p>
+<ul id="cli-tools-vcf2genomicsdb">
+<li><p><em>vcf2genomicsdb</em>:</p>
+<p>Tool for importing VCF files into GenomicsDB.</p>
+<p>Example usage:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>vcf2genomicsdb &lt;loader-json.json&gt;
+</pre></div>
+</div>
+</li>
+</ul>
+<ul id="cli-tools-gt-mpi-gather">
+<li><p><em>gt_mpi_gather</em>:</p>
+<p>Tool for querying GenomicsDB. Outputs results as either <em>VariantCalls</em> or <em>Variants</em></p>
+<p>Example usage:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>gt_mpi_gather &lt;loader-json.json&gt;
+</pre></div>
+</div>
+</li>
+</ul>
+<ul class="simple">
+<li><p>create_genomicsdb_workspace</p></li>
+<li><p>consolidate_genomicsdb_array</p></li>
+<li><p>histogram</p></li>
+<li><p>vcfdiff</p></li>
+</ul>
 </div>
 
 
@@ -220,6 +246,15 @@
            
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="examples/notebooks.html" class="btn btn-neutral float-right" title="Notebooks" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apis.html" class="btn btn-neutral float-left" title="APIs" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
   
 
   <hr/>

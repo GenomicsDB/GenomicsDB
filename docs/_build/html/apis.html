@@ -1,0 +1,366 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>APIs &mdash; GenomicsDB  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="CLI Tools" href="cli-tools.html" />
+    <link rel="prev" title="Common Issues" href="common-issues.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> GenomicsDB
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">GenomicsDB Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview (DOCUMENTATION WORK-IN-PROGRESS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#concepts-terminology">Concepts + Terminology</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="storage.html">Supported Storage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="storage.html#local-cluster">Local / Cluster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="storage.html#cloud">Cloud</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="building-installing.html">Building + Installing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="building-installing.html#bash">Bash</a></li>
+<li class="toctree-l2"><a class="reference internal" href="building-installing.html#docker">Docker</a></li>
+<li class="toctree-l2"><a class="reference internal" href="building-installing.html#cli-tools">CLI Tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="import-etl.html">Import / ETL</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="import-etl.html#vcf-gvcf">VCF/gVCF</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="import-etl.html#preliminaries">Preliminaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="import-etl.html#organizing-your-data">Organizing your data</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="import-etl.html#csv">CSV</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="import-etl.html#id2">Preliminaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="import-etl.html#csv-format">CSV format</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="import-etl.html#example">Example</a></li>
+<li class="toctree-l4"><a class="reference internal" href="import-etl.html#special-fields">Special fields</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="import-etl.html#id5">Organizing your data</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="import-etl.html#best-practices">Best Practices</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="common-issues.html">Common Issues</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API Docs</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">APIs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#c">C++</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#python">Python</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#api-reference">API Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#java">Java</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">API Reference</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cli-tools.html">CLI Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks.html">Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples/notebooks.html#python-notebook">Python Notebook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples/notebooks.html#scala-notebook">Scala Notebook</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples/import-examples.html">Import / ETL Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/gatk.html">Using with GATK</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">GenomicsDB</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>APIs</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apis.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="apis">
+<span id="api-docs"></span><h1>APIs<a class="headerlink" href="#apis" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>In addition to the native C++ interface, GenomicsDB has support/bindings for Python, Java, and R.
+The data structure returned from a GenomicsDB query depends on the API or CLI tool being used and the method invoked.
+Similarly, the method of passing in query field information depends on the route chosen.</p>
+<p>For example, the CLI tool gt_mpi_gather takes in a query in json format.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;workspace&quot;</span> <span class="p">:</span> <span class="s2">&quot;/tmp/ws/&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;array&quot;</span> <span class="p">:</span> <span class="s2">&quot;t0_1_2&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;query_column_ranges&quot;</span> <span class="p">:</span> <span class="p">[</span> <span class="p">[</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">100</span> <span class="p">],</span> <span class="mi">500</span> <span class="p">]</span> <span class="p">],</span>
+    <span class="s2">&quot;query_row_ranges&quot;</span> <span class="p">:</span> <span class="p">[</span> <span class="p">[</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span> <span class="p">]</span> <span class="p">]</span> <span class="p">],</span>
+    <span class="s2">&quot;vid_mapping_file&quot;</span><span class="p">:</span> <span class="s2">&quot;tests/inputs/vid.json&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;callset_mapping_file&quot;</span><span class="p">:</span> <span class="s2">&quot;tests/inputs/callset_mapping.json&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;query_attributes&quot;</span> <span class="p">:</span> <span class="p">[</span> <span class="s2">&quot;REF&quot;</span><span class="p">,</span> <span class="s2">&quot;ALT&quot;</span><span class="p">,</span> <span class="s2">&quot;BaseQRankSum&quot;</span><span class="p">,</span> <span class="s2">&quot;MQ&quot;</span><span class="p">,</span> <span class="s2">&quot;MQ0&quot;</span><span class="p">,</span> <span class="s2">&quot;ClippingRankSum&quot;</span><span class="p">,</span> <span class="s2">&quot;MQRankSum&quot;</span><span class="p">,</span> <span class="s2">&quot;ReadPosRankSum&quot;</span><span class="p">,</span> <span class="s2">&quot;DP&quot;</span><span class="p">,</span> <span class="s2">&quot;GT&quot;</span><span class="p">,</span> <span class="s2">&quot;GQ&quot;</span><span class="p">,</span> <span class="s2">&quot;SB&quot;</span><span class="p">,</span> <span class="s2">&quot;AD&quot;</span><span class="p">,</span> <span class="s2">&quot;PL&quot;</span><span class="p">,</span> <span class="s2">&quot;DP_FORMAT&quot;</span><span class="p">,</span> <span class="s2">&quot;MIN_DP&quot;</span> <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Most of the fields are self-explanatory (take a look at the <a class="reference internal" href="overview.html#concepts-terminology"><span class="std std-ref">terminology section</span></a> section).
+The following fields are mandatory:</p>
+<ul class="simple">
+<li><p><em>workspace</em> (type: string or list of strings)</p></li>
+<li><p><em>array</em> (type: string or list of strings)</p></li>
+<li><p><em>query_column_ranges</em> : This field contains is a list of lists. Each member list contains the column ranges that are to be queried. Each element of the inner list can be a single integer, representing the single column position to be queried, or a list of size 2 representing the column range to be queried.</p></li>
+</ul>
+<p>In the above example, the process will query column range [0-100] (inclusive) and the position 500 and return all <em>VariantCalls</em> intersecting with these query ranges/positions.</p>
+<p>For a more detailed explanation as to why this field is a list of lists (and other fields are lists of strings), we
+refer the reader to the [[wiki page explaining how we use MPI in the context of GenomicsDB|MPI-with-GenomicsDB]].</p>
+<ul class="simple">
+<li><p><em>query_attributes</em> : List of strings specifying attributes to be fetched</p></li>
+</ul>
+<p>Optional field(s):</p>
+<ul>
+<li><p><em>query_row_ranges</em> : Similar to <em>query_column_ranges</em> but for rows. If this field is omitted, all rows are included in the query.</p></li>
+<li><p><em>vid_mapping_file</em> and <em>callset_mapping_file</em> (type: string or list of strings): Paths to JSON files specifying the <a class="reference internal" href="import-etl.html#import-etl"><span class="std std-ref">vid mapping</span></a> and <a class="reference internal" href="import-etl.html#import-etl"><span class="std std-ref">callset mapping</span></a>. Note that this feature is available since commit <a class="reference external" href="(https://github.com/Intel-HLS/GenomicsDB/commit/f92c02e5684b5eb33484eee6aba1a07ca640b4ee)">f92c02e56</a>.</p>
+<p>These two fields are optional because a user might specify them in the loader JSON while creating an array and pass the loader JSON to the query tool(s) (see below). This allows the user to write many different query JSON files without repeating the information.</p>
+<p>If the <em>vid_mapping_file</em> and/or <em>callset_mapping_file</em> are specified in both the loader and query JSON files and passed to the query tool(s), then the parameter value in the query JSON gets precedence.</p>
+</li>
+</ul>
+<p>The various APIs take in the same query fields in one form or another, so check the approptiate reference for your use case.
+If you are new to GenomicsDB, we recommend starting with the <a class="reference internal" href="cli-tools.html#cli-tools-gt-mpi-gather"><span class="std std-ref">gt_mpi_gather</span></a> CLI tool to familiarize yourself with the concepts.</p>
+</div>
+<div class="section" id="c">
+<h2>C++<a class="headerlink" href="#c" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Native interface - See <a class="reference external" href="https://github.com/GenomicsDB/GenomicsDB/tree/master/src/main/cpp">cpp source code</a> (Reference coming soon)</p></li>
+<li><p>Querying CLI tools available - see <a class="reference internal" href="cli-tools.html#cli-tools-vcf2genomicsdb"><span class="std std-ref">vcf2genomicsdb</span></a></p></li>
+</ul>
+</div>
+<div class="section" id="python">
+<h2>Python<a class="headerlink" href="#python" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Python bindings for GenomicsDB. Requires Python version <em>&gt;= 3.6</em></p></li>
+<li><p>Built using Cython.</p></li>
+<li><p>Currently only supports querying (no importing).</p></li>
+<li><p>Data can be returned in either a numpy matrix or a list of lists.</p></li>
+</ul>
+<p>The GenomicsDB python bindings are <a class="reference external" href="https://pypi.org/project/genomicsdb/">published on PyPI</a> (currently experimental).</p>
+<p>Install <code class="docutils literal notranslate"><span class="pre">genomicsdb</span></code> with the following command:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="n">genomicsdb</span>
+</pre></div>
+</div>
+<div class="section" id="api-reference">
+<h3>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><p>Coming Soon. See the <a class="reference external" href="https://github.com/nalinigans/GenomicsDB-Python">bindings source code</a> for the time being.</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="java">
+<h2>Java<a class="headerlink" href="#java" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p>Data can be returned in either a htsjdk <a class="reference external" href="https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html">VariantContext</a> object or &lt;other&gt;.</p></li>
+<li><p>The GenomicsDB java bindings are published to <a class="reference external" href="https://mvnrepository.com/artifact/org.genomicsdb/genomicsdb">Maven Central</a> every release.</p></li>
+</ul>
+<ul class="simple">
+<li><p>Add GenomicsDB to your maven project with the following snippet:</p></li>
+</ul>
+<div class="highlight-java notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;!--</span> <span class="n">https</span><span class="p">:</span><span class="c1">//mvnrepository.com/artifact/org.genomicsdb/genomicsdb --&gt;</span>
+<span class="o">&lt;</span><span class="n">dependency</span><span class="o">&gt;</span>
+   <span class="o">&lt;</span><span class="n">groupId</span><span class="o">&gt;</span><span class="n">org</span><span class="p">.</span><span class="na">genomicsdb</span><span class="o">&lt;/</span><span class="n">groupId</span><span class="o">&gt;</span>
+   <span class="o">&lt;</span><span class="n">artifactId</span><span class="o">&gt;</span><span class="n">genomicsdb</span><span class="o">&lt;/</span><span class="n">artifactId</span><span class="o">&gt;</span>
+   <span class="o">&lt;</span><span class="n">version</span><span class="o">&gt;</span><span class="mf">1.3.0</span><span class="o">&lt;/</span><span class="n">version</span><span class="o">&gt;</span>
+<span class="o">&lt;/</span><span class="n">dependency</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<div class="section" id="id1">
+<h3>API Reference<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><p>Coming Soon. See the <a class="reference external" href="https://github.com/GenomicsDB/GenomicsDB/tree/master/src/main/java/org/genomicsdb">source code</a> for the time being.</p></li>
+</ul>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="cli-tools.html" class="btn btn-neutral float-right" title="CLI Tools" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="common-issues.html" class="btn btn-neutral float-left" title="Common Issues" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, GenomicsDB.org
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

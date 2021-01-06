@@ -1,6 +1,5 @@
 
 
-
 <!DOCTYPE html>
 <html class="writer-html5" lang="en" >
 <head>
@@ -8,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Index &mdash; GenomicsDB  documentation</title>
+  <title>Supported Storage &mdash; GenomicsDB  documentation</title>
   
 
   
@@ -35,8 +34,10 @@
     <script type="text/javascript" src="_static/js/theme.js"></script>
 
     
-    <link rel="index" title="Index" href="#" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="APIs" href="apis.html" />
+    <link rel="prev" title="Import / ETL" href="import-etl.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -81,23 +82,14 @@
               
             
             
-              <p class="caption"><span class="caption-text">GenomicsDB Docs</span></p>
-<ul>
+              <p class="caption"><span class="caption-text">GenomicsDB</span></p>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="overview.html">Overview (DOCUMENTATION WORK-IN-PROGRESS)</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="overview.html#concepts-terminology">Concepts + Terminology</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="storage.html">Supported Storage</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="storage.html#local-cluster">Local / Cluster</a></li>
-<li class="toctree-l2"><a class="reference internal" href="storage.html#cloud">Cloud</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="building-installing.html">Building + Installing</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="building-installing.html#bash">Bash</a></li>
-<li class="toctree-l2"><a class="reference internal" href="building-installing.html#docker">Docker</a></li>
-<li class="toctree-l2"><a class="reference internal" href="building-installing.html#cli-tools">CLI Tools</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="building-installing.html">Building + Installing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="cli-tools.html">CLI Tools</a></li>
 <li class="toctree-l1"><a class="reference internal" href="import-etl.html">Import / ETL</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="import-etl.html#vcf-gvcf">VCF/gVCF</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="import-etl.html#preliminaries">Preliminaries</a></li>
@@ -114,10 +106,15 @@
 <li class="toctree-l3"><a class="reference internal" href="import-etl.html#id5">Organizing your data</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="import-etl.html#compression-schemas">Compression Schemas</a></li>
 <li class="toctree-l2"><a class="reference internal" href="import-etl.html#best-practices">Best Practices</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="common-issues.html">Common Issues</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Supported Storage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#local-cluster">Local / Cluster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cloud">Cloud</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption"><span class="caption-text">API Docs</span></p>
 <ul>
@@ -132,19 +129,17 @@
 <li class="toctree-l3"><a class="reference internal" href="apis.html#id1">API Reference</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="apis.html#r">R</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="cli-tools.html">CLI Tools</a></li>
 </ul>
 <p class="caption"><span class="caption-text">Examples</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="examples/notebooks.html">Notebooks</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="examples/notebooks.html#python-notebook">Python Notebook</a></li>
-<li class="toctree-l2"><a class="reference internal" href="examples/notebooks.html#scala-notebook">Scala Notebook</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples / Tutorials</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#python-notebook">Python Notebook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples.html#scala-notebook">Scala Notebook</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="examples/import-examples.html">Import / ETL Examples</a></li>
-<li class="toctree-l1"><a class="reference internal" href="examples/gatk.html">Using with GATK</a></li>
 </ul>
 
             
@@ -191,12 +186,14 @@
     
       <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
         
-      <li>Index</li>
+      <li>Supported Storage</li>
     
     
       <li class="wy-breadcrumbs-aside">
         
             
+            <a href="_sources/storage.rst.txt" rel="nofollow"> View page source</a>
+          
         
       </li>
     
@@ -208,11 +205,24 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-
-<h1 id="index">Index</h1>
-
-<div class="genindex-jumpbox">
- 
+  <div class="section" id="supported-storage">
+<h1>Supported Storage<a class="headerlink" href="#supported-storage" title="Permalink to this headline">¶</a></h1>
+<p>GenomicsDB has support for several filesystems.</p>
+<div class="section" id="local-cluster">
+<h2>Local / Cluster<a class="headerlink" href="#local-cluster" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p><em>POSIX</em>: Tested on Centos 6 + 7</p></li>
+<li><p><em>HDFS</em>: HDFS support</p></li>
+</ul>
+</div>
+<div class="section" id="cloud">
+<h2>Cloud<a class="headerlink" href="#cloud" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p><em>AWS</em>: Support for S3 and EMRFS</p></li>
+<li><p><em>GCP</em>: Support for G3</p></li>
+<li><p><em>Azure</em>: Support for Azure Blob storage</p></li>
+</ul>
+</div>
 </div>
 
 
@@ -220,6 +230,15 @@
            
           </div>
           <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apis.html" class="btn btn-neutral float-right" title="APIs" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="import-etl.html" class="btn btn-neutral float-left" title="Import / ETL" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
   
 
   <hr/>

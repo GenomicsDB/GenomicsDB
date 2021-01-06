@@ -1,0 +1,362 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Common Issues &mdash; GenomicsDB  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="APIs" href="apis.html" />
+    <link rel="prev" title="Import / ETL" href="import-etl.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home" alt="Documentation Home"> GenomicsDB
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">GenomicsDB Docs</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Overview (DOCUMENTATION WORK-IN-PROGRESS)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#concepts-terminology">Concepts + Terminology</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="storage.html">Supported Storage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="storage.html#local-cluster">Local / Cluster</a></li>
+<li class="toctree-l2"><a class="reference internal" href="storage.html#cloud">Cloud</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="building-installing.html">Building + Installing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="building-installing.html#bash">Bash</a></li>
+<li class="toctree-l2"><a class="reference internal" href="building-installing.html#docker">Docker</a></li>
+<li class="toctree-l2"><a class="reference internal" href="building-installing.html#cli-tools">CLI Tools</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="import-etl.html">Import / ETL</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="import-etl.html#vcf-gvcf">VCF/gVCF</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="import-etl.html#preliminaries">Preliminaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="import-etl.html#organizing-your-data">Organizing your data</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="import-etl.html#csv">CSV</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="import-etl.html#id2">Preliminaries</a></li>
+<li class="toctree-l3"><a class="reference internal" href="import-etl.html#csv-format">CSV format</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="import-etl.html#example">Example</a></li>
+<li class="toctree-l4"><a class="reference internal" href="import-etl.html#special-fields">Special fields</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="import-etl.html#id5">Organizing your data</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="import-etl.html#compression-schemas">Compression Schemas</a></li>
+<li class="toctree-l2"><a class="reference internal" href="import-etl.html#best-practices">Best Practices</a></li>
+</ul>
+</li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Common Issues</a></li>
+</ul>
+<p class="caption"><span class="caption-text">API Docs</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apis.html">APIs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="apis.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apis.html#c">C++</a></li>
+<li class="toctree-l2"><a class="reference internal" href="apis.html#python">Python</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apis.html#api-reference">API Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apis.html#java">Java</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="apis.html#id1">API Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apis.html#r">R</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cli-tools.html">CLI Tools</a></li>
+</ul>
+<p class="caption"><span class="caption-text">Examples</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples/notebooks.html">Notebooks</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="examples/notebooks.html#python-notebook">Python Notebook</a></li>
+<li class="toctree-l2"><a class="reference internal" href="examples/notebooks.html#scala-notebook">Scala Notebook</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="examples/import-examples.html">Import / ETL Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="examples/gatk.html">Using with GATK</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">GenomicsDB</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Common Issues</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/common-issues.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="common-issues">
+<h1>Common Issues<a class="headerlink" href="#common-issues" title="Permalink to this headline">¶</a></h1>
+<ol class="arabic">
+<li><p>Verify that your JSON configuration files are syntactically correct before invoking GenomicsDB tools</p>
+<p>The GenomicsDB tools assume that you provide a syntactically correct JSON - always validate your JSON files using tools such as <em>json_verify</em> before invoking GenomicsDB tools.</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>cat &lt;json_file&gt; | json_verify
+</pre></div>
+</div>
+</li>
+</ol>
+<ol class="arabic simple" start="2">
+<li><p>If you are using GenomicsDB version &lt; 0.8.0, you cannot move/copy the GenomicsDB workspace/array directory arbitrarily after loading. If you do copy/move files to a different machine, ensure that the absolute path of the workspace/array directory is the same as that on the machine on which data is loaded/imported. This limitation is removed in version 0.8.0.</p></li>
+</ol>
+<ol class="arabic" start="3">
+<li><p>I have prepared my JSON files correctly, yet I get an exception with the following message:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Could not open vid mapping file &quot;~/&lt;directory&gt;/vid_mapping_file.json OR
+Could not open callsets file &quot;~/&lt;directory&gt;/callset_mapping_file.json
+</pre></div>
+</div>
+<p>The character ‘~’ is interpreted by shells (bash, tcsh) as the home directory of the user - it is NOT interpreted by file I/O system calls invoked by the GenomicsDB executables/libraries. Hence, you must specify the path of the file without special characters that are interpreted by shells.</p>
+<p>Correct examples:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>/home/&lt;user&gt;/&lt;directory&gt;/vid_mapping_file.json OR
+../../&lt;directory&gt;/vid_mapping_file.json
+</pre></div>
+</div>
+</li>
+</ol>
+<ol class="arabic" start="4">
+<li><p>I get an exception with the following message:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Unhandled overlapping variants at columns &lt;col1&gt; and &lt;col2&gt; for row &lt;row&gt;
+</pre></div>
+</div>
+<p>GenomicsDB cannot deal with overlapping variants within a single sample - <a class="reference external" href="https://github.com/GenomicsDB/GenomicsDB/wiki/Overlapping-variant-calls-in-a-sample">more details documented here</a>. Workarounds exist for dealing with overlapping deletions and gVCF reference blocks (intervals with &lt;NON_REF&gt; as the only alternate allele). When overlapping variants which are neither deletions nor reference blocks are found in the input VCF file, then the above exception is thrown. Check whether bcftools can help you - see point 2 <a class="reference external" href="https://github.com/GenomicsDB/GenomicsDB/wiki/Importing-VCF-data-into-GenomicsDB#organizing-your-data">in the section on organizing your data</a>.</p>
+</li>
+</ol>
+<ol class="arabic" start="5">
+<li><p>I have both <em>row_partitions</em> and <em>column_partitions</em> in my loader JSON file and I get an exception message:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Cannot have both &quot;row_partitions&quot; and &quot;column_partitions&quot; simultaneously in the JSON file
+</pre></div>
+</div>
+<p>A GenomicsDB array can be partitioned by rows or columns but not both simultaneously - see <a class="reference external" href="https://github.com/GenomicsDB/GenomicsDB/wiki/GenomicsDB-setup-in-a-multi-node-cluster">this page</a> for more information.</p>
+</li>
+</ol>
+<ol class="arabic" start="6">
+<li><p>I have setup all my JSON files correctly, but the import program finishes almost immediately without importing any data from my VCFs:</p>
+<p>There could be many reasons, but here are the common issues we have seen users running into:</p>
+<ul class="simple">
+<li><p><em>Contig/chromosome names don’t match in the vid_mapping_file and the input VCFs</em>: The contig/chromosome names in the VCF and the vid mapping JSON file MUST match EXACTLY. For example, if the vid file has a contig named _”1”_ (as per the 1000 genomes naming convention) while the VCF has a contig named _”chr1”_ (as per the UCSC convention), GenomicsDB will ignore all data corresponding to _”chr1”_.</p></li>
+</ul>
+</li>
+</ol>
+<ol class="arabic" start="7">
+<li><p>I have setup all my JSON files correctly, but the import program doesn’t load data for some of the samples:</p>
+<p>There could be many reasons, but here are the common issues we have seen users running into:</p>
+<ul class="simple">
+<li><p><em>Incorrect value(s) of idx_in_file in the callset_mapping_file</em>: Note that <em>row_idx</em> is the globally unique value of the TileDB row index corresponding to a given sample/CallSet. <em>idx_in_file</em> is useful mostly for multi-sample VCFs and specifies the index of the sample in a given VCF. For single sample VCFs, this field should be 0 (or omitted altogether).</p></li>
+<li><p><em>Incorrect partition bounds in the loader JSON or incorrectly specified partition index in the command line</em>: Read the section on <a class="reference external" href="https://github.com/GenomicsDB/GenomicsDB/wiki/Importing-VCF-data-into-GenomicsDB#running-the-program">running the program</a> in the <a class="reference external" href="https://github.com/GenomicsDB/GenomicsDB/wiki/Importing-VCF-data-into-GenomicsDB">import data</a> wiki section. Also, please re-check your partition bounds in the loader JSON.</p></li>
+</ul>
+</li>
+</ol>
+<ol class="arabic" start="8">
+<li><p>I see an incorrect cell order found error as:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ vcf2genomicsdb loader.json
+terminate called after throwing an instance of <span class="s1">&#39;VCF2GenomicsDBException&#39;</span>
+what<span class="o">()</span>:  VCF2GenomicsDBException : Incorrect cell order found - cells must be in column major order. Previous cell: <span class="o">[</span> <span class="m">0</span>, <span class="m">114111</span> <span class="o">]</span> current cell: <span class="o">[</span> <span class="m">0</span>, <span class="m">114111</span> <span class="o">]</span>
+Aborted
+</pre></div>
+</div>
+<p>The error occurs if alleles at the same position span across multiple lines, for example:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>chrX    114112  .       TCT     T       999     PASS    .       GT:DP:GQ:MIN_DP:PL      0/0:0:0:0:0,0,0
+chrX    114112  .       TCT     TTT     999     PASS    .       GT:DP:GQ:MIN_DP:PL      0/0:0:0:0:0,0,0
+</pre></div>
+</div>
+<p>The fix is to run bcftools norm as described <a class="reference external" href="https://github.com/Intel-HLS/GenomicsDB/wiki/Useful-external-tools#useful-bcftools-commands">here</a> which will merge the alleles as</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>chrX    114112  .       TCT     T,TTT   999     PASS    .       GT:DP:GQ:MIN_DP:PL      0/2:0:0:0:0,0,0,0,0,0
+</pre></div>
+</div>
+</li>
+</ol>
+<ol class="arabic" start="9">
+<li><p>I see an error message:</p>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>Cannot open VCF/BCF file &lt;path.vcf.gz&gt;
+</pre></div>
+</div>
+<p>even when the file and its index exist. What’s going on?</p>
+<p>If you are importing data from many files (&gt;1000), then it’s likely that you are hitting the limit on the number of open files set in your machine(s). Find out how to increase the limit.</p>
+</li>
+</ol>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apis.html" class="btn btn-neutral float-right" title="APIs" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="import-etl.html" class="btn btn-neutral float-left" title="Import / ETL" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, GenomicsDB.org
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

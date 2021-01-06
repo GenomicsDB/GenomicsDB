@@ -1,0 +1,24 @@
+###############################
+Examples / Tutorials
+###############################
+
+Python Notebook
+*******************************
+Example Coming Soon
+
+.. <code snippet querying example>
+
+.. link out to full jupyter notebook code in github
+
+Scala Notebook
+*******************************
+Example Coming Soon
+
+.. <code snippet querying example>
+
+.. <link out to full scala notebook code in github>
+
+.. 
+   Importing Data w/Docker
+   *******************************
+   <documentation from Nalini's repo>
