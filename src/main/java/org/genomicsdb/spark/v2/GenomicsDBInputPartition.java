@@ -145,7 +145,7 @@ public class GenomicsDBInputPartition
       loader = g.getLoaderJsonFile(); 
       loaderIsPB = false;
     }
-    if (query != null) {
+    if (g.getQueryPB() != null) {
       query = g.getQueryPB();
       queryIsPB = true;
     }
