@@ -445,8 +445,8 @@ def main():
                     sys.stderr.write('Loading failed for test: '+test_name+' rank '+str(i)+'\n');
                     sys.stderr.write('Loading command: '+etl_cmd+'\n');
                     sys.stderr.write('Loader file :'+str(test_loader_dict)+'\n');
-                    sys.stderr.write('Loading stdout: '+stdout_string+'\n');
-                    sys.stderr.write('Loading stderr: '+stderr_string+'\n');
+                    sys.stderr.write('Loading stdout: '+stdout_string.decode('utf-8')+'\n');
+                    sys.stderr.write('Loading stderr: '+stderr_string.decode('utf-8')+'\n');
                     cleanup_and_exit(namenode, tmpdir, -1);
                 else:
                     sys.stdout.write('Loading passed for test: '+test_name+' rank '+str(i)+'\n');

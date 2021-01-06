@@ -130,20 +130,22 @@ public class GenomicsDBInputPartition implements InputPartition, GenomicsDBInput
   }
 
   private void setLoaderAndQuery(GenomicsDBConfiguration g) {
-    if (g.get(GenomicsDBConfiguration.LOADERPB) != null) {
-      loader = g.get(GenomicsDBConfiguration.LOADERPB);
+    loader = g.getLoaderPB();
+    query = g.getQueryPB();
+    if (g.getLoaderPB() != null) {
+      loader = g.getLoaderPB();
       loaderIsPB = true;
     }
     else {
-      loader = g.get(GenomicsDBConfiguration.LOADERJSON);
+      loader = g.getLoaderJsonFile(); 
       loaderIsPB = false;
     }
-    if (g.get(GenomicsDBConfiguration.QUERYPB) != null) {
-      query = g.get(GenomicsDBConfiguration.QUERYPB);
+    if (g.getQueryPB() != null) {
+      query = g.getQueryPB();
       queryIsPB = true;
     }
     else {
-      query = g.get(GenomicsDBConfiguration.QUERYJSON);
+      query = g.getQueryJsonFile();
       queryIsPB = false;
     }
   }

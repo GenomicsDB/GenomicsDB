@@ -70,7 +70,7 @@ public class GenomicsDBBatch implements Batch {
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration((Map<String,String>)options);
 
     GenomicsDBSchemaFactory schemaBuilder = 
-      new GenomicsDBSchemaFactory(options.get(GenomicsDBConfiguration.LOADERJSON));
+      new GenomicsDBSchemaFactory(genomicsDBConfiguration.getLoaderJsonFile());
     StructType finalSchema = null;
     if (schema != null){ 
       finalSchema = schema;
