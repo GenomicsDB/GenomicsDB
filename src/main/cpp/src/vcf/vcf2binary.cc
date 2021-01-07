@@ -24,6 +24,8 @@
 #ifdef HTSDIR
 
 #include "vcf2binary.h"
+
+#include "hfile_genomicsdb.h"
 #include "htslib/bgzf.h"
 #include "vcf_adapter.h"
 #include "genomicsdb_multid_vector_field.h"
@@ -128,6 +130,7 @@ void VCFReader::initialize(const char* filename,
   //Build regions list - comma separated contigs - in increasing order of column values
   //Needed to fix traversal order of indexed reader
   //So parse the header first
+  genomicsdb_htslib_plugin_initialize(filename);
   m_fptr = bcf_open(filename, "r");
   VERIFY_OR_THROW(m_fptr && (std::string("Cannot open VCF/BCF file ")+filename).c_str());
   m_hdr = bcf_hdr_read(m_fptr);
