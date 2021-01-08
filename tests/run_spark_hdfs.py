@@ -252,8 +252,8 @@ def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_ver
 
 def main():
     if(len(sys.argv) < 8):
-        sys.stderr.write('Usage: ./run_spark_hdfs.py <build_dir> <install_dir> <spark_master> <hdfs_namenode> <spark_deploy> <genomicsdb_version> <test_dir> <gdb_datasource> [<build_type>]\n');
-        sys.stderr.write('   Optional Argument 9 - build_type=Release|Coverage|...\n')
+        sys.stderr.write('Usage: ./run_spark_hdfs.py <build_dir> <install_dir> <spark_master> <hdfs_namenode> <spark_deploy> <genomicsdb_version> <test_dir> [<gdb_datasource> <build_type>]\n');
+        sys.stderr.write(' Optional Argument 8/9 - gdb_datasource / build_type=Release|Coverage|...\n')
         sys.exit(-1)
     exe_path = sys.argv[2]+os.path.sep+'bin'
     lib_path = sys.argv[2]+os.path.sep+'lib'
@@ -263,9 +263,16 @@ def main():
     spark_deploy = sys.argv[5]
     genomicsdb_version = sys.argv[6]
     test_dir = sys.argv[7]
-    gdb_datasource = sys.argv[8]
+    gdb_datasource = ""
+    if (len(sys.argv) == 9):
+      arg8 = sys.argv[8]
+      if (arg8.startswith("org.genomicsdb")):
+        gdb_datasource = arg8
+      else:
+        build_type = arg8
     if (len(sys.argv) == 10):
-        build_type = sys.argv[9]
+      gdb_datasource = sys.argv[8]
+      build_type = sys.argv[9]
     else:
         build_type = "default"
     #Switch to tests directory
@@ -498,7 +505,9 @@ def main():
                     vid_path_final=vid_path+query_param_dict['vid_mapping_file'];
                 else:
                     vid_path_final=vid_path+"inputs"+os.path.sep+"vid.json";
-                spark_cmd_v2 = 'spark-submit --class TestGenomicsDBSource --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --vid '+vid_path_final+' --spark_master '+spark_master+' --gdb_datasource '+gdb_datasource;
+                spark_cmd_v2 = 'spark-submit --class TestGenomicsDBSource --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --vid '+vid_path_final+' --spark_master '+spark_master;
+                if (gdb_datasource != ""):
+                  spark_cmd_v2 += ' --gdb_datasource=' + gdb_datasource
                 if (test_name == "t6_7_8"):
                   spark_cmd_v2 = spark_cmd_v2 + ' --use-query-protobuf';
                 if (test_name == "t0_overlapping"):

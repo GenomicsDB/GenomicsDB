@@ -454,7 +454,7 @@ if(BUILD_JAVA)
         ./src/test/java/org/genomicsdb/GenomicsDBTestUtils.java
         )
     
-    if(GENOMICSDB_SPARK_PROFILE)
+      if(GENOMICSDB_SPARK_PROFILE STREQUAL "spark2")
       set(JAVA_SCALA_SOURCES 
           ${JAVA_SCALA_SOURCES}
           ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBDataSourceReader.java
@@ -501,7 +501,7 @@ if(BUILD_JAVA)
         -Dprotobuf.version=${GENOMICSDB_PROTOBUF_VERSION}
         ${MAVEN_PROTOBUF_REGENERATE_ARGS})
 
-    if(GENOMICSDB_SPARK_PROFILE)
+      if(GENOMICSDB_SPARK_PROFILE STREQUAL "spark2")
         message(STATUS "Setting maven profile to ${GENOMICSDB_SPARK_PROFILE}" )
         set(MAVEN_PROFILE 
           -P${GENOMICSDB_SPARK_PROFILE})

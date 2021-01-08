@@ -131,19 +131,20 @@ public final class TestGenomicsDBSource {
     longopts[2] = new LongOpt("vid", LongOpt.REQUIRED_ARGUMENT, null, 'v');
     longopts[3] = new LongOpt("hostfile", LongOpt.REQUIRED_ARGUMENT, null, 'h');
     longopts[4] = new LongOpt("spark_master", LongOpt.REQUIRED_ARGUMENT, null, 's');
-    longopts[5] = new LongOpt("gdb_datasource", LongOpt.REQUIRED_ARGUMENT, null, 'd');
-    longopts[6] = new LongOpt("use-query-protobuf", LongOpt.NO_ARGUMENT, null, 'p');
+    longopts[5] = new LongOpt("use-query-protobuf", LongOpt.NO_ARGUMENT, null, 'p');
+    longopts[6] = new LongOpt("gdb_datasource", LongOpt.OPTIONAL_ARGUMENT, null, 'd');
 
     if (args.length < 8) {
       System.err.println(
           "Usage:\n\t--loader <loader.json> --query <query.json> --vid <vid.json> "
-              + "--spark_master <sparkMaster> --gdb_datasource <gdbDataSource>"
-              +"\nOptional args:\n--hostfile <hostfile> --use-query-protobuf");
+              + "--spark_master <sparkMaster>"
+              +"\nOptional args:\n--hostfile <hostfile> --use-query-protobuf --gdb_datasource=<gdbDataSource>");
       System.exit(-1);
     }
     String loaderFile, queryFile, hostfile, vidMapping, sparkMaster, gdbDataSource, jarDir;
     boolean useQueryProtobuf = false;
-    loaderFile = queryFile = hostfile = sparkMaster = gdbDataSource = vidMapping = "";
+    gdbDataSource = "org.genomicsdb.spark.sources.GenomicsDBSource";
+    loaderFile = queryFile = hostfile = sparkMaster = vidMapping = "";
     Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:s:d:v:p", longopts);
     int c = -1;
     String optarg;
