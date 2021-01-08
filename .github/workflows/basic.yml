@@ -142,6 +142,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install jsondiff
         python tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $CMAKE_INSTALL_PREFIX local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $GITHUB_WORKSPACE/tests Coverage;
+        $GITHUB_WORKSPACE/.github/scripts/test_hdfs_htslib_support.sh
 
     - name: Upload Coverage to CodeCov
       uses: codecov/codecov-action@v1
