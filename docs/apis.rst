@@ -114,9 +114,12 @@ Java
 
 API Reference
 ===============================
-* Coming Soon. See the `source code`_ for the time being. 
 
-.. _source code: https://github.com/GenomicsDB/GenomicsDB/tree/master/src/main/java/org/genomicsdb
+.. toctree::
+   :maxdepth: 3
+
+   javadocs/packages
+
 
 
 
