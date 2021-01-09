@@ -30,13 +30,16 @@ import org.json.simple.parser.ParseException;
 
 import org.genomicsdb.model.*;
 
+import scala.collection.JavaConverters;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.Iterator;
 import java.util.Base64;
 import java.lang.RuntimeException;
+import java.io.FileNotFoundException;
 
 /**
  * The configuration class enables users to use Java/Scala
@@ -67,6 +70,7 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   public GenomicsDBConfiguration() {
     super();
   }
+  
   public GenomicsDBConfiguration(Configuration configuration) throws FileNotFoundException {
     super(configuration);
   }
@@ -82,6 +86,37 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     super(configuration);
     for (GenomicsDBPartitionInfo info : list) {
       addPartitions(info);
+    }
+  }
+
+  public GenomicsDBConfiguration(Map<String,String> options) throws RuntimeException{
+    setOptions(options);
+  }
+
+  public void setOptions(Map<String,String> options){
+    if(options.containsKey(LOADERJSON)) {
+      this.setLoaderJsonFile(options.get(LOADERJSON));
+    }
+    else {
+      throw new RuntimeException("Must specify "+LOADERJSON);
+    }
+    
+    if(options.containsKey(QUERYPB)) {
+      this.setQueryPB(options.get(QUERYPB));
+    }
+    else if(options.containsKey(QUERYJSON)) {
+      this.setQueryJsonFile(options.get(QUERYJSON));
+    }
+    else {
+      throw new RuntimeException("Must specify either "+QUERYJSON+" or "+QUERYPB);
+    }
+    
+    if(options.containsKey(MPIHOSTFILE)) {
+      try {
+        this.setHostFile(options.get(MPIHOSTFILE));
+      } catch (FileNotFoundException e) {
+        e.printStackTrace();
+      }
     }
   }
 
@@ -102,6 +137,34 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   public GenomicsDBConfiguration setQueryPB(String pb) {
     set(QUERYPB, pb);
     return this;
+  }
+
+  public String getLoaderJsonFile() {
+    return get(LOADERJSON);
+  }
+
+  public String getLoaderPB() {
+    return get(LOADERPB);
+  }
+
+  public String getQueryJsonFile() {
+    return get(QUERYJSON);
+  }
+
+  public String getQueryPB() {
+    return get(QUERYPB);
+  }
+
+  public String getHostFile() {
+    return get(MPIHOSTFILE);
+  }
+
+  public Boolean hasProtoLoader(){
+    return this.get(LOADERPB) != null;
+  }
+
+  public Boolean hasProtoQuery(){
+    return this.get(QUERYPB) != null;
   }
 
   /**

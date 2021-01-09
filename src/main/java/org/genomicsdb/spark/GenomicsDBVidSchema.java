@@ -24,6 +24,9 @@ package org.genomicsdb.spark;
 
 import java.io.Serializable;
 
+/**
+ * The base class for a field from the vid mapping file.
+ **/
 public class GenomicsDBVidSchema implements Serializable {
 
   boolean isInfo;
@@ -47,4 +50,45 @@ public class GenomicsDBVidSchema implements Serializable {
   public String getLength() {
     return length;
   }
+
+  /** 
+   * Set the appropriate types to the default schema.
+   * Could consider reflection in the future. 
+   * Include unboxing Double to float
+   * @return string datatype for java/scala compat.
+   **/
+  public String getDataType(){
+    String typeName;
+    if (this.getFieldClass().equals(String.class)) {
+      typeName = "String";
+    } else if (this.getFieldClass().equals(Integer.class)) {
+      typeName = "Integer";
+    } 
+    // TODO: switching to double below because that is what VC
+    // seems to be giving us. Otherwise spark will complain later
+    // when we try to create the dataframe about unboxing from double to float    
+    else if (this.getFieldClass().equals(Double.class)) {
+      typeName = "Double";
+    } else if (this.getFieldClass().equals(Boolean.class)) {
+      typeName = "Boolean";
+    } else {
+      throw new RuntimeException("Unsupported field type in vid!");
+    }
+    String dtypeDDL;
+    // single item INFO fields
+    if (this.isInfo() && (this.getLength().equals("1") || this.getFieldClass().equals(String.class))) {  
+      dtypeDDL = typeName;
+    }
+    // multi-item INFO fields OR
+    // single item FORMAT fields
+    else if (this.isInfo() || this.getLength().equals("1") || this.getFieldClass().equals(String.class)) {
+      dtypeDDL = "ARRAY<" + typeName + ">";
+    }
+    // multi-item FORMAT fields
+    else {
+      dtypeDDL = "ARRAY<ARRAY<" + typeName + ">>";
+    }
+    return dtypeDDL;
+  }
+
 }

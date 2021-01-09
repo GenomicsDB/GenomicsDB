@@ -1,6 +1,6 @@
 /*
  * The MIT License (MIT)
- * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2020 Omics Data Automation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -18,30 +18,48 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
+ * */
 
-package org.genomicsdb.spark;
+package org.genomicsdb.spark.sources;
 
+import org.apache.spark.sql.connector.read.Batch;
+import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
 import java.util.Map;
-import java.util.ArrayList;
 
 /**
- * This interface declares some methods to be used by classes that define quantums of data that are
- * divided from a large amount of data to be distributed to many workers. Currently intended to be
- * implemeented by GenomicsDBInputSplit and GenomicsDBInputPartition
- */
-public interface GenomicsDBInputInterface {
-  default void setHost(String h) {}
+ * Scan is a logical plan of a GenomicsDB Scan.
+ **/
+public class GenomicsDBScan implements Scan {
 
-  default void setGenomicsDBConf(GenomicsDBConfiguration g) {}
+  private final StructType schema;
+  private final Map<String, String> properties;
+  private final CaseInsensitiveStringMap options;
 
-  default void setGenomicsDBSchema(StructType s) {}
+  public GenomicsDBScan(StructType schema, Map<String, String> properties,
+    CaseInsensitiveStringMap options){
 
-  default void setGenomicsDBVidSchema(Map<String, GenomicsDBVidSchema> vMap) {}
+    this.schema = schema;
+    this.properties = properties;
+    this.options = options;
 
-  default void setPartitionInfo(GenomicsDBPartitionInfo p) {}
+  }
 
-  default void setQueryInfoList(ArrayList<GenomicsDBQueryInfo> q) {}
+  @Override 
+  public StructType readSchema(){
+    return schema;
+  }
+
+  @Override
+  public String description(){
+    return "GenomicsDBSource Scan";
+  }
+
+  @Override 
+  public Batch toBatch(){
+    return new GenomicsDBBatch(schema, properties, options);
+  }
+
 }

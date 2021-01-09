@@ -20,7 +20,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.genomicsdb.spark;
+package org.genomicsdb.spark.sources;
 
 import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.tribble.FeatureCodec;
@@ -31,12 +31,16 @@ import htsjdk.variant.variantcontext.Genotype;
 import htsjdk.variant.variantcontext.VariantContext;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
-import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
+import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
 import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.apache.spark.sql.types.StructType;
+
+import org.genomicsdb.spark.GenomicsDBInput;
+import org.genomicsdb.spark.GenomicsDBVidSchema;
 
 import org.json.simple.parser.ParseException;
 import scala.collection.JavaConverters;
@@ -48,13 +52,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public class GenomicsDBInputPartitionReader implements InputPartitionReader<InternalRow> {
+/**
+ * Used by an executor to read data from storage, as an internal row based on the schema. 
+ **/
+public class GenomicsDBInputPartitionReader implements PartitionReader<InternalRow> {
 
   private GenomicsDBFeatureReader<VariantContext, PositionalBufferedStream> fReader;
   private CloseableTribbleIterator<VariantContext> iterator;
   private GenomicsDBInputPartition inputPartition;
-
-  public GenomicsDBInputPartitionReader() {}
 
   public GenomicsDBInputPartitionReader(GenomicsDBInputPartition iPartition) {
     inputPartition = iPartition;

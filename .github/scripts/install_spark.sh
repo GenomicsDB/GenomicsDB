@@ -5,7 +5,7 @@
 INSTALL_DIR=${INSTALL_DIR:-/usr}
 USER=`whoami`
 
-SPARK_VER=${SPARK_VER:-2.4.0}
+SPARK_VER=${SPARK_VER:-3.0.1}
 SPARK=spark-$SPARK_VER-bin-hadoop${SPARK_HADOOP_VER:-2.7}
 SPARK_DIR=${INSTALL_DIR}/$SPARK
 SPARK_LOCAL_DIR="/usr/local/spark"
@@ -75,5 +75,6 @@ install_spark() {
 install_spark &&
 if [[ ! -L ${SPARK_LOCAL_DIR} ]]; then sudo ln -s $INSTALL_DIR/$SPARK $SPARK_LOCAL_DIR; fi &&
 setup_spark_env &&
+${SPARK_LOCAL_DIR}/sbin/stop-master.sh &&
 ${SPARK_LOCAL_DIR}/sbin/start-master.sh &&
 echo "Started spark"

@@ -8,7 +8,7 @@ USER=`whoami`
 
 HADOOP=hadoop-${HADOOP_VER:-3.2.1}
 HADOOP_DIR=${INSTALL_DIR}/$HADOOP
-HADOOP_ENV=$HADOOP_DIR/hadoop.env
+HADOOP_ENV=${HADOOP_ENV:-$HOME/hadoop_env.sh}
 
 install_prereqs() {
   if [[ -f /usr/java/latest ]]; then
@@ -46,7 +46,8 @@ configure_passphraseless_ssh() {
 EOF
   sudo mv sshd_config /etc/ssh/sshd_config &&
   sudo systemctl restart ssh &&
-  ssh-keygen -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa &&
+  rm ~/.ssh/id_rsa 2> /dev/null
+  ssh-keygen -q -t rsa -b 4096 -N '' -f ~/.ssh/id_rsa &&
   cat ~/.ssh/id_rsa.pub | tee -a ~/.ssh/authorized_keys &&
   chmod 600 ~/.ssh/authorized_keys &&
   chmod 700 ~/.ssh &&
