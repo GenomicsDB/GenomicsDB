@@ -501,6 +501,14 @@ if(BUILD_JAVA)
         -Dgenomicsdb_lib_directory=$<TARGET_FILE_DIR:tiledbgenomicsdb>
         -Dprotobuf.version=${GENOMICSDB_PROTOBUF_VERSION}
         ${MAVEN_PROTOBUF_REGENERATE_ARGS})
+    
+      if (GPG_PASSPHRASE) 
+        set(MAVEN_ARGS 
+          ${MAVEN_ARGS}
+          -Dgpg.passphrase=${GPG_PASSPHRASE})
+        message(STATUS "Setting gpg passphrase for maven")
+
+      endif()
 
       if(GENOMICSDB_SPARK_PROFILE STREQUAL "spark2")
         message(STATUS "Setting maven profile to ${GENOMICSDB_SPARK_PROFILE}" )
@@ -550,7 +558,7 @@ if(BUILD_JAVA)
     #Jars are already listed as dependencies in the add_jar command (-examples)
     #So, use the examples target as a dependency for this target
     add_custom_target(mvn_central_deploy
-      COMMAND mvn ${MAVEN_ARGS} deploy -Dgpg.passphrase=${GPG_PASSPHRASE}
+      COMMAND mvn ${MAVEN_ARGS} deploy
         COMMENT "Deploy to Maven central"
     )
     add_dependencies(mvn_central_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
