@@ -47,7 +47,7 @@ execute_process(
     )
 
 #Build parameters/options
-set(GENOMICSDB_RELEASE_VERSION "1.3.3-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+set(GENOMICSDB_RELEASE_VERSION "1.4.0-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 set(GENOMICSDB_VERSION "${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}" CACHE STRING "GenomicsDB full version string")
 
 set(DISABLE_MPI False CACHE BOOL "Disable use of any MPI compiler/libraries")
@@ -76,6 +76,7 @@ set(DO_MEMORY_PROFILING False CACHE BOOL "Collect memory consumption in parts of
 set(GENOMICSDB_MAVEN_BUILD_DIR ${CMAKE_BINARY_DIR}/target CACHE PATH "Path to maven build directory")
 set(MAVEN_QUIET False CACHE BOOL "Do not print mvn messages")
 set(GENOMICSDB_SPARK_PROFILE "" CACHE STRING "Profile to choose Apache Spark version") # used in Maven builds
+set(GPG_PASSPHRASE "" CACHE STRING "Gpg passphrase for deploying to maven")
 
 set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when intel optimized zlib is required")
 
@@ -500,6 +501,14 @@ if(BUILD_JAVA)
         -Dgenomicsdb_lib_directory=$<TARGET_FILE_DIR:tiledbgenomicsdb>
         -Dprotobuf.version=${GENOMICSDB_PROTOBUF_VERSION}
         ${MAVEN_PROTOBUF_REGENERATE_ARGS})
+    
+      if (GPG_PASSPHRASE) 
+        set(MAVEN_ARGS 
+          ${MAVEN_ARGS}
+          -Dgpg.passphrase=${GPG_PASSPHRASE})
+        message(STATUS "Setting gpg passphrase for maven")
+
+      endif()
 
       if(GENOMICSDB_SPARK_PROFILE STREQUAL "spark2")
         message(STATUS "Setting maven profile to ${GENOMICSDB_SPARK_PROFILE}" )
@@ -549,7 +558,7 @@ if(BUILD_JAVA)
     #Jars are already listed as dependencies in the add_jar command (-examples)
     #So, use the examples target as a dependency for this target
     add_custom_target(mvn_central_deploy
-        COMMAND mvn ${MAVEN_ARGS} deploy
+      COMMAND mvn ${MAVEN_ARGS} deploy
         COMMENT "Deploy to Maven central"
     )
     add_dependencies(mvn_central_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
