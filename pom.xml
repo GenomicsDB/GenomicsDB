@@ -63,7 +63,7 @@
     <spark.sql.artifactid>spark-sql_${scala.main}</spark.sql.artifactid>
     <spark.exclude.packages>org.genomicsdb.spark.v2</spark.exclude.packages>
     <spark.exclude.files>**/org/genomicsdb/spark/v2/**.java</spark.exclude.files>
-    <htsjdk.version>2.10.0</htsjdk.version>
+    <htsjdk.version>2.23.0</htsjdk.version>
     <json.simple.version>[1.1.1,)</json.simple.version>
     <log4j.version>[2.13.0,)</log4j.version>
     <protobuf.version>3.0.2</protobuf.version>
