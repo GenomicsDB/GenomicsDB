@@ -71,7 +71,7 @@ jobs:
       shell: bash
       run: mkdir -p $GENOMICSDB_BUILD_DIR
 
-    - name: Install spark2 and hadoop dependencies
+    - name: Install spark and hadoop dependencies
       shell: bash
       working-directory:  ${{github.workspace}}
       run: |
@@ -80,7 +80,7 @@ jobs:
       env:
         INSTALL_DIR: ${{runner.workspace}}
 
-    - name: Configure CMake Build ubuntu
+    - name: Configure CMake Build ubuntu with Java 11
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
@@ -95,7 +95,7 @@ jobs:
         make -j4
         make install
 
-    - name: Test
+    - name: Test with Java 11
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
@@ -103,7 +103,7 @@ jobs:
         python2 -m pip install jsondiff
         make test ARGS=-V
 
-    - name: Test - Distributed FileSystems with Spark2
+    - name: Test - Distributed FileSystems with Java 11
       shell: bash
       working-directory:  ${{github.workspace}}
       run: |
