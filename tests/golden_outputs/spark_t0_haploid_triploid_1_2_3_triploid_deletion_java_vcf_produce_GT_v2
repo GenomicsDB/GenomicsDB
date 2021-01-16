@@ -393,7 +393,7 @@
     "ReadPosRankSum": 0.005,
     "MQ0": 3,
     "GT": [
-      "G/A/G",
+      "G|A|G",
       "G/A",
       "T/T",
       "G//G"
