@@ -1,4 +1,4 @@
-name: Workflow to build and test GenomicsDB Spark API with Spark2
+name: Workflow to build and test GenomicsDB with Java 11
 
 on: [push, pull_request]
 
@@ -10,9 +10,9 @@ env:
   CMAKE_INSTALL_PREFIX: ${{github.workspace}}/install
   GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
   GENOMICSDB_RELEASE_VERSION: x.y.z.test
-  JAVA_VER: 8
+  JAVA_VER: 11
   HADOOP_VER: 3.2.1
-  SPARK_VER: 2.4.2
+  SPARK_VER: 3.0.1
   SPARK_HADOOP_VER: 2.7
 
 jobs:
@@ -85,7 +85,7 @@ jobs:
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
         source $PREREQS_ENV
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1 -DGENOMICSDB_SPARK_PROFILE=spark2
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1 -DGENOMICSDB_SPARK_PROFILE=java11
 
     - name: Build
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
@@ -96,6 +96,7 @@ jobs:
         make install
 
     - name: Test
+      if: false 
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
@@ -110,7 +111,7 @@ jobs:
         source $SPARK_ENV
         python -m pip install --upgrade pip
         python -m pip install jsondiff
-        python tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $CMAKE_INSTALL_PREFIX local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $GITHUB_WORKSPACE/tests org.genomicsdb.spark.v2.GenomicsDBDataSourceV2 Coverage;
+        python tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $CMAKE_INSTALL_PREFIX local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $GITHUB_WORKSPACE/tests Coverage;
 
     - name: Upload Coverage to CodeCov
       uses: codecov/codecov-action@v1

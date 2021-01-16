@@ -464,6 +464,13 @@
   </build>
   <profiles>
     <profile>
+      <id>java11</id>
+      <properties>
+        <java.version>11</java.version>
+        <surefireArgLine>--illegal-access=permit -Djava.library.path=${project.basedir}/bin:${java.library.path}</surefireArgLine>
+      </properties>
+      </profile>  
+    <profile>
       <id>spark2</id>
       <properties>
         <scala.main>2.11</scala.main>

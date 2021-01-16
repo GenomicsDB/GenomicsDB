@@ -9,6 +9,7 @@ USER=`whoami`
 HADOOP=hadoop-${HADOOP_VER:-3.2.1}
 HADOOP_DIR=${INSTALL_DIR}/$HADOOP
 HADOOP_ENV=${HADOOP_ENV:-$HOME/hadoop_env.sh}
+JAVA_VER=${JAVA_VER:-8}
 
 install_prereqs() {
   if [[ -f /usr/java/latest ]]; then
@@ -19,8 +20,8 @@ install_prereqs() {
     sudo mkdir -p /usr/java
     sudo ln -s $JAVA_HOME /usr/java/latest
   else 
-    sudo apt install openjdk-8-jre-headless
-    sudo ln -s /usr/lib/jvm/java-1.8.0-openjdk-amd64/ /usr/java/latest
+    sudo apt install openjdk-${JAVA_VER}-jre-headless
+    sudo ln -s /usr/lib/jvm/java-1.${JAVA_VER}.0-openjdk-amd64/ /usr/java/latest
   fi
   echo "install_prereqs successful"
 }
@@ -64,8 +65,7 @@ configure_hadoop() {
 }
 
 setup_paths() {
-  #echo "export JAVA_HOME=/usr/java/latest" > $HADOOP_ENV
-  echo "export JAVA_HOME=$JAVA_HOME" > $HADOOP_ENV
+  echo "export JAVA_HOME=/usr/java/latest" > $HADOOP_ENV
   echo "export PATH=$HADOOP_DIR/bin:$PATH" >> $HADOOP_ENV
   echo "export LD_LIBRARY_PATH=$HADOOP_DIR/lib:$LD_LIBRARY_PATH" >> $HADOOP_ENV
   HADOOP_CP=`$HADOOP_DIR/bin/hadoop classpath --glob`
