@@ -75,7 +75,7 @@ setup_paths() {
 }
 
 install_hadoop() {
-  #install_prereqs
+  install_prereqs
   if [[ ! -f $HADOOP_ENV ]]; then
     download_hadoop &&
       setup_paths &&
