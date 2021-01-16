@@ -1,6 +1,6 @@
 name: Basic workflow to build and test GenomicsDB
 
-on: [push, pull_request]
+on: [] #[push, pull_request]
 
 env:
   PREREQS_ENV: ${{github.workspace}}/prereqs.sh

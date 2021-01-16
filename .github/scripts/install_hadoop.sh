@@ -12,17 +12,17 @@ HADOOP_ENV=${HADOOP_ENV:-$HOME/hadoop_env.sh}
 JAVA_VER=${JAVA_VER:-8}
 
 install_prereqs() {
+  echo "Installing java version ${JAVA_VER}..." 
+  sudo apt install openjdk-${JAVA_VER}-jre-headless
   if [[ -f /usr/java/latest ]]; then
     echo "/usr/java/latest found"
-      sudo rm /usr/java/latest
+    sudo rm /usr/java/latest
   fi
   if [[ ! -z $JAVA_HOME ]]; then
     sudo mkdir -p /usr/java
     sudo ln -s $JAVA_HOME /usr/java/latest
-  else 
-    sudo apt install openjdk-${JAVA_VER}-jre-headless
+  else
     sudo ln -s /usr/lib/jvm/java-1.${JAVA_VER}.0-openjdk-amd64/ /usr/java/latest
-  fi
   echo "install_prereqs successful"
 }
 
