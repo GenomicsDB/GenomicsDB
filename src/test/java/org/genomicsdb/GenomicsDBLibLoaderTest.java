@@ -41,9 +41,11 @@ public class GenomicsDBLibLoaderTest {
   }
 
   public int runTestInSeparateProcess(String libraryPath) throws Exception {
-    String classpath = Arrays.stream(((URLClassLoader) Thread.currentThread().getContextClassLoader()).getURLs())
+    
+    /**String classpath = Arrays.stream(((URLClassLoader) Thread.currentThread().getContextClassLoader()).getURLs())
             .map(URL::getFile)
-            .collect(Collectors.joining(File.pathSeparator));
+            .collect(Collectors.joining(File.pathSeparator));**/
+    String classpath = "";
     ProcessBuilder processBuilder = null;
     if (libraryPath == null) {
       processBuilder = new ProcessBuilder(System.getProperty("java.home") + "/bin/java",

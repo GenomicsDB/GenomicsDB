@@ -96,7 +96,6 @@ jobs:
         make install
 
     - name: Test
-      if: false 
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
