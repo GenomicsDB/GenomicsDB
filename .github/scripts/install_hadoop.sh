@@ -23,6 +23,7 @@ install_prereqs() {
     sudo ln -s $JAVA_HOME /usr/java/latest
   else
     sudo ln -s /usr/lib/jvm/java-1.${JAVA_VER}.0-openjdk-amd64/ /usr/java/latest
+  fi
   echo "install_prereqs successful"
 }
 
