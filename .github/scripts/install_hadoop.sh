@@ -64,7 +64,8 @@ configure_hadoop() {
 }
 
 setup_paths() {
-  echo "export JAVA_HOME=/usr/java/latest" > $HADOOP_ENV
+  #echo "export JAVA_HOME=/usr/java/latest" > $HADOOP_ENV
+  echo "export JAVA_HOME=$JAVA_HOME" > $HADOOP_ENV
   echo "export PATH=$HADOOP_DIR/bin:$PATH" >> $HADOOP_ENV
   echo "export LD_LIBRARY_PATH=$HADOOP_DIR/lib:$LD_LIBRARY_PATH" >> $HADOOP_ENV
   HADOOP_CP=`$HADOOP_DIR/bin/hadoop classpath --glob`
@@ -73,7 +74,7 @@ setup_paths() {
 }
 
 install_hadoop() {
-  install_prereqs
+  #install_prereqs
   if [[ ! -f $HADOOP_ENV ]]; then
     download_hadoop &&
       setup_paths &&
