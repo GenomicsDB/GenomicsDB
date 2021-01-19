@@ -261,6 +261,17 @@ class VariantUtils {
   inline static bool is_deletion_or_MNV(const STRING_VIEW& REF, const STRING_VIEW& alt_allele) {
     return is_deletion(REF, alt_allele) || is_MNV(REF, alt_allele);
   }
+  static size_t find_longest_common_suffix_length(const STRING_VIEW& a, const STRING_VIEW& b) {
+    auto a_i = a.length()-1u;
+    auto b_i = b.length()-1u;
+    const auto num_iter = std::min(a.length(), b.length());
+    auto i=0ull;
+    for(;i<num_iter;++i,--a_i,--b_i) {
+      if(a[a_i] != b[b_i])
+        return i;
+    }
+    return num_iter;
+  }
 };
 
 #endif

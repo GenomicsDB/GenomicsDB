@@ -30,6 +30,7 @@
 #include "tiledb.h"
 #include "timer.h"
 #include "variant_query_config.h"
+#include "alleles_combiner.h"
 
 //Exceptions thrown
 class GenomicsDBIteratorException : public std::exception {
@@ -50,7 +51,6 @@ class GenomicsDBIteratorException : public std::exception {
 class GenomicsDBLiveCellMarker {
  public:
   GenomicsDBLiveCellMarker(const unsigned num_fields, const size_t num_queried_rows) {
-    m_store_gvcf_specific_info = false;
     m_valid.resize(num_queried_rows);
     m_initialized.resize(num_queried_rows);
     m_row.resize(num_queried_rows);
@@ -67,16 +67,6 @@ class GenomicsDBLiveCellMarker {
     m_begin.assign(m_begin.size(), -1ll);
     m_initialized.assign(m_initialized.size(), false);
     m_valid.assign(m_valid.size(), false);
-    if(m_store_gvcf_specific_info) {
-      m_contains_deletion.assign(m_contains_deletion.size(), false);
-      m_contains_MNV.assign(m_contains_MNV.size(), false);
-    }
-  }
-  inline void prepare_for_gvcf_iterator() {
-    m_store_gvcf_specific_info = true;
-    const auto num_queried_rows = m_valid.size();
-    m_contains_deletion.resize(num_queried_rows);
-    m_contains_MNV.resize(num_queried_rows);
   }
   inline void set_row_idx(const size_t idx, const int64_t row_idx) {
     assert(idx < m_row.size());
@@ -140,19 +130,6 @@ class GenomicsDBLiveCellMarker {
     assert(idx < m_end.size());
     return m_end[idx];
   }
-  inline void set_contains_deletion(const size_t idx, const bool v) {
-    assert(idx < m_contains_deletion.size());
-    m_contains_deletion[idx] = v;
-  }
-  inline void set_contains_MNV(const size_t idx, const bool v) {
-    assert(idx < m_contains_MNV.size());
-    m_contains_MNV[idx] = v;
-  }
-  inline bool contains_deletion_or_MNV(const size_t idx) const {
-    assert(idx < m_contains_deletion.size());
-    assert(idx < m_contains_MNV.size());
-    return m_contains_deletion[idx] || m_contains_MNV[idx];
-  }
   std::vector<bool>::const_iterator valid_begin() const { return m_valid.begin(); }
   std::vector<bool>::const_iterator valid_end() const { return m_valid.end(); }
  private:
@@ -163,10 +140,6 @@ class GenomicsDBLiveCellMarker {
   std::vector<int64_t> m_row;
   std::vector<int64_t> m_begin;
   std::vector<int64_t> m_end;
-  //Used in the GVCF iterator
-  bool m_store_gvcf_specific_info;
-  std::vector<bool> m_contains_deletion;
-  std::vector<bool> m_contains_MNV;
   //Outer vector - per field
   //Inner vector - per sample/CallSet
   std::vector<std::vector<GenomicsDBBuffer*> > m_buffer_ptr_vec;
@@ -420,46 +393,6 @@ class SingleCellTileDBIterator {
     const GenomicsDBColumnarField& coords_columnar_field);
 #endif //PROFILE_NUM_CELLS_TO_TRAVERSE_AT_EVERY_QUERY_INTERVAL
 #endif //DO_PROFILING
- public:
-  class valid_row_query_idx_iterator {
-    public:
-      valid_row_query_idx_iterator(const std::vector<bool>::const_iterator& iter, const std::vector<bool>::const_iterator& end,
-          const size_t idx)
-        : m_iter(iter), m_end(end), m_idx(idx) {
-          if(m_iter != m_end && !(*m_iter)) {
-            auto valid_iter = std::find(m_iter, m_end, true);
-            m_idx += std::distance(m_iter, valid_iter);
-            m_iter = valid_iter;
-          }
-        }
-      bool operator !=(const valid_row_query_idx_iterator& other) const {
-        return (m_iter != other.m_iter || m_idx != other.m_idx);
-      }
-      size_t operator *() const {
-        return m_idx;
-      }
-      valid_row_query_idx_iterator& operator ++() {
-        ++m_iter;
-        ++m_idx;
-        if(m_iter != m_end && !(*m_iter)) {
-          auto valid_iter = std::find(m_iter, m_end, true);
-          m_idx += std::distance(m_iter, valid_iter);
-          m_iter = valid_iter;
-        }
-        return *this;
-      }
-    private:
-      std::vector<bool>::const_iterator m_iter;
-      std::vector<bool>::const_iterator m_end;
-      size_t m_idx;
-  };
-  valid_row_query_idx_iterator begin_valid_row_query_idx() const {
-    return valid_row_query_idx_iterator(m_live_cell_markers.valid_begin(), m_live_cell_markers.valid_end(), 0u);
-  }
-  valid_row_query_idx_iterator end_valid_row_query_idx() const {
-    return valid_row_query_idx_iterator(m_live_cell_markers.valid_end(), m_live_cell_markers.valid_end(),
-        m_query_config->get_num_rows_to_query());
-  }
 };
 
 /*
@@ -541,13 +474,10 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
     bool is_field_valid_for_row_query_idx(const unsigned field_idx, const size_t idx) const {
       return is_valid_row_query_idx(idx) && is_field_valid_for_valid_row_query_idx(field_idx, idx);
     }
+    const AllelesCombiner& get_alleles_combiner() const {
+      return m_alleles_combiner;
+    }
   private:
-    /*
-     * new_cell = true implies a new call is being added to the live cell markers
-     * false meaning call is being invalidated from the markers
-     */
-    template<bool new_cell>
-    void update_num_deletions_and_MNVs(const size_t row_query_idx);
     /*
      * Keep filling m_end_set with cells from TileDB as long as the coords[1] == m_current_start_position
      * The moment you hit a cell with coords[1] > m_current_start_position, store its value
@@ -565,21 +495,67 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
      * called.
      */
     void begin_new_query_column_interval();
+    /*
+     * new_cell = true implies a new call is being added to the live cell markers
+     * false meaning call is being invalidated from the markers
+     */
+    template<bool new_cell>
+    void update_num_deletions_and_MNVs(const size_t row_query_idx);
   private:
     int64_t m_current_start_position;
     int64_t m_current_end_position;
     int64_t m_next_start_position;
     int64_t m_query_interval_limit;
-    uint64_t m_num_calls_with_deletions_or_MNVs;
     std::set<GVCFEndSetElementTy, GVCFEndSetElementComparator> m_end_set;
     unsigned m_REF_query_idx;
     unsigned m_ALT_query_idx;
     GenomicsDBGVCFCell* m_cell;
+    AllelesCombiner m_alleles_combiner;
 #ifdef DO_PROFILING
     std::vector<uint64_t> m_num_times_initialized;
     std::vector<uint64_t> m_num_times_invalidated;
     uint64_t m_bin_size;
 #endif
+  public:
+    class valid_row_query_idx_iterator {
+      public:
+        valid_row_query_idx_iterator(const std::vector<bool>::const_iterator& iter, const std::vector<bool>::const_iterator& end,
+            const size_t idx)
+          : m_iter(iter), m_end(end), m_idx(idx) {
+            if(m_iter != m_end && !(*m_iter)) {
+              auto valid_iter = std::find(m_iter, m_end, true);
+              m_idx += std::distance(m_iter, valid_iter);
+              m_iter = valid_iter;
+            }
+          }
+        bool operator !=(const valid_row_query_idx_iterator& other) const {
+          return (m_iter != other.m_iter || m_idx != other.m_idx);
+        }
+        size_t operator *() const {
+          return m_idx;
+        }
+        valid_row_query_idx_iterator& operator ++() {
+          ++m_iter;
+          ++m_idx;
+          if(m_iter != m_end && !(*m_iter)) {
+            auto valid_iter = std::find(m_iter, m_end, true);
+            m_idx += std::distance(m_iter, valid_iter);
+            m_iter = valid_iter;
+          }
+          return *this;
+        }
+      private:
+        std::vector<bool>::const_iterator m_iter;
+        std::vector<bool>::const_iterator m_end;
+        size_t m_idx;
+    };
+    valid_row_query_idx_iterator begin_valid_row_query_idx() const {
+      return valid_row_query_idx_iterator(m_live_cell_markers.valid_begin(), m_live_cell_markers.valid_end(), 0u);
+    }
+    valid_row_query_idx_iterator end_valid_row_query_idx() const {
+      return valid_row_query_idx_iterator(m_live_cell_markers.valid_end(), m_live_cell_markers.valid_end(),
+          m_query_config->get_num_rows_to_query());
+    }
 };
 
 #endif
