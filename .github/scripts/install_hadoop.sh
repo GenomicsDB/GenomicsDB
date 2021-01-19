@@ -12,14 +12,7 @@ HADOOP_ENV=${HADOOP_ENV:-$HOME/hadoop_env.sh}
 JAVA_VER=${JAVA_VER:-8}
 
 install_prereqs() {
-  echo "Installing java version ${JAVA_VER}..." 
-  #if [[ $JAVA_VER == 11 ]]; then
-  sudo add-apt-repository -y ppa:openjdk-r/ppa
-  sudo apt update -qq
-  sudo apt install -yq openjdk-${JAVA_VER}-jdk
-  #else 
-  #  sudo apt install openjdk-8-jre-headless
-  #fi
+  # Java install in workflow yaml
   if [[ -f /usr/java/latest ]]; then
     echo "/usr/java/latest found"
     sudo rm /usr/java/latest
