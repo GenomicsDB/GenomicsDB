@@ -123,8 +123,13 @@ jobs:
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
         if [[ $JAVA_ENV == '11' ]]; then
+          echo "Changing to java 11 profile..."
           GENOMICSDB_MAVEN_PROFILE=java11
+        else
+          echo "Java profile not set..."
+          echo $GENOMICSDB_MAVEN_PROFILE
         fi
+        java -version
         source $PREREQS_ENV
         JAVA_HOME=$JAVA_LINUX
         echo $JAVA_LINUX/bin >> $GITHUB_PATH
