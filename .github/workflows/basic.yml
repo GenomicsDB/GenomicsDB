@@ -145,8 +145,9 @@ jobs:
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       shell: bash
       run: |
-        if [[ $OS_TYPE == 'ubuntu' ]]; then
+        if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
           export JAVA_HOME=$JAVA_LINUX
+          echo $JAVA_LINUX/bin >> $GITHUB_PATH
         fi
         source $PREREQS_ENV
         make -j4
@@ -156,8 +157,9 @@ jobs:
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
-        if [[ $OS_TYPE == 'ubuntu' ]]; then
+        if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
           export JAVA_HOME=$JAVA_LINUX
+          echo $JAVA_LINUX/bin >> $GITHUB_PATH
         fi
         python2 -m pip install --upgrade pip
         python2 -m pip install jsondiff
