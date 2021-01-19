@@ -122,7 +122,7 @@ jobs:
       if: startsWith(matrix.os, 'ubuntu')
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
-        if [ $JAVA_ENV == '11' ]]; then
+        if [[ $JAVA_ENV == '11' ]]; then
           GENOMICSDB_MAVEN_PROFILE=java11
         fi
         source $PREREQS_ENV
@@ -135,7 +135,7 @@ jobs:
       if: startsWith(matrix.os, 'macos')
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
-        if [ $JAVA_ENV == '11' ]]; then
+        if [[ $JAVA_ENV == '11' ]]; then
           GENOMICSDB_MAVEN_PROFILE=java11
         fi
         source $PREREQS_ENV
@@ -145,7 +145,7 @@ jobs:
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       shell: bash
       run: |
-        if [ $OS_TYPE == 'ubuntu' ]]; then
+        if [[ $OS_TYPE == 'ubuntu' ]]; then
           export JAVA_HOME=$JAVA_LINUX
         fi
         source $PREREQS_ENV
@@ -156,7 +156,7 @@ jobs:
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
-        if [ $OS_TYPE == 'ubuntu' ]]; then
+        if [[ $OS_TYPE == 'ubuntu' ]]; then
           export JAVA_HOME=$JAVA_LINUX
         fi
         python2 -m pip install --upgrade pip
