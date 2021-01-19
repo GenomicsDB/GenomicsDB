@@ -30,6 +30,7 @@ jobs:
             java: 11
 
     env: 
+      OS_TYPE: ${{matrix.os}} 
       JAVA_VER: ${{matrix.java}}
       JAVA_LINUX: /usr/lib/jvm/java-1.${{matrix.java}}.0-openjdk-amd64/
       
@@ -118,74 +119,50 @@ jobs:
 
     - name: Configure CMake Build ubuntu
       shell: bash
-      if: startsWith(matrix.os, 'ubuntu') && matrix.java == '8'
+      if: startsWith(matrix.os, 'ubuntu')
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
-        source $PREREQS_ENV
-        JAVA_HOME=$JAVA_LINUX cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1
-
-    - name: Configure CMake Build ubuntu Java 11
-      shell: bash
-      if: startsWith(matrix.os, 'ubuntu') && matrix.java == '11'
-      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
-      run: |
+        export GENOMICSDB_MAVEN_PROFILE=
+        if [ $JAVA_ENV == '11' ]]; then
+          GENOMICSDB_MAVEN_PROFILE=java11
+        fi
         source $PREREQS_ENV
         JAVA_HOME=$JAVA_LINUX
         echo $JAVA_LINUX/bin >> $GITHUB_PATH
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1 -DGENOMICSDB_MAVEN_PROFILE=java11
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1 -DGENOMICSDB_MAVEN_PROFILE=java11 -DGENOMICSDB_MAVEN_PROFILE=$GENOMICSDB_MAVEN_PROFILE
 
     - name: Configure CMake Build macos 
       shell: bash
-      if: startsWith(matrix.os, 'macos') && matrix.java == '8' 
-      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
-      run: |
-        source $PREREQS_ENV
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1
-    
-    - name: Configure CMake Build macos Java 11
-      shell: bash
-      if: startsWith(matrix.os, 'macos') && matrix.java == '11'
-      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
-      run: |
-        source $PREREQS_ENV
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1 -DGENOMICSDB_MAVEN_PROFILE=java11
-
-    - name: Build on mac
-      if: startsWith(matrix.os, 'macos') 
-      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
-      shell: bash
-      run: |
-        source $PREREQS_ENV
-        make -j4
-        make install
-
-    - name: Build
-      if: startsWith(matrix.os, 'ubuntu')
-      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
-      shell: bash
-      run: |
-        JAVA_HOME=$JAVA_LINUX
-        source $PREREQS_ENV
-        make -j4
-        make install
-
-    - name: Test on mac
       if: startsWith(matrix.os, 'macos')
-      shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
-        python2 -m pip install --upgrade pip
-        python2 -m pip install jsondiff
-        make test ARGS=-V
+        export GENOMICSDB_MAVEN_PROFILE=
+        if [ $JAVA_ENV == '11' ]]; then
+          GENOMICSDB_MAVEN_PROFILE=java11
+        fi
+        source $PREREQS_ENV
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1 -DGENOMICSDB_MAVEN_PROFILE=$GENOMICSDB_MAVEN_PROFILE
+    
+    - name: Build
+      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
+      shell: bash
+      run: |
+        if [ $OS_TYPE == 'ubuntu' ]]; then
+          export JAVA_HOME=$JAVA_LINUX
+        fi
+        source $PREREQS_ENV
+        make -j4
+        make install
 
     - name: Test
-      if: startsWith(matrix.os, 'ubuntu') && matrix.type == 'basic'
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
+        if [ $OS_TYPE == 'ubuntu' ]]; then
+          export JAVA_HOME=$JAVA_LINUX
+        fi
         python2 -m pip install --upgrade pip
         python2 -m pip install jsondiff
-        JAVA_HOME=$JAVA_LINUX
         make test ARGS=-V
 
     - name: Test - Distributed FileSystems
