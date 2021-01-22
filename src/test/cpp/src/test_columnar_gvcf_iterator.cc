@@ -57,11 +57,11 @@ TEST_CASE("gvcf iterator", "[gvcf_iterator]") {
   VariantQueryProcessor query_processor(&storage_manager, query_config.get_array_name(0), query_config.get_vid_mapper());
   query_processor.do_query_bookkeeping(query_processor.get_array_schema(), query_config, query_config.get_vid_mapper(), true);
   
-  VariantCounter counter;
+  ProfilerOperator counter;
   query_processor.iterate_over_gvcf_entries(query_processor.get_array_descriptor(), query_config, counter, true);
   CHECK(counter.get_value() == 4);
 
-  VariantCounter *variant_counter = new VariantCounter();
+  ProfilerOperator *variant_counter = new ProfilerOperator();
   query_processor.scan_and_operate(query_processor.get_array_descriptor(), query_config, *variant_counter, 0, true);
   CHECK(variant_counter->get_value() == 4);
   delete variant_counter;

@@ -396,11 +396,19 @@ class SingleVariantOperatorBase {
   const VariantQueryConfig* m_query_config;
 };
 
-class VariantCounter : public SingleVariantOperatorBase {
+class ProfilerOperator : public SingleVariantOperatorBase {
   public:
-    VariantCounter() : SingleVariantOperatorBase(0, 0) { m_total = 0u; }
-    void operate(Variant& variant) { ++m_total; }
-    void operate_on_columnar_cell(const GenomicsDBGVCFCell& variant) { ++m_total; }
+    ProfilerOperator() : SingleVariantOperatorBase(0, 0) { m_total = 0u; }
+    ProfilerOperator(const VidMapper* vid_mapper, const VariantQueryConfig* query_config)
+      : SingleVariantOperatorBase(vid_mapper, query_config) {
+        m_total = 0u;
+    }
+    void operate(Variant& variant) {
+      ++m_total;
+      if(m_query_config && m_vid_mapper)
+        SingleVariantOperatorBase::operate(variant); //merges REF and ALT
+    }
+    void operate_on_columnar_cell(const GenomicsDBGVCFCell& variant) { ++m_total; } //iterator merges REF and AL already
     uint64_t get_value() const { return m_total; }
   private:
     uint64_t m_total;
