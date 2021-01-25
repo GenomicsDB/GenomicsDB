@@ -57,11 +57,11 @@ TEST_CASE("gvcf iterator", "[gvcf_iterator]") {
   VariantQueryProcessor query_processor(&storage_manager, query_config.get_array_name(0), query_config.get_vid_mapper());
   query_processor.do_query_bookkeeping(query_processor.get_array_schema(), query_config, query_config.get_vid_mapper(), true);
   
-  VariantCounter counter;
+  ProfilerOperator counter;
   query_processor.iterate_over_gvcf_entries(query_processor.get_array_descriptor(), query_config, counter, true);
   CHECK(counter.get_value() == 4);
 
-  VariantCounter *variant_counter = new VariantCounter();
+  ProfilerOperator *variant_counter = new ProfilerOperator();
   query_processor.scan_and_operate(query_processor.get_array_descriptor(), query_config, *variant_counter, 0, true);
   CHECK(variant_counter->get_value() == 4);
   delete variant_counter;
@@ -107,6 +107,11 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
   auto vcf_buffer_length = 4*bcf_hdr_nsamples(hdr); //since SB has 4 elements per sample
   auto vcf_buffer_ptr = new int[vcf_buffer_length]; //use single buffer
   std::string contig_name;
+  //REF-ALT comparison
+  std::unordered_set<STRING_VIEW> gold_alleles;
+  std::unordered_set<STRING_VIEW> test_alleles;
+  std::string alleles_buffer;
+  std::vector<STRING_VIEW> alleles_vec;
   for (; !(columnar_gvcf_iter->end()); ++(*columnar_gvcf_iter)) {
     auto column_interval = columnar_gvcf_iter->get_current_variant_interval();
     REQUIRE(bcf_read(fptr, hdr, rec) == 0);
@@ -114,6 +119,21 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
     REQUIRE(vid_mapper.get_contig_location(column_interval.first, contig_name, contig_position));
     CHECK(contig_name == std::string(bcf_seqname(hdr, rec)));
     CHECK(contig_position == rec->pos);
+    //std::cerr << rec->pos <<"\n";
+    bcf_unpack(rec, BCF_UN_STR);
+    //REF-ALT comparison
+    gold_alleles.clear();
+    for(auto i=0u;i<rec->n_allele;++i)
+      gold_alleles.insert(STRING_VIEW(rec->d.allele[i], strlen(rec->d.allele[i])));
+    alleles_buffer.clear();
+    alleles_vec.clear();
+    test_alleles.clear();
+    columnar_gvcf_iter->get_alleles_combiner().get_merged_VCF_spec_alleles_vec(alleles_buffer, alleles_vec);
+    if(alleles_vec[0].length() == 0u) //leftover REF block remains
+      alleles_vec[0] = STRING_VIEW(rec->d.allele[0], strlen(rec->d.allele[0]));
+    for(auto x : alleles_vec)
+      test_alleles.insert(x);
+    CHECK(gold_alleles == test_alleles);
     //Check SB and GQ fields since they have no allele dependence and are unmodified from input to output
     for(auto field_name : { "SB", "GQ" }) {
       if((strcmp(field_name, "SB") == 0 && is_SB_queried && SB_hdr_idx >= 0)

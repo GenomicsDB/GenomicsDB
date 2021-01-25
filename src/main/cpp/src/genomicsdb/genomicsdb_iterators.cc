@@ -797,6 +797,8 @@ GenomicsDBGVCFIterator::GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
                              array_path, query_config, buffer_size)
 {}
 
+#define INIT_INVALID_HISTOGRAM_NUM_BINS 20u
+
 GenomicsDBGVCFIterator::GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
     const TileDB_Array* tiledb_array,
     const VidMapper* vid_mapper, const VariantArraySchema& variant_array_schema,
@@ -806,12 +808,16 @@ GenomicsDBGVCFIterator::GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
   m_current_start_position(-1ll),
   m_current_end_position(-1ll),
   m_next_start_position(-1ll),
-  m_num_calls_with_deletions_or_MNVs(0u),
-  m_cell(new GenomicsDBGVCFCell(this))
+  m_cell(new GenomicsDBGVCFCell(this)),
+  m_alleles_combiner(query_config.get_num_rows_to_query())
+#ifdef DO_PROFILING
+  , m_num_times_initialized(INIT_INVALID_HISTOGRAM_NUM_BINS, 0u),
+  m_num_times_invalidated(INIT_INVALID_HISTOGRAM_NUM_BINS, 0u),
+  m_bin_size((m_query_config->get_num_rows_to_query()+INIT_INVALID_HISTOGRAM_NUM_BINS-1)/INIT_INVALID_HISTOGRAM_NUM_BINS)
+#endif
 {
   m_REF_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_REF_IDX);
   m_ALT_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_ALT_IDX);
-  m_live_cell_markers.prepare_for_gvcf_iterator();
   //Constructor for SingleCellTileDBIterator invokes SingleCellTileDBIterator::begin_new_query_column_interval()
   //So, it's safe to call GenomicsDBGVCFIterator::begin_new_query_column_interval()
   begin_new_query_column_interval();
@@ -821,6 +827,11 @@ GenomicsDBGVCFIterator::~GenomicsDBGVCFIterator() {
   if(m_cell)
     delete m_cell;
   m_cell = 0;
+#ifdef DO_PROFILING
+  std::cerr << "INIT INVALID HISTOGRAM\n";
+  for(auto i=0u;i<INIT_INVALID_HISTOGRAM_NUM_BINS;++i)
+    std::cerr << i*m_bin_size << " "<<m_num_times_initialized[i] << " " <<m_num_times_invalidated[i] <<"\n";
+#endif
 }
 
 template<>
@@ -828,29 +839,14 @@ void GenomicsDBGVCFIterator::update_num_deletions_and_MNVs<true>(const size_t ro
   const auto REF_ptr_length_pair = get_raw_pointer_and_length_for_query_idx(row_query_idx, m_REF_query_idx);
   const auto ALT_ptr_length_pair = get_raw_pointer_and_length_for_query_idx(row_query_idx, m_ALT_query_idx);
   STRING_VIEW REF(reinterpret_cast<const char*>(REF_ptr_length_pair.first), REF_ptr_length_pair.second);
-  //split up ALT
-  const char* ptr = reinterpret_cast<const char*>(ALT_ptr_length_pair.first);
-  size_t remaining_n = ALT_ptr_length_pair.second;
-  bool contains_deletion = false;
-  bool contains_MNV = false;
-  while(remaining_n > 0u) {
-   auto tmp = reinterpret_cast<const char*>(memchr(ptr, TILEDB_ALT_ALLELE_SEPARATOR[0], remaining_n));
-   const auto n = tmp ? (tmp-ptr) : remaining_n;
-   STRING_VIEW ALT(ptr, n);
-   contains_deletion = contains_deletion || VariantUtils::is_deletion(REF, ALT);
-   contains_MNV = contains_MNV || VariantUtils::is_MNV(REF, ALT);
-   ptr = tmp + 1;  //+1 for length of separator
-   remaining_n -= (n + (tmp ? 1 : 0));
-  }
-  m_live_cell_markers.set_contains_deletion(row_query_idx, contains_deletion);
-  m_live_cell_markers.set_contains_MNV(row_query_idx, contains_MNV);
-  if(contains_deletion || contains_MNV)
-    ++m_num_calls_with_deletions_or_MNVs;
+  STRING_VIEW delimited_ALT(reinterpret_cast<const char*>(ALT_ptr_length_pair.first), ALT_ptr_length_pair.second);
+  m_alleles_combiner.insert_allele_info(row_query_idx, REF, delimited_ALT,
+      (m_live_cell_markers.get_begin(row_query_idx) < m_current_start_position));
 }
 
 template<>
 void GenomicsDBGVCFIterator::update_num_deletions_and_MNVs<false>(const size_t row_query_idx) {
-  m_num_calls_with_deletions_or_MNVs -= (m_live_cell_markers.contains_deletion_or_MNV(row_query_idx) ? 1 : 0);
+  m_alleles_combiner.remove_allele_info(row_query_idx);
 }
 
 void GenomicsDBGVCFIterator::begin_new_query_column_interval() {
@@ -859,9 +855,9 @@ void GenomicsDBGVCFIterator::begin_new_query_column_interval() {
   //has determined that there is valid data to work on
   if(SingleCellTileDBIterator::end())
     return;
+  m_alleles_combiner.reset_for_next_query_interval();
   const auto& coords_columnar_field = m_fields.back();
   const auto& END_columnar_field = m_fields[m_END_query_idx];
-  m_num_calls_with_deletions_or_MNVs = 0u;
   m_current_start_position = (m_query_config->get_num_column_intervals() == 0u)
     ? -1ll : m_query_config->get_column_begin(m_query_column_interval_idx);
   m_query_interval_limit = (m_query_config->get_num_column_intervals() == 0u)
@@ -888,7 +884,9 @@ void GenomicsDBGVCFIterator::begin_new_query_column_interval() {
   }
   //There might be more elements which start at query interval begin
   //which are accessed in simple traversal mode
+  m_alleles_combiner.reset_before_adding_new_sample_info_at_current_position();
   fill_end_set_in_simple_traversal_mode();
+  m_alleles_combiner.finished_updating_allele_info_for_current_position();
 }
 
 const GenomicsDBGVCFIterator& GenomicsDBGVCFIterator::operator++() {
@@ -898,6 +896,9 @@ const GenomicsDBGVCFIterator& GenomicsDBGVCFIterator::operator++() {
   if(m_current_start_position > m_query_interval_limit)
     m_current_start_position = INT64_MAX;
   auto iter = m_end_set.begin();
+#ifdef DO_PROFILING
+  auto num_times_invalidated = 0ull;
+#endif
   //Remove all entries that finish at or before m_current_end_position
   for(;iter!=m_end_set.end();++iter) {
     auto min_end_element = *iter;
@@ -906,16 +907,23 @@ const GenomicsDBGVCFIterator& GenomicsDBGVCFIterator::operator++() {
     if(END_field_value < m_current_start_position) {
       update_num_deletions_and_MNVs<false>(row_query_idx);
       decrement_num_live_entries_in_live_cell_marker(row_query_idx);
+#ifdef DO_PROFILING
+      ++num_times_invalidated;
+#endif
     }
     else
       break;
   }
+#ifdef DO_PROFILING
+  ++(m_num_times_invalidated[num_times_invalidated/m_bin_size]);
+#endif
   if(iter == m_end_set.end()) { //all entries have END <= m_current_end_position
     m_end_set.clear();
     m_current_start_position = m_next_start_position;
   }
   else
     m_end_set.erase(m_end_set.begin(), iter);
+  m_alleles_combiner.reset_before_adding_new_sample_info_at_current_position();
   if(m_current_start_position == m_next_start_position)
     fill_end_set_in_simple_traversal_mode();
   else {
@@ -927,6 +935,7 @@ const GenomicsDBGVCFIterator& GenomicsDBGVCFIterator::operator++() {
     SingleCellTileDBIterator::begin_new_query_column_interval();
     GenomicsDBGVCFIterator::begin_new_query_column_interval();
   }
+  m_alleles_combiner.finished_updating_allele_info_for_current_position();
   m_at_new_query_column_interval = false;
   return *this;
 }
@@ -937,6 +946,9 @@ void GenomicsDBGVCFIterator::fill_end_set_in_simple_traversal_mode() {
   m_next_start_position = -1;
   const auto& coords_columnar_field = m_fields.back();
   const auto& END_columnar_field = m_fields[m_END_query_idx];
+#ifdef DO_PROFILING
+  auto num_times_initialized = 0ull;
+#endif
   while(!m_done_reading_from_TileDB && m_next_start_position == -1) {
     const auto* coords = reinterpret_cast<const int64_t*>(
 	coords_columnar_field.get_raw_pointer_to_data_in_buffer_at_index(
@@ -968,10 +980,16 @@ void GenomicsDBGVCFIterator::fill_end_set_in_simple_traversal_mode() {
       update_num_deletions_and_MNVs<true>(row_query_idx);
       m_end_set.insert(GVCFEndSetElementTy(END_field_value, row_query_idx));
       advance_to_next_useful_cell(1u);
+#ifdef DO_PROFILING
+      ++num_times_initialized;
+#endif
     }
     else
       m_next_start_position = coords[1];
   }
+#ifdef DO_PROFILING
+  ++(m_num_times_initialized[num_times_initialized/m_bin_size]);
+#endif
   update_current_end_position();
 }
 
@@ -986,7 +1004,7 @@ void GenomicsDBGVCFIterator::update_current_end_position() {
     //to avoid wrap-around
     m_next_start_position = std::min(m_next_start_position, INT64_MAX-1)+1;
   }
-  if(m_num_calls_with_deletions_or_MNVs > 0u)
+  if(m_alleles_combiner.get_num_calls_with_deletions_or_MNVs() > 0u)
     m_current_end_position = m_current_start_position; //to put spanning deletions
   else {
     const auto min_END_field_value = m_end_set.empty() ? INT64_MAX
