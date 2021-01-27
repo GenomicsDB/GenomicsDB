@@ -75,7 +75,7 @@ set(DO_MEMORY_PROFILING False CACHE BOOL "Collect memory consumption in parts of
 
 set(GENOMICSDB_MAVEN_BUILD_DIR ${CMAKE_BINARY_DIR}/target CACHE PATH "Path to maven build directory")
 set(MAVEN_QUIET False CACHE BOOL "Do not print mvn messages")
-set(GENOMICSDB_SPARK_PROFILE "" CACHE STRING "Profile to choose Apache Spark version") # used in Maven builds
+set(GENOMICSDB_MAVEN_PROFILE "" CACHE STRING "Profile to compile with Spark 2 or Java 11") # used in Maven builds
 set(GPG_PASSPHRASE "" CACHE STRING "Gpg passphrase for deploying to maven")
 
 set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when intel optimized zlib is required")
@@ -455,7 +455,7 @@ if(BUILD_JAVA)
         ./src/test/java/org/genomicsdb/GenomicsDBTestUtils.java
         )
     
-      if(GENOMICSDB_SPARK_PROFILE STREQUAL "spark2")
+      if(GENOMICSDB_MAVEN_PROFILE STREQUAL "spark2")
       set(JAVA_SCALA_SOURCES 
           ${JAVA_SCALA_SOURCES}
           ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBDataSourceReader.java
@@ -510,10 +510,10 @@ if(BUILD_JAVA)
 
       endif()
 
-      if(GENOMICSDB_SPARK_PROFILE STREQUAL "spark2")
-        message(STATUS "Setting maven profile to ${GENOMICSDB_SPARK_PROFILE}" )
+      if(GENOMICSDB_MAVEN_PROFILE)
+        message(STATUS "Setting maven profile to ${GENOMICSDB_MAVEN_PROFILE}" )
         set(MAVEN_PROFILE 
-          -P${GENOMICSDB_SPARK_PROFILE})
+          -P${GENOMICSDB_MAVEN_PROFILE})
         set(MAVEN_ARGS ${MAVEN_ARGS} ${MAVEN_PROFILE})
     else()
         set(MAVEN_PROFILE "")

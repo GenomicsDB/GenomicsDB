@@ -20,6 +20,11 @@ jobs:
       matrix:
         os: [ubuntu-18.04]
         type: [hdfs]
+        java: [8]
+
+    env: 
+      JAVA_VER: ${{matrix.java}}
+      JAVA_HOME: /usr/lib/jvm/java-1.${{matrix.java}}.0-openjdk-amd64/
 
     runs-on: ${{matrix.os}}
 
@@ -29,6 +34,15 @@ jobs:
     - uses: actions/setup-python@v2
       with:
         python-version: 3.6
+
+    - name: Install Java
+      if: startsWith(matrix.os, 'ubuntu')
+      shell: bash
+      run: |
+        sudo add-apt-repository -y ppa:openjdk-r/ppa
+        sudo apt update -qq
+        sudo apt install -yq openjdk-${{matrix.java}}-jdk
+        echo $JAVA_HOME/bin >> $GITHUB_PATH
 
     - name: Cache built prerequisite artifacts like protobuf
       uses: actions/cache@v2
@@ -84,7 +98,7 @@ jobs:
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
         source $PREREQS_ENV
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1 -DGENOMICSDB_SPARK_PROFILE=spark2
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1 -DGENOMICSDB_MAVEN_PROFILE=spark2
 
     - name: Build
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}

@@ -28,11 +28,8 @@ import org.testng.annotations.Test;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.stream.Collectors;
 
 public class GenomicsDBLibLoaderTest {
   @Test
@@ -41,9 +38,7 @@ public class GenomicsDBLibLoaderTest {
   }
 
   public int runTestInSeparateProcess(String libraryPath) throws Exception {
-    String classpath = Arrays.stream(((URLClassLoader) Thread.currentThread().getContextClassLoader()).getURLs())
-            .map(URL::getFile)
-            .collect(Collectors.joining(File.pathSeparator));
+    
     ProcessBuilder processBuilder = null;
     if (libraryPath == null) {
       processBuilder = new ProcessBuilder(System.getProperty("java.home") + "/bin/java",

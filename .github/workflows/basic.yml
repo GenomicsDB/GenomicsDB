@@ -20,10 +20,20 @@ jobs:
       matrix:
         os: [ubuntu-18.04,macos-10.15]
         type: [basic]
+        java: [8,11]
         include:
           - os: ubuntu-18.04
             type: hdfs
+            java: 8
+          - os: ubuntu-18.04
+            type: hdfs
+            java: 11
 
+    env: 
+      OS_TYPE: ${{matrix.os}} 
+      JAVA_VER: ${{matrix.java}}
+      JAVA_LINUX: /usr/lib/jvm/java-1.${{matrix.java}}.0-openjdk-amd64/
+      
     runs-on: ${{matrix.os}}
 
     steps:
@@ -32,6 +42,20 @@ jobs:
     - uses: actions/setup-python@v2
       with:
         python-version: 3.6
+
+    - uses: actions/setup-java@v1
+      if:  startsWith(matrix.os, 'macos')
+      with: 
+        java-version: ${{matrix.java}}
+
+    - name: Install Java, set path
+      if: startsWith(matrix.os, 'ubuntu')
+      shell: bash
+      run: | 
+        sudo add-apt-repository -y ppa:openjdk-r/ppa
+        sudo apt update -qq
+        sudo apt install -yq openjdk-${{matrix.java}}-jdk
+        echo $JAVA_LINUX/bin >> $GITHUB_PATH
 
     - name: Cache built prerequisite artifacts like protobuf
       uses: actions/cache@v2
@@ -67,13 +91,6 @@ jobs:
         path: ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
         key: dfs-${{env.HADOOP_VER}}-v2
 
-    - name: Cache Spark
-      if: matrix.type == 'hdfs'
-      uses: actions/cache@v2
-      with:
-        path: ${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}
-        key: spark-${{env.SPARK_VER}}-${{env.SPARK_HADOOP_VER}}-v2
-
     - name: Install Prerequisites ubuntu
       shell: bash
       if: startsWith(matrix.os, 'ubuntu')
@@ -96,7 +113,7 @@ jobs:
       working-directory:  ${{github.workspace}}
       run: |
         source $GITHUB_WORKSPACE/.github/scripts/install_hadoop.sh
-        SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
+        JAVA_HOME=$JAVA_LINUX SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
       env:
         INSTALL_DIR: ${{runner.workspace}}
 
@@ -105,30 +122,45 @@ jobs:
       if: startsWith(matrix.os, 'ubuntu')
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
+        if [[ $JAVA_VER == '11' ]]; then
+          GENOMICSDB_MAVEN_PROFILE=java11
+        fi
         source $PREREQS_ENV
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1
+        JAVA_HOME=$JAVA_LINUX
+        echo $JAVA_LINUX/bin >> $GITHUB_PATH
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1 -DGENOMICSDB_MAVEN_PROFILE=$GENOMICSDB_MAVEN_PROFILE
 
-    - name: Configure CMake Build macos
+    - name: Configure CMake Build macos 
       shell: bash
       if: startsWith(matrix.os, 'macos')
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
+        if [[ $JAVA_VER == '11' ]]; then
+          GENOMICSDB_MAVEN_PROFILE=java11
+        fi
         source $PREREQS_ENV
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1
-
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1 -DGENOMICSDB_MAVEN_PROFILE=$GENOMICSDB_MAVEN_PROFILE
+    
     - name: Build
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       shell: bash
       run: |
+        if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
+          export JAVA_HOME=$JAVA_LINUX
+          echo $JAVA_LINUX/bin >> $GITHUB_PATH
+        fi
         source $PREREQS_ENV
         make -j4
         make install
 
     - name: Test
-      if: matrix.type == 'basic'
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
+        if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
+          export JAVA_HOME=$JAVA_LINUX
+          echo $JAVA_LINUX/bin >> $GITHUB_PATH
+        fi
         python2 -m pip install --upgrade pip
         python2 -m pip install jsondiff
         make test ARGS=-V
@@ -138,6 +170,7 @@ jobs:
       shell: bash
       working-directory:  ${{github.workspace}}
       run: |
+        JAVA_HOME=$JAVA_LINUX
         source $SPARK_ENV
         python -m pip install --upgrade pip
         python -m pip install jsondiff
