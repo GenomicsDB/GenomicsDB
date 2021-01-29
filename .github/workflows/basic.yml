@@ -164,6 +164,7 @@ jobs:
     - name: Test
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
+      if: matrix.type == 'basic'
       run: |
         if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
           export JAVA_HOME=$JAVA_LINUX
