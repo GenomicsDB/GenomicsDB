@@ -20,8 +20,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "assert.h"
-
 #include "hfile_internal.h"
 #include "hfile_genomicsdb.h"
 
@@ -40,7 +38,6 @@ static ssize_t genomicsdb_read(hFILE* fpv, void *buffer, size_t nbytes) {
   if (nbytes > avail) nbytes = avail;
   if (nbytes) {
     ssize_t length = genomicsdb_filesystem_read(fp->context, fp->filename, fp->offset, buffer, nbytes);
-    assert(length == nbytes);
   }
   fp->offset += nbytes;
   return nbytes;
@@ -92,7 +89,7 @@ static hFILE *genomicsdb_open(const char *uri, const char *mode) {
     // TODO: error handling
     return NULL;
   }
-  fp->context = genomicsdb_filesystem_init(uri);
+  fp->context = genomicsdb_filesystem_init(uri, hfile_oflags(mode));
   if (fp->context == NULL) {
     free(fp);
     return NULL;

@@ -35,6 +35,7 @@
 #include "hfile_genomicsdb.h"
 #include "test_base.h"
 
+#include <fcntl.h>
 
 TEST_CASE_METHOD(TempDir, "test htslib plugin", "[test_htslib_plugin]") {
   // No exceptions should be thrown in genomicsdb_htslib_plugin_initialize
@@ -44,13 +45,15 @@ TEST_CASE_METHOD(TempDir, "test htslib plugin", "[test_htslib_plugin]") {
   genomicsdb_htslib_plugin_initialize("az://fdfd");  // Supported by genomicsdb via htslib plugin
   genomicsdb_htslib_plugin_initialize("dfdfd://fdfd/f"); // No support
 
-  CHECK(genomicsdb_filesystem_init(NULL) == NULL);
-  CHECK(genomicsdb_filesystem_init("") == NULL);
-  CHECK(genomicsdb_filesystem_init(get().c_str()) == NULL); // Directories not supported
-  CHECK(genomicsdb_filesystem_init("dfdfd://ddd") == NULL);
+  CHECK(genomicsdb_filesystem_init(NULL, 0) == NULL);
+  CHECK(genomicsdb_filesystem_init("", 0) == NULL);
+  CHECK(genomicsdb_filesystem_init(get().c_str(), 0) == NULL); // Directories not supported
+  CHECK(genomicsdb_filesystem_init("dfdfd://ddd", 0) == NULL);
 
   std::string filename = get()+"/foo";
-  void* ctx = genomicsdb_filesystem_init(filename.c_str());
+  CHECK(genomicsdb_filesystem_init(filename.c_str(), 0) == NULL);
+  CHECK(genomicsdb_filesystem_init(filename.c_str(), O_RDONLY) == NULL);
+  void* ctx = genomicsdb_filesystem_init(filename.c_str(), O_RDWR);
   CHECK(ctx != NULL);
 
   char buffer[16];
