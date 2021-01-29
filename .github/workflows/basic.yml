@@ -1,6 +1,14 @@
-name: Basic workflow to build and test GenomicsDB
+name: build
 
-on: [push, pull_request]
+on:
+  push:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.rst'
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.rst'
 
 env:
   PREREQS_ENV: ${{github.workspace}}/prereqs.sh
