@@ -55,6 +55,7 @@ void *genomicsdb_filesystem_init(const char *filename, int mode) {
     // htslib plugins support only read/write of files
     if (!is_dir(tiledb_ctx, filename)) {
       if ((mode & O_ACCMODE) == O_RDONLY) {
+        // Assuming file exists for O_RDONLY, otherwise return NULL
         if (is_file(tiledb_ctx, filename)) {
           return tiledb_ctx;
         } else {
@@ -70,8 +71,8 @@ void *genomicsdb_filesystem_init(const char *filename, int mode) {
 }
 
 size_t genomicsdb_filesize(void *context, const char *filename) {
-  auto size = file_size(reinterpret_cast<TileDB_CTX *>(context), filename);
-  return (size==-1)?0:size;
+  auto tiledb_ctx = reinterpret_cast<TileDB_CTX *>(context);
+  return is_file(tiledb_ctx, filename)?file_size(tiledb_ctx, filename):0;
 }
 
 ssize_t genomicsdb_filesystem_read(void *context, const char *filename, off_t offset, void *buffer, size_t length) {
