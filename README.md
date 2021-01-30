@@ -3,7 +3,7 @@
 
 | Master | Develop |
 | --- | --- |
-| [![Travis](https://travis-ci.org/GenomicsDB/GenomicsDB.svg?branch=master)](https://travis-ci.org/GenomicsDB/GenomicsDB) | [![Travis](https://travis-ci.org/GenomicsDB/GenomicsDB.svg?branch=develop)](https://travis-ci.org/GenomicsDB/GenomicsDB?branch=develop) |
+| [![actions](https://github.com/GenomicsDB/GenomicsDB/workflows/build/badge.svg?branch=master)](https://github.com/GenomicsDB/GenomicsDB/actions?query=branch%3Amaster) | [![actions](https://github.com/GenomicsDB/GenomicsDB/workflows/build/badge.svg?branch=develop)](https://github.com/GenomicsDB/GenomicsDB/actions?query=branch%3Adevelop) |
 | [![codecov](https://codecov.io/gh/GenomicsDB/GenomicsDB/branch/master/graph/badge.svg)](https://codecov.io/gh/GenomicsDB/GenomicsDB) | [![codecov](https://codecov.io/gh/GenomicsDB/GenomicsDB/branch/develop/graph/badge.svg)](https://codecov.io/gh/GenomicsDB/GenomicsDB/branch/develop) |
 
 GenomicsDB, originally from [Intel Health and Lifesciences](https://github.com/Intel-HLS/GenomicsDB), is built on top of a fork of [htslib](https://github.com/samtools/htslib) and a tile-based array storage system for importing, querying and transforming variant data. Variant data is sparse by nature (sparse relative to the whole genome) and using sparse array data stores is a perfect fit for storing such data. GenomicsDB is a highly performant scalable data storage written in C++ for importing, querying and transforming genomic variant data.

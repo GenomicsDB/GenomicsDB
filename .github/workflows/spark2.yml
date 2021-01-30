@@ -1,4 +1,4 @@
-name: Workflow to build and test GenomicsDB Spark API with Spark2
+name: Spark2 compatibility
 
 on: [push, pull_request]
 

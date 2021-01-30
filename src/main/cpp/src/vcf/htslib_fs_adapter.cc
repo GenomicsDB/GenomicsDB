@@ -25,6 +25,7 @@
 #include "tiledb.h"
 #include "tiledb_storage.h"
 
+#include <fcntl.h>
 #include <mutex>
 
 std::once_flag initialize_once;
@@ -41,7 +42,7 @@ void genomicsdb_htslib_plugin_initialize(const char* filename) {
   }
 }
 
-void *genomicsdb_filesystem_init(const char *filename) {
+void *genomicsdb_filesystem_init(const char *filename, int mode) {
   if (filename && filename[0] != '\0') {
     TileDB_CTX* tiledb_ctx;
     TileDB_Config tiledb_config;
@@ -53,14 +54,25 @@ void *genomicsdb_filesystem_init(const char *filename) {
     }
     // htslib plugins support only read/write of files
     if (!is_dir(tiledb_ctx, filename)) {
-      return tiledb_ctx;
+      if ((mode & O_ACCMODE) == O_RDONLY) {
+        // Assuming file exists for O_RDONLY, otherwise return NULL
+        if (is_file(tiledb_ctx, filename)) {
+          return tiledb_ctx;
+        } else {
+          tiledb_ctx_finalize(tiledb_ctx);
+          return NULL;
+        }
+      } else {
+        return tiledb_ctx;
+      }
     }
   }
   return NULL;
 }
 
 size_t genomicsdb_filesize(void *context, const char *filename) {
-  return file_size(reinterpret_cast<TileDB_CTX *>(context), filename);
+  auto tiledb_ctx = reinterpret_cast<TileDB_CTX *>(context);
+  return is_file(tiledb_ctx, filename)?file_size(tiledb_ctx, filename):0;
 }
 
 ssize_t genomicsdb_filesystem_read(void *context, const char *filename, off_t offset, void *buffer, size_t length) {

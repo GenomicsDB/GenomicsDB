@@ -40,7 +40,7 @@ extern "C" {
 #endif
 /**@}*/
 
-  GENOMICSDB_EXPORT void *genomicsdb_filesystem_init(const char *filename);
+  GENOMICSDB_EXPORT void *genomicsdb_filesystem_init(const char *filename, int mode);
 
   GENOMICSDB_EXPORT size_t genomicsdb_filesize(void *context, const char *filename);
   

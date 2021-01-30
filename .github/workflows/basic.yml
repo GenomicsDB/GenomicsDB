@@ -1,6 +1,14 @@
-name: Basic workflow to build and test GenomicsDB
+name: build
 
-on: [push, pull_request]
+on:
+  push:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.rst'
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.rst'
 
 env:
   PREREQS_ENV: ${{github.workspace}}/prereqs.sh
@@ -156,6 +164,7 @@ jobs:
     - name: Test
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
+      if: matrix.type == 'basic'
       run: |
         if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
           export JAVA_HOME=$JAVA_LINUX
