@@ -410,6 +410,7 @@ void print_usage() {
             << "\t\t\t   \"query_column_ranges\" : [ [ [0, 100 ], 500 ] ],\n"
             << "\t\t\t   \"query_row_ranges\" : [ [ [0, 2 ] ],\n"
             << "\t\t\t   \"vid_mapping_file\" : \"/tests/inputs/vid.json\",\n"
+			<< "\t\t\t   \"callset_mapping_file\": \"/tests/inputs/callset_mapping.json\",\n"
             << "\t\t\t   \"query_attributes\" : [ \"REF\", \"ALT\", \"BaseQRankSum\", \"MQ\", \"MQ0\", \"ClippingRankSum\", \"MQRankSum\", \"ReadPosRankSum\", \"DP\", \"GT\", \"GQ\", \"SB\", \"AD\", \"PL\", \"DP_FORMAT\", \"MIN_DP\" ] }\n"
             << "\t \e[1m--loader-json-config\e[0m=<loader json file>, \e[1m-l\e[0m <loader json file>\n"
             << "\t\t Optional, if vid_mapping_file and callset_mapping_file fields are specified in the query json file\n"
