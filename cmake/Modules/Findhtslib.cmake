@@ -44,9 +44,15 @@ endif()
 
 #Build if htslib source directory specified
 if(HTSLIB_SOURCE_DIR)
-    set(HTSLIB_Debug_CFLAGS "-Wall -fPIC -DDEBUG  -g3 -gdwarf-3 -DVCF_ALLOW_INT64=1")  #will be picked if compiling in debug mode
+    set(HTSLIB_Debug_CFLAGS " -Wall -fPIC -DDEBUG  -g3 -gdwarf-3 -DVCF_ALLOW_INT64=1")  #will be picked if compiling in debug mode
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        set(HTSLIB_Debug_CFLAGS "${HTSLIB_Debug_CFLAGS} -Wno-expansion-to-defined -Wno-nullability-completeness")
+    endif()
     set(HTSLIB_Coverage_CFLAGS "${HTSLIB_Debug_CFLAGS}")
     set(HTSLIB_Release_CFLAGS " -Wall -fPIC -O3 -DVCF_ALLOW_INT64=1")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        set(HTSLIB_Release_CFLAGS "${HTSLIB_Release_CFLAGS} -Wno-expansion-to-defined -Wno-nullability-completeness")
+    endif()
     set(HTSLIB_Debug_LDFLAGS "-g3 -gdwarf-3")
     set(HTSLIB_Coverage_LDFLAGS "${HTSLIB_Debug_LDFLAGS}")
     set(HTSLIB_Release_LDFLAGS "")
