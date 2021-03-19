@@ -154,7 +154,7 @@ install_curl() {
     git clone https://github.com/curl/curl.git &&
       cd curl &&
       autoreconf -i &&
-      ./configure --enable-lib-only --with-pic  --with-ssl=$OPENSSL_PREFIX --prefix $CURL_PREFIX &&
+      ./configure --enable-lib-only --with-pic -without-zstd --with-ssl=$OPENSSL_PREFIX --prefix $CURL_PREFIX &&
       make && make install && echo "Installing CURL DONE"
     rm -fr /tmp/curl
     popd
