@@ -368,6 +368,9 @@ int VidMapper::parse_infofields_from_vidmap(
         ref.m_length_descriptor.set_vcf_delimiter(i,
             vid_map_protobuf->fields(pb_field_idx).vcf_delimiter(i).c_str());
     }
+    ref.m_disable_remap_missing_with_non_ref = 
+      vid_map_protobuf->fields(pb_field_idx).has_disable_remap_missing_with_non_ref() ?
+      vid_map_protobuf->fields(pb_field_idx).disable_remap_missing_with_non_ref() : false;
 
     ++field_idx;
     flatten_field(field_idx, field_idx-1);

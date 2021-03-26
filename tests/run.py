@@ -1303,6 +1303,26 @@ def main():
                         } },
                     ]
             },
+            { "name" : "java_genomicsdb_importer_from_vcfs_t0_1_2_all_asa_no_remap_missing",
+                'callset_mapping_file': 'inputs/callsets/t0_1_2_all_asa.json',
+                'vid_mapping_file': 'inputs/vid_all_asa_no_remap_missing.json',
+                'chromosome_intervals': [ '1:1-100000000' ],
+                "query_params": [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }],
+                        "force_override": True,
+                        'segment_size': 100,
+                        "attributes": asa_vcf_attributes,
+                        "golden_output": {
+                        "vcf"      : "golden_outputs/t0_1_2_all_asa_loading_no_remap_missing",
+                        "java_vcf"   : "golden_outputs/t0_1_2_all_asa_java_query_vcf_no_remap_missing",
+                        } },
+                    ]
+            },
             { "name" : "java_genomicsdb_importer_from_vcfs_incremental_t0_1_2_all_asa",
                 'callset_mapping_file': 'inputs/callsets/t0_1_2_all_asa.0.json',
                 'callset_mapping_file1': 'inputs/callsets/t0_1_2_all_asa.1.json',

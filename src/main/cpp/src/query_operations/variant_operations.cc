@@ -459,7 +459,7 @@ void remap_allele_specific_annotations(
   const auto merged_non_reference_allele_idx = NON_REF_exists ?
       static_cast<int64_t>(static_cast<int>(num_merged_alleles-1)) : lut_missing_value;
   //index of NON_REF in input sample
-  const auto input_non_reference_allele_idx = NON_REF_exists ?
+  const auto input_non_reference_allele_idx = NON_REF_exists && vid_field_info.remap_missing_with_non_ref() ?
       alleles_LUT.get_input_idx_for_merged(input_call_idx, merged_non_reference_allele_idx) : lut_missing_value;
   //Loop over alleles - only ALT or all alleles (BCF_VL_A or BCF_VL_R)
   unsigned length = alt_alleles_only ? num_merged_alleles-1u: num_merged_alleles;
