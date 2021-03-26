@@ -65,17 +65,15 @@ jobs:
         sudo apt install -yq openjdk-${{matrix.java}}-jdk
         echo $JAVA_LINUX/bin >> $GITHUB_PATH
 
-    - name: Cache built prerequisite artifacts like protobuf
+    - name: Cache built prerequisites
       uses: actions/cache@v2
       with:
-        path: ${{env.PREREQS_INSTALL_DIR}}
-        key: ${{matrix.os}}-cache-prereqs-v1
-
-    - name: Cache Maven artifacts
-      uses: actions/cache@v2
-      with:
-        path: ~/.m2/repository
-        key: ${{matrix.os}}-cache-m2-v1
+        path: |
+          ${{env.PREREQS_INSTALL_DIR}}
+           ~/.m2/repository
+          ~/awssdk-install
+          ~/gcssdk-install
+        key: ${{matrix.os}}-cache-prereqs-v2
 
     # TODO: See https://github.com/actions/cache/pull/285 using platform-indepenedent "pip cache dir"
     - name: Cache Python artifacts for Ubuntu 
@@ -99,21 +97,21 @@ jobs:
         path: ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
         key: dfs-${{env.HADOOP_VER}}-v2
 
-    - name: Install Prerequisites ubuntu
+    - name: Install Prerequisites
       shell: bash
-      if: startsWith(matrix.os, 'ubuntu')
       working-directory: ${{github.workspace}}/scripts/prereqs
-      run: sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
-
-    - name: Install Prerequisites macos
-      shell: bash
-      if: startsWith(matrix.os, 'macos')
-      working-directory: ${{github.workspace}}/scripts/prereqs
-      run: INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh true
-
-    - name: Create Build Directory
-      shell: bash
-      run: mkdir -p $GENOMICSDB_BUILD_DIR
+      run: |
+        echo "matrix.os = ${{matrix.os}}"
+        if [[ ${{matrix.os}} == macos* ]]; then
+          echo "Installing Prerequistes for MacOS..."
+          INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh true
+        else
+          echo "Install Prerequisites for Linux.."
+          sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
+        fi
+        echo "cat prereqs env..."
+        cat $PREREQS_ENV
+        echo "cat prereqs env DONE"
 
     - name: Install spark and hadoop dependencies
       if: matrix.type == 'hdfs'
@@ -124,6 +122,10 @@ jobs:
         JAVA_HOME=$JAVA_LINUX SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
       env:
         INSTALL_DIR: ${{runner.workspace}}
+
+    - name: Create Build Directory
+      shell: bash
+      run: mkdir -p $GENOMICSDB_BUILD_DIR
 
     - name: Configure CMake Build ubuntu
       shell: bash
@@ -158,6 +160,9 @@ jobs:
           echo $JAVA_LINUX/bin >> $GITHUB_PATH
         fi
         source $PREREQS_ENV
+        if [[ $OS_TYPE == macos* ]]; then
+          export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
+        fi
         make -j4
         make install
 
