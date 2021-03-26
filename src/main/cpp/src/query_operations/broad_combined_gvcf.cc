@@ -52,7 +52,7 @@
 #define GET_HISTOGRAM_FIELD_HANDLER_PTR_FROM_TUPLE(X) (std::get<2>(X))
 
 //Static member
-const std::unordered_set<char> BroadCombinedGVCFOperator::m_legal_bases({'A', 'T', 'G', 'C'});
+const std::unordered_set<char> BroadCombinedGVCFOperator::m_legal_bases({'A', 'T', 'G', 'C', 'a', 't', 'g', 'c'});
 
 //Utility functions for encoding GT field
 template<bool phase_information_in_TileDB, bool produce_GT_field>
@@ -822,6 +822,9 @@ void BroadCombinedGVCFOperator::operate(Variant& variant) {
     ref_allele[0] = m_vcf_adapter->get_reference_base_at_position(m_curr_contig_name.c_str(), m_bcf_out->pos);
     if (BroadCombinedGVCFOperator::m_legal_bases.find(ref_allele[0]) == BroadCombinedGVCFOperator::m_legal_bases.end())
       ref_allele[0] = 'N';
+    else if (BroadCombinedGVCFOperator::m_legal_bases.find(ref_allele[0]) != BroadCombinedGVCFOperator::m_legal_bases.end() &&
+             !m_query_config->produce_lowercase_alleles_in_soft_masked_regions())
+      ref_allele[0] = toupper(ref_allele[0]);
   }
   const auto& alt_alleles = dynamic_cast<VariantFieldALTData*>(m_remapped_variant.get_common_field(1u).get())->get();
   auto total_num_merged_alleles = alt_alleles.size() + 1u;      //+1 for REF

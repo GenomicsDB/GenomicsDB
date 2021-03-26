@@ -58,6 +58,7 @@ GenomicsDBConfigBase::GenomicsDBConfigBase() {
     m_max_diploid_alt_alleles_that_can_be_genotyped = MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED;
     m_max_genotype_count = MAX_GENOTYPE_COUNT;
     m_combined_vcf_records_buffer_size_limit = 10*1024u;
+    m_produce_lowercase_alleles_in_soft_masked_regions = false;
   }
 ColumnRange GenomicsDBConfigBase::verify_contig_position_and_get_tiledb_column_interval(const ContigInfo& contig_info,
     const int64_t begin, const int64_t end) {

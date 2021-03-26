@@ -161,6 +161,9 @@ class GenomicsDBConfigBase {
   inline bool enable_shared_posixfs_optimizations() const {
     return is_set_with_env_override(m_enable_shared_posixfs_optimizations, ENABLE_SHARED_POSIXFS_OPTIMIZATIONS);
   }
+  inline bool produce_lowercase_alleles_in_soft_masked_regions() const {
+    return m_produce_lowercase_alleles_in_soft_masked_regions;
+  }
   void scan_whole_array();
   const std::vector<std::string>& get_attributes() const { return m_attributes; }
   //JSON parsing functions
@@ -225,6 +228,7 @@ class GenomicsDBConfigBase {
   std::string m_callset_mapping_file;
   //Enable optimizations (disable file locking and enable keep file handles open until finalization
   bool m_enable_shared_posixfs_optimizations;
+  bool m_produce_lowercase_alleles_in_soft_masked_regions;
  public:
   //Static convenience member
   static std::unordered_map<std::string, bool> m_vcf_output_format_to_is_bcf_flag;
