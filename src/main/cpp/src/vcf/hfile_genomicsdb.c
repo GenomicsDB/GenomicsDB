@@ -1,6 +1,6 @@
 /**
  * The MIT License (MIT)
- * Copyright (c) 2020 Omics Data Automation, Inc.
+ * Copyright (c) 2020-2021 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -38,8 +38,9 @@ static ssize_t genomicsdb_read(hFILE* fpv, void *buffer, size_t nbytes) {
   if (nbytes > avail) nbytes = avail;
   if (nbytes) {
     ssize_t length = genomicsdb_filesystem_read(fp->context, fp->filename, fp->offset, buffer, nbytes);
+    fp->offset += length;
+    return length;
   }
-  fp->offset += nbytes;
   return nbytes;
 }
 
@@ -104,12 +105,14 @@ static hFILE *genomicsdb_open(const char *uri, const char *mode) {
 
 int hfile_plugin_init(struct hFILE_plugin *self) {
    static const struct hFILE_scheme_handler genomicsdb_handler =
-       { genomicsdb_open, hfile_always_remote, "GenomicsDB Storage", 10 };
+       { genomicsdb_open, hfile_always_remote, "GenomicsDB Storage", 99 };
    
   if (self) {
     self->name = "GenomicsDB Storage";
   }
   hfile_add_scheme_handler("az", &genomicsdb_handler);
   hfile_add_scheme_handler("hdfs", &genomicsdb_handler);
+  hfile_add_scheme_handler("s3", &genomicsdb_handler);
+  hfile_add_scheme_handler("gs", &genomicsdb_handler);
   return 0;
 }

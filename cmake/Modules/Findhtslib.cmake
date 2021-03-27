@@ -3,7 +3,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2020 Omics Data Automation, Inc.
+# Copyright (c) 2020-2021 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -64,15 +64,11 @@ if(HTSLIB_SOURCE_DIR)
     if((NOT (CMAKE_SYSTEM_NAME STREQUAL CMAKE_HOST_SYSTEM_NAME)) AND APPLE)
         set(HTSLIB_OSXCROSS_COMPILE_FLAGS LIBS=${OSXCROSS_LIBS} CPPFLAGS=${OSXCROSS_CPPFLAGS} --host=${CMAKE_SYSTEM_PROCESSOR}-${CMAKE_SYSTEM})
     endif()
-    if(CURL_FOUND)
-      set(HTSLIB_CURL_FLAGS --enable-libcurl --enable-gcs --enable-s3)
-      set(HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS "${HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS} -I${OPENSSL_INCLUDE_DIR} -I${CURL_INCLUDE_DIRS}")
-      get_filename_component(LIBCURL_DIR ${CURL_LIBRARIES} DIRECTORY)
-      get_filename_component(LIBOPENSSL_DIR ${OPENSSL_SSL_LIBRARY} DIRECTORY)
-      set(HTSLIB_LIBS "-L${LIBOPENSSL_DIR} -Wl,-rpath,${LIBOPENSSL_DIR} -L${LIBCURL_DIR} -lcurl")
-    else()
-      set(HTSLIB_CURL_FLAGS --disable-libcurl)
-    endif()
+    set(HTSLIB_CURL_FLAGS --enable-libcurl)
+    set(HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS "${HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS} -I${OPENSSL_INCLUDE_DIR} -I${CURL_INCLUDE_DIRS}")
+    get_filename_component(LIBCURL_DIR ${CURL_LIBRARIES} DIRECTORY)
+    get_filename_component(LIBOPENSSL_DIR ${OPENSSL_SSL_LIBRARY} DIRECTORY)
+    set(HTSLIB_LIBS "-L${LIBOPENSSL_DIR} -Wl,-rpath,${LIBOPENSSL_DIR} -L${LIBCURL_DIR} -lcurl")
     ExternalProject_Add(
         htslib
         DOWNLOAD_COMMAND ""
@@ -83,7 +79,7 @@ if(HTSLIB_SOURCE_DIR)
             CC=${CMAKE_C_COMPILER} AR=${CMAKE_AR} RANLIB=${CMAKE_RANLIB}
             ${HTSLIB_OSXCROSS_COMPILE_FLAGS}
 	    LIBS=${HTSLIB_LIBS}
-            --disable-lzma --disable-bz2
+            --disable-lzma --disable-bz2 --enable-s3=0 --enable-gcs=0
             ${HTSLIB_CURL_FLAGS}
         BUILD_COMMAND ${CMAKE_COMMAND} -E make_directory cram
             COMMAND ${CMAKE_COMMAND} -E make_directory test

@@ -3,7 +3,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2019-2020 Omics Data Automation, Inc.
+# Copyright (c) 2019-2021 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -81,8 +81,6 @@ set(GPG_PASSPHRASE "" CACHE STRING "Gpg passphrase for deploying to maven")
 set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when intel optimized zlib is required")
 
 set(LIBDBI_DIR "" CACHE PATH "Path to libdbi install directory")
-
-set(ENABLE_LIBCURL True CACHE BOOL "Enable libcurl for use in htslib to read VCF files directly off S3/GCS/http(s) URLs")
 
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -186,10 +184,7 @@ if(BUILD_DISTRIBUTABLE_LIBRARY)
   set(OPENSSL_USE_STATIC_LIBS TRUE)
 endif()
 find_package(OpenSSL REQUIRED)
-
-if(ENABLE_LIBCURL)
-  find_package(CURL REQUIRED)
-endif()
+find_package(CURL REQUIRED)
 
 #RapidJSON
 find_package(RapidJSON REQUIRED)
