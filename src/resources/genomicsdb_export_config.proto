@@ -95,5 +95,4 @@ message ExportConfiguration {
   optional uint32 combined_vcf_records_buffer_size_limit = 27;
   optional bool enable_shared_posixfs_optimizations = 28;
   optional SparkConfig spark_config = 29;
-  optional bool produce_lowercase_alleles_in_soft_masked_regions = 30;
 }

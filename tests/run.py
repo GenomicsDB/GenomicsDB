@@ -1303,9 +1303,9 @@ def main():
                         } },
                     ]
             },
-            { "name" : "java_genomicsdb_importer_from_vcfs_t0_1_2_all_asa_no_remap_missing",
+            { "name" : "java_genomicsdb_importer_from_vcfs_t0_1_2_no_remap_missing",
                 'callset_mapping_file': 'inputs/callsets/t0_1_2_all_asa.json',
-                'vid_mapping_file': 'inputs/vid_all_asa_no_remap_missing.json',
+                'vid_mapping_file': 'inputs/vid_no_remap_missing.json',
                 'chromosome_intervals': [ '1:1-100000000' ],
                 "query_params": [
                     { "query_column_ranges": [{
@@ -1318,8 +1318,9 @@ def main():
                         'segment_size': 100,
                         "attributes": asa_vcf_attributes,
                         "golden_output": {
-                        "vcf"      : "golden_outputs/t0_1_2_all_asa_loading_no_remap_missing",
-                        "java_vcf"   : "golden_outputs/t0_1_2_all_asa_java_query_vcf_no_remap_missing",
+                        "vcf"      : "golden_outputs/t0_1_2_loading_no_remap_missing"
+			# no java_vcf here because htsjdk has a bug that causes issues when AD/PL have missing values 
+			# https://github.com/broadinstitute/gatk/issues/6744#issuecomment-674975007
                         } },
                     ]
             },

@@ -1304,10 +1304,11 @@ void FileBasedVidMapper::common_constructor_initialization(
           }
         }
 
-        auto disable_remap = field_info_dict.HasMember("disable_remap_missing_with_non_ref") &&
-            field_info_dict["disable_remap_missing_with_non_ref"].IsBool() &&
-            field_info_dict["disable_remap_missing_with_non_ref"].GetBool();
-        m_field_idx_to_info[field_idx].set_disable_remap_missing_with_non_ref(disable_remap);
+        if (field_info_dict.HasMember("disable_remap_missing_with_non_ref")) {
+          VERIFY_OR_THROW(field_info_dict["disable_remap_missing_with_non_ref"].IsBool());
+          m_field_idx_to_info[field_idx].set_disable_remap_missing_with_non_ref(
+            field_info_dict["disable_remap_missing_with_non_ref"].GetBool());
+        }
         ++field_idx;
         flatten_field(field_idx, field_idx-1);
       }

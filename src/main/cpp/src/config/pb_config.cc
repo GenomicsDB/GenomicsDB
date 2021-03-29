@@ -215,8 +215,6 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
   //Enable Shared PosixFS Optimizations in TileDB
   m_enable_shared_posixfs_optimizations = export_config->has_enable_shared_posixfs_optimizations()
     ? export_config->enable_shared_posixfs_optimizations() : false;
-  m_produce_lowercase_alleles_in_soft_masked_regions = export_config->has_produce_lowercase_alleles_in_soft_masked_regions()
-    ? export_config->produce_lowercase_alleles_in_soft_masked_regions() : false;
 }
 
 void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(

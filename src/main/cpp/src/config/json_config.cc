@@ -639,8 +639,6 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
   //when producing GT, use the min PL value GT for spanning deletions
   m_produce_GT_with_min_PL_value_for_spanning_deletions = (json_doc.HasMember("produce_GT_with_min_PL_value_for_spanning_deletions")
       && json_doc["produce_GT_with_min_PL_value_for_spanning_deletions"].GetBool());
-  m_produce_lowercase_alleles_in_soft_masked_regions = json_doc.HasMember("produce_lowercase_alleles_in_soft_masked_regions")
-      && json_doc["produce_lowercase_alleles_in_soft_masked_regions"].GetBool();
 
   //Shared posixfs(e.g. NFS/Lustre) optimizations - passed via storage manager
   set_config_field(json_doc, "enable_shared_posixfs_optimizations", m_enable_shared_posixfs_optimizations);

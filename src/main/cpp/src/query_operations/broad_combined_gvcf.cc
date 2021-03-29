@@ -822,8 +822,7 @@ void BroadCombinedGVCFOperator::operate(Variant& variant) {
     ref_allele[0] = m_vcf_adapter->get_reference_base_at_position(m_curr_contig_name.c_str(), m_bcf_out->pos);
     if (BroadCombinedGVCFOperator::m_legal_bases.find(ref_allele[0]) == BroadCombinedGVCFOperator::m_legal_bases.end())
       ref_allele[0] = 'N';
-    else if (BroadCombinedGVCFOperator::m_legal_bases.find(ref_allele[0]) != BroadCombinedGVCFOperator::m_legal_bases.end() &&
-             !m_query_config->produce_lowercase_alleles_in_soft_masked_regions())
+    else
       ref_allele[0] = toupper(ref_allele[0]);
   }
   const auto& alt_alleles = dynamic_cast<VariantFieldALTData*>(m_remapped_variant.get_common_field(1u).get())->get();
