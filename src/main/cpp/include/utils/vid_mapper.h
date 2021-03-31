@@ -316,6 +316,7 @@ class FieldInfo {
     m_element_index_in_tuple = 0u;
     m_element_size = 0u;
     m_parent_composite_field_idx = 0u;
+    m_disable_remap_missing_with_non_ref = false;
   }
   void set_info(const std::string& name, int idx) {
     m_name = name;
@@ -387,6 +388,12 @@ class FieldInfo {
     assert(is_flattened_field());
     return m_parent_composite_field_idx;
   }
+  void set_disable_remap_missing_with_non_ref(const bool val) {
+    m_disable_remap_missing_with_non_ref = val;
+  }
+  bool remap_missing_with_non_ref() const {
+    return !m_disable_remap_missing_with_non_ref;
+  }
   bool is_VCF_field_combine_operation_sum() const;
   //Public members
   std::string m_name;     //Unique per array schema
@@ -399,6 +406,7 @@ class FieldInfo {
   FieldLengthDescriptor m_length_descriptor;
   //Combine operation for VCF INFO fields
   int m_VCF_field_combine_operation;
+  bool m_disable_remap_missing_with_non_ref;
   //Multi-d vector fields - different types in TileDB/VCF/GenomicsDB
   void modify_field_type_if_multi_dim_field();
   void compute_element_size();
