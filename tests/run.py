@@ -278,7 +278,7 @@ def test_with_java_options(tmpdir, lib_path, jacoco):
     os.remove(compatDir+'/ws/__tiledb_workspace.tdb')
     query_java_options_success, stdout_string, stderr_string = run_cmd(query_command, False,
         '', print_if_error=False)
-    if (stderr_string.find('Native Stack Trace:') < 0):
+    if (str(stderr_string).find('Native Stack Trace:') < 0):
         sys.stderr.write('Query with java options did not throw expected exception: '+query_command+' failed\n')
         cleanup_and_exit(None, -1)
     sys.stdout.write("Successful\n")
