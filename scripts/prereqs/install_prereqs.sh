@@ -133,7 +133,11 @@ install_openssl() {
     wget https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz &&
       tar -xvzf openssl-$OPENSSL_VERSION.tar.gz &&
       cd openssl-$OPENSSL_VERSION &&
-      if [[ `uname` == "Linux" ]]; then CFLAGS=-fPIC ./config -fPIC -shared --prefix=$OPENSSL_PREFIX; else    ./Configure darwin64-x86_64-cc shared -fPIC --prefix=$OPENSSL_PREFIX; fi &&
+      if [[ `uname` == "Linux" ]]; then
+	  CFLAGS=-fPIC ./config -fPIC no-shared --prefix=$OPENSSL_PREFIX --openssldir=$OPENSSL_PREFIX
+      else
+	  ./Configure darwin64-x86_64-cc no-shared -fPIC --prefix=$OPENSSL_PREFIX
+      fi
       make && make install && echo "Installing OpenSSL DONE"
     rm -fr /tmp/openssl*
     popd
@@ -154,7 +158,7 @@ install_curl() {
     git clone https://github.com/curl/curl.git &&
       cd curl &&
       autoreconf -i &&
-      ./configure --enable-lib-only --with-pic -without-zstd --with-ssl=$OPENSSL_PREFIX --prefix $CURL_PREFIX &&
+      ./configure --disable-shared --with-pic -without-zstd --with-ssl=$OPENSSL_PREFIX --prefix $CURL_PREFIX &&
       make && make install && echo "Installing CURL DONE"
     rm -fr /tmp/curl
     popd
