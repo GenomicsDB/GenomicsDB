@@ -35,6 +35,7 @@
 #include <iostream>
 #include <string>
 
+#include "annotation_service.h"
 #include "broad_combined_gvcf.h"
 #include "query_variants.h"
 #include "tiledb_utils.h"
@@ -48,6 +49,7 @@
 #define TO_VARIANT_QUERY_CONFIG(X) (reinterpret_cast<VariantQueryConfig *>(static_cast<void *>(X)))
 #define TO_VARIANT_STORAGE_MANAGER(X) (reinterpret_cast<VariantStorageManager *>(static_cast<void *>(X)))
 #define TO_VID_MAPPER(X) (reinterpret_cast<VidMapper *>(static_cast<void *>(X)))
+#define TO_ANNOTATION_SERVICE(X) (reinterpret_cast<AnnotationService *>(static_cast<void *>(X)))
 
 #define TO_VARIANT(X) (reinterpret_cast<const Variant *>(static_cast<const void *>(X)))
 #define TO_VARIANT_CALL(X) (reinterpret_cast<const VariantCall *>(static_cast<const void *>(X)))
@@ -136,8 +138,14 @@ GenomicsDB::GenomicsDB(const std::string& query_configuration,
       query_config->read_from_file(query_configuration, concurrency_rank); break;
     case JSON_STRING:
       query_config->read_from_JSON_string(query_configuration, concurrency_rank); break;
-    case PROTOBUF_BINARY_STRING:
-      query_config->read_from_PB_binary_string(query_configuration, concurrency_rank); break;
+    case PROTOBUF_BINARY_STRING: {
+      query_config->read_from_PB_binary_string(query_configuration, concurrency_rank);
+      // Create an annotationService class.
+      m_annotation_service = new AnnotationService(); // deserialise the query config in the constructor
+      AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
+      annotation_service->read_configuration(query_configuration);
+      break;
+    }
     default:
       throw GenomicsDBException("Unsupported query configuration type specified to the GenomicsDB constructor");
   }
@@ -166,7 +174,30 @@ GenomicsDB::~GenomicsDB() {
   }
 }
 
-std::map<std::string, genomic_field_type_t> create_genomic_field_types(const VariantQueryConfig &query_config) {
+/**
+ * Take the map created by create_genomic_field_types and add annotation fields to it.
+ */
+void add_annotation_field_types(std::map<std::string, genomic_field_type_t> &genomic_field_types, void* service) {
+  // for (auto& x: genomic_field_types) {
+  //   printf("jDebug -2: add_annotation_field_types: existing field types: first=%s\n", x.first.c_str());
+  // }
+  AnnotationService *annotation_service = TO_ANNOTATION_SERVICE(service);
+  for(genomicsdb_pb::AnnotationSource annotation_source: annotation_service->m_annotate_sources) {
+    for(std::string info_field: annotation_source.attributes()) {
+      const std::string attribute_name = annotation_source.data_source() + annotation_service->DATA_SOURCE_FIELD_SEPARATOR + info_field;
+      const std::type_index type_index = typeid(char);
+      genomic_field_types.insert(std::make_pair(attribute_name,
+                                                genomic_field_type_t(type_index,
+                                                                     false,
+                                                                     1,
+                                                                     1,
+                                                                     false)));
+    }
+  }
+}
+
+std::map<std::string, genomic_field_type_t> create_genomic_field_types(const VariantQueryConfig &query_config,
+								       void *annotation_service = nullptr) {
   std::map<std::string, genomic_field_type_t> genomic_field_types;
   for (auto i=0u; i<query_config.get_num_queried_attributes(); i++) {
     const std::string attribute_name = query_config.get_query_attribute_name(i);
@@ -177,14 +208,19 @@ std::map<std::string, genomic_field_type_t> create_genomic_field_types(const Var
       const std::type_index type_index = descr.get_tuple_element_type_index(0);
       const FieldLengthDescriptor length_descr = field_info->m_length_descriptor;
       genomic_field_types.insert(std::make_pair(
-          attribute_name,
-          genomic_field_type_t(type_index,
-                               length_descr.is_fixed_length_field(),
-                               length_descr.is_fixed_length_field()?length_descr.get_num_elements():0,
-                               length_descr.get_num_dimensions(),
-                               length_descr.is_length_ploidy_dependent()&&length_descr.contains_phase_information())));
+	  attribute_name,
+	  genomic_field_type_t(type_index,
+			       length_descr.is_fixed_length_field(),
+			       length_descr.is_fixed_length_field()?length_descr.get_num_elements():0,
+			       length_descr.get_num_dimensions(),
+			       length_descr.is_length_ploidy_dependent()&&length_descr.contains_phase_information())));
     }
   }
+
+  if (annotation_service) {
+    add_annotation_field_types(genomic_field_types, annotation_service);
+  }
+
   return genomic_field_types;
 }
 
