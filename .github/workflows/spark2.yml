@@ -122,8 +122,8 @@ jobs:
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
-        python2 -m pip install --upgrade pip
-        python2 -m pip install jsondiff
+        python -m pip install --upgrade pip
+        python -m pip install jsondiff
         make test ARGS=-V
 
     - name: Test - Distributed FileSystems with Spark2
