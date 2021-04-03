@@ -64,11 +64,8 @@ if(HTSLIB_SOURCE_DIR)
     if((NOT (CMAKE_SYSTEM_NAME STREQUAL CMAKE_HOST_SYSTEM_NAME)) AND APPLE)
         set(HTSLIB_OSXCROSS_COMPILE_FLAGS LIBS=${OSXCROSS_LIBS} CPPFLAGS=${OSXCROSS_CPPFLAGS} --host=${CMAKE_SYSTEM_PROCESSOR}-${CMAKE_SYSTEM})
     endif()
-    set(HTSLIB_CURL_FLAGS --enable-libcurl)
+    set(HTSLIB_CURL_FLAGS --disable-s3 --disable-gcs)
     set(HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS "${HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS} -I${OPENSSL_INCLUDE_DIR} -I${CURL_INCLUDE_DIRS}")
-    get_filename_component(LIBCURL_DIR ${CURL_LIBRARIES} DIRECTORY)
-    get_filename_component(LIBOPENSSL_DIR ${OPENSSL_SSL_LIBRARY} DIRECTORY)
-    set(HTSLIB_LIBS "-L${LIBOPENSSL_DIR} -Wl,-rpath,${LIBOPENSSL_DIR} -L${LIBCURL_DIR} -lcurl")
     ExternalProject_Add(
         htslib
         DOWNLOAD_COMMAND ""
@@ -78,8 +75,7 @@ if(HTSLIB_SOURCE_DIR)
         CONFIGURE_COMMAND ${HTSLIB_SOURCE_DIR}/configure CFLAGS=${HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS} LDFLAGS=${HTSLIB_${CMAKE_BUILD_TYPE}_LDFLAGS}
             CC=${CMAKE_C_COMPILER} AR=${CMAKE_AR} RANLIB=${CMAKE_RANLIB}
             ${HTSLIB_OSXCROSS_COMPILE_FLAGS}
-	    LIBS=${HTSLIB_LIBS}
-            --disable-lzma --disable-bz2 --enable-s3=0 --enable-gcs=0
+            --disable-lzma --disable-bz2
             ${HTSLIB_CURL_FLAGS}
         BUILD_COMMAND ${CMAKE_COMMAND} -E make_directory cram
             COMMAND ${CMAKE_COMMAND} -E make_directory test

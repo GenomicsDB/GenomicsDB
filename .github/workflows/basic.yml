@@ -175,8 +175,8 @@ jobs:
           export JAVA_HOME=$JAVA_LINUX
           echo $JAVA_LINUX/bin >> $GITHUB_PATH
         fi
-        python2 -m pip install --upgrade pip
-        python2 -m pip install jsondiff
+        python -m pip install --upgrade pip
+        python -m pip install jsondiff
         make test ARGS=-V
 
     - name: Test - Distributed FileSystems
