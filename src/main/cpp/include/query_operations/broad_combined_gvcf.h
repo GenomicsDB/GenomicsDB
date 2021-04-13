@@ -29,6 +29,7 @@
 #include "vcf_adapter.h"
 #include "vid_mapper.h"
 #include "timer.h"
+#include "vcf_fmt_writer.h"
 
 //known_field_enum, query_idx, const FieldInfo*
 typedef std::tuple<unsigned, unsigned, const FieldInfo*> INFO_tuple_type;
@@ -51,7 +52,6 @@ class BroadCombinedGVCFException : public std::exception {
   std::string msg_;
 };
 
-
 /*
  * Operator to produce the combined GVCF that Broad expects
  */
@@ -59,7 +59,9 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
  public:
   BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, const VidMapper& id_mapper,
       const VariantQueryConfig& query_config,
-      const bool use_missing_values_only_not_vector_end=false);
+      const bool use_missing_values_only_not_vector_end=false,
+      const bool use_columnar_iterator=false,
+      const bool from_columnar_iterator_write_to_string=false);
   virtual ~BroadCombinedGVCFOperator();
   void clear();
   void switch_contig();
@@ -104,8 +106,8 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
       const VariantQueryConfig& query_config,
       const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
   void operate_on_columnar_cell(const GenomicsDBGVCFCell& variant);
-  template<class WriterTy>
-    bool write_vcf_line(const GenomicsDBGVCFCell& variant);
+  template<class WriterTy, bool contains_phase, bool produce_GT_field, bool do_remap>
+  bool write_vcf_line(WriterTy& writer, const GenomicsDBGVCFCell& variant);
  private:
   bool m_use_missing_values_not_vector_end;
   VCFAdapter* m_vcf_adapter;
@@ -155,10 +157,14 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   //To avoid doing complex if-else statements for encoding the GT vector
   void (*m_encode_GT_vector_function_ptr)(int* inout_vec, const uint64_t input_offset,
                                           const unsigned num_elements_per_sample, uint64_t& output_idx);
+  //Parameters when columnar iterator is used for producing VCF records
+  std::ofstream m_vcf_output_fptr;
+  VCFWRITER_ENUM m_writer_type_enum;
+  VCFWriterNoOverflow<std::string> m_vcf_writer_to_string;
+  VCFWriterNoOverflow<std::ostream> m_vcf_writer_to_ostream;
 #ifdef DO_MEMORY_PROFILING
   uint64_t m_next_memory_limit;
 #endif
-  AbstractVCFWriterBase* m_writer_base_ptr;
 };
 
 #endif //ifdef HTSDIR

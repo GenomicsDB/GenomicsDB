@@ -25,6 +25,7 @@
 
 #include <iterator>
 #include <fmt/format.h>
+#include <fmt/printf.h>
 
 //Code for fixed iterator copied from https://github.com/fmtlib/fmt/issues/764#issuecomment-395753853
 //Useful when the buffer into which fmt must write is pre-allocated by the caller and its size cannot be changed

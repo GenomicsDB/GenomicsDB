@@ -371,6 +371,14 @@ void VCFAdapter::handoff_output_bcf_line(bcf1_t*& line, const size_t bcf_record_
   }
 }
 
+void VCFAdapter::close_file()
+{
+  if(m_open_output && m_output_fptr) {
+    bcf_close(m_output_fptr);
+  }
+  m_output_fptr = 0;
+}
+
 BufferedVCFAdapter::BufferedVCFAdapter(unsigned num_circular_buffers, unsigned max_num_entries)
   : VCFAdapter(true), CircularBufferController(num_circular_buffers) {
   clear();
