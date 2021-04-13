@@ -20,6 +20,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#include "genomicsdb_iterators.h"
 #include "alleles_combiner.h"
 #include "known_field_info.h"
 
@@ -49,10 +50,13 @@ class AlleleConfig {
     const char* ptr;
 };
 
-AllelesCombiner::AllelesCombiner(const size_t num_queried_rows) {
+AllelesCombiner::AllelesCombiner(const GenomicsDBGVCFIterator* iterator, const size_t num_queried_rows) {
+  m_iterator = iterator;
   m_contains_deletion.resize(num_queried_rows, false);
   m_contains_MNV.resize(num_queried_rows, false);
   m_is_REF_block.resize(num_queried_rows, false);
+  m_contains_deletion_or_MNV_spanning_current_location.resize(num_queried_rows, false);
+  m_allele_idx_for_deletion_or_MNV_spanning_current_location.resize(num_queried_rows, UNDEFINED_ATTRIBUTE_IDX_VALUE);
   m_NON_REF_idx_vec.resize(num_queried_rows, UNDEFINED_ATTRIBUTE_IDX_VALUE);
 #ifdef DEBUG //in DEBUG mode, catch out of bounds errors (if bugs)
   m_alleles_LUT.resize_luts_if_needed(num_queried_rows, 0u);
@@ -72,13 +76,25 @@ void AllelesCombiner::reset_before_adding_new_sample_info_at_current_position() 
   m_merged_alleles_vec[0u].allele = STRING_VIEW(0, 0u);
   m_spanning_deletion_allele_idx = UNDEFINED_ATTRIBUTE_IDX_VALUE;
   //This should cover all single-base alleles, '&' is GenomicsDB's representation for NON_REF
-  for(const auto b : "ATGCN*&")
+  for(const auto b : "atgcnATGCN*&")
     m_single_base_ALT_allele_to_merged_idx[static_cast<uint8_t>(b)] = UNDEFINED_ATTRIBUTE_IDX_VALUE;
   m_single_base_REF_ALT_allele_to_index.clear();
   m_deletion_REF_length_to_index.clear();
   m_MNV_ALT_to_index.clear();
   //Not resetting full m_alleles_LUT here since we can do a reset only for
   //rows newly added in this iteration of the GVCF iterator. Saves some memory accesses
+  //Mark rows that had deletions/MNVs starting at previous locations as spanning
+  for(auto i=0ull;i<m_row_query_idx_with_deletion_MNV_at_current_location_vec.size();++i) {
+    const auto row_query_idx = m_row_query_idx_with_deletion_MNV_at_current_location_vec[i];
+    if(m_iterator && m_iterator->is_valid_row_query_idx(row_query_idx)) {
+      m_contains_deletion_or_MNV_spanning_current_location[row_query_idx] = true;
+      assert(m_index_in_deletions_MNVs_vec[i+1u] > m_index_in_deletions_MNVs_vec[i]); //at least 1 deletion/MNV
+      const auto index = m_index_in_deletions_MNVs_vec[i];
+      //FIXME: this should be computed based on PL values. Functionality will be added later
+      m_allele_idx_for_deletion_or_MNV_spanning_current_location[row_query_idx]
+        = m_deletion_MNV_allele_idx_vec[index];
+    }
+  }
   m_row_query_idx_with_deletion_MNV_at_current_location_vec.clear();
   m_index_in_deletions_MNVs_vec.resize(1u);
   m_index_in_deletions_MNVs_vec[0u] = 0u;
@@ -261,6 +277,8 @@ void AllelesCombiner::insert_allele_info(const size_t row_query_idx, const STRIN
   m_contains_deletion[row_query_idx] = contains_deletion;
   m_contains_MNV[row_query_idx] = contains_MNV;
   m_is_REF_block[row_query_idx] = (num_alleles == 2u && NON_REF_allele_idx != UNDEFINED_ATTRIBUTE_IDX_VALUE);
+  //since this row has an entry at current location, it cannot be a spanning deletion that begins before current location
+  m_contains_deletion_or_MNV_spanning_current_location[row_query_idx] = false;
   m_NON_REF_idx_vec[row_query_idx] = NON_REF_allele_idx;
   m_num_calls_with_deletions_or_MNVs += (contains_deletion || contains_MNV) ;
   m_num_calls_with_NON_REF_allele += (NON_REF_allele_idx != UNDEFINED_ATTRIBUTE_IDX_VALUE);
@@ -273,13 +291,30 @@ void AllelesCombiner::insert_allele_info(const size_t row_query_idx, const STRIN
 void AllelesCombiner::finished_updating_allele_info_for_current_position() {
   //If there are deletions/MNVs that begin before current position and no samples beginning at the
   //current position have "*" in ALT list, add "*" to merged list
-  assert(m_num_calls_with_deletions_or_MNVs >= m_row_query_idx_with_deletion_MNV_at_current_location_vec.size());
+  assert(m_num_calls_with_deletions_or_MNVs >=
+      m_row_query_idx_with_deletion_MNV_at_current_location_vec.size());
   const auto num_calls_with_deletions_or_MNVs_that_begin_before_current_position
-    = m_num_calls_with_deletions_or_MNVs - m_row_query_idx_with_deletion_MNV_at_current_location_vec.size();
-  if(num_calls_with_deletions_or_MNVs_that_begin_before_current_position > 0u
-      && m_spanning_deletion_allele_idx == UNDEFINED_ATTRIBUTE_IDX_VALUE) {
-    m_spanning_deletion_allele_idx = m_merged_alleles_vec.size();
-    m_merged_alleles_vec.emplace_back(1u, STRING_VIEW("*", 1u), true);
+    = m_num_calls_with_deletions_or_MNVs
+    - m_row_query_idx_with_deletion_MNV_at_current_location_vec.size();
+  if(num_calls_with_deletions_or_MNVs_that_begin_before_current_position > 0u) {
+    if(m_spanning_deletion_allele_idx == UNDEFINED_ATTRIBUTE_IDX_VALUE) {
+      m_spanning_deletion_allele_idx = m_merged_alleles_vec.size();
+      m_merged_alleles_vec.emplace_back(1u, STRING_VIEW("*", 1u), true);
+    }
+    if(m_iterator) {
+      //Update lut for spanning deletions/MNVs
+      for(auto iter=m_iterator->begin_valid_row_query_idx();iter!=m_iterator->end_valid_row_query_idx();++iter) {
+        const auto row_query_idx = *iter;
+        if(m_contains_deletion_or_MNV_spanning_current_location[row_query_idx]) {
+          m_alleles_LUT.reset_luts_for_sample(row_query_idx);
+          m_alleles_LUT.add_input_merged_idx_pair(row_query_idx, 0u, 0u); //for REF
+          m_alleles_LUT.add_input_merged_idx_pair(row_query_idx,
+              m_allele_idx_for_deletion_or_MNV_spanning_current_location[row_query_idx],
+              m_spanning_deletion_allele_idx);
+          //not adding NON_REF - will be handled by contains_NON_REF_allele()
+        }
+      }
+    }
   }
   //Add NON_REF as the last allele in the merged vec
   if(m_num_calls_with_NON_REF_allele > 0u)

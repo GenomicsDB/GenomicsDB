@@ -422,6 +422,7 @@ class GVCFEndSetElementComparator {
 };
 
 class GenomicsDBGVCFCell;
+class GTRemapper;
 class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
   public:
     GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
@@ -480,6 +481,10 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
     inline ColumnRange get_column_range() const {
       return ColumnRange(m_current_start_position, m_current_end_position);
     }
+    inline const GTRemapper& get_GT_remapper() const {
+      assert(m_gt_remapper);
+      return *m_gt_remapper;
+    }
   private:
     /*
      * Keep filling m_end_set with cells from TileDB as long as the coords[1] == m_current_start_position
@@ -514,6 +519,7 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
     unsigned m_ALT_query_idx;
     GenomicsDBGVCFCell* m_cell;
     AllelesCombiner m_alleles_combiner;
+    GTRemapper* m_gt_remapper;
 #ifdef DO_PROFILING
     std::vector<uint64_t> m_num_times_initialized;
     std::vector<uint64_t> m_num_times_invalidated;

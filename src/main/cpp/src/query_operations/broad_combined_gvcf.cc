@@ -135,8 +135,11 @@ inline void encode_GT_vector<false, false>(int* inout_vec, const uint64_t input_
 
 BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, const VidMapper& id_mapper,
     const VariantQueryConfig& query_config,
-    const bool use_missing_values_only_not_vector_end)
-  : GA4GHOperator(query_config, id_mapper, true) {
+    const bool use_missing_values_only_not_vector_end,
+    const bool use_columnar_iterator,
+    const bool from_columnar_iterator_write_to_string)
+  : GA4GHOperator(query_config, id_mapper, true),
+    m_vcf_writer_to_ostream(std::cout) {
   clear();
   if (!id_mapper.is_initialized())
     throw BroadCombinedGVCFException("Id mapper is not initialized");
@@ -356,6 +359,18 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
 #endif
   m_bcf_record_size = 0ull;
   m_should_add_GQ_field = true; //always added in new version of CombineGVCFs
+  //Check if we need to use the columnar iterator
+  if(use_columnar_iterator) {
+    if(!GenomicsDBConfigBase::output_to_stdout(query_config.get_vcf_output_filename())) {
+      m_vcf_adapter->close_file();
+      m_vcf_output_fptr.open(query_config.get_vcf_output_filename());
+      m_vcf_writer_to_ostream = std::move(VCFWriterNoOverflow<std::ostream>(m_vcf_output_fptr));
+    }
+    else
+      m_vcf_writer_to_ostream = std::move(VCFWriterNoOverflow<std::ostream>(std::cout));
+    m_writer_type_enum = (from_columnar_iterator_write_to_string) ? VCFWRITER_ENUM::STL_STRING_NO_LIMIT
+      : VCFWRITER_ENUM::STL_OSTREAM_NO_LIMIT;
+  }
 }
 
 BroadCombinedGVCFOperator::~BroadCombinedGVCFOperator() {
@@ -367,6 +382,8 @@ BroadCombinedGVCFOperator::~BroadCombinedGVCFOperator() {
     }
   }
   bcf_destroy(m_bcf_out);
+  if(m_vcf_output_fptr.is_open())
+    m_vcf_output_fptr.close();
   clear();
 #ifdef DO_PROFILING
   m_bcf_t_creation_timer.print("bcf_t creation time", std::cerr);

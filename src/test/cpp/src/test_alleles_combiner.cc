@@ -29,7 +29,7 @@
 #include "alleles_combiner.h"
 
 TEST_CASE("alleles_combiner") {
-  AllelesCombiner combiner(3u);
+  AllelesCombiner combiner(0, 3u);
   std::string buffer_str;
   //Convenience vars
   const auto& row_query_idx_with_deletion_MNV_vec = combiner.get_row_query_idx_with_deletions_or_MNVs_at_current_location_vec();
