@@ -1,6 +1,7 @@
 /*
  * The MIT License (MIT)
  * Copyright (c) 2018 Omics Data Automation Inc. and Intel Corporation
+ * Copyright (c) 2021 Omics Data Automation Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -102,6 +103,13 @@ public class GenomicsDBUtilsJni {
     public static native int jniDeleteFile(final String filename);
 
     /**
+     * Delete directory
+     * @param dirname path to directory, can be cloud URL
+     * @return status 0 = OK
+     */
+    public static native int jniDeleteDir(final String dirname);
+
+    /**
      * Get max valid row index
      * @param workspace path to workspace
      * @param array name of workspace
@@ -116,5 +124,12 @@ public class GenomicsDBUtilsJni {
      * @return array of length 2 with with [0] = min column, [1] = max column
      */
     public static native long[] jniGetArrayColumnBounds(final String workspace, final String array);
+
+    /**
+     * The default behavior uses the GCS native SDK client for processing gs:// URI. This can be overridden to use the
+     * GCS HDFS Connector instead when the given option is '1'
+     * @param option = 1 allows use, all other values disallow use of the GCS HDFS Connector.
+     */
+    public static native void jniUseGcsHdfsConnector(final int option);
 }
 

@@ -8,8 +8,8 @@
 extern "C" {
 #endif
 /*
- * Class:     org_genomicsdb_GenomicsDBUtilsJni_jniLibraryVersion
- * Method:    jniVersion
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni
+ * Method:    jniLibraryVersion
  * Signature: ()Ljava/lang/String;
  */
 JNIEXPORT jstring JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniLibraryVersion
@@ -49,14 +49,6 @@ JNIEXPORT jobjectArray JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniListTil
 
 /*
  * Class:     org_genomicsdb_GenomicsDBUtilsJni
- * Method:    jniDeleteFile
- * Signature: (Ljava/lang/String;)I
- */
-JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniDeleteFile
-  (JNIEnv *, jclass, jstring);
-
-/*
- * Class:     org_genomicsdb_GenomicsDBUtilsJni
  * Method:    jniWriteToFile
  * Signature: (Ljava/lang/String;Ljava/lang/String;J)I
  */
@@ -81,6 +73,22 @@ JNIEXPORT jstring JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniReadEntireFi
 
 /*
  * Class:     org_genomicsdb_GenomicsDBUtilsJni
+ * Method:    jniDeleteFile
+ * Signature: (Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniDeleteFile
+  (JNIEnv *, jclass, jstring);
+
+/*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni
+ * Method:    jniDeleteDir
+ * Signature: (Ljava/lang/String;)I
+ */
+JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniDeleteDir
+  (JNIEnv *, jclass, jstring);
+
+/*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni
  * Method:    jniGetMaxValidRowIndex
  * Signature: (Ljava/lang/String;Ljava/lang/String;)I
  */
@@ -90,10 +98,18 @@ JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetMaxValidRowI
 /*
  * Class:     org_genomicsdb_GenomicsDBUtilsJni
  * Method:    jniGetArrayColumnBounds
- * Signature: (Ljava/lang/String;Ljava/lang/String;)I
+ * Signature: (Ljava/lang/String;Ljava/lang/String;)[J
  */
 JNIEXPORT jlongArray JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetArrayColumnBounds
   (JNIEnv *, jclass, jstring, jstring);
+
+/*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni
+ * Method:    jniUseGcsHdfsConnector
+ * Signature: (I)V
+ */
+JNIEXPORT void JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniUseGcsHdfsConnector
+  (JNIEnv *, jclass, jint);
 
 #ifdef __cplusplus
 }
