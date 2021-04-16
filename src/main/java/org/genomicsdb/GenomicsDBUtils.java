@@ -143,12 +143,12 @@ public class GenomicsDBUtils {
     }
 
     /**
-     * The default behavior uses the GCS native SDK client for processing gs:// URI. This can be overridden to use the
-     * GCS HDFS Connector instead
+     * The default behavior uses the GCS native SDK client for processing gs:// URI. This can be
+     * overridden to use the GCS HDFS Connector instead when the given option is true
+     * @param option = true allows use, otherwise disallow use of the GCS HDFS Connector.
      */
-    public static void useGcsHdfsConnector() {
-        GenomicsDBUtilsJni.jniUseGcsHdfsConnector(1);
+    public static void useGcsHdfsConnector(final boolean option) {
+        GenomicsDBUtilsJni.jniUseGcsHdfsConnector(option);
     }
-
 }
 

@@ -197,11 +197,11 @@ Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetArrayColumnBounds
 
 JNIEXPORT void JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniUseGcsHdfsConnector
-(JNIEnv *env, jclass currClass, jint option)
+(JNIEnv *env, jclass currClass, jboolean option)
 {
-  if (option == 1) {
-    putenv(const_cast<char *>("TILEDB_USE_GCS_HDFS_CONNECTOR=1"));
+  if (option) {
+    setenv("TILEDB_USE_GCS_HDFS_CONNECTOR", "1", 1);
   } else {
-    putenv(const_cast<char *>("TILEDB_USE_GCS_HDFS_CONNECTOR=0"));
+    unsetenv("TILEDB_USE_GCS_HDFS_CONNECTOR");
   }
 }

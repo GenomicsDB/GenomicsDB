@@ -47,7 +47,7 @@ public class GenomicsDBUtilsTest {
       Assert.assertEquals(GenomicsDBUtils.deleteDir(workspace), 0);
 
       workspace += "_with_connector";
-      GenomicsDBUtils.useGcsHdfsConnector();
+      GenomicsDBUtils.useGcsHdfsConnector(true);
       try {
         Class.forName("com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
         Assert.assertEquals(GenomicsDBUtils.createTileDBWorkspace(workspace, false), 0);
