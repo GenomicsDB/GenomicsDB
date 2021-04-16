@@ -53,9 +53,12 @@ if(HTSLIB_SOURCE_DIR)
     if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
       set(HTSLIB_Release_CFLAGS "${HTSLIB_Release_CFLAGS} -Wno-expansion-to-defined -Wno-nullability-completeness")
     endif()
-    set(HTSLIB_Debug_LDFLAGS "-g3 -gdwarf-3 ${CMAKE_MODULE_LINKER_FLAGS}")
+    if(APPLE)
+      set(HTSLIB_LDFLAGS " -L /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib -lSystem")
+    endif()
+    set(HTSLIB_Debug_LDFLAGS "-g3 -gdwarf-3 ${HTSLIB_LDFLAGS}")
     set(HTSLIB_Coverage_LDFLAGS "${HTSLIB_Debug_LDFLAGS}")
-    set(HTSLIB_Release_LDFLAGS "${CMAKE_MODULE_LINKER_FLAGS}")
+    set(HTSLIB_Release_LDFLAGS "${HTSLIB_LDFLAGS}")
     include(ExternalProject)
     #Cross compiling for MacOSX
     if((NOT (CMAKE_SYSTEM_NAME STREQUAL CMAKE_HOST_SYSTEM_NAME)) AND APPLE)
@@ -64,7 +67,6 @@ if(HTSLIB_SOURCE_DIR)
     set(HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS "${HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS} -I${OPENSSL_INCLUDE_DIR} -I${CURL_INCLUDE_DIRS}")
     if(APPLE AND BUILD_DISTRIBUTABLE_LIBRARY)
       set(HTSLIB_ENV "MACOSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}")
-      set(HTSLIB_CONFIGURE_ENV "${CMAKE_COMMAND} -E env ${HTSLIB_ENV}")
     endif()
     ExternalProject_Add(
         htslib
@@ -72,7 +74,7 @@ if(HTSLIB_SOURCE_DIR)
         SOURCE_DIR "${HTSLIB_SOURCE_DIR}"
         UPDATE_COMMAND autoreconf -i ${HTSLIB_SOURCE_DIR}
         PATCH_COMMAND ""
-        CONFIGURE_COMMAND ${HTSLIB_CONFIGURE_ENV} ${HTSLIB_SOURCE_DIR}/configure
+        CONFIGURE_COMMAND ${HTSLIB_ENV} ${HTSLIB_SOURCE_DIR}/configure
             CFLAGS=${HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS}
             LDFLAGS=${HTSLIB_${CMAKE_BUILD_TYPE}_LDFLAGS}
             CC=${CMAKE_C_COMPILER} AR=${CMAKE_AR} RANLIB=${CMAKE_RANLIB}

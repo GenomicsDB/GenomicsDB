@@ -189,7 +189,18 @@ jobs:
         source $SPARK_ENV
         python -m pip install --upgrade pip
         python -m pip install jsondiff
-        python tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $CMAKE_INSTALL_PREFIX local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $GITHUB_WORKSPACE/tests Coverage;
+        echo "Nalini hostname=$(hostname)"
+        echo "Print /etc/hosts"
+        cat /etc/hosts
+        sudo sed -i '/127.0.0.1/d' /etc/hosts
+        echo "Print 1 /etc/hosts"
+        cat /etc/hosts
+        echo "Starting setup for $(hostname)" && sudo sed -i "1 i\127.0.0.1 localhost $(hostname)" /etc/hosts
+        echo "Print 2 /etc/hosts"
+        cat /etc/hosts
+        echo "Nalini 1 hostname=$(hostname)"
+        echo "Nalini Debug DONE"
+        python tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $CMAKE_INSTALL_PREFIX local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $GITHUB_WORKSPACE/tests Coverage
         $GITHUB_WORKSPACE/.github/scripts/test_hdfs_htslib_support.sh
 
     - name: Upload Coverage to CodeCov
