@@ -23,6 +23,7 @@ env:
   HADOOP_VER: 3.2.1
   SPARK_VER: 2.4.2
   SPARK_HADOOP_VER: 2.7
+  SPARK_LOCAL_IP: 127.0.0.1
 
 jobs:
   build:
