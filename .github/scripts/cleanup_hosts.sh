@@ -25,7 +25,8 @@
 # Github action build VMs seem to come with multiple 127.0.0.1 aliases in /etc/hosts
 # Not sure what they do, clean them up as much as possible
 sudo sed -i '/127.0.0.1/d' /etc/hosts
-sudo sed -i "1 i\127.0.0.1 localhost $(hostname)" /etc/hosts
+sudo sed -i "1 i\127.0.0.1 $(hostname)" /etc/hosts
+sudo sed -i "1 i\127.0.0.1 localhost" /etc/hosts
 echo "Printing /etc/hosts..."
 cat /etc/hosts
 echo "Printing /etc/hosts DONE"
