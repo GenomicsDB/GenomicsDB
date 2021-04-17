@@ -88,7 +88,9 @@ jobs:
     - name: Install Prerequisites ubuntu
       shell: bash
       working-directory: ${{github.workspace}}/scripts/prereqs
-      run: sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
+      run: |
+        $GITHUB_WORKSPACE/.github/scripts/cleanup_hosts.sh 
+        sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
 
     - name: Create Build Directory
       shell: bash
