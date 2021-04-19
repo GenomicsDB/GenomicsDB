@@ -84,7 +84,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: ${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}
-        key: spark-${{env.SPARK_VER}}-${{env.SPARK_HADOOP_VER}}-v2
+        key: spark-${{env.SPARK_VER}}-${{env.SPARK_HADOOP_VER}}-v3
 
     - name: Install Prerequisites ubuntu
       shell: bash
