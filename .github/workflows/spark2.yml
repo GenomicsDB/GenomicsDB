@@ -90,6 +90,9 @@ jobs:
       shell: bash
       working-directory: ${{github.workspace}}/scripts/prereqs
       run: |
+        echo "Check ports in use..."
+        sudo lsof -nP -iTCP -sTCP:LISTEN
+        echo "Check ports in use DONE"
         $GITHUB_WORKSPACE/.github/scripts/cleanup_hosts.sh 
         sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
 
