@@ -219,7 +219,7 @@ def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_ver
     substitute_placeholders(querypb_json, sanity_test_dir)
 
     # Expected exception when run without json files
-    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar'
+    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.driver.bindAddress=127.0.0.1" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar'
     pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout_string, stderr_string = pid.communicate()
     if(pid.returncode == 0):
@@ -228,7 +228,7 @@ def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_ver
 
     output_string = "[row=0 col=12140 HG00141 1:12141-12295 {REF=C, DP_FORMAT=2, MIN_DP=0, ALT=[<NON_REF>], GQ=0, PL=[0, 0, 0], GT=0/0}, row=1 col=12144 HG01958 1:12145-12277 {REF=C, DP_FORMAT=3, MIN_DP=0, ALT=[<NON_REF>], GQ=0, PL=[0, 0, 0], GT=0/0}, row=0 col=17384 HG00141 1:17385-17385 {MQRankSum=-0.329000, AD=[58, 22, 17], MQ=31.719999, DP_FORMAT=80, ALT=[A, <NON_REF>], BaseQRankSum=-2.096000, GQ=99, PID=17385_G_A, ReadPosRankSum=0.005000, MQ0=8, GT=0/1, SB=[58, 0, 22, 0], RAW_MQ=5.500000, REF=G, ClippingRankSum=-1.859000, PL=[504, 0, 9807, 678, 1870, 2548], PGT=0|1}, row=1 col=17384 HG01958 1:17385-17385 {MQRankSum=-1.369000, AD=[0, 120, 37], MQ=29.820000, DP_FORMAT=120, ALT=[T, <NON_REF>], BaseQRankSum=-2.074000, GQ=99, PID=17385_G_T, ReadPosRankSum=-0.101000, DP=120, MQ0=3, GT=1/1, SB=[0, 0, 0, 0], RAW_MQ=2.500000, REF=G, ClippingRankSum=0.555000, PL=[3336, 358, 0, 4536, 958, 7349], PGT=0|1}, row=2 col=17384 HG01530 1:17385-17385 {MQRankSum=-0.432000, AD=[40, 36, 0], MQ=59.369999, DP_FORMAT=76, ALT=[A, <NON_REF>], BaseQRankSum=1.046000, GQ=99, ReadPosRankSum=2.055000, DP=76, MQ0=0, GT=0/1, SB=[9, 31, 13, 23], REF=G, ClippingRankSum=-2.242000, PL=[1018, 0, 1116, 1137, 1224, 2361]}]"
 
-    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+loader_json+' '+query_json
+    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.driver.bindAddress=127.0.0.1" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+loader_json+' '+query_json
     pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout_string, stderr_string = pid.communicate()
     if(pid.returncode != 0):
@@ -238,7 +238,7 @@ def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_ver
         sys.stderr.write('Expected output not found in sanity test with query.json\n')
         print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
 
-    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+loader_json+' '+querypb_json+' true'
+    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.driver.bindAddress=127.0.0.1" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+loader_json+' '+querypb_json+' true'
     pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout_string, stderr_string = pid.communicate()
     if(pid.returncode != 0):
@@ -470,7 +470,7 @@ def main():
                 with open(query_json_filename, 'w') as fptr:
                     json.dump(test_query_dict, fptr, indent=4, separators=(',', ': '));
                     fptr.close();
-                spark_cmd = 'spark-submit --class TestGenomicsDBSparkHDFS --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --template_vcf_header '+template_vcf_header_path+' --spark_master '+spark_master+' --jar_dir '+jar_dir;
+                spark_cmd = 'spark-submit --class TestGenomicsDBSparkHDFS --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.driver.bindAddress=127.0.0.1" --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --template_vcf_header '+template_vcf_header_path+' --spark_master '+spark_master+' --jar_dir '+jar_dir;
                 if (test_name == "t6_7_8"):
                     spark_cmd = spark_cmd + ' --use-query-protobuf';
                 if (test_name == "t0_overlapping"):
@@ -505,7 +505,7 @@ def main():
                     vid_path_final=vid_path+query_param_dict['vid_mapping_file'];
                 else:
                     vid_path_final=vid_path+"inputs"+os.path.sep+"vid.json";
-                spark_cmd_v2 = 'spark-submit --class TestGenomicsDBSource --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --vid '+vid_path_final+' --spark_master '+spark_master;
+                spark_cmd_v2 = 'spark-submit --class TestGenomicsDBSource --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.driver.bindAddress=127.0.0.1" --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --vid '+vid_path_final+' --spark_master '+spark_master;
                 if (gdb_datasource != ""):
                   spark_cmd_v2 += ' --gdb_datasource=' + gdb_datasource
                 if (test_name == "t6_7_8"):
