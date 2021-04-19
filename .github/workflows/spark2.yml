@@ -91,7 +91,7 @@ jobs:
       working-directory: ${{github.workspace}}/scripts/prereqs
       run: |
         echo "Check ports in use..."
-        sudo lsof -nP -iTCP -sTCP:LISTEN
+        sudo lsof -iTCP -sTCP:LISTEN
         echo "Check ports in use DONE"
         $GITHUB_WORKSPACE/.github/scripts/cleanup_hosts.sh 
         sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
@@ -139,6 +139,9 @@ jobs:
         source $SPARK_ENV
         python -m pip install --upgrade pip
         python -m pip install jsondiff
+        echo "Test - Check ports in use..."
+        sudo lsof -iTCP -sTCP:LISTEN
+        echo "Test - Check ports in use DONE"
         python tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $CMAKE_INSTALL_PREFIX local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $GITHUB_WORKSPACE/tests org.genomicsdb.spark.v2.GenomicsDBDataSourceV2 Coverage;
 
     - name: Upload Coverage to CodeCov
