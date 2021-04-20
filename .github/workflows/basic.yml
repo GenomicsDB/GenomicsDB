@@ -20,7 +20,6 @@ env:
   GENOMICSDB_RELEASE_VERSION: x.y.z.test
   HADOOP_VER: 3.2.1
   SPARK_VER: 3.0.1
-  SPARK_LOCAL_IP: 127.0.0.1
   SPARK_HADOOP_VER: 2.7
 
 jobs:
@@ -102,6 +101,7 @@ jobs:
       shell: bash
       working-directory: ${{github.workspace}}/scripts/prereqs
       run: |
+        $GITHUB_WORKSPACE/.github/scripts/cleanup_hosts.sh
         echo "matrix.os = ${{matrix.os}}"
         if [[ ${{matrix.os}} == macos* ]]; then
           echo "Installing Prerequistes for MacOS..."
