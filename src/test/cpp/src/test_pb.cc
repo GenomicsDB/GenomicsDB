@@ -92,6 +92,9 @@ void check_equal_vid_info_fields(const VidMapper& json, const VidMapper& pb) {
     }
     CHECK(pb_info->m_VCF_field_combine_operation ==
             json_info->m_VCF_field_combine_operation);
+
+    CHECK(pb_info->m_disable_remap_missing_with_non_ref ==
+            json_info->m_disable_remap_missing_with_non_ref);
   }
 }
 

@@ -43,21 +43,19 @@ download_spark() {
 setup_spark_env() {
   echo "export SPARK_HOME=${SPARK_LOCAL_DIR}" >> $SPARK_ENV &&
   echo "export PATH=${SPARK_LOCAL_DIR}/bin:${SPARK_LOCAL_DIR}/sbin:$PATH" >> $SPARK_ENV &&
-  echo "export CLASSPATH=${SPARK_LOCAL_DIR}/jars/gcs-connector-latest-hadoop2.jar:$CLASSPATH" >> $SPARK_ENV &&
+  echo "export CLASSPATH=$CLASSPATH" >> $SPARK_ENV &&
   source $SPARK_ENV
 }
 
 configure_spark() {
   echo "export SPARK_HOME=${SPARK_LOCAL_DIR}" >> $SPARK_ENV &&
   echo "export PATH=${SPARK_LOCAL_DIR}/bin:${SPARK_LOCAL_DIR}/sbin:$PATH" >> $SPARK_ENV &&
-  echo "export CLASSPATH=${SPARK_LOCAL_DIR}/jars/gcs-connector-latest-hadoop2.jar:$CLASSPATH" >> $SPARK_ENV &&
+  echo "export CLASSPATH=$CLASSPATH" >> $SPARK_ENV &&
   source $SPARK_ENV &&
-  IP=`hostname -i` && MASTER=`hostname -s` &&
-  sudo echo "SPARK_MASTER_HOST=$IP" > ${SPARK_LOCAL_DIR}/conf/spark-env.sh &&
-  sudo echo "SPARK_LOCAL_IP=$IP" >> ${SPARK_LOCAL_DIR}/conf/spark-env.sh &&
+  sudo echo "SPARK_MASTER_HOST=127.0.0.1" > ${SPARK_LOCAL_DIR}/conf/spark-env.sh &&
+  sudo echo "SPARK_LOCAL_IP=127.0.0.1" >> ${SPARK_LOCAL_DIR}/conf/spark-env.sh &&
   sudo echo "localhost" > ${SPARK_LOCAL_DIR}/conf/slaves &&
   sudo cp ${SPARK_LOCAL_DIR}/conf/log4j.properties.template ${SPARK_LOCAL_DIR}/conf/log4j.properties &&
-  echo "$IP $MASTER" | sudo tee --append /etc/hosts &&
   echo "configure_spark successful"
 }
 
