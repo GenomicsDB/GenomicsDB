@@ -22,13 +22,29 @@
 
 package org.genomicsdb;
 
+import com.google.common.io.Files;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.UUID;
 
 public class GenomicsDBUtilsTest {
+  @Test void testGenomicsDBCreateTileDBWorkspace() throws IOException {
+    File tmpDir = Files.createTempDir();
+    tmpDir.deleteOnExit();
+    String workspacePath = String.format("%s/%s", tmpDir.getAbsolutePath(), "workspace");
+    Assert.assertEquals(GenomicsDBUtils.listGenomicsDBArrays(workspacePath).length, 0);
+    Assert.assertEquals(GenomicsDBUtils.createTileDBWorkspace(workspacePath, false), 0);
+    Assert.assertEquals(GenomicsDBUtils.createTileDBWorkspace(workspacePath, false), 1); // Workspace exists nothing changed
+    Assert.assertEquals(GenomicsDBUtils.createTileDBWorkspace(workspacePath, true), 0);
+    File tmpFile = File.createTempFile("genomicsdb", "file");
+    Assert.assertEquals(GenomicsDBUtils.deleteDir(workspacePath), 0);
+    Assert.assertEquals(GenomicsDBUtils.deleteDir("non-existent-workspace"), -1);
+  }
+
   boolean isEnvSet(String name) {
     String value = System.getenv(name);
     return value != null && !value.isEmpty();
