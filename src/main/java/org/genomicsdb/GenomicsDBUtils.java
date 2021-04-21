@@ -150,5 +150,13 @@ public class GenomicsDBUtils {
     public static void useGcsHdfsConnector(final boolean option) {
         GenomicsDBUtilsJni.jniUseGcsHdfsConnector(option);
     }
+
+    /**
+     * Check if the use GCS HDFS Connector option is set
+     * @return true if the use GCS HDFS Connector option is set
+     */
+    public static boolean isUseGcsHdfsConnectorSet() {
+        return GenomicsDBUtilsJni.jniIsUseGcsHdfsConnectorSet();
+    }
 }
 

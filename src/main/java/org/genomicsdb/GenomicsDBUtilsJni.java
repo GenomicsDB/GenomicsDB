@@ -131,5 +131,11 @@ public class GenomicsDBUtilsJni {
      * @param option = true allows use, otherwise disallow use of the GCS HDFS Connector.
      */
     public static native void jniUseGcsHdfsConnector(final boolean option);
+
+    /**
+     * Check if the use GCS HDFS Connector option is set
+     * @return true if the use GCS HDFS Connector option is set
+     */
+    public static native boolean jniIsUseGcsHdfsConnectorSet();
 }
 

@@ -205,3 +205,15 @@ Java_org_genomicsdb_GenomicsDBUtilsJni_jniUseGcsHdfsConnector
     unsetenv("TILEDB_USE_GCS_HDFS_CONNECTOR");
   }
 }
+
+JNIEXPORT jboolean JNICALL
+Java_org_genomicsdb_GenomicsDBUtilsJni_jniIsUseGcsHdfsConnectorSet
+(JNIEnv *env, jclass currClass)
+{
+  char *value = getenv("TILEDB_USE_GCS_HDFS_CONNECTOR");
+  if (value != NULL && !strcmp(value, "1")) {
+    return 1;
+  } else {
+    return 0;
+  }
+}

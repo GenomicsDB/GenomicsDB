@@ -55,6 +55,14 @@ public class GenomicsDBUtilsTest {
   }
 
   @Test
+  public void testGenomicsDBUseHdfsConnectorEnvCheck() {
+    GenomicsDBUtils.useGcsHdfsConnector(true);
+    Assert.assertTrue(GenomicsDBUtils.isUseGcsHdfsConnectorSet());
+    GenomicsDBUtils.useGcsHdfsConnector(false);
+    Assert.assertFalse(GenomicsDBUtils.isUseGcsHdfsConnectorSet());
+  }
+
+  @Test
   public void testGenomicDBUseGcsHdfsConnectorOption() throws ClassNotFoundException {
     if (isEnvSet("GOOGLE_APPLICATION_CREDENTIALS") && isEnvSet("GCS_BUCKET_NAME")) {
       String gcs_bucket = getEnv("GCS_BUCKET_NAME");

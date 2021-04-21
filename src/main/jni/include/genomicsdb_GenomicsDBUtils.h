@@ -111,6 +111,14 @@ JNIEXPORT jlongArray JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetArrayC
 JNIEXPORT void JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniUseGcsHdfsConnector
   (JNIEnv *, jclass, jboolean);
 
+/*
+ * Class:     org_genomicsdb_GenomicsDBUtilsJni
+ * Method:    jniIsUseGcsHdfsConnectorSet
+ * Signature: ()Z
+ */
+JNIEXPORT jboolean JNICALL Java_org_genomicsdb_GenomicsDBUtilsJni_jniIsUseGcsHdfsConnectorSet
+  (JNIEnv *, jclass);
+
 #ifdef __cplusplus
 }
 #endif
