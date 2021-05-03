@@ -47,7 +47,7 @@ execute_process(
     )
 
 #Build parameters/options
-set(GENOMICSDB_RELEASE_VERSION "1.4.0-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+set(GENOMICSDB_RELEASE_VERSION "1.4.1-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 set(GENOMICSDB_VERSION "${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}" CACHE STRING "GenomicsDB full version string")
 
 set(DISABLE_MPI False CACHE BOOL "Disable use of any MPI compiler/libraries")
@@ -90,10 +90,10 @@ set(BUILD_FOR_ARCH "" CACHE STRING "Arch for which to build - values passed to -
 
 #See https://cmake.org/Wiki/CMake_RPATH_handling#Common_questions
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH True)
-#ifdef APPLE
+if(APPLE)
   set(CMAKE_MACOSX_RPATH True CACHE BOOL "Set rpath on OSX")
   set(CMAKE_FIND_FRAMEWORK LAST CACHE STRING "Try to find frameworks on Mac OS X last")
-#endif
+endif()
 
 enable_testing()
 
@@ -114,7 +114,9 @@ if(BUILD_DISTRIBUTABLE_LIBRARY)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     endif()
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9")
+    if(APPLE)  
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
+    endif()
 endif()
 
 #Check C++ 2011 support
@@ -564,7 +566,7 @@ if(BUILD_JAVA)
 
     if(NOT DISABLE_MPI)
         add_test(NAME CI_tests
-            COMMAND python2 ${CMAKE_SOURCE_DIR}/tests/run.py
+            COMMAND python ${CMAKE_SOURCE_DIR}/tests/run.py
             ${CMAKE_BINARY_DIR}
             ${CMAKE_INSTALL_PREFIX}
             ${CMAKE_BUILD_TYPE})

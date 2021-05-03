@@ -596,11 +596,13 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
       return false; //no remapping done
     }
 
+    const auto vid_field_info = query_config.get_field_info_for_query_attribute_idx(query_field_idx);
+    auto remap_missing_with_non_ref = vid_field_info->remap_missing_with_non_ref();
     //Multi-D field
     if (query_config.get_length_descriptor_for_query_attribute_idx(query_field_idx).get_num_dimensions() > 1u)
       remap_allele_specific_annotations(orig_field, remapped_field,
 	  curr_call_idx_in_variant,
-	  m_alleles_LUT, num_merged_alleles, m_NON_REF_exists, curr_ploidy,
+	  m_alleles_LUT, num_merged_alleles, m_NON_REF_exists && remap_missing_with_non_ref, curr_ploidy,
 	  query_config, query_field_idx);
     else {
       unsigned num_merged_elements =
@@ -612,7 +614,7 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
       //Call remap function
       handler->remap_vector_data(
 	  orig_field, curr_call_idx_in_variant,
-	  m_alleles_LUT, num_merged_alleles, m_NON_REF_exists, curr_ploidy,
+	  m_alleles_LUT, num_merged_alleles, m_NON_REF_exists && remap_missing_with_non_ref, curr_ploidy,
 	  query_config.get_length_descriptor_for_query_attribute_idx(query_field_idx), num_merged_elements, remapper_variant);
     }
     return true;
@@ -646,8 +648,11 @@ void GA4GHOperator::operate(Variant& variant) {
             variant.get_call(curr_call_idx_in_variant).get_field<VariantFieldPrimitiveVectorData<int>>(m_GT_query_idx)->get();
           auto& output_GT =
             remapped_call.get_field<VariantFieldPrimitiveVectorData<int>>(m_GT_query_idx)->get();
+          const auto vid_field_info = query_config.get_field_info_for_query_attribute_idx(m_GT_query_idx);
+          auto remap_missing_with_non_ref = vid_field_info->remap_missing_with_non_ref();
           VariantOperations::remap_GT_field(input_GT, output_GT, m_alleles_LUT, curr_call_idx_in_variant,
-                                            num_merged_alleles, m_NON_REF_exists, GT_length_descriptor);
+                                            num_merged_alleles, m_NON_REF_exists && remap_missing_with_non_ref,
+                                            GT_length_descriptor);
           m_ploidy[curr_call_idx_in_variant] = GT_length_descriptor.get_ploidy(input_GT.size());
         }
       }

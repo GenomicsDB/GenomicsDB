@@ -278,7 +278,7 @@ def test_with_java_options(tmpdir, lib_path, jacoco):
     os.remove(compatDir+'/ws/__tiledb_workspace.tdb')
     query_java_options_success, stdout_string, stderr_string = run_cmd(query_command, False,
         '', print_if_error=False)
-    if (stderr_string.find('Native Stack Trace:') < 0):
+    if (str(stderr_string).find('Native Stack Trace:') < 0):
         sys.stderr.write('Query with java options did not throw expected exception: '+query_command+' failed\n')
         cleanup_and_exit(None, -1)
     sys.stdout.write("Successful\n")
@@ -1300,6 +1300,27 @@ def main():
                         "golden_output": {
                         "vcf"      : "golden_outputs/t0_1_2_all_asa_loading",
                         "java_vcf"   : "golden_outputs/t0_1_2_all_asa_java_query_vcf",
+                        } },
+                    ]
+            },
+            { "name" : "java_genomicsdb_importer_from_vcfs_t0_1_2_no_remap_missing",
+                'callset_mapping_file': 'inputs/callsets/t0_1_2_all_asa.json',
+                'vid_mapping_file': 'inputs/vid_no_remap_missing.json',
+                'chromosome_intervals': [ '1:1-100000000' ],
+                "query_params": [
+                    { "query_column_ranges": [{
+                        "range_list": [{
+                            "low": 0,
+                            "high": 1000000000
+                        }]
+                    }],
+                        "force_override": True,
+                        'segment_size': 100,
+                        "attributes": asa_vcf_attributes,
+                        "golden_output": {
+                        "vcf"      : "golden_outputs/t0_1_2_loading_no_remap_missing"
+			# no java_vcf here because htsjdk has a bug that causes issues when AD/PL have missing values 
+			# https://github.com/broadinstitute/gatk/issues/6744#issuecomment-674975007
                         } },
                     ]
             },
