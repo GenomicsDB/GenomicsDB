@@ -19,10 +19,10 @@ class AnnotationService {
   // Default constructor
   AnnotationService();
 
-  // Buffer which associates genomic location with a list of annotation values.
-  // The dataSource and info field which point to this value are stored elsewhere
-  // Example: value_buffer["chr1-123456-A-G"] = { "val1", "val2", val3 };
-  std::map<std::string, std::vector<std::string>> value_buffer;
+  ~AnnotationService();
+
+  // Add a string to the list of annotation values
+  const char* copy_to_buffer(const char* value);
 
   // Value which separates dataSource and info field
   const std::string DATA_SOURCE_FIELD_SEPARATOR = "_AA_";
@@ -31,10 +31,13 @@ class AnnotationService {
   void read_configuration(const std::string& str);
 
   //
-  void annotate(genomic_interval_t &genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) const;
+  void annotate(genomic_interval_t &genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields);
 
-  genomic_field_t get_genomic_field(const std::string &data_source, const std::string &info_attribute, const char *value, const int32_t value_length) const;
+  genomic_field_t get_genomic_field(const std::string &data_source, const std::string &info_attribute, const char *value, const int32_t value_length);
 
   // List of configured annotation data sources
   std::vector<genomicsdb_pb::AnnotationSource> m_annotate_sources;
+
+  // Buffer for annotation values
+  std::vector<std::string> buffer;
 };

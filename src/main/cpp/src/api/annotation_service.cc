@@ -2,11 +2,30 @@
 
 #include "genomicsdb_export_config.pb.h"
 #include "htslib/vcf.h"
+#include <fstream>
 
 /**
 Default constructor for AnnotationService
 */
 AnnotationService::AnnotationService() {
+	// jDebug: I don't think you need to initialise buffer
+	// buffer =
+}
+
+AnnotationService::~AnnotationService() {
+  // jDebug: Is there any destruction required for a std::vector?
+  buffer.clear();
+}
+
+/**
+  Add an annotation value to the buffer so it won't go out of scope
+*/
+const char* AnnotationService::copy_to_buffer(const char* value) {
+	buffer.push_back(value);
+	std::string* ptr_to_first = buffer.data();
+	std::string last_element = ptr_to_first[buffer.size() - 1];
+	std::string* ptr_to_last_element = &last_element;
+	return ptr_to_last_element->c_str();
 }
 
 /**
@@ -20,6 +39,25 @@ void AnnotationService::read_configuration(const std::string& str) {
   // Create a copy of each AnnotationSource
   for(auto i=0; i<export_config.annotation_source_size(); ++i) {
     genomicsdb_pb::AnnotationSource annotation_source = export_config.annotation_source(i);
+
+    // std::filesystem::path vcf_file = annotation_source.filename();
+    // if(!std::filesystem::exists(vcf_file)) {
+    // std::ifstream vcf_file(annotation_source.filename());
+    // FILE *file = fopen(annotation_source.filename().c_str());
+    // if(!vcf_file.good()) {
+    std::fstream fs;
+    fs.open (annotation_source.filename().c_str(), std::fstream::in);
+    if(!fs.is_open()) {
+      std::__fs::filesystem::path cwd = std::__fs::filesystem::current_path();
+
+      std::string message("VCF file does not exist: ");
+      message.append(annotation_source.filename());
+      message.append(". jDebug I am in ");
+      message.append(cwd.string());
+      throw GenomicsDBException(message);
+    }
+    fs.close();
+
     m_annotate_sources.push_back(annotation_source);
   }
 }
@@ -30,9 +68,9 @@ void AnnotationService::read_configuration(const std::string& str) {
 genomic_field_t AnnotationService::get_genomic_field(const std::string &data_source,
                                                      const std::string &info_attribute,
                                                      const char *value,
-                                                     const int32_t value_length) const {
+                                                     const int32_t value_length) {
   std::string genomic_field_name = data_source + DATA_SOURCE_FIELD_SEPARATOR + info_attribute;
-  genomic_field_t genomic_annotation(genomic_field_name, value, value_length);
+  genomic_field_t genomic_annotation(genomic_field_name, copy_to_buffer(value), value_length);
   return genomic_annotation;
 }
 
@@ -42,10 +80,11 @@ genomic_field_t AnnotationService::get_genomic_field(const std::string &data_sou
   concatonating the dataSource (ie ClinVar) with a separator (see AnnotationService.DATA_SOURCE_FIELD_SEPARATOR),
   and the INFO field label.
  */
-void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) const {
+void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) {
   for(genomicsdb_pb::AnnotationSource annotation_source: m_annotate_sources) {
     // Open the VCF file
     htsFile * vcfInFile = hts_open(annotation_source.filename().c_str(), "r");
+    printf("jDebug: file=%s", vcfInFile);
     VERIFY(vcfInFile != NULL && "Unable to open VCF file");
 
     // Check file type
@@ -119,13 +158,16 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
             // Look for the info field
             int res = bcf_get_info_string(hdr, rec, info_attribute.c_str(), &infoValue, &infoValueLength);
             if(res > 0) {
+              printf("jDebug: infoValue=%s", infoValue);
               genomic_fields.push_back(get_genomic_field(annotation_source.data_source(), info_attribute, infoValue, infoValueLength));
               // printf("jDebug.cc: %s %s=%s\n", annotation_source.data_source().c_str(), info_attribute.c_str(), infoValue);
             } else if (res == -2) {
+              // jDebug: figure out what to do about this.
               // "clash between types defined in the header and encountered in the VCF record"
               // We need to modify this section so it determines the info field type and then uses the correct
               // bcf_get_info_* method.
             } else {
+              // jDebug: throw an exception.
               // info field not found
             }
           }
