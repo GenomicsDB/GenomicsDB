@@ -220,14 +220,15 @@ class VariantUtils {
  public:
   static bool contains_deletion(const std::string& REF, const std::vector<std::string>& ALT_vec);
   static bool contains_MNV(const std::string& REF, const std::vector<std::string>& ALT_vec);
-  inline static bool is_deletion(const std::string& REF, const std::string& alt_allele) {
+  /*inline static bool is_deletion(const std::string& REF, const std::string& alt_allele) {*/
+  inline static bool is_deletion(const STRING_VIEW& REF, const STRING_VIEW& alt_allele) {
     auto REF_length = REF.length();
     auto alt_allele_length = alt_allele.length();
     return (REF_length > 1u)
            && (IS_SPANNING_DELETION_ALLELE(alt_allele, alt_allele_length)
                || (!is_symbolic_allele(alt_allele) && (alt_allele_length < REF_length)));
   }
-  inline static bool is_symbolic_allele(const std::string& allele) {
+  inline static bool is_symbolic_allele(const STRING_VIEW& allele) {
     return IS_NON_REF_ALLELE(allele)
            || (allele == g_vcf_SPANNING_DELETION)
            || (
@@ -241,22 +242,35 @@ class VariantUtils {
   inline static bool is_reference_block(const std::string& REF, const std::vector<std::string>& ALT_vec) {
     return (REF.length() == 1u && ALT_vec.size() == 1u && IS_NON_REF_ALLELE(ALT_vec[0]));
   }
-  inline static unsigned compute_num_mismatching_bases(const std::string& REF, const std::string& alt_allele) {
+  inline static unsigned compute_num_mismatching_bases(const STRING_VIEW& REF, const STRING_VIEW& alt_allele) {
     assert(REF.length() == alt_allele.length());
     auto num_diff_bases = 0u;
     for(auto i=0u;i<alt_allele.length();++i)
       num_diff_bases += (REF[i] != alt_allele[i]);
     return num_diff_bases;
   }
-  inline static bool is_MNV(const std::string& REF, const std::string& alt_allele) {
+  /*inline static bool is_MNV(const std::string& REF, const std::string& alt_allele) {*/
+  inline static bool is_MNV(const STRING_VIEW& REF, const STRING_VIEW& alt_allele) {
     auto REF_length = REF.length();
     auto alt_allele_length = alt_allele.length();
     return (REF_length > 1u
 	&& !is_symbolic_allele(alt_allele) && (alt_allele_length == REF_length)
 	&& compute_num_mismatching_bases(REF, alt_allele) > 1u);
   }
-  inline static bool is_deletion_or_MNV(const std::string& REF, const std::string& alt_allele) {
+  /*inline static bool is_deletion_or_MNV(const std::string& REF, const std::string& alt_allele) {*/
+  inline static bool is_deletion_or_MNV(const STRING_VIEW& REF, const STRING_VIEW& alt_allele) {
     return is_deletion(REF, alt_allele) || is_MNV(REF, alt_allele);
+  }
+  static size_t find_longest_common_suffix_length(const STRING_VIEW& a, const STRING_VIEW& b) {
+    auto a_i = a.length()-1u;
+    auto b_i = b.length()-1u;
+    const auto num_iter = std::min(a.length(), b.length());
+    auto i=0ull;
+    for(;i<num_iter;++i,--a_i,--b_i) {
+      if(a[a_i] != b[b_i])
+        return i;
+    }
+    return num_iter;
   }
 };
 

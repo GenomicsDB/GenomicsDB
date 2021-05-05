@@ -63,7 +63,7 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   virtual ~BroadCombinedGVCFOperator();
   void clear();
   void switch_contig();
-  virtual void operate(Variant& variant, const VariantQueryConfig& query_config);
+  virtual void operate(Variant& variant);
   inline bool overflow() const {
     return m_vcf_adapter->overflow();
   }
@@ -83,7 +83,7 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
     unsigned& num_result_elements);
   void handle_INFO_fields(const Variant& variant);
   void handle_FORMAT_fields(const Variant& variant);
-  void handle_deletions(Variant& variant, const VariantQueryConfig& query_config);
+  void handle_deletions(Variant& variant);
   void merge_ID_field(const Variant& variant, const unsigned query_idx);
   /*
    * Find the GT combination that corresponds to min PL value and update
@@ -105,7 +105,6 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
       const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
  private:
   bool m_use_missing_values_not_vector_end;
-  const VariantQueryConfig* m_query_config;
   VCFAdapter* m_vcf_adapter;
   const VidMapper* m_vid_mapper;
   bcf1_t* m_bcf_out;

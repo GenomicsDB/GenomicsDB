@@ -162,6 +162,7 @@ public class GenomicsDBQueryTest {
     assert(variantCall.getGenomic_interval().getStart() > 0);
     assert(variantCall.getGenomic_interval().getEnd() > 0);
     assert(variantCall.getGenomicFields().size() > 1);
+    Assert.assertFalse(variantCall.toString().isEmpty());
   }
 
   @Test
@@ -207,6 +208,7 @@ public class GenomicsDBQueryTest {
 
     intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
     Assert.assertEquals(intervals.size(), 1);
+    Assert.assertFalse(intervals.toString().isEmpty());
 
     Pair interval = intervals.get(0).getInterval();
     List<VariantCall> calls = intervals.get(0).getCalls();

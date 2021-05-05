@@ -52,9 +52,12 @@ set(GenomicsDB_library_sources
     cpp/src/utils/vid_mapper_sql.cc
     cpp/src/utils/timer.cc
     cpp/src/utils/logger.cc
+    cpp/src/utils/alleles_combiner.cc
     cpp/src/vcf/vcf_adapter.cc
     cpp/src/vcf/genomicsdb_bcf_generator.cc
     cpp/src/vcf/vcf2binary.cc
+    cpp/src/vcf/hfile_genomicsdb.c
+    cpp/src/vcf/htslib_fs_adapter.cc
     cpp/src/config/variant_query_config.cc
     cpp/src/config/genomicsdb_config_base.cc
     cpp/src/config/json_config.cc

@@ -20,12 +20,18 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package org.genomicsdb.spark;
+package org.genomicsdb.spark.v2;
 
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.reader.InputPartition;
 import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
 import org.apache.spark.sql.types.StructType;
+
+import org.genomicsdb.spark.GenomicsDBInputInterface;
+import org.genomicsdb.spark.GenomicsDBPartitionInfo;
+import org.genomicsdb.spark.GenomicsDBQueryInfo;
+import org.genomicsdb.spark.GenomicsDBVidSchema;
+import org.genomicsdb.spark.GenomicsDBConfiguration;
 
 import java.util.Map;
 import java.util.ArrayList;
@@ -131,20 +137,20 @@ public class GenomicsDBInputPartition
   }
 
   private void setLoaderAndQuery(GenomicsDBConfiguration g) {
-    if (g.get(GenomicsDBConfiguration.LOADERPB) != null) {
-      loader = g.get(GenomicsDBConfiguration.LOADERPB);
+    if (g.getLoaderPB() != null) {
+      loader = g.getLoaderPB();
       loaderIsPB = true;
     }
     else {
-      loader = g.get(GenomicsDBConfiguration.LOADERJSON);
+      loader = g.getLoaderJsonFile(); 
       loaderIsPB = false;
     }
-    if (g.get(GenomicsDBConfiguration.QUERYPB) != null) {
-      query = g.get(GenomicsDBConfiguration.QUERYPB);
+    if (g.getQueryPB() != null) {
+      query = g.getQueryPB();
       queryIsPB = true;
     }
     else {
-      query = g.get(GenomicsDBConfiguration.QUERYJSON);
+      query = g.getQueryJsonFile();
       queryIsPB = false;
     }
   }

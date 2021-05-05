@@ -65,7 +65,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     * @param maxQBS maximum query block size used for partitioning query
     * @param clazz Class object used to decide how to instantiate partitions
     */
-  GenomicsDBInput(GenomicsDBConfiguration gdbconf, StructType schema, 
+  public GenomicsDBInput(GenomicsDBConfiguration gdbconf, StructType schema,
       Map<String, GenomicsDBVidSchema> vMap, long minQBS, long maxQBS, Class<T> clazz) {
     genomicsDBConfiguration = gdbconf;
     this.clazz = clazz;
@@ -107,6 +107,28 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
   }
 
   /**
+   * Creates a fallback plan for the datasource API for older spark versions
+   * @throws RuntimeException thrown if class is not GenomicsDBInputPartition
+   * @return Class found from the proper spark version package.
+   **/
+  private Class setDatasourceClass() throws RuntimeException {
+    Class c;
+    try {
+      c = Class.forName("org.genomicsdb.spark.sources.GenomicsDBInputPartition");
+    }
+    catch (ClassNotFoundException ex1) {
+      try{
+        c = Class.forName("org.genomicsdb.spark.v2.GenomicsDBInputPartition");
+      }
+      catch (ClassNotFoundException ex2) {
+        throw new RuntimeException("Warning: Could not find GenomicsDBInputPartition. " +
+                                   "Datasourceapi only works with >= Spark 2.4.0");       
+        }
+    }
+    return c;
+  }
+
+  /**
    * create the appropriate partition/split object and initialize it
    * @param host host location for InputSplit
    * @return Returns initialized InputSplit or InputPartition
@@ -123,21 +145,15 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       return instance;
     }
     else {
-      try {
-        Class c = Class.forName("org.genomicsdb.spark.GenomicsDBInputPartition");
-        if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
+      Class c = setDatasourceClass();
+      if (c.isAssignableFrom(clazz)) {
           instance.setGenomicsDBConf(genomicsDBConfiguration);
           instance.setGenomicsDBSchema(schema);
           instance.setGenomicsDBVidSchema(vMap);
           return instance;
-        }
-        else {
-          throw new RuntimeException("Unsupported class for GenomicsDBInput:"+clazz.getName());
-        }
       }
-      catch (ClassNotFoundException ex) {
-        throw new RuntimeException("Warning: Could not find GenomicsDBInputPartition. " +
-                                   "Datasourceapi only works with >= Spark 2.4.0");
+      else {
+        throw new RuntimeException("Unsupported class for GenomicsDBInput:"+clazz.getName());
       }
     }
   }
@@ -162,23 +178,17 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       return instance;
     }
     else {
-      try {
-        Class c = Class.forName("org.genomicsdb.spark.GenomicsDBInputPartition");
-        if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
-          instance.setPartitionInfo(part);
-          instance.setQueryInfoList(qrangeList);
-          instance.setGenomicsDBConf(genomicsDBConfiguration);
-          instance.setGenomicsDBSchema(schema);
-          instance.setGenomicsDBVidSchema(vMap);
-          return instance;
-        }
-        else {
-          throw new RuntimeException("Unsupported class for GenomicsDBInput:"+clazz.getName());
-        }
+      Class c = setDatasourceClass();
+      if (c.isAssignableFrom(clazz)) {
+        instance.setPartitionInfo(part);
+        instance.setQueryInfoList(qrangeList);
+        instance.setGenomicsDBConf(genomicsDBConfiguration);
+        instance.setGenomicsDBSchema(schema);
+        instance.setGenomicsDBVidSchema(vMap);
+        return instance;
       }
-      catch (ClassNotFoundException ex) {
-        throw new RuntimeException("Warning: Could not find GenomicsDBInputPartition. " +
-                                   "Datasourceapi only works with >= Spark 2.4.0");
+      else {
+        throw new RuntimeException("Unsupported class for GenomicsDBInput:"+clazz.getName());
       }
     }
   }
@@ -202,7 +212,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     */
   public List<T> divideInput() {
 
-    if (genomicsDBConfiguration.get(GenomicsDBConfiguration.LOADERPB) != null) {
+    if (genomicsDBConfiguration.hasProtoLoader()){
       genomicsDBConfiguration.populateListFromPB(GenomicsDBConfiguration.LOADERPB);
     } else {
       try {
@@ -214,7 +224,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       }
     }
 
-    if (genomicsDBConfiguration.get(GenomicsDBConfiguration.QUERYPB) != null) {
+    if (genomicsDBConfiguration.hasProtoQuery()) {
       genomicsDBConfiguration.populateListFromPB(GenomicsDBConfiguration.QUERYPB);
     } else {
       try {
@@ -382,7 +392,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       exportConfigurationBuilder.mergeFrom(queryPB);
     }
     else {
-      exportConfigurationBuilder = 
+      exportConfigurationBuilder =
           getExportConfigurationFromJsonFile(queryFileOrPB);
     }
     // set the array name per the targeted partition

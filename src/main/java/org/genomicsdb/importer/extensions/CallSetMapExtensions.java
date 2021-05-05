@@ -219,8 +219,6 @@ public interface CallSetMapExtensions {
 
     /**
      * Merges incremental import's callsets with existing callsets.
-     * Also create a copy of original callset file to aid with recovery
-     * if the incremental import goes awry
      * @param callsetMapJSONFilePath path to existing callset map file
      * @param inputSampleNameToPath    map from sample name to VCF/BCF file path
      * @param newCallsetMapPB callset mapping protobuf for new callsets
@@ -233,9 +231,6 @@ public interface CallSetMapExtensions {
             final GenomicsDBCallsetsMapProto.CallsetMappingPB newCallsetMapPB) 
             throws ParseException {
         String existingCallsetsJSON = GenomicsDBUtils.readEntireFile(callsetMapJSONFilePath);
-        if(writeToFile(callsetMapJSONFilePath+".inc.backup", existingCallsetsJSON)!=0) {
-            System.err.println("Warning: Could not write backup callset file");
-        }
         GenomicsDBCallsetsMapProto.CallsetMappingPB.Builder callsetMapBuilder =
                 newCallsetMapPB.toBuilder();
         checkDuplicateCallsetsForIncrementalImport(existingCallsetsJSON, inputSampleNameToPath);

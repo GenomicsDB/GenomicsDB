@@ -1,10 +1,9 @@
 #
 # CMakeLists.txt
 #
-#
 # The MIT License
 #
-# Copyright (c) 2019-2020 Omics Data Automation, Inc.
+# Copyright (c) 2019-2021 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -26,20 +25,20 @@
 #
 
 project(GenomicsDB)
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.6)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   message(FATAL_ERROR CMAKE_CXX_COMPILER_ID " Compiler not yet supported. Exiting.")
 endif()
 
-#External sources
+#External dependencies. Can be overridden to point to custom locations
 set(HTSLIB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/htslib" CACHE PATH "Path to htslib source directory")
 set(TILEDB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/TileDB" CACHE PATH "Path to TileDB source directory")
 set(RAPIDJSON_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/dependencies/RapidJSON/include" CACHE PATH "Path to RapidJSON include directory")
 set(SPDLOG_INCLUDE_DIR  "${CMAKE_SOURCE_DIR}/dependencies/spdlog/include" CACHE PATH "Path to SpdLog include directory")
 
-#git tag
+#GIT_COMMIT_HASH derived from git tag to be used as part of GENOMICSDB_VERSION
 execute_process(
     COMMAND git log -1 --format=%h
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -47,50 +46,65 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
     )
 
-#Build parameters
-set(GENOMICSDB_RELEASE_VERSION "1.3.1-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+#Build parameters/options
+set(GENOMICSDB_RELEASE_VERSION "1.4.1-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 set(GENOMICSDB_VERSION "${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}" CACHE STRING "GenomicsDB full version string")
+
 set(DISABLE_MPI False CACHE BOOL "Disable use of any MPI compiler/libraries")
 set(DISABLE_OPENMP False CACHE BOOL "Disable OpenMP")
+
 set(BUILD_DISTRIBUTABLE_LIBRARY False CACHE BOOL "Build the TileDB/GenomicsDB library with minimal runtime dependencies")
 set(BUILD_JAVA False CACHE BOOL "Build Java/JNI interface for combined VCF records")
+
 set(HTSLIB_INSTALL_DIR "" CACHE PATH "Path to htslib install directory")
-set(OPENSSL_PREFIX_DIR "" CACHE PATH "OpenSSL installation prefix")
+
 set(GENOMICSDB_PROTOBUF_VERSION "3.0.2" CACHE STRING "Version of Google Protocol Buffer library")
 set(PROTOBUF_LIBRARY "" CACHE PATH "Path to protobuf headers and library")
 set(PROTOBUF_STATIC_LINKING True CACHE BOOL "Statically link Protobuf libraries")
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
+set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf files in build directory")
+
 set(USE_LIBCSV False CACHE BOOL "Disable library components that import data from csv files")
 set(LIBCSV_DIR "" CACHE PATH "Path to libcsv header and library")
+
 set(DO_PROFILING False CACHE BOOL "Collect some stats during execution - doesn't add much overhead")
 set(COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW False CACHE BOOL "Counting #cells traversed in columnar iterator")
 set(PROFILE_NUM_CELLS_TO_TRAVERSE_AT_EVERY_QUERY_INTERVAL False CACHE BOOL "Counting #cells traversed in columnar iterator in sliding window")
 set(USE_GPERFTOOLS False CACHE BOOL "Collect profiling information using gperftools")
 set(DO_MEMORY_PROFILING False CACHE BOOL "Collect memory consumption in parts of the combine gVCF program - high overhead")
+
 set(GENOMICSDB_MAVEN_BUILD_DIR ${CMAKE_BINARY_DIR}/target CACHE PATH "Path to maven build directory")
-set(LIBDBI_DIR "" CACHE PATH "Path to libdbi install directory")
 set(MAVEN_QUIET False CACHE BOOL "Do not print mvn messages")
-set(GENOMICSDB_SPARK_PROFILE "" CACHE STRING "Profile to choose Apache Spark version") # used in Maven builds
-set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when optimized zlib is used")
-set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf files in build directory")
-set(ENABLE_LIBCURL True CACHE BOOL "Enable libcurl for use in htslib to read VCF files directly off S3/GCS/http(s) URLs")
+set(GENOMICSDB_MAVEN_PROFILE "" CACHE STRING "Profile to compile with Spark 2 or Java 11") # used in Maven builds
+set(GPG_PASSPHRASE "" CACHE STRING "Gpg passphrase for deploying to maven")
+
+set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when intel optimized zlib is required")
+
+set(LIBDBI_DIR "" CACHE PATH "Path to libdbi install directory")
+
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 set(USE_HDFS True CACHE BOOL "Enables HDFS support")
+set(BUILD_FOR_ARCH "" CACHE STRING "Arch for which to build - values passed to -march= option for gcc")
 
 #See https://cmake.org/Wiki/CMake_RPATH_handling#Common_questions
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH True)
-#ifdef APPLE
+if(APPLE)
   set(CMAKE_MACOSX_RPATH True CACHE BOOL "Set rpath on OSX")
   set(CMAKE_FIND_FRAMEWORK LAST CACHE STRING "Try to find frameworks on Mac OS X last")
-#endif
+endif()
 
 enable_testing()
 
 #Platform check modules
 include(CheckIncludeFileCXX)
 include(CheckCXXSymbolExists)
+   
+#Optimization flag
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND BUILD_FOR_ARCH)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${BUILD_FOR_ARCH}")
+endif()
 
 if(BUILD_DISTRIBUTABLE_LIBRARY)
     set(DISABLE_MPI True)
@@ -100,7 +114,9 @@ if(BUILD_DISTRIBUTABLE_LIBRARY)
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     endif()
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.9")
+    if(APPLE)  
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
+    endif()
 endif()
 
 #Check C++ 2011 support
@@ -157,16 +173,20 @@ if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
   add_definitions(-D_FORTIFY_SOURCE=2)
 endif()
 
+find_package(StringView)
+if(NOT STRING_VIEW_FOUND AND NOT STRING_VIEW_EXPERIMENTAL_FOUND)
+  message(FATAL_ERROR "No string_view found. Use a compiler that supports std::string_view for now")
+endif()
+
 find_package(libuuid REQUIRED)
 include_directories(${LIBUUID_INCLUDE_DIR})
 
-if(ENABLE_LIBCURL)
-  if(BUILD_DISTRIBUTABLE_LIBRARY)
-    set(OPENSSL_USE_STATIC_LIBS TRUE)
-  endif()
-  find_package(OpenSSL REQUIRED)
-  find_package(CURL REQUIRED)
+#OpenSSL required by TileDB and CURL
+if(BUILD_DISTRIBUTABLE_LIBRARY)
+  set(OPENSSL_USE_STATIC_LIBS TRUE)
 endif()
+find_package(OpenSSL REQUIRED)
+find_package(CURL REQUIRED)
 
 #RapidJSON
 find_package(RapidJSON REQUIRED)
@@ -411,13 +431,9 @@ if(BUILD_JAVA)
         ./src/main/java/org/genomicsdb/spark/GenomicsDBInputSplit.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBJavaSparkFactory.java
         ./src/main/java/org/genomicsdb/spark/GenomicsDBPartitionInfo.java
-        ./src/main/java/org/genomicsdb/spark/GenomicsDBRecordReader.java
 	./src/main/java/org/genomicsdb/spark/GenomicsDBQueryInfo.java
-	./src/main/java/org/genomicsdb/spark/GenomicsDBDataSourceV2.java
-	./src/main/java/org/genomicsdb/spark/GenomicsDBDataSourceReader.java
-	./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartition.java
-	./src/main/java/org/genomicsdb/spark/GenomicsDBInputPartitionReader.java
-	./src/main/java/org/genomicsdb/spark/GenomicsDBInput.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBSchemaFactory.java
+        ./src/main/java/org/genomicsdb/spark/GenomicsDBInput.java
         ./src/main/java/org/genomicsdb/Constants.java
         ./src/main/java/org/genomicsdb/GenomicsDBLibLoader.java
         ./src/main/scala/org/genomicsdb/GenomicsDBContext.scala
@@ -435,6 +451,31 @@ if(BUILD_JAVA)
         ./src/test/java/org/genomicsdb/model/ImportConfigSpec.java
         ./src/test/java/org/genomicsdb/GenomicsDBTestUtils.java
         )
+    
+      if(GENOMICSDB_MAVEN_PROFILE STREQUAL "spark2")
+      set(JAVA_SCALA_SOURCES 
+          ${JAVA_SCALA_SOURCES}
+          ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBDataSourceReader.java
+          ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBDataSourceV2.java
+          ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBRecordReader.java
+          ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBInputPartition.java
+	  ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBInputPartitionReader.java
+        )
+    else()
+      set(JAVA_SCALA_SOURCES
+          ${JAVA_SCALA_SOURCES}
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBRecordReader.java
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBSource.java
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBTable.java
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBScan.java
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBScanBuilder.java
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBBatch.java
+          ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBInputPartition.java
+	  ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBInputPartitionReader.java
+	  ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBPartitionReaderFactory.java
+        )
+    endif()
+    
     if(PROTOBUF_REGENERATE)
         #Must be set here - see https://cmake.org/cmake/help/v3.3/command/set_source_files_properties.html
         set_source_files_properties(${PROTOBUF_GENERATED_JAVA_SRCS} PROPERTIES GENERATED True)
@@ -444,11 +485,6 @@ if(BUILD_JAVA)
     else()
         set(JAVA_SCALA_SOURCES ${JAVA_SCALA_SOURCES} ${PROTOBUF_GENERATED_JAVA_SRCS})
         set(MAVEN_PROTOBUF_REGENERATE_ARGS "")
-    endif()
-    if(GENOMICSDB_SPARK_PROFILE)
-        set(MAVEN_PROFILE "-P${GENOMICSDB_SPARK_PROFILE}")
-    else()
-        set(MAVEN_PROFILE "")
     endif()
     set(MAVEN_QUIET_ARGS "")
     if(MAVEN_QUIET)
@@ -462,6 +498,24 @@ if(BUILD_JAVA)
         -Dgenomicsdb_lib_directory=$<TARGET_FILE_DIR:tiledbgenomicsdb>
         -Dprotobuf.version=${GENOMICSDB_PROTOBUF_VERSION}
         ${MAVEN_PROTOBUF_REGENERATE_ARGS})
+    
+      if (GPG_PASSPHRASE) 
+        set(MAVEN_ARGS 
+          ${MAVEN_ARGS}
+          -Dgpg.passphrase=${GPG_PASSPHRASE})
+        message(STATUS "Setting gpg passphrase for maven")
+
+      endif()
+
+      if(GENOMICSDB_MAVEN_PROFILE)
+        message(STATUS "Setting maven profile to ${GENOMICSDB_MAVEN_PROFILE}" )
+        set(MAVEN_PROFILE 
+          -P${GENOMICSDB_MAVEN_PROFILE})
+        set(MAVEN_ARGS ${MAVEN_ARGS} ${MAVEN_PROFILE})
+    else()
+        set(MAVEN_PROFILE "")
+    endif()
+
     #Maven build - depends on dynamic library
     add_custom_command(
         OUTPUT ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-allinone.jar
@@ -478,14 +532,14 @@ if(BUILD_JAVA)
 
     add_test(NAME javatests
         COMMAND mvn test
-          ${MAVEN_ARGS}
+        ${MAVEN_ARGS}
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
     set(GENOMICSDB_EXAMPLE_SOURCES
         ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDB.java
         ${CMAKE_SOURCE_DIR}/example/java/TestBufferStreamGenomicsDBImporter.java
         ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDBSparkHDFS.java
-        ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDBDataSourceV2.java
+        ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDBSource.java
         ${CMAKE_SOURCE_DIR}/example/java/TestGenomicsDBImporterWithMergedVCFHeader.java)
 
     add_jar(genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples
@@ -501,7 +555,7 @@ if(BUILD_JAVA)
     #Jars are already listed as dependencies in the add_jar command (-examples)
     #So, use the examples target as a dependency for this target
     add_custom_target(mvn_central_deploy
-        COMMAND mvn ${MAVEN_ARGS} deploy
+      COMMAND mvn ${MAVEN_ARGS} deploy
         COMMENT "Deploy to Maven central"
     )
     add_dependencies(mvn_central_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
@@ -512,7 +566,7 @@ if(BUILD_JAVA)
 
     if(NOT DISABLE_MPI)
         add_test(NAME CI_tests
-            COMMAND python2 ${CMAKE_SOURCE_DIR}/tests/run.py
+            COMMAND python ${CMAKE_SOURCE_DIR}/tests/run.py
             ${CMAKE_BINARY_DIR}
             ${CMAKE_INSTALL_PREFIX}
             ${CMAKE_BUILD_TYPE})

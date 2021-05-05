@@ -31,6 +31,8 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.spark.GenomicsDBSchemaFactory;
+import org.genomicsdb.spark.GenomicsDBVidSchema;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -45,7 +47,7 @@ import static org.apache.spark.sql.functions.col;
 
 import com.googlecode.protobuf.format.JsonFormat;
 
-public final class TestGenomicsDBDataSourceV2 {
+public final class TestGenomicsDBSource {
 
   public static String[] floatFields = {
     "BaseQRankSum", "ClippingRankSum", "MQRankSum", "ReadPosRankSum", "MQ", "RAW_MQ", "MLEAF"
@@ -95,7 +97,7 @@ public final class TestGenomicsDBDataSourceV2 {
         for (Object attrObj : attrArray) {
           String attr = (String) attrObj;
           if (attr.equals("DP_FORMAT")) {
-            schemaArray.add(new StructField(attr, DataTypes.NullType, true, Metadata.empty()));
+            schemaArray.add(DataTypes.createStructField(attr, DataTypes.NullType, true));
           } else if (!(attr.equals("GT")
               || attr.equals("REF")
               || attr.equals("FILTER")
@@ -106,7 +108,7 @@ public final class TestGenomicsDBDataSourceV2 {
             // these will all be nulltype, and the datasourcev2 api for genomicsdb
             // takes care of correctly assigning the datatype from VID mapping
             if (fieldClass != null) {
-              schemaArray.add(new StructField(attr, DataTypes.NullType, true, Metadata.empty()));
+              schemaArray.add(DataTypes.createStructField(attr, DataTypes.NullType, true));
             }
           }
         }
@@ -123,25 +125,27 @@ public final class TestGenomicsDBDataSourceV2 {
 
   public static void main(final String[] args) throws IOException,
          org.json.simple.parser.ParseException {
-    LongOpt[] longopts = new LongOpt[6];
+    LongOpt[] longopts = new LongOpt[7];
     longopts[0] = new LongOpt("loader", LongOpt.REQUIRED_ARGUMENT, null, 'l');
     longopts[1] = new LongOpt("query", LongOpt.REQUIRED_ARGUMENT, null, 'q');
     longopts[2] = new LongOpt("vid", LongOpt.REQUIRED_ARGUMENT, null, 'v');
     longopts[3] = new LongOpt("hostfile", LongOpt.REQUIRED_ARGUMENT, null, 'h');
     longopts[4] = new LongOpt("spark_master", LongOpt.REQUIRED_ARGUMENT, null, 's');
     longopts[5] = new LongOpt("use-query-protobuf", LongOpt.NO_ARGUMENT, null, 'p');
+    longopts[6] = new LongOpt("gdb_datasource", LongOpt.OPTIONAL_ARGUMENT, null, 'd');
 
     if (args.length < 8) {
       System.err.println(
           "Usage:\n\t--loader <loader.json> --query <query.json> --vid <vid.json> "
               + "--spark_master <sparkMaster>"
-              +"\nOptional args:\n--hostfile <hostfile> --use-query-protobuf");
+              +"\nOptional args:\n--hostfile <hostfile> --use-query-protobuf --gdb_datasource=<gdbDataSource>");
       System.exit(-1);
     }
-    String loaderFile, queryFile, hostfile, vidMapping, sparkMaster, jarDir;
+    String loaderFile, queryFile, hostfile, vidMapping, sparkMaster, gdbDataSource, jarDir;
     boolean useQueryProtobuf = false;
+    gdbDataSource = "org.genomicsdb.spark.sources.GenomicsDBSource";
     loaderFile = queryFile = hostfile = sparkMaster = vidMapping = "";
-    Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:s:v:p", longopts);
+    Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:s:d:v:p", longopts);
     int c = -1;
     String optarg;
 
@@ -162,6 +166,9 @@ public final class TestGenomicsDBDataSourceV2 {
         case 's':
           sparkMaster = g.getOptarg();
           break;
+        case 'd':
+          gdbDataSource = g.getOptarg();
+          break;
         case 'p':
           useQueryProtobuf = true;
           break;
@@ -170,8 +177,9 @@ public final class TestGenomicsDBDataSourceV2 {
           System.exit(-1);
       }
     }
-    SparkSession spark = SparkSession.builder().appName("TestGenomicsDBDataSourceV2").getOrCreate();
-
+    SparkSession spark = SparkSession.builder().appName("TestGenomicsDBSource").getOrCreate();
+    spark.sparkContext().setLogLevel("OFF");
+    
     Path dstdir = Paths.get("").toAbsolutePath();
     Path qSrc = Paths.get(queryFile);
     Path lSrc = Paths.get(loaderFile);
@@ -195,14 +203,20 @@ public final class TestGenomicsDBDataSourceV2 {
 
     StructType schema = null;
     try {
-      schema = getSchemaFromQuery(new File(queryFile), vidMapping);
+      GenomicsDBSchemaFactory schemaBuilder = new GenomicsDBSchemaFactory(loaderFile);
+      StructType querySchema = getSchemaFromQuery(new File(queryFile), vidMapping);
+      schema = schemaBuilder.buildSchemaWithVid(querySchema.fields());
+      
+      // test building schema without vid
+      StructType schemaTest = GenomicsDBSchemaFactory.buildSchema(querySchema.fields());
+
     } catch (ParseException e) {
       e.printStackTrace();
     }
 
     Dataset<Row> variants;
     DataFrameReader reader = spark.read()
-            .format("org.genomicsdb.spark.GenomicsDBDataSourceV2")
+            .format(gdbDataSource)
             .schema(schema)
             .option("genomicsdb.input.loaderjsonfile", lDstFile.getName());
     if (!hostfile.isEmpty()) {
@@ -221,9 +235,8 @@ public final class TestGenomicsDBDataSourceV2 {
       reader = reader.option("genomicsdb.input.queryjsonfile", qDstFile.getName());
     }
     variants = reader.load();
-
     String tempDir = "./" + UUID.randomUUID().toString();
-
+    
     // change number format for our floats so they're easier to read/compare
     for (String s : floatFields) {
       if (schemaContainsField(schema, s)) {

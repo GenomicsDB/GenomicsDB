@@ -25,6 +25,7 @@ package org.genomicsdb.spark;
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
 import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.spark.sources.GenomicsDBRecordReader;
 
 import htsjdk.tribble.Feature;
 import htsjdk.tribble.FeatureCodec;
@@ -65,6 +66,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
    * @throws FileNotFoundException  Thrown if creaing configuration object fails
    */
   @SuppressWarnings("unchecked")
+  @Override
   public List<InputSplit> getSplits(JobContext jobContext) throws FileNotFoundException {
 
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(configuration);
@@ -87,6 +89,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     return (List)input.divideInput();
   }
 
+  @Override
   public RecordReader<String, VCONTEXT>
     createRecordReader(InputSplit inputSplit, TaskAttemptContext taskAttemptContext)
       throws IOException, InterruptedException {

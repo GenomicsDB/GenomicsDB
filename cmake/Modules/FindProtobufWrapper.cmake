@@ -1,22 +1,48 @@
-# Following the standard CMake FindProtobuf module
-# Determine compiler flags for protobuf
-# Once done this will define
-# PROTOBUF_LIBRARY_FOUND - protobuf found
+#
+# CMakeLists.txt
+#
+# The MIT License
+#
+# Copyright (c) 2019-2020 Omics Data Automation, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 
-find_path(PROTOBUF_INCLUDE_DIRS NAMES google/protobuf/service.h PATHS "${PROTOBUF_INCLUDE_DIR}" "${PROTOBUF_LIBRARY}/include")
 if(PROTOBUF_STATIC_LINKING OR BUILD_DISTRIBUTABLE_LIBRARY)
-    find_library(PROTOBUF_LIBRARIES NAMES libprotobuf.a protobuf PATHS "${PROTOBUF_LIBRARY}" "${PROTOBUF_LIBRARY}/lib64" "${PROTOBUF_LIBRARY}/lib")
+    if(CMAKE_VERSION VERSION_GREATER 3.10.0)
+        set(Protobuf_USE_STATIC_LIBS ON)
+    endif()
+    set(PROTOBUF_WRAPPER_LIBRARY_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
 else()
-    find_library(PROTOBUF_LIBRARIES NAMES protobuf PATHS "${PROTOBUF_LIBRARY}" "${PROTOBUF_LIBRARY}/lib64" "${PROTOBUF_LIBRARY}/lib")
+    set(PROTOBUF_WRAPPER_LIBRARY_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX}) 
 endif()
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(ProtobufWrapper "Could not find Protobuf headers and/or libraries\n${DEFAULT_MSG}" PROTOBUF_INCLUDE_DIRS PROTOBUF_LIBRARIES)
-find_program(PROTOBUF_PROTOC_EXECUTABLE NAMES protoc PATHS "${PROTOBUF_PROTOC_EXECUTABLE}" "${PROTOBUF_LIBRARY}" "${PROTOBUF_LIBRARY}/bin")
-if(PROTOBUF_FOUND)
-    set(PROTOBUF_LIBRARY ${PROTOBUF_LIBRARIES})
-    set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_INCLUDE_DIRS})
+
+if (PROTOBUF_LIBRARY)
+    find_path(Protobuf_INCLUDE_DIR google/protobuf/service.h REQUIRED NO_DEFAULT_PATH PATHS "${PROTOBUF_LIBRARY}/include")
+    find_library(Protobuf_LIBRARY libprotobuf${PROTOBUF_WRAPPER_LIBRARY_SUFFIX} REQUIRED NO_DEFAULT_PATH PATHS "${PROTOBUF_LIBRARY}/lib64" "${PROTOBUF_LIBRARY}/lib")
+    find_library(Protobuf_PROTOC_LIBRARY libprotoc${PROTOBUF_WRAPPER_LIBRARY_SUFFIX} REQUIRED NO_DEFAULT_PATH PATHS "${PROTOBUF_LIBRARY}/lib64" "${PROTOBUF_LIBRARY}/lib")
+    find_program(Protobuf_PROTOC_EXECUTABLE protoc REQUIRED NO_DEFAULT_PATH PATHS "${PROTOBUF_LIBRARY}/bin")
+    include(FindPackageHandleStandardArgs)
+    find_package_handle_standard_args(ProtobufWrapper "Check PROTOBUF_LIBRARY option, could not find Protobuf headers and/or binaries at ${PROTOBUF_LIBRARY}${DEFAULT_MSG}" Protobuf_INCLUDE_DIR Protobuf_LIBRARY Protobuf_PROTOC_LIBRARY Protobuf_PROTOC_EXECUTABLE)
 endif()
-find_package(Protobuf)
+
+find_package(Protobuf REQUIRED)
 
 include(CheckCXXSourceCompiles)
 function(CHECK_IF_USING_PROTOBUF_V_3_0_0_BETA_1 FLAG_VAR_NAME)

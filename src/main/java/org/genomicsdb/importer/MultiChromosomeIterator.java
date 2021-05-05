@@ -64,8 +64,12 @@ class MultiChromosomeIterator implements Iterator<VariantContext> {
         final SAMSequenceDictionary contigDictionary = header.getSequenceDictionary();
         for (ChromosomeInterval currInterval : chromosomeIntervals)
             if (contigDictionary.getSequenceIndex(currInterval.getContig()) != -1) this.chromosomeIntervals.add(currInterval);
-        if (this.chromosomeIntervals.size() > 0) {
-            ChromosomeInterval currInterval = this.chromosomeIntervals.get(0);
+        //move to next chromosome and iterate
+        //It's possible that the reader has no record for the first contig, but could have records
+        //for subsequent contigs
+        idxInIntervalList = 0;
+        while (idxInIntervalList < this.chromosomeIntervals.size() && !hasNext()) {
+            ChromosomeInterval currInterval = this.chromosomeIntervals.get(idxInIntervalList++);
             iterator = this.reader.query(currInterval.getContig(), currInterval.getStart(), currInterval.getEnd());
         }
     }
@@ -85,13 +89,10 @@ class MultiChromosomeIterator implements Iterator<VariantContext> {
             //move to next chromosome and iterate
             //It's possible that the reader has no record for the next contig, but could have records
             //for subsequent contigs
-            for (idxInIntervalList = idxInIntervalList + 1; idxInIntervalList < chromosomeIntervals.size();
-                 ++idxInIntervalList) {
-                ChromosomeInterval currInterval = chromosomeIntervals.get(idxInIntervalList);
+            while (idxInIntervalList < chromosomeIntervals.size() && !iterator.hasNext()) {
+                ChromosomeInterval currInterval = chromosomeIntervals.get(idxInIntervalList++);
                 iterator = reader.query(currInterval.getContig(), currInterval.getStart(), currInterval.getEnd());
-                if (iterator.hasNext()) return returnValue;
             }
-            iterator = null;
             return returnValue;
         } catch (IOException e) {
             throw new NoSuchElementException("Caught IOException: " + e.getMessage());

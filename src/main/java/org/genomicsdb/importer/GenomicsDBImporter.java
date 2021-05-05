@@ -52,6 +52,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -65,6 +66,7 @@ import java.util.stream.IntStream;
 
 import static org.genomicsdb.GenomicsDBUtils.createTileDBWorkspace;
 import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBFragments;
+import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBArrays;
 import static org.genomicsdb.GenomicsDBUtils.deleteFile;
 import static org.genomicsdb.GenomicsDBUtils.writeToFile;
 import static org.genomicsdb.GenomicsDBUtils.getMaxValidRowIndex;
@@ -264,10 +266,6 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
         } else {
             vidMapPB = generateVidMapFromMergedHeader(this.config.getMergedHeader());
         }
-
-        //Write out callset map if needed
-        if (outputCallsetmapJsonFilePath != null && !outputCallsetmapJsonFilePath.isEmpty())
-            this.writeCallsetMapJSONFile(outputCallsetmapJsonFilePath, callsetMappingPB);
 
         //Write out vidmap if needed, don't write for incremental import
         if (!config.isIncrementalImport() && vidmapOutputFilepath != null && !vidmapOutputFilepath.isEmpty())
@@ -636,18 +634,25 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
         //Iterate over sorted sample list in batches
         iterateOverSamplesInBatches(sampleCount, updatedBatchSize, numberPartitions, executor, performConsolidation);
         executor.shutdown();
-        deleteBackupFiles();
+        postImportFileCleanup();
         mDone = true;
     }
 
-    private void deleteBackupFiles() {
+    /**
+     * write out callset map to disk and delete fragment list backup file
+     */
+    private void postImportFileCleanup() {
+        // Write out callset map if needed. do this last so that callset is only updated
+        // if import succeeds
+        String outputCallsetmapJsonFilePath = this.config.getOutputCallsetmapJsonFile();
+        if (outputCallsetmapJsonFilePath != null && !outputCallsetmapJsonFilePath.isEmpty()) {
+            this.writeCallsetMapJSONFile(outputCallsetmapJsonFilePath, 
+                    this.config.getImportConfiguration().getCallsetMapping());
+        }
+
         if (this.config.isIncrementalImport()) {
-            String outputCallsetmapJsonFilePath = this.config.getOutputCallsetmapJsonFile();
             if (outputCallsetmapJsonFilePath == null || outputCallsetmapJsonFilePath.isEmpty()) {
                 throw new GenomicsDBException("Incremental import must specify callset file name");
-            }
-            if(deleteFile(outputCallsetmapJsonFilePath+".inc.backup")!=0) {
-                System.err.println("Warning: Could not delete backup callset file"); 
             }
             if(deleteFile(outputCallsetmapJsonFilePath+".fragmentlist")!=0) {
                 System.err.println("Warning: Could not delete fragment list backup file"); 
@@ -687,6 +692,28 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                 this.config.getFunctionToCallOnBatchCompletion().apply(callbackFunctionArgument);
             }
         }
+    }
+
+    /**
+     * Consolidate all intervals/arrays in a given workspace into a single fragment
+     * @param numThreads number of threads to use to parallelize consolidation
+     */
+    public void doConsolidate(final int numThreads) {
+        String[] arrays = listGenomicsDBArrays(this.config.getImportConfiguration().getColumnPartitions(0).getWorkspace());
+        final ExecutorService executor = numThreads == 0 ? ForkJoinPool.commonPool() : Executors.newFixedThreadPool(numThreads);
+        List<CompletableFuture<Void>> futures = consolidateAllIntervals(arrays, executor);
+        CompletableFuture<Void> combinedFuture = CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()]));
+        combinedFuture.join();
+        executor.shutdown();
+    }
+
+    private List<CompletableFuture<Void>> consolidateAllIntervals(final String[] arrays, final ExecutorService executor) {
+        return Arrays.stream(arrays).map(array ->
+                CompletableFuture.runAsync(() -> {
+                    final String workspace = this.config.getImportConfiguration().getColumnPartitions(0).getWorkspace();
+                    jniConsolidateTileDBArray(workspace, array);
+                }, executor)
+        ).collect(Collectors.toList());
     }
 
     private List<CompletableFuture<Boolean>> iterateOverChromosomeIntervals(final int updatedBatchSize, final int numberPartitions,

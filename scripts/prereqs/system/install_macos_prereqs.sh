@@ -24,8 +24,17 @@
 set -e 
 
 # Install GenomicsDB Dependencies
-brew list cmake &>/dev/null || brew install cmake
+# Workaround for FindMPI bug in latest released cmake, this is apparently fixed in cmake 3.20
+# See issue filed with cmake - https://gitlab.kitware.com/cmake/cmake/-/issues/21955
+# brew list cmake &>/dev/null || brew install cmake
+# Start workaround ----
+brew list cmake &>/dev/null && brew uninstall cmake
+wget https://github.com/Homebrew/homebrew-core/raw/f3a486150931102cf4ce7b5943b6d209c34c05fe/Formula/cmake.rb
+brew install --HEAD -s ./cmake.rb
+# End workaround ------
+
 brew list mpich &>/dev/null || brew install mpich
 brew list ossp-uuid &>/dev/null || brew install ossp-uuid
 brew list libcsdb &>/dev/null || brew install libcsv
 brew list automake &> /dev/null || brew install automake
+brew list openssl &> /dev/null || brew install openssl

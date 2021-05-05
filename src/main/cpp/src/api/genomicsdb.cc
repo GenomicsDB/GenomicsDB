@@ -286,8 +286,6 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls() {
 GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProcessor& processor) {
   VariantQueryConfig* query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   const std::string& array = query_config->get_array_name(m_concurrency_rank);
-  genomicsdb_ranges_t column_ranges = query_config->get_query_column_ranges(m_concurrency_rank);
-  genomicsdb_ranges_t row_ranges = query_config->get_query_row_ranges(m_concurrency_rank);
   return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, query_config, processor)),
                                 create_genomic_field_types(*query_config));
 }

@@ -55,7 +55,7 @@ class TempDir {
   }
 
   void create_temp_directory() {
-    std::string dirname_pattern("ImageDSXXXXXX");
+    std::string dirname_pattern("GenomicsDBXXXXXX");
     const char *tmp_dir = getenv("TMPDIR");
     if (tmp_dir == NULL) {
       tmp_dir = P_tmpdir; // defined in stdio

@@ -36,7 +36,7 @@ import java.io.Serializable;
  * {"begin": 0, "workspace":"/home/forall/tiledb-ws",
  *  "array": "test0", "vcf_output_filename":"/home/forall/lihao/mytest/test0.vcf.gz" }
  */
-class GenomicsDBPartitionInfo implements Serializable {
+public class GenomicsDBPartitionInfo implements Serializable {
 
   private long beginPosition;
   private String tileDBWorkspace;

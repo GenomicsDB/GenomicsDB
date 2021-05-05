@@ -288,7 +288,7 @@ void VariantQueryProcessor::handle_gvcf_ranges(VariantCallEndPQ& end_pq,
     stats_ptr->m_operator_timer.start();
     stats_ptr->update_stat(GTProfileStats::GT_NUM_OPERATOR_INVOCATIONS, 1u);
 #endif
-    variant_operator.operate(variant, query_config);
+    variant_operator.operate(variant);
 #ifdef DO_PROFILING
     stats_ptr->m_operator_timer.stop();
 #endif
@@ -522,6 +522,26 @@ void VariantQueryProcessor::iterate_over_cells(
   }
   variant_operator.finalize();
   delete columnar_forward_iter;
+}
+
+void VariantQueryProcessor::iterate_over_gvcf_entries(
+  const int ad,
+  const VariantQueryConfig& query_config,
+  SingleVariantOperatorBase& variant_operator,
+  const bool use_common_array_object) const {
+  assert(query_config.is_bookkeeping_done());
+  //Initialize forward scan iterators
+  GenomicsDBGVCFIterator* columnar_gvcf_iter = get_storage_manager()->begin_gvcf_iterator(ad, query_config,
+      use_common_array_object);
+  for (; !(columnar_gvcf_iter->end()); ++(*columnar_gvcf_iter)) {
+    auto& cell = **columnar_gvcf_iter;
+    //auto coords = cell.get_coordinates();
+    variant_operator.operate_on_columnar_cell(cell);
+    //if (query_config.is_queried_array_row_idx(coords[0]))      //If row is part of query, process cell
+    //variant_operator.operate_on_columnar_cell(cell, query_config, get_array_schema());
+  }
+  //variant_operator.finalize();
+  delete columnar_gvcf_iter;
 }
 
 void VariantQueryProcessor::do_query_bookkeeping(const VariantArraySchema& array_schema,
@@ -762,7 +782,7 @@ void VariantQueryProcessor::gt_get_column_interval(
 #ifdef DO_PROFILING
       stats_ptr->m_operator_timer.start();
 #endif
-      variant_operator.operate(variants[i], query_config);
+      variant_operator.operate(variants[i]);
       variant_operator.copy_back_remapped_fields(variants[i]); //copy back fields that have been remapped
 #ifdef DO_PROFILING
       stats_ptr->m_operator_timer.stop();

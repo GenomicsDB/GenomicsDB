@@ -24,6 +24,8 @@
 #ifdef HTSDIR
 
 #include "vcf2binary.h"
+
+#include "hfile_genomicsdb.h"
 #include "htslib/bgzf.h"
 #include "vcf_adapter.h"
 #include "genomicsdb_multid_vector_field.h"
@@ -128,6 +130,7 @@ void VCFReader::initialize(const char* filename,
   //Build regions list - comma separated contigs - in increasing order of column values
   //Needed to fix traversal order of indexed reader
   //So parse the header first
+  genomicsdb_htslib_plugin_initialize(filename);
   m_fptr = bcf_open(filename, "r");
   VERIFY_OR_THROW(m_fptr && (std::string("Cannot open VCF/BCF file ")+filename).c_str());
   m_hdr = bcf_hdr_read(m_fptr);
@@ -1121,7 +1124,9 @@ void VCF2Binary::write_partition_data(File2TileDBBinaryColumnPartitionBase& part
   //The second parameter is useful if the file handler is open, but the buffer was full in a previous call
   auto has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, m_close_file, false);
   while (has_data) {
-    bcf_write(vcf_partition.m_split_output_fptr, hdr, vcf_reader_ptr->get_line());
+    if (bcf_write(vcf_partition.m_split_output_fptr, hdr, vcf_reader_ptr->get_line())) {
+      logger.fatal(VCF2BinaryException("Error writing VCF data for partition"));
+    }
     has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, false, true);
   }
 }

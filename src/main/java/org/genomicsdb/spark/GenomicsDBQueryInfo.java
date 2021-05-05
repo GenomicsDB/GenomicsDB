@@ -28,7 +28,7 @@ import java.io.Serializable;
  * Maintain global information on query ranges which is used
  * to create GenomicsDBInputSplits
  */
-class GenomicsDBQueryInfo implements Serializable {
+public class GenomicsDBQueryInfo implements Serializable {
 
   private long beginPosition;
   private long endPosition;

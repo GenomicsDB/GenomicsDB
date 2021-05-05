@@ -5,7 +5,7 @@
 INSTALL_DIR=${INSTALL_DIR:-/usr}
 USER=`whoami`
 
-SPARK_VER=${SPARK_VER:-2.4.0}
+SPARK_VER=${SPARK_VER:-3.0.1}
 SPARK=spark-$SPARK_VER-bin-hadoop${HADOOP_VER:-2.7}
 SPARK_DIR=${INSTALL_DIR}/$SPARK
 SPARK_LOCAL_DIR="/usr/local/spark"
@@ -32,8 +32,10 @@ retry() {
 }
 
 download_spark() {
-  retry wget -nv --trust-server-names "https://archive.apache.org/dist/spark/spark-$SPARK_VER/$SPARK.tgz"
-  sudo tar -zxf $SPARK.tgz --directory $INSTALL_DIR &&
+  if [[ ! -f $CACHE_DIR/$SPARK.tgz ]]; then
+    retry wget -nv --trust-server-names "https://archive.apache.org/dist/spark/spark-$SPARK_VER/$SPARK.tgz" -O $CACHE_DIR/$SPARK.tgz
+  fi
+  sudo tar -zxf $CACHE_DIR/$SPARK.tgz --directory $INSTALL_DIR &&
   sudo chown -R $USER:$USER $SPARK_DIR &&
   sudo ln -s $INSTALL_DIR/$SPARK $SPARK_LOCAL_DIR &&
   get_gcs_connector &&
@@ -60,6 +62,7 @@ configure_spark() {
 }
 
 install_spark() {
+  echo "Installing Spark..."
   download_spark &&
   configure_spark &&
   echo "Install Spark successful"

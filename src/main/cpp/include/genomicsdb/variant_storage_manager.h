@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2018-2019 Omics Data Automation, Inc.
+ * Copyright (c) 2018-2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -109,7 +109,6 @@ class VariantArrayCellIterator {
   }
  private:
   unsigned m_num_queried_attributes;
-  TileDB_CTX* m_tiledb_ctx;
   const VariantArraySchema* m_variant_array_schema;
   BufferVariantCell m_cell;
   //The actual TileDB array iterator
@@ -259,6 +258,12 @@ class VariantStorageManager {
    * For columnar iterator
    */
   SingleCellTileDBIterator* begin_columnar_iterator(
+    int ad, const VariantQueryConfig& query_config,
+    const bool use_common_array_object ) const;
+  /*
+   * Columnar GVCF iterator
+   */
+  GenomicsDBGVCFIterator* begin_gvcf_iterator(
     int ad, const VariantQueryConfig& query_config,
     const bool use_common_array_object ) const;
   /*

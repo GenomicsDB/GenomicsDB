@@ -52,7 +52,7 @@
 #define GET_HISTOGRAM_FIELD_HANDLER_PTR_FROM_TUPLE(X) (std::get<2>(X))
 
 //Static member
-const std::unordered_set<char> BroadCombinedGVCFOperator::m_legal_bases({'A', 'T', 'G', 'C'});
+const std::unordered_set<char> BroadCombinedGVCFOperator::m_legal_bases({'A', 'T', 'G', 'C', 'a', 't', 'g', 'c'});
 
 //Utility functions for encoding GT field
 template<bool phase_information_in_TileDB, bool produce_GT_field>
@@ -142,7 +142,6 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
     throw BroadCombinedGVCFException("Id mapper is not initialized");
   if (!id_mapper.is_callset_mapping_initialized())
     throw BroadCombinedGVCFException("Callset mapping in id mapper is not initialized");
-  m_query_config = &query_config;
   //Initialize VCF structs
   m_vcf_adapter = &vcf_adapter;
   m_vid_mapper = &id_mapper;
@@ -286,7 +285,9 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
       int line_length = 0;
       auto hrec = bcf_hdr_parse_line(m_vcf_hdr, contig_vcf_line.c_str(), &line_length);
       bcf_hdr_add_hrec(m_vcf_hdr, hrec);
-      bcf_hdr_sync(m_vcf_hdr);
+      if (bcf_hdr_sync(m_vcf_hdr)) {
+        logger.fatal(BroadCombinedGVCFException("Possible realloc() failure from bcf_hdr_sync() while adding missing contig names to template header"));
+      }
     }
   }
   //Get contig info for position 0, store curr contig in next_contig and call switch_contig function to do all the setup
@@ -308,7 +309,9 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
                                          +callset_name+" to the combined VCF/gVCF header");
     }
   }
-  bcf_hdr_sync(m_vcf_hdr);
+  if (bcf_hdr_sync(m_vcf_hdr)) {
+    logger.fatal(BroadCombinedGVCFException("Possible realloc() failure from bcf_hdr_sync() while adding samples to template header"));
+  }
   //Map from vid mapper field idx to hdr field idx
   m_global_field_idx_to_hdr_idx.resize(m_vid_mapper->get_num_fields(), -1);
   for (auto i=0u; i<m_vid_mapper->get_num_fields(); ++i) {
@@ -762,13 +765,13 @@ void BroadCombinedGVCFOperator::merge_ID_field(const Variant& variant, const uns
     m_ID_value.pop_back(); //delete last ';'
 }
 
-void BroadCombinedGVCFOperator::operate(Variant& variant, const VariantQueryConfig& query_config) {
+void BroadCombinedGVCFOperator::operate(Variant& variant) {
 #ifdef DO_PROFILING
   m_bcf_t_creation_timer.start();
 #endif
   //Handle spanning deletions - change ALT alleles in calls with deletions to *, <NON_REF>
-  handle_deletions(variant, query_config);
-  GA4GHOperator::operate(variant, query_config);
+  handle_deletions(variant);
+  GA4GHOperator::operate(variant);
   //Moved to new contig
   if (static_cast<int64_t>(m_remapped_variant.get_column_begin()) >= m_next_contig_begin_position) {
     std::string contig_name;
@@ -819,6 +822,8 @@ void BroadCombinedGVCFOperator::operate(Variant& variant, const VariantQueryConf
     ref_allele[0] = m_vcf_adapter->get_reference_base_at_position(m_curr_contig_name.c_str(), m_bcf_out->pos);
     if (BroadCombinedGVCFOperator::m_legal_bases.find(ref_allele[0]) == BroadCombinedGVCFOperator::m_legal_bases.end())
       ref_allele[0] = 'N';
+    else
+      ref_allele[0] = toupper(ref_allele[0]);
   }
   const auto& alt_alleles = dynamic_cast<VariantFieldALTData*>(m_remapped_variant.get_common_field(1u).get())->get();
   auto total_num_merged_alleles = alt_alleles.size() + 1u;      //+1 for REF
@@ -893,7 +898,8 @@ void BroadCombinedGVCFOperator::switch_contig() {
 }
 
 //Modifies original Variant object
-void BroadCombinedGVCFOperator::handle_deletions(Variant& variant, const VariantQueryConfig& query_config) {
+void BroadCombinedGVCFOperator::handle_deletions(Variant& variant) {
+  const VariantQueryConfig& query_config = *m_query_config;
   //#merged alleles in spanning deletion can be at most 3 - REF,*,<NON_REF>; however, the #input alleles
   //can be much larger. LUT gets resized later
   m_reduced_alleles_LUT.resize_luts_if_needed(variant.get_num_calls(), 3u);
