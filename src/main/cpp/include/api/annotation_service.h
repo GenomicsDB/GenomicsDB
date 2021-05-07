@@ -22,8 +22,7 @@ class AnnotationService {
   ~AnnotationService();
 
   // Add a string to the list of annotation values
-  // const char* copy_to_buffer(const char* value);
-  const std::string* copy_to_buffer(const char* value);
+  void copy_to_buffer(const char* value, int32_t length);
 
   // Value which separates dataSource and info field
   const std::string DATA_SOURCE_FIELD_SEPARATOR = "_AA_";

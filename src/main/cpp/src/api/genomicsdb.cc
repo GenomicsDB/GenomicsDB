@@ -183,18 +183,12 @@ GenomicsDB::~GenomicsDB() {
  * Take the map created by create_genomic_field_types and add annotation fields to it.
  */
 void add_annotation_field_types(std::map<std::string, genomic_field_type_t> &genomic_field_types, void* service) {
-  // printf("jDebug: not doing anything. Just returning from add_annotation_field_types\n");
-  // return; 
-  // for (auto& x: genomic_field_types) {
-  //   printf("jDebug -2: add_annotation_field_types: existing field types: first=%s\n", x.first.c_str());
-  // }
-  
-  // jDebug: m_annotation_service doesn't exist, but service does. 
+  // I think this is necessary because not all instantiations of GenomicsDB have an annotatino_service defined. 
   if(service == nullptr) {
-  	printf("m_annotation_service is null, so no annotation will be done\n");
+  	// printf("m_annotation_service is null, so no annotation will be done\n");
     return;
   }
-  
+
   AnnotationService *annotation_service = TO_ANNOTATION_SERVICE(service);
   for(genomicsdb_pb::AnnotationSource annotation_source: annotation_service->m_annotate_sources) {
     for(std::string info_field: annotation_source.attributes()) {
@@ -359,7 +353,7 @@ class GatherVariantCalls : public SingleCellOperatorBase {
 	this->m_annotation_service = m_annotation_service_ptr;
     initialize(query_config);
   }
-  
+
   void operate(VariantCall& call, const VariantQueryConfig& query_config, const VariantArraySchema& schema);
   void operate_on_columnar_cell(const GenomicsDBColumnarCell& cell, const VariantQueryConfig& query_config,
                                 const VariantArraySchema& schema);
@@ -414,7 +408,7 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
                                       std::make_pair(contig_position, contig_position+end_position-coords[1]));
 
   std::vector<genomic_field_t> genomic_fields;
-  // jDebug: what does this for loop do? 
+  // jDebug: what does this for-loop do?
   // Ignore first field as it is "END"
   /* jDebug: This loop was causing duplicate genomic_fields
   for (auto i=1u; i<query_config.get_num_queried_attributes(); i++) {
@@ -499,7 +493,7 @@ std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& arr
   } else {
     vid_mapper = const_cast<VidMapper *>(&query_config->get_vid_mapper());
   }
-  
+
   GatherVariantCalls gather_variant_calls(processor, *query_config, m_annotation_service);
   query_processor->iterate_over_cells(query_processor->get_array_descriptor(), *query_config, gather_variant_calls, true);
 
@@ -532,7 +526,7 @@ void GenomicsDB::generate_vcf(const std::string& array,
 
   query_config.validate();
 
-  generate_vcf(array, &query_config, output, output_format, overwrite); 
+  generate_vcf(array, &query_config, output, output_format, overwrite);
 }
 
 void GenomicsDB::generate_vcf(const std::string& output, const std::string& output_format, bool overwrite) {

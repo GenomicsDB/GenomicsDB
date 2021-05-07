@@ -8,8 +8,8 @@
 Default constructor for AnnotationService
 */
 AnnotationService::AnnotationService() {
-	// jDebug: I don't think you need to initialise buffer
-	// buffer =
+	// jDebug: an initial size is necessary, otherwise the first value gets corrupted for some reason.
+	buffer = std::vector<std::string>(4);
 }
 
 AnnotationService::~AnnotationService() {
@@ -20,12 +20,9 @@ AnnotationService::~AnnotationService() {
 /**
   Add an annotation value to the buffer so it won't go out of scope
 */
-const char* AnnotationService::copy_to_buffer(const char* value) {
-	buffer.push_back(value);
-	std::string* ptr_to_first = buffer.data();
-	std::string last_element = ptr_to_first[buffer.size() - 1];
-	std::string* ptr_to_last_element = &last_element;
-	return ptr_to_last_element->c_str();
+void AnnotationService::copy_to_buffer(const char* value, int32_t length) {
+	std::string value_string(value, length);
+  buffer.push_back(std::move(value_string));
 }
 
 /**
@@ -70,7 +67,9 @@ genomic_field_t AnnotationService::get_genomic_field(const std::string &data_sou
                                                      const char *value,
                                                      const int32_t value_length) {
   std::string genomic_field_name = data_source + DATA_SOURCE_FIELD_SEPARATOR + info_attribute;
-  genomic_field_t genomic_annotation(genomic_field_name, copy_to_buffer(value), value_length);
+
+  copy_to_buffer(value, value_length);
+  genomic_field_t genomic_annotation(genomic_field_name, buffer.back().c_str(), buffer.back().length());
   return genomic_annotation;
 }
 
@@ -84,7 +83,6 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
   for(genomicsdb_pb::AnnotationSource annotation_source: m_annotate_sources) {
     // Open the VCF file
     htsFile * vcfInFile = hts_open(annotation_source.filename().c_str(), "r");
-    printf("jDebug: file=%s", vcfInFile);
     VERIFY(vcfInFile != NULL && "Unable to open VCF file");
 
     // Check file type
@@ -120,7 +118,10 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
     kstring_t str = {0,0,0};
     bcf1_t *rec    = bcf_init1();
     int idx = 0;
+
+    // jDebug: it isn't necessary to assign this to NULL is it?
     char* infoValue = NULL;
+
     int32_t infoValueLength = 0;
 
     // Iterate over each matching position in the VCF
@@ -133,6 +134,7 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
       int readResult = vcf_parse1(&str, hdr, rec);
       VERIFY(readResult==0 && "Problem parsing current line of VCF");
 
+      // jDebug: update this comment. It says "need to add code here", and i think you already have.
       // The query is constrained by chromosome and position but not by allele.  Need to add code here which
       // compares the matches alt and ref alleles to see if they match what we are looking for.
       bcf_unpack((bcf1_t*)rec, BCF_UN_ALL); // Using BCF_UN_INFO is probably a little faster
@@ -153,22 +155,27 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
           // If the request is for "ID" then give the VCF row ID
           if(info_attribute == "ID") {
             genomic_fields.push_back(get_genomic_field(annotation_source.data_source(), info_attribute, rec->d.id, strlen(rec->d.id)));
-            // printf("jDebug.cc: %s ID=%s\n", annotation_source.data_source().c_str(), rec->d.id);
+            // jDebug: there is a problem with ID value.
+            printf("jDebug.cc.ID: %s %s=%s\n", annotation_source.data_source().c_str(), info_attribute.c_str(), rec->d.id);
           } else {
             // Look for the info field
             int res = bcf_get_info_string(hdr, rec, info_attribute.c_str(), &infoValue, &infoValueLength);
             if(res > 0) {
-              printf("jDebug: infoValue=%s", infoValue);
-              genomic_fields.push_back(get_genomic_field(annotation_source.data_source(), info_attribute, infoValue, infoValueLength));
-              // printf("jDebug.cc: %s %s=%s\n", annotation_source.data_source().c_str(), info_attribute.c_str(), infoValue);
+              genomic_field_t jDebugGenomicField = get_genomic_field(annotation_source.data_source(), info_attribute, infoValue, infoValueLength);
+              // genomic_fields.push_back(get_genomic_field(annotation_source.data_source(), info_attribute, infoValue, infoValueLength));
+              genomic_fields.push_back(jDebugGenomicField); // jDebug: delete this line and restore the one above
+              printf("jDebug.cc.a: %s %s=%s\n", annotation_source.data_source().c_str(), info_attribute.c_str(), infoValue);
+              printf("jDebuc.cc.b:    %s=%s\n", jDebugGenomicField.name.c_str(), jDebugGenomicField.str_value().c_str());
             } else if (res == -2) {
               // jDebug: figure out what to do about this.
               // "clash between types defined in the header and encountered in the VCF record"
               // We need to modify this section so it determines the info field type and then uses the correct
               // bcf_get_info_* method.
+              printf("JDEBUG: Need to deal with error -2, info_attribute=%s\n", info_attribute.c_str());
             } else {
-              // jDebug: throw an exception.
+              // jDebug: throw an exception? No, i think it is ok for field not to be found. 
               // info field not found
+              printf("JDEBUG: Need to deal with ELSE error, info_attribute=%s\n", info_attribute.c_str());
             }
           }
       }
