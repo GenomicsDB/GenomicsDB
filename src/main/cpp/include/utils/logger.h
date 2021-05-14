@@ -136,6 +136,8 @@ class Logger {
   const std::string format(const char* fmt, const Args &... args) {
     return fmt::format(fmt, args...);
   }
+
+  static std::shared_ptr<spdlog::logger> get_logger(const std::string& name);
   
  private:
   std::shared_ptr<spdlog::logger> m_logger;
