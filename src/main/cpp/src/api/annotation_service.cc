@@ -9,7 +9,11 @@ Default constructor for AnnotationService
 */
 AnnotationService::AnnotationService() {
 	// jDebug: an initial size is necessary, otherwise the first value gets corrupted for some reason.
-	buffer = std::vector<std::string>(4);
+	// buffer = std::vector<std::string>(4);
+
+	// jDebug: tri initialising with capacity
+	// buffer.capacity(4);
+	buffer.reserve(8);
 }
 
 AnnotationService::~AnnotationService() {
@@ -49,8 +53,8 @@ void AnnotationService::read_configuration(const std::string& str) {
 
       std::string message("VCF file does not exist: ");
       message.append(annotation_source.filename());
-      message.append(". jDebug I am in ");
-      message.append(cwd.string());
+      // message.append(". jDebug I am in ");
+      // message.append(cwd.string());
       throw GenomicsDBException(message);
     }
     fs.close();
@@ -155,25 +159,29 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
           // If the request is for "ID" then give the VCF row ID
           if(info_attribute == "ID") {
             genomic_fields.push_back(get_genomic_field(annotation_source.data_source(), info_attribute, rec->d.id, strlen(rec->d.id)));
-            // jDebug: there is a problem with ID value.
-            printf("jDebug.cc.ID: %s %s=%s\n", annotation_source.data_source().c_str(), info_attribute.c_str(), rec->d.id);
           } else {
-            // Look for the info field
+            // Look for the info field.
+						// List of return codes:
+						// * -1 .. no such INFO tag defined in the header
+						// * -2 .. clash between types defined in the header and encountered in the VCF record
+						//            - Seems like there should be a way to query to determine what the INFO type is.
+						// * -3 .. tag is not present in the VCF record
             int res = bcf_get_info_string(hdr, rec, info_attribute.c_str(), &infoValue, &infoValueLength);
+
             if(res > 0) {
               genomic_field_t jDebugGenomicField = get_genomic_field(annotation_source.data_source(), info_attribute, infoValue, infoValueLength);
               // genomic_fields.push_back(get_genomic_field(annotation_source.data_source(), info_attribute, infoValue, infoValueLength));
               genomic_fields.push_back(jDebugGenomicField); // jDebug: delete this line and restore the one above
-              printf("jDebug.cc.a: %s %s=%s\n", annotation_source.data_source().c_str(), info_attribute.c_str(), infoValue);
-              printf("jDebuc.cc.b:    %s=%s\n", jDebugGenomicField.name.c_str(), jDebugGenomicField.str_value().c_str());
+              // printf("jDebug.cc.a: %s %s=%s\n", annotation_source.data_source().c_str(), info_attribute.c_str(), infoValue);
+              // printf("jDebuc.cc.b:    %s=%s\n", jDebugGenomicField.name.c_str(), jDebugGenomicField.str_value().c_str());
             } else if (res == -2) {
-              // jDebug: figure out what to do about this.
               // "clash between types defined in the header and encountered in the VCF record"
               // We need to modify this section so it determines the info field type and then uses the correct
-              // bcf_get_info_* method.
+              // bcf_get_info_* method (eg bcf_get_info_int32, bcf_get_info_float, bcf_get_info_flag).
+
               printf("JDEBUG: Need to deal with error -2, info_attribute=%s\n", info_attribute.c_str());
             } else {
-              // jDebug: throw an exception? No, i think it is ok for field not to be found. 
+              // jDebug: throw an exception? No, i think it is ok for field not to be found.
               // info field not found
               printf("JDEBUG: Need to deal with ELSE error, info_attribute=%s\n", info_attribute.c_str());
             }

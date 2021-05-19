@@ -120,7 +120,7 @@ void check_query_variants_results(GenomicsDB* gdb, const std::string& array, Gen
    auto call_genomic_interval = gdb->get_genomic_interval(variant_call);
    CHECK(call_genomic_interval.contig_name == "1");
    CHECK(call_genomic_interval.interval.first == 12141);
-   CHECK(call_genomic_interval.interval.second == 12295);   
+   CHECK(call_genomic_interval.interval.second == 12295);
    auto call_genomic_fields = gdb->get_genomic_fields(array, variant_call);
    CHECK(call_genomic_fields.size() >= 2);
    CHECK(call_genomic_fields[0].name == "REF");
@@ -184,7 +184,7 @@ TEST_CASE("api query variants with json string", "[query_variants_json_string]")
   gdb = new GenomicsDB(query_json_buffer, GenomicsDB::JSON_STRING, loader_json, 0);
   check_query_variants_results(gdb, array, gdb->query_variants());
   delete gdb;
-  
+
   CHECK_THROWS_AS(new GenomicsDB(query_json_buffer, GenomicsDB::JSON_STRING, loader_json, 1), GenomicsDBConfigException);
 
   free(query_json_buffer);
@@ -561,10 +561,7 @@ TEST_CASE("api generate_vcf with json multiple threads", "[query_generate_with_j
   }
 }
 
-/**
- * Test case for annotating variants using a VCF data source.
- */
-TEST_CASE("api annotate query_variant_calls with protobuf", "[annotate_variant_calls_with_protobuf]") {
+TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_variant_calls_with_tds0]") {
   using namespace genomicsdb_pb;
 
   ExportConfiguration *config = new ExportConfiguration();
@@ -602,15 +599,18 @@ TEST_CASE("api annotate query_variant_calls with protobuf", "[annotate_variant_c
 
   AnnotationSource* annotation_source = config->add_annotation_source();
 
-  // jDebug: This hard coded path will need to change.
-  const std::string vcf_file("/opt/omics.data/vcf/clinvar_20200720.vcf.gz");
-  const std::string data_source("clinvar");
+  const std::string vcf_file("inputs/test_datasource0.vcf.bgz");
+  const std::string data_source("dataSourceZero");
   annotation_source->set_is_vcf(true);
   annotation_source->set_filename(vcf_file);
   annotation_source->set_data_source(data_source);
+
+  // jDebug: ID and string types will show up, but the Integer,Float, and Flag values aren't supported yet
+  annotation_source->add_attributes()->assign("field3");
+  annotation_source->add_attributes()->assign("field4");
+  annotation_source->add_attributes()->assign("field5");
+  annotation_source->add_attributes()->assign("field6");
   annotation_source->add_attributes()->assign("ID");
-  annotation_source->add_attributes()->assign("CLNSIG");
-  annotation_source->add_attributes()->assign("GENEINFO");
 
   std::string config_string;
   CHECK(config->SerializeToString(&config_string));
@@ -619,77 +619,22 @@ TEST_CASE("api annotate query_variant_calls with protobuf", "[annotate_variant_c
   CHECK(config->SerializeToString(&config_string));
 
   GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
-  gdb->query_variant_calls();
-  // OneQueryIntervalProcessor one_query_interval_processor;
-  // gdb->query_variant_calls(one_query_interval_processor);
-  delete gdb;
-}
 
+  // GenomicsDBVariantCalls variant_calls = gdb->query_variant_calls();
+  GenomicsDBResults<genomicsdb_variant_call_t> query_variant_calls = gdb->query_variant_calls();
 
-TEST_CASE("api annotate query_variant_calls with cosmic", "[annotate_variant_calls_with_gnomad]") {
-  using namespace genomicsdb_pb;
+  // printf("jDebug: vc.size=%ld\n",variant_calls.size());
+  printf("jDebug: qvc.size=%ld\n",query_variant_calls.size());
 
-  ExportConfiguration *config = new ExportConfiguration();
+  // auto variant1 = variants.at(0);
+  // gdb->get_genomic_fields(array, variant1);
 
-  config->set_workspace(workspace);
-  config->set_callset_mapping_file(callset_mapping);
-  config->set_vid_mapping_file(vid_mapping);
+  // jDebug: come back to this:
+  // jDebug: need to build on this test by verifying the values being returned:
+  // a) Are values being returned?
+  // b) Are the values correct?
+  // printf("jDebug: gf.size=%ld", genomic_fields.size());
+  // CHECK(genomic_fields.size() == 5);
 
-  // query_row_ranges
-  RowRangeList* row_ranges = config->add_query_row_ranges();
-  RowRange* row_range = row_ranges->add_range_list();
-  row_range->set_low(0);
-  row_range->set_high(3);
-
-  // query_column_ranges
-  GenomicsDBColumnOrIntervalList* column_ranges = config->add_query_column_ranges();
-  GenomicsDBColumnOrInterval* column_range = column_ranges->add_column_or_interval_list();
-
-  TileDBColumnInterval* tiledb_column_interval = new TileDBColumnInterval();
-  tiledb_column_interval->set_begin(0);
-  tiledb_column_interval->set_end(1000000000);
-
-  GenomicsDBColumnInterval* column_interval = new GenomicsDBColumnInterval();
-  column_interval->set_allocated_tiledb_column_interval(tiledb_column_interval);
-
-  column_range->set_allocated_column_interval(column_interval);
-
-  // query_attributes
-  config->add_attributes()->assign("GT");
-  config->add_attributes()->assign("DP");
-
-  config->set_reference_genome("inputs/chr1_10MB.fasta.gz");
-  config->set_segment_size(40);
-  config->set_vcf_header_filename("inputs/template_vcf_header.vcf");
-
-  AnnotationSource* annotation_source = config->add_annotation_source();
-
-  // jDebug: This hard coded path will need to change.
-  const std::string vcf_file("/opt/omics.data/vcf/gnomad.exomes.r2.1.1.sites.1.vcf.bgz");
-  const std::string data_source("gnomAD");
-  annotation_source->set_is_vcf(true);
-  annotation_source->set_filename(vcf_file);
-  annotation_source->set_data_source(data_source);
-
-  // ID and variant_type will show up, but the numeric values aren't supported yet
-  annotation_source->add_attributes()->assign("ID");
-  annotation_source->add_attributes()->assign("variant_type");
-  annotation_source->add_attributes()->assign("AC");
-  annotation_source->add_attributes()->assign("AN");
-  annotation_source->add_attributes()->assign("AF");
-  annotation_source->add_attributes()->assign("AF_afr");
-  annotation_source->add_attributes()->assign("AF_female");
-
-
-  std::string config_string;
-  CHECK(config->SerializeToString(&config_string));
-
-  config->set_array_name(array);
-  CHECK(config->SerializeToString(&config_string));
-
-  GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
-  gdb->query_variant_calls();
-  // OneQueryIntervalProcessor one_query_interval_processor;
-  // gdb->query_variant_calls(one_query_interval_processor);
   delete gdb;
 }

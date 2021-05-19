@@ -39,5 +39,7 @@ class AnnotationService {
   std::vector<genomicsdb_pb::AnnotationSource> m_annotate_sources;
 
   // Buffer for annotation values
+  // jDebug: consider setting capcity here. (4)?
+  // std::vector<std::string> buffer(4);
   std::vector<std::string> buffer;
 };
