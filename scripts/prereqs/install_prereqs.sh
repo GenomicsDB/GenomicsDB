@@ -230,8 +230,8 @@ install_prerequisites() {
   echo "1 PREREQS_ENV=$PREREQS_ENV"
   install_os_prerequisites &&
     source $PREREQS_ENV &&
-    install_mvn &&
-    install_protobuf
+    install_mvn
+#    install_protobuf
 }
 
 finalize() {
