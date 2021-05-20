@@ -28,14 +28,11 @@ jobs:
       matrix:
         os: [ubuntu-18.04,macos-10.15]
         type: [basic]
-        java: [8,11]
+        java: [8]
         include:
           - os: ubuntu-18.04
             type: hdfs
             java: 8
-          - os: ubuntu-18.04
-            type: hdfs
-            java: 11
 
     env: 
       OS_TYPE: ${{matrix.os}} 
