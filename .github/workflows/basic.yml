@@ -25,6 +25,7 @@ env:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-18.04,macos-10.15]
         type: [basic]
@@ -36,7 +37,6 @@ jobs:
           - os: ubuntu-18.04
             type: hdfs
             java: 11
-     fail-fast: false
 
     env: 
       OS_TYPE: ${{matrix.os}} 
