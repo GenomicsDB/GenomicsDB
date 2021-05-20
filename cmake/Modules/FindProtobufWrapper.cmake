@@ -58,6 +58,7 @@ else()
     -Dprotobuf_BUILD_TESTS=OFF
     -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_INSTALL_PREFIX=${PROTOBUF_PREFIX}
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     )
   add_dependencies(protobuf_ep protobuf_build)
 endif()
