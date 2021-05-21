@@ -20,6 +20,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  **/
 
+#include <algorithm>
 #include <cstring>
 #include <errno.h>
 #include <iostream>
@@ -53,7 +54,18 @@ struct partition_config_t {
   int64_t size_of_partitions = 0;
   bool merge_small_contigs = false;
 };
-partition_config_t g_partition_config;
+
+typedef struct import_config_t {
+  std::vector<std::string> samples;
+  bool append_samples = false;
+  std::string workspace;
+  std::string vidmap_output;
+  std::string callset_output;
+  std::string merged_header;
+  std::string loader_json;
+  std::string template_loader_json;
+  partition_config_t partition_config;
+} import_config_t;
 
 static GenomicsDBFieldInfo* get_field_info(VidMappingPB* vidmap_pb, const std::string& field_name) {
   GenomicsDBFieldInfo* field_info = NULL;
@@ -222,8 +234,11 @@ static int process_from_interval_list(const std::string& interval_list,
   return 0;
 }
 
-static int add_contigs(std::vector<std::pair<std::string, int64_t>> regions, const std::string& workspace,
+static int add_contigs(std::vector<std::pair<std::string, int64_t>> regions, import_config_t import_config,
                        VidMappingPB* vidmap_pb, ImportConfiguration* import_config_protobuf) {
+  auto workspace = import_config.workspace;
+  auto partition_config = import_config.partition_config;
+
   int64_t total_length = 0;
   for (auto region: regions) {
     Chromosome* chromosome = vidmap_pb->add_contigs();
@@ -233,14 +248,14 @@ static int add_contigs(std::vector<std::pair<std::string, int64_t>> regions, con
     total_length += region.second;
   }
 
-  if (!g_partition_config.interval_list.empty()) {
-    return process_from_interval_list(g_partition_config.interval_list, regions, workspace, vidmap_pb,
+  if (!partition_config.interval_list.empty()) {
+    return process_from_interval_list(partition_config.interval_list, regions, workspace, vidmap_pb,
                                       import_config_protobuf);
   }
 
-  int64_t number_of_partitions = g_partition_config.number_of_partitions;
-  int64_t max_size_of_partition = g_partition_config.size_of_partitions;
-  bool merge_small_contigs = g_partition_config.merge_small_contigs;
+  int64_t number_of_partitions = partition_config.number_of_partitions;
+  int64_t max_size_of_partition = partition_config.size_of_partitions;
+  bool merge_small_contigs = partition_config.merge_small_contigs;
 
   if (number_of_partitions) {
     max_size_of_partition = total_length/number_of_partitions;
@@ -320,9 +335,14 @@ static void fix_protobuf_generated_json_for_int64(std::string& json, const std::
   }
 }
 
-static int generate_json(const std::string& merged_header, const std::string& workspace,
-                         const std::string& vidmap_output, const std::string& loader_output,
-                         const std::string& callset_output) {
+static int generate_json(import_config_t import_config) {
+
+  auto merged_header = import_config.merged_header;
+  auto workspace = import_config.workspace;
+  auto vidmap_output = import_config.vidmap_output;
+  auto loader_output = import_config.loader_json;
+  auto callset_output = import_config.callset_output;
+
   htsFile* fptr = hts_open(merged_header.c_str(), "r");
   if (!fptr) {
     g_logger.error("Could not hts_open {} file in read mode {}", merged_header, strerror(errno));
@@ -387,7 +407,7 @@ static int generate_json(const std::string& merged_header, const std::string& wo
     }
   }
 
-  add_contigs(regions, workspace, vidmap_pb, import_config_protobuf);
+  add_contigs(regions, import_config, vidmap_pb, import_config_protobuf);
   g_logger.info("Total number of partitions in loader.json={}", total_number_of_partitions);
   
   bcf_hdr_destroy(hdr);
@@ -418,7 +438,53 @@ static int generate_json(const std::string& merged_header, const std::string& wo
   return 0;
 }
 
-static int merge_headers_and_generate_callset(const std::string& sample_list, const std::string& merged_header, const std::string& callset_output) {
+std::vector<std::string> process_samples(const std::string& sample_list, const std::string& samples_dir) {
+  // Create a unified samples list
+  std::vector<std::string> samples;
+
+  // Process sample_list first
+  if (!sample_list.empty()) {
+    if (TileDBUtils::is_file(sample_list)) {
+      std::ifstream sample_list_stream(sample_list);
+      std::string line;
+      while (std::getline(sample_list_stream, line)) {
+        std::istringstream sample_line(line);
+        std::string sample_name, sample_uri;
+        if (sample_line >> sample_uri) {
+          if (TileDBUtils::is_file(sample_uri)) {
+            samples.push_back(TileDBUtils::real_dir(sample_uri));
+          } else {
+            g_logger.error("Sample {} ignored as it is not locatable", sample_uri);
+          }
+        }
+      }
+    } else {
+      g_logger.error("Could not locate sample list file {}", sample_list);
+    }
+  }
+
+  // Process samples dir next
+  std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir);
+  for (auto sample_file: sample_files) {
+    std::regex pattern(".*(.vcf.gz$|.bcf.gz$)");
+    if (std::regex_search(sample_file, pattern)) {
+      samples.push_back(TileDBUtils::real_dir(sample_file));
+    }
+  }
+
+  // Remove duplicate sample names from list
+  std::sort(samples.begin(), samples.end());
+  samples.erase(std::unique(samples.begin(),samples.end()), samples.end() );
+
+  return samples;
+}
+
+static int merge_headers_and_generate_callset(import_config_t import_config) {
+
+  auto samples = import_config.samples;
+  auto merged_header = import_config.merged_header;
+  auto callset_output = import_config.callset_output;
+
   htsFile* merged_header_fptr = hts_open(merged_header.c_str(), "w");
   if (!merged_header_fptr) {
     g_logger.error("Could not hts_open {} file in write mode {}", merged_header, strerror(errno));
@@ -433,15 +499,7 @@ static int merge_headers_and_generate_callset(const std::string& sample_list, co
 
   int64_t row_index = 0;
   CallsetMappingPB* callset_protobuf = new CallsetMappingPB();
-  std::ifstream sample_list_stream(sample_list);
-  std::string line;
-  while (std::getline(sample_list_stream, line)) {
-    std::istringstream sample_line(line);
-    std::string sample_name, sample_uri;
-    if (!(sample_line >> sample_uri)) {
-      continue;
-    }
-
+  for (auto sample_uri: samples) {
     htsFile* fptr = hts_open(sample_uri.c_str(), "r");
     if (!fptr) {
       g_logger.error("Could not open sample {} with hts_open {}", sample_uri, strerror(errno));
@@ -511,8 +569,10 @@ void print_usage() {
             << "\t\t exits if workspace exists and is invoked without the overwrite-workspace option\n"
             << "\t \e[1m--overwrite-workspace\e[0m, \e[1m-o\e[0m\n"
             << "\t\t Allow for workspace json artifacts to be overwritten\n"
-            << "\t \e[1m--sample-list\e[0m=<sample list>, \e[1m-s\e[0m <sample list file>\n"
+            << "\t \e[1m--sample-list\e[0m=<sample list>, \e[1m-s\e[0m <sample list file>\n" 
             << "\t\t Specify sample URIs for import, one line per sample path\n"
+            << "\t \e[1m--samples-dir\e[0m=<folder to samples>, \e[1m-S\e[0m <folder to samples>\n"
+            << "\t\t Specify Folder URI containing samples. Only vcf.gz/bcf.gz compressed samples are considered\n"
             << "\t \e[1m--interval-list\e[0m=<genomic interval list>, \e[1m-i\e[0m <genomic interval list file>\n"
             << "\t\t Optional, create array partitions from intervals in interval list, one line per interval,\n" 
             << "\t\t default is partition by chromosome/contig, overrides --number-of-array-partitions and \n"
@@ -523,6 +583,13 @@ void print_usage() {
             << "\t\t Optional, suggest size of arrays partitions, overrides --number-of-array-partitions\n"
             << "\t \e[1m--merge-small-contigs\e[0m, \e[1m-m\e[0m\n"
             << "\t\t Optional, default is false\n"
+            << "\t \e[1m--template-loader-json\e[0m=<template file>, \e[1m-t\e[0m <template file>\n"
+            << "\t\t Optional, specify a template loader json file to use as a basis with loader json files\n"
+            << "\t \e[1m--append-samples\e[0m, \e[1m-a\e[0m\n"
+            << "\t\t Optional, if specified, callsets will be appended with the new samples and lb_row_idx set to\n"
+            << "\t\t the new starting row. Note that the workspace and vidmap/callset/loader jsons should already exist\n"
+            << "\t\t and that the interval list, number and size of partitions and merge small contigs options are\n"
+            << "\t\t ignored with append samples\n"
             << "\t \e[1m--verbose\e[0m, \e[1m-v\e[0m\n"
             << "\t\t Allow verbose messages to be logged\n"
             << "\t \e[1m--version\e[0m Print version and exit\n"
@@ -542,10 +609,13 @@ int main(int argc, char** argv) {
     {"workspace",                  1, 0, 'w'},
     {"overwrite-workspace",        0, 0, 'o'},
     {"sample-list",                1, 0, 's'},
+    {"samples-dir",                1, 0, 'S'},
     {"interval-list",              1, 0, 'i'},
     {"number-of-array-partitions", 1, 0, 'n'},
     {"size-of-array-partitions",   1, 0, 'z'},
     {"merge-small-contigs",        0, 0, 'm'},
+    {"template-loader-json",       1, 0, 't'},
+    {"append-samples",             0, 0, 'a'},
     {"verbose",                    0, 0, 'v'},
     {"version",                    0, 0, VERSION},
     {"help",                       0, 0, 'h'},
@@ -555,10 +625,17 @@ int main(int argc, char** argv) {
   std::string workspace;
   bool overwrite_workspace = false;
   std::string sample_list;
+  std::string samples_dir;
+  std::string template_loader_json;
+  bool append_samples = false;
   bool verbose = false;
 
+  import_config_t import_config;
+  partition_config_t partition_config;
+  import_config.partition_config = std::move(partition_config);
+  
   int c;
-  while ((c=getopt_long(argc, argv, "w:os:i:n:z:mvh", long_options, NULL)) >= 0) {
+  while ((c=getopt_long(argc, argv, "w:os:S:i:n:z:mvh", long_options, NULL)) >= 0) {
     switch (c) {
       case 'w':
         workspace = std::move(std::string(optarg));
@@ -569,17 +646,26 @@ int main(int argc, char** argv) {
       case 's':
         sample_list = std::move(std::string(optarg));
         break;
+      case 'S':
+        samples_dir = std::move(std::string(optarg));
+        break;
       case 'i':
-        g_partition_config.interval_list = std::move(std::string(optarg));
+        import_config.partition_config.interval_list = std::move(std::string(optarg));
         break;
       case 'n':
-        g_partition_config.number_of_partitions = std::stoi(optarg);
+        import_config.partition_config.number_of_partitions = std::stoi(optarg);
         break;
       case 'z':
-        g_partition_config.size_of_partitions = std::stoi(optarg);
+        import_config.partition_config.size_of_partitions = std::stoi(optarg);
         break;
       case 'm':
-        g_partition_config.merge_small_contigs = true;
+        import_config.partition_config.merge_small_contigs = true;
+        break;
+      case 't':
+        import_config.template_loader_json = std::move(std::string(optarg));
+        break;
+      case 'a':
+        import_config.append_samples = true;
         break;
       case 'v':
         verbose = true;
@@ -595,41 +681,60 @@ int main(int argc, char** argv) {
         print_usage();
         return ERR;
     }
-  } 
+  }
 
+  workspace = TileDBUtils::real_dir(workspace);
+  
+  std::string vidmap_output = SLASHIFY(workspace)+"vidmap.json";
+  std::string callset_output = SLASHIFY(workspace)+"callset.json";
+  std::string loader_json = SLASHIFY(workspace)+"loader.json";
+  std::string merged_header = SLASHIFY(workspace)+"vcfheader.vcf";
+
+  // Validate options
   if (workspace.empty()) {
-    g_logger.error("Workspace required to be specified");
+    g_logger.error("Workspace(--workspace/-w) required to be specified");
     return ERR;
-  } else if (sample_list.empty()) {
-    g_logger.error("Sample list is required to be specified");
+  } else if (sample_list.empty() && samples_dir.empty()) {
+    g_logger.error("One of either a samples list file(--sample-list/-s) or directory(--samples-dir/-S) is required to be specified");
     return ERR;
-  } else if (TileDBUtils::is_file(workspace) || TileDBUtils::is_dir(workspace)) {
+  } else if (append_samples) {
+    if (!TileDBUtils::workspace_exists(workspace) && !TileDBUtils::is_file(vidmap_output) && !TileDBUtils::is_file(callset_output)
+        && !TileDBUtils::is_file(loader_json) && !TileDBUtils::is_file(merged_header)) {
+      g_logger.error("Workspace {} and jsons should already exist with the --append-samples/-a option", workspace);
+    }
+  } else if (TileDBUtils::workspace_exists(workspace)) {
     if (!overwrite_workspace) {
-      g_logger.error("Workspace {} exists, retry with overwrite-workspace option", workspace);
+      g_logger.error("Workspace {} exists, retry with --overwrite-workspace/-o option", workspace);
       return ERR;
     }
   }
 
   try {
+    auto samples = process_samples(sample_list, samples_dir);
+    if (samples.size() == 0) {
+      g_logger.info("No samples found in the input sample list/directory. Nothing to process!");
+      return OK;
+    }
+
     if (TileDBUtils::create_workspace(workspace, overwrite_workspace) != TILEDB_OK) {
       g_logger.error("Could not create workspace {}", workspace);
       return ERR;
     }
 
-    workspace = TileDBUtils::real_dir(workspace);
+    import_config.samples = std::move(samples);
+    import_config.workspace = std::move(UNSLASHIFY(workspace));
+    import_config.vidmap_output = std::move(vidmap_output);
+    import_config.callset_output = std::move(callset_output);
+    import_config.merged_header = std::move(merged_header);
+    import_config.loader_json = std::move(loader_json);
 
-    std::string vidmap_output = SLASHIFY(workspace)+"vidmap.json";
-    std::string callset_output = SLASHIFY(workspace)+"callset.json";
-    std::string loader_json = SLASHIFY(workspace)+"loader.json";
-    std::string merged_header = SLASHIFY(workspace)+"vcfheader.vcf";
-
-    if (merge_headers_and_generate_callset(sample_list, merged_header, callset_output)) {
+    if (merge_headers_and_generate_callset(import_config)) {
       return -1;
     }
-    if (generate_json(merged_header, UNSLASHIFY(workspace), vidmap_output, loader_json, callset_output)) {
+    if (generate_json(import_config)) {
       return -1;
     }
-    
+
     google::protobuf::ShutdownProtobufLibrary();
 
   } catch(const GenomicsDBConfigException& genomicsdb_ex) {
@@ -639,7 +744,7 @@ int main(int argc, char** argv) {
     g_logger.error(ex.what());
     return ERR;
   } 
-  
+
   g_logger.info("Success!");
   return OK;
 }
