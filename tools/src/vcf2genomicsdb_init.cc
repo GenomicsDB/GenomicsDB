@@ -50,7 +50,7 @@ static Logger g_logger(Logger::get_logger("vcf2genomicsdb_init"));
 
 struct partition_config_t {
   std::string interval_list;
-  int64_t number_of_partitions = 0;
+  int64_t number_of_partitions = -1;
   int64_t size_of_partitions = 0;
   bool merge_small_contigs = false;
 };
@@ -157,7 +157,7 @@ static void create_partition(const std::string& contig, int64_t start, int64_t e
   partition->set_allocated_begin(genomicsdb_column_begin);
   partition->set_allocated_end(genomicsdb_column_end);
   if (contig.find("scaffold") == std::string::npos) {
-    partition->set_array_name(g_logger.format("{}${}${}", contig, start, end));
+    partition->set_array_name(g_logger.format("{}${}${}", contig, start+1, end));
   } else {
     partition->set_array_name(contig);
   }
@@ -246,6 +246,15 @@ static int add_contigs(std::vector<std::pair<std::string, int64_t>> regions, imp
     chromosome->set_length(region.second);
     chromosome->set_tiledb_column_offset(total_length);
     total_length += region.second;
+  }
+
+  // Create single partition if number of partitions requested is 0
+  if (partition_config.number_of_partitions == 0) {
+    create_partition("allcontigs", 0, total_length, 0, workspace, import_config_protobuf);
+    return OK;
+  }
+  if (partition_config.number_of_partitions < 0) {
+    partition_config.number_of_partitions = 0;
   }
 
   if (!partition_config.interval_list.empty()) {
@@ -619,7 +628,7 @@ void print_usage() {
             << "\t\t default is partition by chromosome/contig, overrides --number-of-array-partitions and \n"
             << "\t\t --size-of-array-partitions\n"
             << "\t \e[1m--number-of-array-partitions\e[0m=<number>, \e[1m-n\e[0m <number>\n"
-            << "\t\t Optional, suggested number of array partitions\n"
+            << "\t\t Optional, suggested number of array partitions. Usually, the partitioning is per contig. But, if this is 0, only a single array is created for the entire genomic space and it overrides all other partition specific command arguments\n"
             << "\t \e[1m--size-of-array-partitions\e[0m=<size>, \e[1m-z\e[0m <size>\n"
             << "\t\t Optional, suggest size of arrays partitions, overrides --number-of-array-partitions\n"
             << "\t \e[1m--merge-small-contigs\e[0m, \e[1m-m\e[0m\n"
