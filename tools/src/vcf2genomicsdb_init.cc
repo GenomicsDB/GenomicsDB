@@ -362,16 +362,44 @@ static int generate_json(import_config_t import_config) {
   }
 
   ImportConfiguration* import_config_protobuf = new ImportConfiguration();
+  // Apply template if found
+  if (!import_config.template_loader_json.empty()) {
+    char *template_json_contents;
+    size_t template_json_length;
+    if (TileDBUtils::read_entire_file(import_config.template_loader_json, (void **)&template_json_contents, &template_json_length)) {
+      g_logger.error("Could not read template loader json file {}", import_config.template_loader_json);
+      return ERR;
+    }
+    google::protobuf::StringPiece template_json_string(template_json_contents, template_json_length);
+    google::protobuf::util::JsonParseOptions json_options;
+    json_options.ignore_unknown_fields = true;
+    auto status = google::protobuf::util::JsonStringToMessage(template_json_string, import_config_protobuf, json_options);
+    if (!status.ok()) {
+      g_logger.error("Protobuf could not apply {} to ImportConfiguration {}", import_config.template_loader_json, status.message().as_string());
+      return ERR;
+    }
+    free(template_json_contents);
+  }
+
   import_config_protobuf->set_vid_mapping_file(vidmap_output);
   import_config_protobuf->set_callset_mapping_file(callset_output);
-  import_config_protobuf->set_size_per_column_partition(43581440);
 
-  // These are defaults, listing them out in the loader.json for easier editing
-  // Can make these configurable from the command line as needed
-  import_config_protobuf->set_segment_size(1048576);
-  import_config_protobuf->set_num_cells_per_tile(1000);
-  import_config_protobuf->set_consolidate_tiledb_array_after_load(false);
-  import_config_protobuf->set_enable_shared_posixfs_optimizations(false);
+  // Use defaults for the following fields if it is not available from template
+  if (!import_config_protobuf->has_size_per_column_partition()) {
+    import_config_protobuf->set_size_per_column_partition(43581440);
+  }
+  if (!import_config_protobuf->has_segment_size()) {
+    import_config_protobuf->set_segment_size(1048576);
+  }
+  if (!import_config_protobuf->has_num_cells_per_tile()) {
+    import_config_protobuf->set_num_cells_per_tile(1000);
+  }
+  if (!import_config_protobuf->has_consolidate_tiledb_array_after_load()) {
+    import_config_protobuf->set_consolidate_tiledb_array_after_load(false);
+  }
+  if (!import_config_protobuf->has_enable_shared_posixfs_optimizations()) {
+    import_config_protobuf->set_enable_shared_posixfs_optimizations(false);
+  }
 
   VidMappingPB* vidmap_pb = new VidMappingPB();
   // Using vector instead of map here because map does not keep track of order of insertion as it uses some 
@@ -460,15 +488,27 @@ std::vector<std::string> process_samples(const std::string& sample_list, const s
       }
     } else {
       g_logger.error("Could not locate sample list file {}", sample_list);
+      return samples;
     }
   }
 
   // Process samples dir next
-  std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir);
+  if (samples_dir.empty()) {
+    return samples;
+  }
+
+  // TileDB returns only the path for cloud URIs, so get container/bucket prefix
+  std::regex uri_pattern("(.*//)(.*/)(.*$)");
+  std::string prefix;
+  if (std::regex_search(samples_dir, uri_pattern)) {
+    prefix = std::regex_replace(samples_dir, uri_pattern, "$1$2");
+  }
+
+  std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir); 
   for (auto sample_file: sample_files) {
     std::regex pattern(".*(.vcf.gz$|.bcf.gz$)");
     if (std::regex_search(sample_file, pattern)) {
-      samples.push_back(TileDBUtils::real_dir(sample_file));
+      samples.push_back(TileDBUtils::real_dir(prefix+sample_file));
     }
   }
 
@@ -480,11 +520,11 @@ std::vector<std::string> process_samples(const std::string& sample_list, const s
 }
 
 static int merge_headers_and_generate_callset(import_config_t import_config) {
-
   auto samples = import_config.samples;
   auto merged_header = import_config.merged_header;
   auto callset_output = import_config.callset_output;
 
+  genomicsdb_htslib_plugin_initialize(merged_header.c_str());
   htsFile* merged_header_fptr = hts_open(merged_header.c_str(), "w");
   if (!merged_header_fptr) {
     g_logger.error("Could not hts_open {} file in write mode {}", merged_header, strerror(errno));
@@ -500,6 +540,7 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
   int64_t row_index = 0;
   CallsetMappingPB* callset_protobuf = new CallsetMappingPB();
   for (auto sample_uri: samples) {
+    genomicsdb_htslib_plugin_initialize(sample_uri.c_str());
     htsFile* fptr = hts_open(sample_uri.c_str(), "r");
     if (!fptr) {
       g_logger.error("Could not open sample {} with hts_open {}", sample_uri, strerror(errno));
@@ -635,7 +676,7 @@ int main(int argc, char** argv) {
   import_config.partition_config = std::move(partition_config);
   
   int c;
-  while ((c=getopt_long(argc, argv, "w:os:S:i:n:z:mvh", long_options, NULL)) >= 0) {
+  while ((c=getopt_long(argc, argv, "w:os:S:i:n:z:mt:avh", long_options, NULL)) >= 0) {
     switch (c) {
       case 'w':
         workspace = std::move(std::string(optarg));
@@ -666,7 +707,8 @@ int main(int argc, char** argv) {
         break;
       case 'a':
         import_config.append_samples = true;
-        break;
+        std::cerr << "--append-samples/-a not yet implemented" << std::endl;
+        exit(1);
       case 'v':
         verbose = true;
         break;
@@ -683,13 +725,6 @@ int main(int argc, char** argv) {
     }
   }
 
-  workspace = TileDBUtils::real_dir(workspace);
-  
-  std::string vidmap_output = SLASHIFY(workspace)+"vidmap.json";
-  std::string callset_output = SLASHIFY(workspace)+"callset.json";
-  std::string loader_json = SLASHIFY(workspace)+"loader.json";
-  std::string merged_header = SLASHIFY(workspace)+"vcfheader.vcf";
-
   // Validate options
   if (workspace.empty()) {
     g_logger.error("Workspace(--workspace/-w) required to be specified");
@@ -697,7 +732,19 @@ int main(int argc, char** argv) {
   } else if (sample_list.empty() && samples_dir.empty()) {
     g_logger.error("One of either a samples list file(--sample-list/-s) or directory(--samples-dir/-S) is required to be specified");
     return ERR;
-  } else if (append_samples) {
+  } else if (!import_config.template_loader_json.empty() && !TileDBUtils::is_file(import_config.template_loader_json)) {
+    g_logger.error("Specified Template Loader Json(--template-loader-json/-t) {} not found", import_config.template_loader_json);
+    return ERR;
+  }
+
+  workspace = TileDBUtils::real_dir(workspace);
+
+  std::string vidmap_output = SLASHIFY(workspace)+"vidmap.json";
+  std::string callset_output = SLASHIFY(workspace)+"callset.json";
+  std::string loader_json = SLASHIFY(workspace)+"loader.json";
+  std::string merged_header = SLASHIFY(workspace)+"vcfheader.vcf";
+
+  if (append_samples) {
     if (!TileDBUtils::workspace_exists(workspace) && !TileDBUtils::is_file(vidmap_output) && !TileDBUtils::is_file(callset_output)
         && !TileDBUtils::is_file(loader_json) && !TileDBUtils::is_file(merged_header)) {
       g_logger.error("Workspace {} and jsons should already exist with the --append-samples/-a option", workspace);
