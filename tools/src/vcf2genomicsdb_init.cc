@@ -89,7 +89,7 @@ static int add_filter_fields(VidMappingPB* vidmap_pb, bcf_hrec_t* hrec) {
     field_info->add_type()->assign("Integer");
     field_info->add_length()->set_variable_length_descriptor("1");
   }
-  return 0;
+  return OK;
 }
 
 static int add_fields(GenomicsDBFieldInfo* field_info, bcf_hrec_t* hrec) {
@@ -109,7 +109,7 @@ static int add_fields(GenomicsDBFieldInfo* field_info, bcf_hrec_t* hrec) {
       field_info->add_length()->set_variable_length_descriptor("var");
     } 
   }
-  return 0;
+  return OK;
 }
 
 static int add_fmt_fields(VidMappingPB* vidmap_pb, bcf_hrec_t* hrec) {
@@ -124,7 +124,7 @@ static int add_fmt_fields(VidMappingPB* vidmap_pb, bcf_hrec_t* hrec) {
       add_fields(field_info, hrec);
     }
   }
-  return 0;
+  return OK;
 }
 
 static int add_info_fields(VidMappingPB* vidmap_pb, bcf_hrec_t* hrec) {
@@ -138,10 +138,9 @@ static int add_info_fields(VidMappingPB* vidmap_pb, bcf_hrec_t* hrec) {
       field_info->set_vcf_field_combine_operation("sum");
     }
   }
-  return 0;
+  return OK;
 }
 
-static int64_t total_number_of_partitions = 0;
 static void create_partition(const std::string& contig, int64_t start, int64_t end, int64_t tiledb_column_offset,
                             const std::string& workspace, ImportConfiguration* import_config_protobuf) {
   GenomicsDBColumn* genomicsdb_column_begin = new GenomicsDBColumn();
@@ -161,7 +160,6 @@ static void create_partition(const std::string& contig, int64_t start, int64_t e
   } else {
     partition->set_array_name(contig);
   }
-  total_number_of_partitions++;
 }
 
 static std::pair<int64_t, int64_t> get_contig_positions(const std::string& contig,
@@ -445,7 +443,7 @@ static int generate_json(import_config_t import_config) {
   }
 
   add_contigs(regions, import_config, vidmap_pb, import_config_protobuf);
-  g_logger.info("Total number of partitions in loader.json={}", total_number_of_partitions);
+  g_logger.info("Total number of partitions in loader.json={}", import_config_protobuf->column_partitions_size());
   
   bcf_hdr_destroy(hdr);
   hts_close(fptr);
@@ -785,10 +783,10 @@ int main(int argc, char** argv) {
     import_config.loader_json = std::move(loader_json);
 
     if (merge_headers_and_generate_callset(import_config)) {
-      return -1;
+      return ERR;
     }
     if (generate_json(import_config)) {
-      return -1;
+      return ERR;
     }
 
     google::protobuf::ShutdownProtobufLibrary();
