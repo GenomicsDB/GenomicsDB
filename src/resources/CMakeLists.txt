@@ -49,12 +49,12 @@ endforeach()
 if(PROTOBUF_REGENERATE)
   set(PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR})
   add_custom_target(PROTOBUF_GENERATED_CXX_TARGET DEPENDS ${PROTOBUF_PROTO_FILES})
+  add_dependencies(PROTOBUF_GENERATED_CXX_TARGET protobuf_ep)
   add_custom_command(TARGET PROTOBUF_GENERATED_CXX_TARGET
     COMMAND ${PROTOBUF_PROTOC_EXECUTABLE} --cpp_out=${CMAKE_CURRENT_BINARY_DIR} ${PROTOBUF_PROTO_FILES}
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     BYPRODUCTS ${PROTOBUF_GENERATED_CXX_SRCS} ${PROTOBUF_GENERATED_CXX_HDRS}
-    COMMENT "Generating source/header files from .proto files"
-    DEPENDS protobuf_ep)
+    COMMENT "Generating source/header files from .proto files")
   set(PROTOBUF_GENERATED_JAVA_SRCS
     ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/org/genomicsdb/GenomicsDBColumn.java
     ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/org/genomicsdb/GenomicsDBCallsetsMapProto.java
