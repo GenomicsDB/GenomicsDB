@@ -13,12 +13,11 @@ AnnotationService::AnnotationService() {
 
 	// jDebug: tri initialising with capacity
 	// buffer.capacity(4);
-	buffer.reserve(8);
+	// buffer.reserve(8);
 }
 
 AnnotationService::~AnnotationService() {
-  // jDebug: Is there any destruction required for a std::vector?
-  buffer.clear();
+	// TODO Remove this
 }
 
 /**
@@ -26,7 +25,7 @@ AnnotationService::~AnnotationService() {
 */
 void AnnotationService::copy_to_buffer(const char* value, int32_t length) {
 	std::string value_string(value, length);
-  buffer.push_back(std::move(value_string));
+  annotation_buffer.push_back(std::move(value_string));
 }
 
 /**
@@ -73,7 +72,7 @@ genomic_field_t AnnotationService::get_genomic_field(const std::string &data_sou
   std::string genomic_field_name = data_source + DATA_SOURCE_FIELD_SEPARATOR + info_attribute;
 
   copy_to_buffer(value, value_length);
-  genomic_field_t genomic_annotation(genomic_field_name, buffer.back().c_str(), buffer.back().length());
+  genomic_field_t genomic_annotation(genomic_field_name, annotation_buffer.back().c_str(), annotation_buffer.back().length());
   return genomic_annotation;
 }
 

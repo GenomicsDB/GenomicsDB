@@ -41,5 +41,5 @@ class AnnotationService {
   // Buffer for annotation values
   // jDebug: consider setting capcity here. (4)?
   // std::vector<std::string> buffer(4);
-  std::vector<std::string> buffer;
+  std::vector<std::string> annotation_buffer;
 };
