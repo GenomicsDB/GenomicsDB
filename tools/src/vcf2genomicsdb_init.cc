@@ -932,13 +932,23 @@ int main(int argc, char** argv) {
     }
   }
 
+  if (!sample_list.empty() && !TileDBUtils::is_file(sample_list)) {
+    g_logger.error("Sample list {} specified with --sample-list/-s option cannot be accessed", sample_list);
+    return ERR;
+  }
+
+  if (!samples_dir.empty() && !TileDBUtils::is_dir(samples_dir)) {
+    g_logger.error("Samples dir {} specified with --samples-dir/-S option cannot be accessed", samples_dir);
+    return ERR;
+  }
+
   try {
     bool generate = !import_config.append_samples;
 
     auto samples = process_samples(sample_list, samples_dir);
     if (samples.size() == 0) {
       g_logger.info("No samples found in the input sample list/directory. Nothing to process!");
-      return OK;
+      return ERR;
     }
 
     if (generate) {

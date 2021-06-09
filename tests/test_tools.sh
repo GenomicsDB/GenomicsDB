@@ -123,7 +123,7 @@ run_command "vcf2genomicsdb_init -w $WORKSPACE" 1
 #    $2 expected
 #    $3 is error message
 STATUS=0
-assertTrue() {
+assert_true() {
   if [[ $1 -ne $2 ]]; then
     echo "Assertion Failed : $3, actual=$1 expected=$2"
     $STATUS=1
@@ -146,16 +146,23 @@ run_command_and_check_results() {
   n_partitions=$(grep array_name $WORKSPACE/loader.json | wc -l)
   n_fields=$(grep vcf_field_class $WORKSPACE/vidmap.json | wc -l)
   n_contigs=$(grep tiledb_column_offset $WORKSPACE/vidmap.json | wc -l)
-  assertTrue $n_samples $2 "Test $6 Number of samples in callset.json"
-  assertTrue $n_partitions $3 "Test $6 Number of partitions in loader.json"
-  assertTrue $n_fields $4 "Test $6 Number of fields in vidmap.json"
-  assertTrue $n_contigs $5 "Test $6 Number of contigs in vidmap.json"
+  assert_true $n_samples $2 "Test $6 Number of samples in callset.json"
+  assert_true $n_partitions $3 "Test $6 Number of partitions in loader.json"
+  assert_true $n_fields $4 "Test $6 Number of fields in vidmap.json"
+  assert_true $n_contigs $5 "Test $6 Number of contigs in vidmap.json"
 }
+
+ERR=1
       
 # Basic Tests
 create_sample_list t0.vcf.gz
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST" 1 85 24 85 "#1"
-run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST" 1
+run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST" ERR
+run_command "vcf2genomicsdb_init -w $WORKSPACE -s non-existent-file" ERR
+run_command "vcf2genomicsdb_init -w $WORKSPACE -S non-existent-dir" ERR
+NO_SAMPLE_LIST=$TEMP_DIR/no_samples_$RANDOM
+touch $NO_SAMPLE_LIST
+run_command "vcf2genomicsdb_init -w $WORKSPACE -s $NO_SAMPLE_LIST" ERR
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#2"
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o" 1 85 24 85 "#3"
 
@@ -197,7 +204,7 @@ run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -o -S $SAMPLE_D
 # Template loader json
 create_template_loader_json
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "#17"
-assertTrue $(grep '"segment_size": 400' $WORKSPACE/loader.json | wc -l) 1 "Test #16 segment_size from template loader json was not applied"
+assert_true $(grep '"segment_size": 400' $WORKSPACE/loader.json | wc -l) 1 "Test #16 segment_size from template loader json was not applied"
 
 # Validate by running vcf2genomicsdb with the generated loader json
 vcf2genomicsdb -r 1 $WORKSPACE/loader.json
