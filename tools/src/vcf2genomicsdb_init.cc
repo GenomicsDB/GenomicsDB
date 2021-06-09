@@ -615,7 +615,7 @@ static int update_json(import_config_t import_config) {
     // Write out callset.json and loader.json
     if (write_json(callset_protobuf, {"row_idx", "idx_in_file"}, import_config.callset_output)
         || write_json(import_config_protobuf, {"tiledb_column", "size_per_column_partition", "segment_size",
-                "num_cells_per_tile", "lb_row_idx"}, import_config.loader_json)) {
+                "num_cells_per_tile", "lb_callset_row_idx"}, import_config.loader_json)) {
       return ERR;
     }
   } else {
