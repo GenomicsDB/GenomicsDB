@@ -21,9 +21,6 @@ class AnnotationService {
 
   ~AnnotationService();
 
-  // Add a string to the list of annotation values
-  void copy_to_buffer(const char* value, int32_t length);
-
   // Value which separates dataSource and info field
   const std::string DATA_SOURCE_FIELD_SEPARATOR = "_AA_";
 
@@ -38,8 +35,12 @@ class AnnotationService {
   // List of configured annotation data sources
   std::vector<genomicsdb_pb::AnnotationSource> m_annotate_sources;
 
+ private:
+  // Add a string to the list of annotation values
+  void copy_to_buffer(const char* value, int32_t length);
+
   // Buffer for annotation values
   // jDebug: consider setting capcity here. (4)?
   // std::vector<std::string> buffer(4);
-  std::vector<std::string> annotation_buffer;
+  std::vector<std::string> m_annotation_buffer;
 };

@@ -24,8 +24,8 @@ AnnotationService::~AnnotationService() {
   Add an annotation value to the buffer so it won't go out of scope
 */
 void AnnotationService::copy_to_buffer(const char* value, int32_t length) {
-	std::string value_string(value, length);
-  annotation_buffer.push_back(std::move(value_string));
+  std::string value_string(value, length);
+  m_annotation_buffer.push_back(std::move(value_string));
 }
 
 /**
@@ -72,7 +72,7 @@ genomic_field_t AnnotationService::get_genomic_field(const std::string &data_sou
   std::string genomic_field_name = data_source + DATA_SOURCE_FIELD_SEPARATOR + info_attribute;
 
   copy_to_buffer(value, value_length);
-  genomic_field_t genomic_annotation(genomic_field_name, annotation_buffer.back().c_str(), annotation_buffer.back().length());
+  genomic_field_t genomic_annotation(genomic_field_name, m_annotation_buffer.back().c_str(), m_annotation_buffer.back().length());
   return genomic_annotation;
 }
 

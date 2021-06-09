@@ -167,7 +167,6 @@ GenomicsDB::~GenomicsDB() {
   if (m_annotation_service != nullptr) {
   	delete TO_ANNOTATION_SERVICE(m_annotation_service);
   }
-
   if (m_vid_mapper != nullptr) {
     delete TO_VID_MAPPER(m_vid_mapper);
   }
