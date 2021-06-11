@@ -56,9 +56,9 @@ message SparkConfig {
 
 message AnnotationSource {
   required string filename = 1;
-  repeated string attributes = 2;
-  required string data_source = 3;
-  optional bool is_vcf = 4;
+  required string data_source = 2;
+  repeated string attributes = 3;
+  optional bool is_vcf = 4 [default = true];
 }
 
 message ExportConfiguration {
@@ -89,7 +89,6 @@ message ExportConfiguration {
     string callset_mapping_file = 16;
     CallsetMappingPB callset_mapping = 17;
   }
-    
   optional uint32 max_diploid_alt_alleles_that_can_be_genotyped = 18;
   optional uint32 max_genotype_count = 19;
   optional bool index_output_VCF = 20; 
