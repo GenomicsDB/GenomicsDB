@@ -178,8 +178,8 @@ run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR 
 # -z 1000 overrides -n 100
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -n 100 -z 10000000"  1 376 24 85 "#7"
 # merge small contigs
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -m"  1 24 24 85 "#8"
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -m -n 100"  1 107 24 85 "#9"
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -m"  1 25 24 85 "#8"
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -m -n 100"  1 108 24 85 "#9"
 # with interval list
 create_interval_list 1:1-100000 1:100001-1000000
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -i $INTERVAL_LIST"  1 2 24 85 "#10"
@@ -192,11 +192,11 @@ run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST
 
 # Append/Incremental update Test
 create_sample_list t0.vcf.gz
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o" 1 85 24 85 "#13"
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#13"
 create_sample_list t1.vcf.gz
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -a" 2 85 24 85 "#14"
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -a" 2 85 24 85 "#14"
 create_sample_list t0.vcf.gz t1.vcf.gz
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -a" 2 85 24 85 "#15"
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -a" 2 85 24 85 "#15"
 
 # Fields test
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -o -S $SAMPLE_DIR -f GT,DP" 2 85 2 85 "#16"

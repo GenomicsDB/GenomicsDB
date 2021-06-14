@@ -323,6 +323,7 @@ static int add_contigs(std::vector<std::pair<std::string, int64_t>> regions, imp
                          workspace, import_config_protobuf);
         processing_scaffold = false;
         tiledb_column_offset += scaffold_length;
+        scaffold_length = 0;
       }
 
       create_partition(chromosome, start, end, tiledb_column_offset, workspace, import_config_protobuf);        
@@ -332,6 +333,11 @@ static int add_contigs(std::vector<std::pair<std::string, int64_t>> regions, imp
     if (!processing_scaffold) {
       tiledb_column_offset += length;
     }
+  }
+
+  if (processing_scaffold && scaffold_length) {
+    create_partition("scaffold"+std::to_string(nscaffold), 0, scaffold_length, tiledb_column_offset,
+                     workspace, import_config_protobuf);
   }
   
   return 0;
@@ -442,6 +448,10 @@ static int generate_json(import_config_t import_config) {
   
   for (int i=0; i<hdr->nhrec; i++) {
     bcf_hrec_t* hrec = hdr->hrec[i];
+    if (!hrec) {
+      g_logger.error("Could not get header records from {}", merged_header.c_str());
+      return ERR;
+    }
     switch (hrec->type) {
       case BCF_HL_FLT:
         add_filter_fields(vidmap_pb, import_config.include_fields, hrec);
@@ -538,9 +548,9 @@ static int update_json(import_config_t import_config) {
   free(callset_contents);
 
   auto existing_callset_size = callset_protobuf->callsets_size();
-  std::vector<std::string> existing_samples;
+  std::set<std::string> existing_samples;
   for (auto callset:callset_protobuf->callsets()) {
-    existing_samples.push_back(callset.sample_name());
+    existing_samples.insert(callset.sample_name());
   }
   auto row_index = callset_protobuf->callsets()[existing_callset_size-1].row_idx() + 1;
 
@@ -560,12 +570,10 @@ static int update_json(import_config_t import_config) {
     for (auto i=0; i<bcf_hdr_nsamples(hdr); i++) {
       // Validate against existing callsets
       bool validated = true;
-      for (auto sample_name: existing_samples) {
-        if (sample_name.compare(hdr->samples[i]) == 0) {
-          validated = false;
-          g_logger.error("Ignoring input sample {} as it already exists in callsets json {}", sample_name, import_config.callset_output);
-          break;
-        }
+      if (existing_samples.find(hdr->samples[i]) != existing_samples.end()) {
+        validated = false;
+        g_logger.error("Ignoring input sample {} as it already exists in callsets json {}", hdr->samples[i], import_config.callset_output);
+        break;
       }
       if (validated) {
         found_new_samples = true;
