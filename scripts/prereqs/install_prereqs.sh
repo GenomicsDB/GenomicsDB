@@ -110,7 +110,7 @@ install_protobuf() {
         cp $PARENT_DIR/protobuf-v3.0.0-beta-1.autogen.sh.patch protobuf-3.0.0-beta-1/autogen.sh &&
         mv protobuf-3.0.0-beta-1 protobuf
     else
-      git clone -b 3.0.x https://github.com/google/protobuf.git
+      git clone -b 3.8.x https://github.com/google/protobuf.git
     fi
     pushd protobuf &&
       ./autogen.sh &&
