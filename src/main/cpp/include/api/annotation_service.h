@@ -34,6 +34,7 @@
 #include "htslib/tbx.h"
 
 #include "genomicsdb.h"
+#include "htslib/vcf.h"
 
 #include <map>
 #include <string>
@@ -82,6 +83,8 @@ class AnnotationService {
   AnnotationService(const std::string& export_configuration);
 
   std::vector<annotation_source_t>& get_annotation_sources();
+
+  int get_info_value(bcf_hdr_t *hdr, bcf1_t *rec, std::string *info_attribute, std::string *info_value);
 
   void annotate(genomic_interval_t &genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields);
 

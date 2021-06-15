@@ -605,11 +605,14 @@ TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_
   annotation_source->set_filename(vcf_file);
   annotation_source->set_data_source(data_source);
 
-  // jDebug: ID and string types will show up, but the Integer,Float, and Flag values aren't supported yet
+  annotation_source->add_attributes()->assign("field0");
+  annotation_source->add_attributes()->assign("field1");
+  annotation_source->add_attributes()->assign("field2");
   annotation_source->add_attributes()->assign("field3");
   annotation_source->add_attributes()->assign("field4");
   annotation_source->add_attributes()->assign("field5");
   annotation_source->add_attributes()->assign("field6");
+  annotation_source->add_attributes()->assign("field7");
   annotation_source->add_attributes()->assign("ID");
 
   std::string config_string;
@@ -624,7 +627,7 @@ TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_
   GenomicsDBResults<genomicsdb_variant_call_t> query_variant_calls = gdb->query_variant_calls();
 
   // printf("jDebug: vc.size=%ld\n",variant_calls.size());
-  printf("jDebug: qvc.size=%ld\n",query_variant_calls.size());
+  // printf("jDebug: qvc.size=%ld\n",query_variant_calls.size());
 
   // auto variant1 = variants.at(0);
   // gdb->get_genomic_fields(array, variant1);

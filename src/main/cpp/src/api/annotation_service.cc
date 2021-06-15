@@ -55,7 +55,7 @@ AnnotationService::AnnotationService(const std::string& export_configuration) {
     annotation_source_t source(filename, export_config.annotation_source(i).data_source(), fields);
     m_annotation_sources.push_back(std::move(source));
   }
-  m_annotation_buffer.reserve(16);
+  m_annotation_buffer.reserve(32);
 }
 
 std::vector<annotation_source_t>& AnnotationService::get_annotation_sources() {
@@ -75,6 +75,66 @@ genomic_field_t AnnotationService::get_genomic_field(const std::string &data_sou
                          m_annotation_buffer.back().length());
 }
 
+/**
+ * Read an INFO value for a record. The value is stored in string pointer info_value, and the return
+ * value of the htslib bcf_get_info_* function is returned.
+ * List of return codes:
+ * >0 .. success, value found
+ * =0 .. success, but row does not have the requested field
+ * -1 .. no such INFO tag defined in the header
+ * -2 .. clash between types defined in the header and encountered in the VCF record
+ * -3 .. tag is not present in the VCF record
+ * -4 .. the operation could not be completed (e.g. out of memory)
+**/
+int AnnotationService::get_info_value(bcf_hdr_t *hdr, bcf1_t *rec, std::string *info_attribute, std::string *info_value) {
+  int32_t info_value_length = 0;
+  int32_t *info_value_ptr = NULL;
+
+  // Determine INFO field type
+  bcf_hrec_t *hrec = bcf_hdr_get_hrec(hdr, BCF_HL_INFO, "ID", info_attribute->c_str(), NULL);
+  int type_index = bcf_hrec_find_key(hrec, "Type");
+  std::string field_type = hrec->vals[type_index];
+
+  // Retrieve the value using the bcf_get_info_* function corresponding to INFO field type
+  //  - Possible Types for INFO fields are: Integer, Float, Flag, Character, and String.
+  //  - The Number entry is an Integer that describes the number of values that can be included with the INFO eld
+  int res;
+  if (field_type.compare("String") == 0) {
+    // jDebug: it seems odd that this pointer needs to be set to NULL. But if i don't then i get an exception at run time:
+    // api_tests(50033,0x11c527dc0) malloc: *** error for object 0x7ffee2c7dbf8: pointer being realloc'd was not allocated
+    // api_tests(50033,0x11c527dc0) malloc: *** set a breakpoint in malloc_error_break to debug
+    // SIGABRT - Abort (abnormal termination) signal
+    res = bcf_get_info_string(hdr, rec, info_attribute->c_str(), &info_value_ptr, &info_value_length);
+    if(res > 0) {
+      info_value->assign((char*)info_value_ptr, info_value_length);
+    }
+  } else if (field_type.compare("Integer") == 0) {
+    res = bcf_get_info_int32(hdr, rec, info_attribute->c_str(), &info_value_ptr, &info_value_length);
+    if(res > 0) {
+      int integer = *info_value_ptr;
+      std::string intStr = std::to_string(integer);
+      info_value->assign(intStr);
+    }
+  } else if (field_type.compare("Float") == 0) {
+    res = bcf_get_info_float(hdr, rec, info_attribute->c_str(), &info_value_ptr, &info_value_length);
+    if(res > 0) {
+      float f = *((float*)info_value_ptr);
+      std::string floatStr = std::to_string(f);
+      info_value->assign(floatStr);
+    }
+  } else if (field_type.compare("Flag") == 0) {
+    res = bcf_get_info_flag(hdr, rec, info_attribute->c_str(), &info_value_ptr, &info_value_length);
+    // int integer = *info_value_ptr;
+    // printf("jDebug: Flag value=%d, res=%d", integer, res);
+    if(res > 0) {
+      info_value->assign("1");
+    }
+  } else {
+    throw GenomicsDBException(logger.format("INFO field {} is of unknown type {}", *info_attribute, field_type));
+  }
+
+  return res;
+}
 /**
   Annotate a genomic location using all of the configured data sources. Annotations
   are stored in the genomic_fields vector with the name of the field set to the result of
@@ -121,10 +181,11 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
     bcf1_t *rec    = bcf_init1();
     int idx = 0;
 
-   
+
     // Iterate over each matching position in the VCF
     while (tbx_itr_next(vcfInFile, tbx, itr, &str) >= 0)
     {
+      // jDebug: what is this condition?
       if ( reg_idx && !regidx_overlap(reg_idx,seq[itr->curr_tid],itr->curr_beg,itr->curr_end-1, NULL) ) {
         continue;
       }
@@ -148,43 +209,29 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
 
       // iteration over the list of INFO fields we are interested in
       for(auto info_attribute: annotation_source.fields) {
-        char* info_value = NULL;
-        int32_t info_value_length = 0;
-
-        // bcf_info_t *info = rec->d.info;
-
           // If the request is for "ID" then give the VCF row ID
           if(info_attribute == "ID") {
             genomic_fields.push_back(get_genomic_field(annotation_source.datasource, info_attribute, rec->d.id, strlen(rec->d.id)));
           } else {
-            // Look for the info field.
-            // List of return codes:
-            // * -1 .. no such INFO tag defined in the header
-            // * -2 .. clash between types defined in the header and encountered in the VCF record
-            //            - Seems like there should be a way to query to determine what the INFO type is.
-            // * -3 .. tag is not present in the VCF record
-            int res = bcf_get_info_string(hdr, rec, info_attribute.c_str(), &info_value, &info_value_length);
+            std::string info_value;
+            int res = get_info_value(hdr, rec, &info_attribute, &info_value);
 
-            if(res > 0) {            
+            // Look for the info field. See get_genomic_field for return code meanings
+            if(res > 0) {
               genomic_field_t jDebugGenomicField = get_genomic_field(annotation_source.datasource,
-                                                                     info_attribute, info_value, info_value_length);
+                                                                     info_attribute, info_value.c_str(), info_value.length());
               // genomic_fields.push_back(get_genomic_field(annotation_source.data_source(), info_attribute, infoValue, infoValueLength));
               genomic_fields.push_back(std::move(jDebugGenomicField)); // jDebug: delete this line and restore the one above
               // printf("jDebug.cc.a: %s %s=%s\n", annotation_source.data_source().c_str(), info_attribute.c_str(), infoValue);
-              // printf("jDebuc.cc.b:    %s=%s\n", jDebugGenomicField.name.c_str(), jDebugGenomicField.str_value().c_str());
-            } else if (res == -2) {
-              // "clash between types defined in the header and encountered in the VCF record"
-              // We need to modify this section so it determines the info field type and then uses the correct
-              // bcf_get_info_* method (eg bcf_get_info_int32, bcf_get_info_float, bcf_get_info_flag).
-
-              printf("JDEBUG: Need to deal with error -2, info_attribute=%s\n", info_attribute.c_str());
+              // printf("jDebuc.cc.b:    %s=%s\n", jDebugGenomicField.name.c_str(), jDebugGenomicField.str_value().c_str());              
+            } else if (res == 0 || res == -3) {
+              // Do nothing - no value found
+              // jDebug: write a unit test to verify that it is ok to request a field that is not found
+              // jDebug: write a unit test to see what happens when you request an attribute that isn't defined.
             } else {
-              // jDebug: throw an exception? No, i think it is ok for field not to be found.
-              // info field not found
-              printf("JDEBUG: Need to deal with ELSE error, info_attribute=%s\n", info_attribute.c_str());
+              throw GenomicsDBException(logger.format("Recieved error code {} while fetching INFO field {}", res, info_attribute));
             }
           }
-          free(info_value);
       }
    }
 
