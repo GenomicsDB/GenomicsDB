@@ -561,6 +561,114 @@ TEST_CASE("api generate_vcf with json multiple threads", "[query_generate_with_j
   }
 }
 
+/**
+  Call processor used for testing genomic field annotations
+ */
+class VariantAnnotationCallProcessor : public GenomicsDBVariantCallProcessor {
+  void process(const std::string& sample_name,
+               const int64_t* coordinates,
+               const genomic_interval_t& genomic_interval,
+               const std::vector<genomic_field_t>& genomic_fields) {
+
+     if(sample_name == "HG00141" && coordinates[1] == 12140) {
+       CHECK(genomic_fields.size() == 3);
+     } else if (sample_name == "HG01958" && coordinates[1] == 12144) {
+       CHECK(genomic_fields.size() == 3);
+     } else if (sample_name == "HG00141" && coordinates[1] == 17384) {
+       CHECK(genomic_interval.contig_name == "1");
+       CHECK(genomic_interval.interval.first == 17385);
+       CHECK(genomic_interval.interval.second == 17385);
+       CHECK(genomic_fields.size() == 9);
+
+       int countExpectedGenomicFields=0;
+       for (auto i=0u; i<genomic_fields.size(); i++) {
+         if (genomic_fields[i].name == "REF") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "G");
+         } else if(genomic_fields[i].name == "ALT") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "A|&");
+         } else if(genomic_fields[i].name == "GT") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "");
+         } else if(genomic_fields[i].name == "dataSourceZero_field0") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "2345");
+         } else if(genomic_fields[i].name == "dataSourceZero_field1") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "5678");
+         } else if(genomic_fields[i].name == "dataSourceZero_field2") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "3.141500");
+         } else if(genomic_fields[i].name == "dataSourceZero_field3") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "noot");
+         } else if(genomic_fields[i].name == "dataSourceZero_field7") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "");
+         } else if(genomic_fields[i].name == "dataSourceZero_ID") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "id001");
+         } else {
+           countExpectedGenomicFields = -1;
+         }
+       }
+
+       // Check not just the genomic_fields but that the expected fields were found.
+       CHECK(countExpectedGenomicFields == 9);
+     } else if (sample_name == "HG01958") {
+       CHECK(genomic_interval.contig_name == "1");
+       CHECK(genomic_interval.interval.first == 17385);
+       CHECK(genomic_interval.interval.second == 17385);
+       CHECK(genomic_fields.size() == 9);
+
+       int countExpectedGenomicFields=0;
+       for (auto i=0u; i<genomic_fields.size(); i++) {
+         if (genomic_fields[i].name == "REF") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "G");
+         } else if(genomic_fields[i].name == "ALT") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "T|&");
+         } else if(genomic_fields[i].name == "GT") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value().length() == 1);
+         } else if(genomic_fields[i].name == "DP") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "x");
+         } else if(genomic_fields[i].name == "dataSourceZero_field3") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "waldo");
+         } else if(genomic_fields[i].name == "dataSourceZero_field4") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "5679");
+         } else if(genomic_fields[i].name == "dataSourceZero_field5") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "6.660000");
+         } else if(genomic_fields[i].name == "dataSourceZero_field6") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "biz");
+         } else if(genomic_fields[i].name == "dataSourceZero_ID") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "id002");
+         } else {
+           countExpectedGenomicFields = -1;
+         }
+       }
+
+       // Check not just the genomic_fields but that the expected fields were found.
+       CHECK(countExpectedGenomicFields == 9);
+
+     } else if (sample_name == "HG01530") {
+       CHECK(genomic_interval.contig_name == "1");
+       CHECK(genomic_interval.interval.first == 17385);
+       CHECK(genomic_interval.interval.second == 17385);
+       // For this sample i don't bother with the actual genomic_field values because because they are the same as HG00141 above.
+       CHECK(genomic_fields.size() == 10);
+     }
+  };
+};
+
 TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_variant_calls_with_tds0]") {
   using namespace genomicsdb_pb;
 
@@ -623,21 +731,8 @@ TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_
 
   GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
 
-  // GenomicsDBVariantCalls variant_calls = gdb->query_variant_calls();
-  GenomicsDBResults<genomicsdb_variant_call_t> query_variant_calls = gdb->query_variant_calls();
-
-  // printf("jDebug: vc.size=%ld\n",variant_calls.size());
-  // printf("jDebug: qvc.size=%ld\n",query_variant_calls.size());
-
-  // auto variant1 = variants.at(0);
-  // gdb->get_genomic_fields(array, variant1);
-
-  // jDebug: come back to this:
-  // jDebug: need to build on this test by verifying the values being returned:
-  // a) Are values being returned?
-  // b) Are the values correct?
-  // printf("jDebug: gf.size=%ld", genomic_fields.size());
-  // CHECK(genomic_fields.size() == 5);
+  VariantAnnotationCallProcessor variant_annotation_processor;
+  gdb->query_variant_calls(variant_annotation_processor);
 
   delete gdb;
 }

@@ -124,10 +124,9 @@ int AnnotationService::get_info_value(bcf_hdr_t *hdr, bcf1_t *rec, std::string *
     }
   } else if (field_type.compare("Flag") == 0) {
     res = bcf_get_info_flag(hdr, rec, info_attribute->c_str(), &info_value_ptr, &info_value_length);
-    // int integer = *info_value_ptr;
-    // printf("jDebug: Flag value=%d, res=%d", integer, res);
     if(res > 0) {
-      info_value->assign("1");
+      // Flags don't have values. They are present or not.
+      info_value->assign("");
     }
   } else {
     throw GenomicsDBException(logger.format("INFO field {} is of unknown type {}", *info_attribute, field_type));
@@ -181,7 +180,6 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
     bcf1_t *rec    = bcf_init1();
     int idx = 0;
 
-
     // Iterate over each matching position in the VCF
     while (tbx_itr_next(vcfInFile, tbx, itr, &str) >= 0)
     {
@@ -193,9 +191,6 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
       int readResult = vcf_parse1(&str, hdr, rec);
       VERIFY(readResult==0 && "Problem parsing current line of VCF");
 
-      // jDebug: update this comment. It says "need to add code here", and i think you already have.
-      // The query is constrained by chromosome and position but not by allele.  Need to add code here which
-      // compares the matches alt and ref alleles to see if they match what we are looking for.
       bcf_unpack((bcf1_t*)rec, BCF_UN_ALL); // Using BCF_UN_INFO is probably a little faster
 
       if(ref.compare(rec->d.allele[0]) != 0) {
@@ -218,16 +213,11 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
 
             // Look for the info field. See get_genomic_field for return code meanings
             if(res > 0) {
-              genomic_field_t jDebugGenomicField = get_genomic_field(annotation_source.datasource,
+              genomic_field_t genomic_field_annotation = get_genomic_field(annotation_source.datasource,
                                                                      info_attribute, info_value.c_str(), info_value.length());
-              // genomic_fields.push_back(get_genomic_field(annotation_source.data_source(), info_attribute, infoValue, infoValueLength));
-              genomic_fields.push_back(std::move(jDebugGenomicField)); // jDebug: delete this line and restore the one above
-              // printf("jDebug.cc.a: %s %s=%s\n", annotation_source.data_source().c_str(), info_attribute.c_str(), infoValue);
-              // printf("jDebuc.cc.b:    %s=%s\n", jDebugGenomicField.name.c_str(), jDebugGenomicField.str_value().c_str());              
+              genomic_fields.push_back(std::move(genomic_field_annotation));
             } else if (res == 0 || res == -3) {
               // Do nothing - no value found
-              // jDebug: write a unit test to verify that it is ok to request a field that is not found
-              // jDebug: write a unit test to see what happens when you request an attribute that isn't defined.
             } else {
               throw GenomicsDBException(logger.format("Recieved error code {} while fetching INFO field {}", res, info_attribute));
             }
@@ -236,9 +226,6 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
    }
 
    regidx_destroy(reg_idx);
-
-   // jDebug: this function wasn't found so there's probably a leak: regitr_destroy(itr);
-   // jDebug: need to find out if the iterator needs to be destroyed.
    bcf_itr_destroy(itr);
 
    int ret = hts_close(vcfInFile);
