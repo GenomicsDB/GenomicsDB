@@ -92,6 +92,10 @@ int AnnotationService::get_info_value(bcf_hdr_t *hdr, bcf1_t *rec, std::string *
 
   // Determine INFO field type
   bcf_hrec_t *hrec = bcf_hdr_get_hrec(hdr, BCF_HL_INFO, "ID", info_attribute->c_str(), NULL);
+  if(hrec == NULL) {
+    return -1;
+  }
+
   int type_index = bcf_hrec_find_key(hrec, "Type");
   std::string field_type = hrec->vals[type_index];
 
@@ -217,7 +221,7 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
                                                                      info_attribute, info_value.c_str(), info_value.length());
               genomic_fields.push_back(std::move(genomic_field_annotation));
             } else if (res == 0 || res == -3) {
-              // Do nothing - no value found
+              // Do nothing - valid query, but the INFO attribute is not present in this row.
             } else {
               throw GenomicsDBException(logger.format("Recieved error code {} while fetching INFO field {}", res, info_attribute));
             }
