@@ -38,6 +38,58 @@
 #include "hfile_genomicsdb.h"
 #include "logger.h"
 #include "tiledb_utils.h"
+#include "vid_mapper.h"
+
+int set_length_descriptor(FieldLengthDescriptor& length_descr, const std::string& field_type, char *field_number) {
+  auto found_ht_map = VidMapper::m_typename_string_to_bcf_ht_type.find(field_type);
+  if (found_ht_map == VidMapper::m_typename_string_to_bcf_ht_type.end()) {
+    logger.format("Could not map bcf field type {} to vid_mapper ht_type", field_type);
+    return -1;
+  }
+  auto ht_type = found_ht_map->second;
+  char* p_end;
+  auto field_number_value = std::strtoull(field_number, &p_end, 0);
+  if (field_number == p_end || ht_type == BCF_HT_STR) {
+    length_descr.set_length_descriptor(0, BCF_VL_VAR);
+  } else if (ht_type == BCF_HT_FLAG) {
+    length_descr.set_length_descriptor(0, 1);
+  } else {
+    length_descr.set_num_elements(0, field_number_value);
+  }
+  return 0;
+}
+
+genomic_field_type_t annotation_source_t::construct_field_type(bcf_hrec_t* hrec) {
+    int type_index = bcf_hrec_find_key(hrec, "Type");
+    int number_index = bcf_hrec_find_key(hrec, "Number");
+
+    VERIFY2(type_index >= 0 && number_index >=0, "Could not find either Type or Number associated with hrec");
+
+    std::string field_type = hrec->vals[type_index];
+    auto found = VidMapper::m_typename_string_to_type_index.find(field_type);
+    VERIFY2(found != VidMapper::m_typename_string_to_type_index.end(),
+           logger.format("Could not map bcf field type {} to vid_mapper type index", field_type));
+    auto genomic_type_index = found->second;
+
+    FieldLengthDescriptor length_descr;
+    char *field_number = hrec->vals[number_index];
+    auto found_map = VidMapper::m_length_descriptor_string_to_int.find(field_number);
+    if (found_map ==  VidMapper::m_length_descriptor_string_to_int.end()) {
+      VERIFY2(set_length_descriptor(length_descr, field_type, field_number) == 0,
+             logger.format("Could not set_length_descriptor for field type {}", field_type));
+    } else {
+      FieldInfo field_info;
+      FieldElementTypeDescriptor descr(genomic_type_index, found_map->second);
+      field_info.set_type(descr);
+      length_descr = field_info.m_length_descriptor;
+    }
+
+    return genomic_field_type_t(genomic_type_index,
+                                length_descr.is_fixed_length_field(),
+                                length_descr.is_fixed_length_field()?length_descr.get_num_elements():0,
+                                length_descr.get_num_dimensions(),
+                                length_descr.is_length_ploidy_dependent()&&length_descr.contains_phase_information());
+}
 
 AnnotationService::AnnotationService(const std::string& export_configuration) {
   genomicsdb_pb::ExportConfiguration export_config;
@@ -48,19 +100,26 @@ AnnotationService::AnnotationService(const std::string& export_configuration) {
       throw GenomicsDBException(logger.format("Annotation data source {} not found", filename));
     }
     genomicsdb_htslib_plugin_initialize(filename.c_str());
-    std::vector<std::string> fields;
+    std::set<std::string> fields;
     for(auto field : export_config.annotation_source(i).attributes()) {
-      fields.push_back(field);
+      fields.insert(field);
     }
-    annotation_source_t source(filename, export_config.annotation_source(i).data_source(), fields);
-    m_annotation_sources.push_back(std::move(source));
+    m_annotation_sources.emplace_back(filename, export_config.annotation_source(i).data_source(), fields);
   }
-  m_annotation_buffer.reserve(32);
+  m_annotation_buffer.reserve(64);
 }
 
 std::vector<annotation_source_t>& AnnotationService::get_annotation_sources() {
   return m_annotation_sources;
 }
+
+std::unordered_map<int, int> bcf_ht_type_to_nbytes = {
+  {BCF_HT_INT, sizeof(int)},
+  {BCF_HT_INT64, sizeof(long)},
+  {BCF_HT_REAL, sizeof(float)},
+  {BCF_HT_FLAG, 0},
+  {BCF_HT_STR, 1}
+};
 
 /**
   Create a new genomic_field_t
@@ -68,76 +127,13 @@ std::vector<annotation_source_t>& AnnotationService::get_annotation_sources() {
 genomic_field_t AnnotationService::get_genomic_field(const std::string &data_source,
                                                      const std::string &info_attribute,
                                                      const char *value,
-                                                     const int32_t value_length) {
+                                                     const int32_t value_length,
+                                                     const int bcf_ht_type) {
   std::string genomic_field_name = data_source + "_" + info_attribute;
-  m_annotation_buffer.push_back(std::string(value, value_length));
-  return genomic_field_t(genomic_field_name, m_annotation_buffer.back().data(),
-                         m_annotation_buffer.back().length());
+  m_annotation_buffer.push_back(std::move(std::string(value, bcf_ht_type_to_nbytes.at(bcf_ht_type)*value_length)));
+  return genomic_field_t(genomic_field_name, m_annotation_buffer.back().data(), value_length);
 }
 
-/**
- * Read an INFO value for a record. The value is stored in string pointer info_value, and the return
- * value of the htslib bcf_get_info_* function is returned.
- * List of return codes:
- * >0 .. success, value found
- * =0 .. success, but row does not have the requested field
- * -1 .. no such INFO tag defined in the header
- * -2 .. clash between types defined in the header and encountered in the VCF record
- * -3 .. tag is not present in the VCF record
- * -4 .. the operation could not be completed (e.g. out of memory)
-**/
-int AnnotationService::get_info_value(bcf_hdr_t *hdr, bcf1_t *rec, std::string *info_attribute, std::string *info_value) {
-  int32_t info_value_length = 0;
-  int32_t *info_value_ptr = NULL;
-
-  // Determine INFO field type
-  bcf_hrec_t *hrec = bcf_hdr_get_hrec(hdr, BCF_HL_INFO, "ID", info_attribute->c_str(), NULL);
-  if(hrec == NULL) {
-    return -1;
-  }
-
-  int type_index = bcf_hrec_find_key(hrec, "Type");
-  std::string field_type = hrec->vals[type_index];
-
-  // Retrieve the value using the bcf_get_info_* function corresponding to INFO field type
-  //  - Possible Types for INFO fields are: Integer, Float, Flag, Character, and String.
-  //  - The Number entry is an Integer that describes the number of values that can be included with the INFO eld
-  int res;
-  if (field_type.compare("String") == 0) {
-    // jDebug: it seems odd that this pointer needs to be set to NULL. But if i don't then i get an exception at run time:
-    // api_tests(50033,0x11c527dc0) malloc: *** error for object 0x7ffee2c7dbf8: pointer being realloc'd was not allocated
-    // api_tests(50033,0x11c527dc0) malloc: *** set a breakpoint in malloc_error_break to debug
-    // SIGABRT - Abort (abnormal termination) signal
-    res = bcf_get_info_string(hdr, rec, info_attribute->c_str(), &info_value_ptr, &info_value_length);
-    if(res > 0) {
-      info_value->assign((char*)info_value_ptr, info_value_length);
-    }
-  } else if (field_type.compare("Integer") == 0) {
-    res = bcf_get_info_int32(hdr, rec, info_attribute->c_str(), &info_value_ptr, &info_value_length);
-    if(res > 0) {
-      int integer = *info_value_ptr;
-      std::string intStr = std::to_string(integer);
-      info_value->assign(intStr);
-    }
-  } else if (field_type.compare("Float") == 0) {
-    res = bcf_get_info_float(hdr, rec, info_attribute->c_str(), &info_value_ptr, &info_value_length);
-    if(res > 0) {
-      float f = *((float*)info_value_ptr);
-      std::string floatStr = std::to_string(f);
-      info_value->assign(floatStr);
-    }
-  } else if (field_type.compare("Flag") == 0) {
-    res = bcf_get_info_flag(hdr, rec, info_attribute->c_str(), &info_value_ptr, &info_value_length);
-    if(res > 0) {
-      // Flags don't have values. They are present or not.
-      info_value->assign("");
-    }
-  } else {
-    throw GenomicsDBException(logger.format("INFO field {} is of unknown type {}", *info_attribute, field_type));
-  }
-
-  return res;
-}
 /**
   Annotate a genomic location using all of the configured data sources. Annotations
   are stored in the genomic_fields vector with the name of the field set to the result of
@@ -146,33 +142,30 @@ int AnnotationService::get_info_value(bcf_hdr_t *hdr, bcf1_t *rec, std::string *
  */
 void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) {
   for(auto annotation_source: m_annotation_sources) {
-    // Open the VCF file
-    htsFile *vcfInFile = hts_open(annotation_source.filename.c_str(), "r");
-    VERIFY(vcfInFile != NULL && "Unable to open VCF file");
+    htsFile *htsfile_ptr = hts_open(annotation_source.filename.c_str(), "r");
+    VERIFY2(htsfile_ptr!=NULL, logger.format("Could not hts_open {} file in read mode", annotation_source.filename));
 
-    // Check file type
-    enum htsExactFormat format = hts_get_format(vcfInFile)->format;
-    VERIFY(format == vcf && "File is not VCF");
+    // Only supporting vcf files now
+    enum htsExactFormat format = hts_get_format(htsfile_ptr)->format;
+    VERIFY2(format==vcf, logger.format("File {} is not VCF", annotation_source.filename));
 
-    // Read the header
-    bcf_hdr_t *hdr = bcf_hdr_read(vcfInFile);
-    VERIFY(hdr && "Could not read VCF header");
+    bcf_hdr_t *hdr = bcf_hdr_read(htsfile_ptr);
+    VERIFY2(hdr!=NULL, logger.format("Could not read header in file {}", annotation_source.filename));
+
+    // Read the tbi index file to help with reading the annotation vcfs
+    tbx_t *tbx = tbx_index_load3(annotation_source.filename.c_str(), NULL, 0);
+    VERIFY2(tbx, logger.format("Could not load the index file for {}", annotation_source.filename));
+
+    // Query using chromosome and position range
+    std::string query_range = genomic_interval.contig_name + ":" + std::to_string(genomic_interval.interval.first) + "-" + std::to_string(genomic_interval.interval.second);
+    hts_itr_t *itr = tbx_itr_querys(tbx, query_range.c_str());
+    VERIFY2(itr, "Could not obtain tbx query iterator");
 
     // I'm not sure what this does. Whatever it is, it takes a really long time.
     // Need to look in to how to remove this variable.
     regidx_t *reg_idx = NULL;
     // reg_idx = regidx_init(annotation_source.filename().c_str(), NULL, NULL, 0, NULL);
-    // VERIFY(reg_idx && "Unable to read file");
-
-    // Read the tbi index file
-    tbx_t *tbx = tbx_index_load3(annotation_source.filename.c_str(), NULL, 0);
-    VERIFY(tbx && "Could not load .tbi index");
-
-    // Query using chromosome and position range
-    std::string variantQuery = genomic_interval.contig_name + ":" + std::to_string(genomic_interval.interval.first) + "-" + std::to_string(genomic_interval.interval.second);
-
-    hts_itr_t *itr = tbx_itr_querys(tbx, variantQuery.c_str());
-    VERIFY(itr && "Problem opening iterator");
+    // VERIFY2(reg_idx, "Unable to read file");
 
     const char **seq = NULL;
     int nseq;
@@ -181,19 +174,17 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
     }
 
     kstring_t str = {0,0,0};
-    bcf1_t *rec    = bcf_init1();
+    bcf1_t *rec = bcf_init1();
     int idx = 0;
 
     // Iterate over each matching position in the VCF
-    while (tbx_itr_next(vcfInFile, tbx, itr, &str) >= 0)
-    {
+    while (tbx_itr_next(htsfile_ptr, tbx, itr, &str) >= 0) {
       // jDebug: what is this condition?
-      if ( reg_idx && !regidx_overlap(reg_idx,seq[itr->curr_tid],itr->curr_beg,itr->curr_end-1, NULL) ) {
+      if (reg_idx && !regidx_overlap(reg_idx,seq[itr->curr_tid],itr->curr_beg,itr->curr_end-1, NULL) ) {
         continue;
       }
 
-      int readResult = vcf_parse1(&str, hdr, rec);
-      VERIFY(readResult==0 && "Problem parsing current line of VCF");
+      VERIFY2(vcf_parse1(&str, hdr, rec) == 0, "Problem parsing current line of VCF");
 
       bcf_unpack((bcf1_t*)rec, BCF_UN_ALL); // Using BCF_UN_INFO is probably a little faster
 
@@ -208,31 +199,34 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
 
       // iteration over the list of INFO fields we are interested in
       for(auto info_attribute: annotation_source.fields) {
-          // If the request is for "ID" then give the VCF row ID
-          if(info_attribute == "ID") {
-            genomic_fields.push_back(get_genomic_field(annotation_source.datasource, info_attribute, rec->d.id, strlen(rec->d.id)));
-          } else {
-            std::string info_value;
-            int res = get_info_value(hdr, rec, &info_attribute, &info_value);
-
-            // Look for the info field. See get_genomic_field for return code meanings
-            if(res > 0) {
-              genomic_field_t genomic_field_annotation = get_genomic_field(annotation_source.datasource,
-                                                                     info_attribute, info_value.c_str(), info_value.length());
-              genomic_fields.push_back(std::move(genomic_field_annotation));
-            } else if (res == 0 || res == -3) {
-              // Do nothing - valid query, but the INFO attribute is not present in this row.
-            } else {
-              throw GenomicsDBException(logger.format("Recieved error code {} while fetching INFO field {}", res, info_attribute));
-            }
+        if(info_attribute == "ID") {
+          genomic_fields.push_back(get_genomic_field(annotation_source.datasource, info_attribute, rec->d.id, strlen(rec->d.id)));
+        } else {
+          void* info_value = NULL;
+          int32_t info_value_length = 0;
+          int info_index = bcf_hdr_id2int(hdr, BCF_DT_ID, info_attribute.c_str());
+          VERIFY2(info_index != -1, logger.format("Info field {} not found in annotation source {}", info_attribute,
+                                                 annotation_source.filename));
+          int info_type = bcf_hdr_id2type(hdr, BCF_HL_INFO, info_index);
+          int num_values = bcf_get_info_values(hdr, rec, info_attribute.c_str(), &info_value, &info_value_length, info_type);
+          VERIFY2((num_values >= 0 || num_values == -3),
+                 logger.format("bcf_get_info_values returned {}. See vcf.h for error code", num_values));
+          if (num_values > 0) {
+            genomic_fields.push_back(get_genomic_field(annotation_source.datasource, info_attribute,
+                                                       (char *)info_value, info_value_length, info_type));
+            free(info_value);
           }
+        }
       }
-   }
+    }
 
    regidx_destroy(reg_idx);
+
+   // jDebug: this function wasn't found so there's probably a leak: regitr_destroy(itr);
+   // jDebug: need to find out if the iterator needs to be destroyed.
    bcf_itr_destroy(itr);
 
-   int ret = hts_close(vcfInFile);
-   VERIFY(ret == 0 && "Non-zero status when trying to close VCF file");
+   bcf_hdr_destroy(hdr);
+   hts_close(htsfile_ptr);
   }
 }
