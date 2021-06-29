@@ -149,7 +149,6 @@ TEST_CASE("test explicit logger", "[test_logger_explicit]") {
   oss.str("");
   GenomicsDBException exception("Test Exception");
   CHECK_THROWS_AS(logger.fatal(exception, TEST_STR_FMT, 1, TEST_STR), GenomicsDBException);
-  std::cerr << "Nalini: " << oss.str() << std::endl;
   CHECK(oss.str().find(TEST_STR) != std::string::npos);
   CHECK(oss.str().find(NATIVE_STACK_TRACE_STR) == std::string::npos); // Should not dump stack trace
 
