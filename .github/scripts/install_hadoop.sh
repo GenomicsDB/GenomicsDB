@@ -27,7 +27,7 @@ install_prereqs() {
 }
 
 download_hadoop() {
-  wget -q http://www-eu.apache.org/dist/hadoop/common/$HADOOP/$HADOOP.tar.gz &&
+  wget -q https://downloads.apache.org/hadoop/common/$HADOOP/$HADOOP.tar.gz &&
   tar -xzf $HADOOP.tar.gz --directory $INSTALL_DIR &&
   echo "download_hadoop successful"
 }
