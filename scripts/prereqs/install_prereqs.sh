@@ -110,7 +110,7 @@ install_protobuf() {
         cp $PARENT_DIR/protobuf-v3.0.0-beta-1.autogen.sh.patch protobuf-3.0.0-beta-1/autogen.sh &&
         mv protobuf-3.0.0-beta-1 protobuf
     else
-      git clone -b 3.0.x https://github.com/google/protobuf.git
+      git clone -b 3.8.x https://github.com/google/protobuf.git
     fi
     pushd protobuf &&
       ./autogen.sh &&
@@ -230,8 +230,8 @@ install_prerequisites() {
   echo "1 PREREQS_ENV=$PREREQS_ENV"
   install_os_prerequisites &&
     source $PREREQS_ENV &&
-    install_mvn &&
-    install_protobuf
+    install_mvn
+#    install_protobuf
 }
 
 finalize() {

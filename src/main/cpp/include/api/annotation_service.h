@@ -30,11 +30,14 @@
  *
  **/
 
+#include "genomicsdb.h"
+#include "logger.h"
+
+#include "htslib/hts.h"
+#include "htslib/vcf.h"
+
 #include "htslib/regidx.h"
 #include "htslib/tbx.h"
-
-#include "genomicsdb.h"
-#include "htslib/vcf.h"
 
 #include <map>
 #include <string>
@@ -42,34 +45,83 @@
 
 #include "genomicsdb_export_config.pb.h"
 
-#define VERIFY(X) if(!(X)) throw GenomicsDBException(#X);
+#define VERIFY2(X, Y) if(!(X)) throw GenomicsDBException(Y);
 
 typedef struct annotation_source_t {
   std::string filename;
   std::string datasource;
-  std::vector<std::string> fields;
+  std::set<std::string> fields;
+
+  bool field_types_processed = false;
+
   // Constructor
-  annotation_source_t(std::string filename, std::string datasource,
-                      std::vector<std::string> fields) {
+  annotation_source_t(const std::string& filename, const std::string& datasource,
+                      const std::set<std::string>& fields) {
     this->filename = std::move(filename);
     this->datasource = std::move(datasource);
     this->fields = std::move(fields);
   }
+
   std::map<std::string, genomic_field_type_t> field_types() {
-    std::map<std::string, genomic_field_type_t> field_types;
-    for(std::string field: this->fields) {
-      const std::string attribute_name = this->datasource + "_" + field;
-      // TODO : support types other than string too - see src/resources/genomicsdb_vid_mapping.proto
-      const std::type_index type_index = typeid(char);
-      field_types.insert(std::make_pair(attribute_name,
-                                        genomic_field_type_t(typeid(char),
-                                                             false,/*is_fixed_num_elements*/
-                                                             1,/*num_elements*/
-                                                             1,/*num_dimensions*/
-                                                             false/*contains_phase_info*/)));
+    htsFile *htsfile_ptr = hts_open(this->filename.c_str(), "r");
+    VERIFY2(htsfile_ptr!=NULL, logger.format("Could not hts_open {} file in read mode", filename));
+
+    // Only supporting vcf files now
+    enum htsExactFormat format = hts_get_format(htsfile_ptr)->format;
+    VERIFY2(format==vcf, logger.format("File {} is not VCF", filename));
+
+    bcf_hdr_t *hdr = bcf_hdr_read(htsfile_ptr);
+    VERIFY2(hdr!=NULL, logger.format("Could not read header in file {}", filename));
+
+    std::map<std::string, genomic_field_type_t> genomic_field_types;
+    std::set<std::string> processed_fields;
+
+    for (int i=0; i<hdr->nhrec; i++) {
+      bcf_hrec_t* hrec = hdr->hrec[i];
+      VERIFY2(hrec!=NULL, logger.format("Could not get header records from {}", filename));
+      construct_field_type(hrec, genomic_field_types, processed_fields);
     }
-    return field_types;
+
+    bcf_hdr_destroy(hdr);
+    hts_close(htsfile_ptr);
+
+    if (fields.size() != processed_fields.size()) {
+      for (auto field: fields) {
+        if (processed_fields.find(field) == processed_fields.end()) {
+          VERIFY2(field.compare("ID") == 0,
+                  logger.format("No type information could be deduced for annotation info field {}", field));
+          genomic_field_types.insert(std::make_pair(datasource + "_" + field,
+                                                    genomic_field_type_t(typeid(char),
+                                                                         false,/*is_fixed_num_elements*/
+                                                                         1,/*num_elements*/
+                                                                         1,/*num_dimensions*/
+                                                                         false/*contains_phase_info*/)));
+        }
+      }
+    }
+
+    return genomic_field_types;
   }
+
+ private:
+  void construct_field_type(bcf_hrec_t* hrec, std::map<std::string, genomic_field_type_t>& types,
+                   std::set<std::string>& processed_fields) {
+    int index;
+    std::string field;
+    if (hrec->type == BCF_HL_INFO) {
+      index = bcf_hrec_find_key(hrec, "ID");
+      if (index >= 0) {
+        field = hrec->vals[index];
+        if (fields.find(field) != fields.end()) {
+          field = hrec->vals[index];
+          processed_fields.insert(field);
+          types.insert(std::make_pair(datasource + "_" + field, construct_field_type(hrec)));
+        }
+      }
+    }
+  }
+
+  genomic_field_type_t construct_field_type(bcf_hrec_t* hrec);
 } annotation_source_t;
 
 /**
@@ -84,11 +136,9 @@ class AnnotationService {
 
   std::vector<annotation_source_t>& get_annotation_sources();
 
-  int get_info_value(bcf_hdr_t *hdr, bcf1_t *rec, std::string *info_attribute, std::string *info_value);
-
   void annotate(genomic_interval_t &genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields);
 
-  genomic_field_t get_genomic_field(const std::string &data_source, const std::string &info_attribute, const char *value, const int32_t value_length);
+  genomic_field_t get_genomic_field(const std::string &data_source, const std::string &info_attribute, const char *value, const int32_t value_length, int bcf_ht_type=BCF_HT_STR);
 
  private:
   // List of configured annotation data sources

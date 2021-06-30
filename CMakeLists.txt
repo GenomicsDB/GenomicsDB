@@ -47,7 +47,7 @@ execute_process(
     )
 
 #Build parameters/options
-set(GENOMICSDB_RELEASE_VERSION "1.4.1-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+set(GENOMICSDB_RELEASE_VERSION "1.4.2-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 set(GENOMICSDB_VERSION "${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}" CACHE STRING "GenomicsDB full version string")
 
 set(DISABLE_MPI False CACHE BOOL "Disable use of any MPI compiler/libraries")
@@ -58,9 +58,10 @@ set(BUILD_JAVA False CACHE BOOL "Build Java/JNI interface for combined VCF recor
 
 set(HTSLIB_INSTALL_DIR "" CACHE PATH "Path to htslib install directory")
 
-set(GENOMICSDB_PROTOBUF_VERSION "3.0.2" CACHE STRING "Version of Google Protocol Buffer library")
-set(PROTOBUF_LIBRARY "" CACHE PATH "Path to protobuf headers and library")
-set(PROTOBUF_STATIC_LINKING True CACHE BOOL "Statically link Protobuf libraries")
+#Sync the GENOMICSDB_PROTOBUF_VERSION with protobuf.version in pom.xml!
+set(GENOMICSDB_PROTOBUF_VERSION "3.8.0" CACHE STRING "Version of Google Protocol Buffer library")
+set(PROTOBUF_ROOT_DIR "$ENV{HOME}/protobuf-install/${GENOMICSDB_PROTOBUF_VERSION}" CACHE PATH "Path to installed protobuf")
+set(PROTOBUF_URL "https://github.com/protocolbuffers/protobuf/archive/v${GENOMICSDB_PROTOBUF_VERSION}.zip" CACHE STRING "URL to protobuf github release")
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
 set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf files in build directory")
 
@@ -222,11 +223,6 @@ else()
   set(PROTOBUF_JAVA_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/src/main/java")
 endif()
 include_directories(${PROTOBUF_INCLUDE_DIRS})
-CHECK_IF_USING_PROTOBUF_V_3_0_0_BETA_1(USE_PROTOBUF_V_3_0_0_BETA_1)
-if(USE_PROTOBUF_V_3_0_0_BETA_1)
-  add_definitions(-DUSE_PROTOBUF_V_3_0_0_BETA_1)
-  message(STATUS "Using Protobuf v3.0.0-beta-1")
-endif()
 
 #JNI
 if(BUILD_JAVA)
