@@ -814,6 +814,14 @@ class VidMapper {
   int parse_contigs_from_vidmap(const VidMappingPB* vidMapProto);
   int parse_infofields_from_vidmap(const VidMappingPB* vidMapProto);
 
+  //Static members - also used to construct annotation_source_t
+  static std::unordered_map<std::string, int> m_length_descriptor_string_to_int;
+  static std::unordered_map<std::string, std::type_index> m_typename_string_to_type_index;
+  static std::unordered_map<std::string, int> m_typename_string_to_bcf_ht_type;
+  
+  //INFO field combine operation
+  static std::unordered_map<std::string, int> m_INFO_field_operation_name_to_enum;
+
  protected:
   void add_mandatory_fields();
   void flatten_field(int& field_idx, const int original_field_idx);
@@ -844,12 +852,6 @@ class VidMapper {
   //owner idx to file_idx vector
   std::vector<std::vector<int64_t>> m_owner_idx_to_file_idx_vec;
   void sort_and_assign_local_file_idxs_for_partition(const int owner_idx);
-  //Static members
-  static std::unordered_map<std::string, int> m_length_descriptor_string_to_int;
-  static std::unordered_map<std::string, std::type_index> m_typename_string_to_type_index;
-  static std::unordered_map<std::string, int> m_typename_string_to_bcf_ht_type;
-  //INFO field combine operation
-  static std::unordered_map<std::string, int> m_INFO_field_operation_name_to_enum;
   //Max row idx in callset idx file
   int64_t m_max_callset_row_idx;
 };

@@ -6,7 +6,7 @@
 INSTALL_DIR=${INSTALL_DIR:-/usr}
 USER=`whoami`
 
-HADOOP=hadoop-${HADOOP_VER:-3.2.1}
+HADOOP=hadoop-${HADOOP_VER:-3.2.2}
 HADOOP_DIR=${INSTALL_DIR}/$HADOOP
 HADOOP_ENV=${HADOOP_ENV:-$HOME/hadoop_env.sh}
 JAVA_VER=${JAVA_VER:-8}
@@ -27,7 +27,7 @@ install_prereqs() {
 }
 
 download_hadoop() {
-  wget -q http://www-eu.apache.org/dist/hadoop/common/$HADOOP/$HADOOP.tar.gz &&
+  wget https://downloads.apache.org/hadoop/common/$HADOOP/$HADOOP.tar.gz &&
   tar -xzf $HADOOP.tar.gz --directory $INSTALL_DIR &&
   echo "download_hadoop successful"
 }

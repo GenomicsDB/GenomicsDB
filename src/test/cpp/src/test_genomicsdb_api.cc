@@ -2,7 +2,7 @@
  * src/test/cpp/src/test_genomicsdb_api.cc
  *
  * The MIT License (MIT)
- * Copyright (c) 2019-2020 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2021 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -581,6 +581,7 @@ class VariantAnnotationCallProcessor : public GenomicsDBVariantCallProcessor {
        CHECK(genomic_fields.size() == 9);
 
        int countExpectedGenomicFields=0;
+       CHECK(genomic_fields.size() == 9);
        for (auto i=0u; i<genomic_fields.size(); i++) {
          if (genomic_fields[i].name == "REF") {
            ++countExpectedGenomicFields;
@@ -593,27 +594,32 @@ class VariantAnnotationCallProcessor : public GenomicsDBVariantCallProcessor {
            CHECK(genomic_fields[i].str_value() == "");
          } else if(genomic_fields[i].name == "dataSourceZero_field0") {
            ++countExpectedGenomicFields;
-           CHECK(genomic_fields[i].str_value() == "2345");
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_int());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "2345");
          } else if(genomic_fields[i].name == "dataSourceZero_field1") {
            ++countExpectedGenomicFields;
-           CHECK(genomic_fields[i].str_value() == "5678");
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_int());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "5678");
          } else if(genomic_fields[i].name == "dataSourceZero_field2") {
            ++countExpectedGenomicFields;
-           CHECK(genomic_fields[i].str_value() == "3.141500");
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_float());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "3.141500");
          } else if(genomic_fields[i].name == "dataSourceZero_field3") {
            ++countExpectedGenomicFields;
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
            CHECK(genomic_fields[i].str_value() == "noot");
          } else if(genomic_fields[i].name == "dataSourceZero_field7") {
            ++countExpectedGenomicFields;
-           CHECK(genomic_fields[i].str_value() == "");
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "");
          } else if(genomic_fields[i].name == "dataSourceZero_ID") {
            ++countExpectedGenomicFields;
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
            CHECK(genomic_fields[i].str_value() == "id001");
          } else {
            countExpectedGenomicFields = -1;
          }
        }
-
        // Check not just the genomic_fields but that the expected fields were found.
        CHECK(countExpectedGenomicFields == 9);
      } else if (sample_name == "HG01958") {
@@ -641,13 +647,16 @@ class VariantAnnotationCallProcessor : public GenomicsDBVariantCallProcessor {
            CHECK(genomic_fields[i].str_value() == "waldo");
          } else if(genomic_fields[i].name == "dataSourceZero_field4") {
            ++countExpectedGenomicFields;
-           CHECK(genomic_fields[i].str_value() == "5679");
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_int());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "5679");
          } else if(genomic_fields[i].name == "dataSourceZero_field5") {
            ++countExpectedGenomicFields;
-           CHECK(genomic_fields[i].str_value() == "6.660000");
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_float());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "6.660000");
          } else if(genomic_fields[i].name == "dataSourceZero_field6") {
            ++countExpectedGenomicFields;
-           CHECK(genomic_fields[i].str_value() == "biz");
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "biz");
          } else if(genomic_fields[i].name == "dataSourceZero_ID") {
            ++countExpectedGenomicFields;
            CHECK(genomic_fields[i].str_value() == "id002");

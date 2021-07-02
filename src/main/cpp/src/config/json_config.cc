@@ -705,7 +705,7 @@ void GenomicsDBImportConfig::read_from_file(const std::string& filename, const i
   if (json_doc.HasMember("treat_deletions_as_intervals"))
     m_treat_deletions_as_intervals = json_doc["treat_deletions_as_intervals"].GetBool();
   else
-    m_treat_deletions_as_intervals = false;
+    m_treat_deletions_as_intervals = true;
   //Domain size of the array
   m_max_num_rows_in_array = INT64_MAX;
   if (json_doc.HasMember("max_num_rows_in_array"))
@@ -724,7 +724,7 @@ void GenomicsDBImportConfig::read_from_file(const std::string& filename, const i
   if (json_doc.HasMember("produce_combined_vcf") && json_doc["produce_combined_vcf"].GetBool())
     m_produce_combined_vcf = true;
   //Produce TileDB array
-  m_produce_tiledb_array = false;
+  m_produce_tiledb_array = true;
   if (json_doc.HasMember("produce_tiledb_array") && json_doc["produce_tiledb_array"].GetBool())
     m_produce_tiledb_array = true;
   //Compress TileDB array by default or if flag set to true

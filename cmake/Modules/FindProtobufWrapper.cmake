@@ -3,7 +3,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2019-2020 Omics Data Automation, Inc.
+# Copyright (c) 2019-2021 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,43 +24,45 @@
 # THE SOFTWARE.
 #
 
-if(PROTOBUF_STATIC_LINKING OR BUILD_DISTRIBUTABLE_LIBRARY)
-    if(CMAKE_VERSION VERSION_GREATER 3.10.0)
-        set(Protobuf_USE_STATIC_LIBS ON)
-    endif()
-    set(PROTOBUF_WRAPPER_LIBRARY_SUFFIX ${CMAKE_STATIC_LIBRARY_SUFFIX})
+add_custom_target(protobuf_ep)
+
+message(CHECK_START "Try finding Protobuf Library")
+
+if(PROTOBUF_ROOT_DIR)
+  set(PROTOBUF_PREFIX ${PROTOBUF_ROOT_DIR})
+elseif(DEFINED ENV{PROTOBUF_ROOT_DIR})
+  set(PROTOBUF_PREFIX $ENV{PROTOBUF_ROOT_DIR})
+endif()
+set(PROTOBUF_BIN_DIR ${PROTOBUF_PREFIX}/bin)
+set(PROTOBUF_LIB_DIR ${PROTOBUF_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_PREFIX}/include)
+
+if(EXISTS ${PROTOBUF_BIN_DIR}/protoc AND EXISTS ${PROTOBUF_LIB_DIR} AND EXISTS ${PROTOBUF_LIB_DIR} AND EXISTS ${PROTOBUF_INCLUDE_DIR})
+  find_package(Protobuf PATHS ${PROTOBUF_PREFIX})
+endif()
+
+if(NOT Protobuf_FOUND AND NOT PROTOBUF_PREFIX)
+  message(CHECK_FAIL "not found")
+  message(FATAL_ERROR "Try invoking cmake with -DPROTOBUF_ROOT_DIR=/path/to/protobuf or -DCMAKE_INSTALL_PREFIX=/path/to/protobuf or set environment variable PROTOBUF_ROOT_DIR before invoking cmake")
+elseif(Protobuf_FOUND)
+  message(CHECK_PASS "found ${Protobuf_VERSION}")
 else()
-    set(PROTOBUF_WRAPPER_LIBRARY_SUFFIX ${CMAKE_SHARED_LIBRARY_SUFFIX}) 
-endif()
-
-if (PROTOBUF_LIBRARY)
-    find_path(Protobuf_INCLUDE_DIR google/protobuf/service.h REQUIRED NO_DEFAULT_PATH PATHS "${PROTOBUF_LIBRARY}/include")
-    find_library(Protobuf_LIBRARY libprotobuf${PROTOBUF_WRAPPER_LIBRARY_SUFFIX} REQUIRED NO_DEFAULT_PATH PATHS "${PROTOBUF_LIBRARY}/lib64" "${PROTOBUF_LIBRARY}/lib")
-    find_library(Protobuf_PROTOC_LIBRARY libprotoc${PROTOBUF_WRAPPER_LIBRARY_SUFFIX} REQUIRED NO_DEFAULT_PATH PATHS "${PROTOBUF_LIBRARY}/lib64" "${PROTOBUF_LIBRARY}/lib")
-    find_program(Protobuf_PROTOC_EXECUTABLE protoc REQUIRED NO_DEFAULT_PATH PATHS "${PROTOBUF_LIBRARY}/bin")
-    include(FindPackageHandleStandardArgs)
-    find_package_handle_standard_args(ProtobufWrapper "Check PROTOBUF_LIBRARY option, could not find Protobuf headers and/or binaries at ${PROTOBUF_LIBRARY}${DEFAULT_MSG}" Protobuf_INCLUDE_DIR Protobuf_LIBRARY Protobuf_PROTOC_LIBRARY Protobuf_PROTOC_EXECUTABLE)
-endif()
-
-find_package(Protobuf REQUIRED)
-
-include(CheckCXXSourceCompiles)
-function(CHECK_IF_USING_PROTOBUF_V_3_0_0_BETA_1 FLAG_VAR_NAME)
-  set(PB_test_source
-    "
-    #include <google/protobuf/util/json_util.h>
-    int main() {
-      google::protobuf::util::JsonParseOptions parse_opt;
-      parse_opt.ignore_unknown_fields = true;
-      return 0;
-    }
-    "
+   # Try building from source
+  message(CHECK_PASS "not found, building Protobuf ${GENOMICSDB_PROTOBUF_VERSION} as an external project")
+  include(ExternalProject)
+  ExternalProject_Add(protobuf_build
+    PREFIX ${PROTOBUF_PREFIX}
+    URL ${PROTOBUF_URL}
+    SOURCE_SUBDIR cmake
+    CMAKE_ARGS
+    -Dprotobuf_BUILD_TESTS=OFF
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_INSTALL_PREFIX=${PROTOBUF_PREFIX}
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON
     )
-  set(CMAKE_REQUIRED_INCLUDES ${PROTOBUF_INCLUDE_DIRS})
-  check_cxx_source_compiles("${PB_test_source}" PROTOBUF_V3_STABLE_FOUND)
-  if(PROTOBUF_V3_STABLE_FOUND)
-    set(${FLAG_VAR_NAME} False PARENT_SCOPE)
-  else()
-    set(${FLAG_VAR_NAME} True PARENT_SCOPE)
-  endif()
-endfunction()
+  add_dependencies(protobuf_ep protobuf_build)
+endif()
+
+set(PROTOBUF_PROTOC_EXECUTABLE ${PROTOBUF_BIN_DIR}/protoc)
+set(PROTOBUF_INCLUDE_DIRS ${PROTOBUF_INCLUDE_DIR})
+set(PROTOBUF_LIBRARIES ${PROTOBUF_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}protobuf${CMAKE_STATIC_LIBRARY_SUFFIX})
