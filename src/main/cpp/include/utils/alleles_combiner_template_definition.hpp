@@ -20,7 +20,9 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include "genomicsdb_iterators.h"
+#ifndef ALLELES_COMBINER_TEMPLATE_DEFINTION_H
+#define ALLELES_COMBINER_TEMPLATE_DEFINTION_H 1
+
 #include "alleles_combiner.h"
 #include "known_field_info.h"
 
@@ -50,8 +52,10 @@ class AlleleConfig {
     const char* ptr;
 };
 
-AllelesCombiner::AllelesCombiner(const GenomicsDBGVCFIterator* iterator, const size_t num_queried_rows) {
-  m_iterator = iterator;
+template<typename ValidRowTrackerTy>
+AllelesCombiner<ValidRowTrackerTy>::AllelesCombiner(const ValidRowTrackerTy& tracker, const size_t num_queried_rows) {
+  m_valid_row_tracker = &tracker;
+  assert(m_valid_row_tracker);
   m_contains_deletion.resize(num_queried_rows, false);
   m_contains_MNV.resize(num_queried_rows, false);
   m_is_REF_block.resize(num_queried_rows, false);
@@ -70,7 +74,8 @@ AllelesCombiner::AllelesCombiner(const GenomicsDBGVCFIterator* iterator, const s
   reset_for_next_query_interval();
 }
 
-void AllelesCombiner::reset_before_adding_new_sample_info_at_current_position() {
+template<typename ValidRowTrackerTy>
+void AllelesCombiner<ValidRowTrackerTy>::reset_before_adding_new_sample_info_at_current_position() {
   m_merged_alleles_vec.resize(1u, MergedAllelesVecEntry(0u, STRING_VIEW(0, 0), false)); //1 for REF
   m_merged_alleles_vec[0u].REF_length = 0u;
   m_merged_alleles_vec[0u].allele = STRING_VIEW(0, 0u);
@@ -86,7 +91,7 @@ void AllelesCombiner::reset_before_adding_new_sample_info_at_current_position() 
   //Mark rows that had deletions/MNVs starting at previous locations as spanning
   for(auto i=0ull;i<m_row_query_idx_with_deletion_MNV_at_current_location_vec.size();++i) {
     const auto row_query_idx = m_row_query_idx_with_deletion_MNV_at_current_location_vec[i];
-    if(m_iterator && m_iterator->is_valid_row_query_idx(row_query_idx)) {
+    if(m_valid_row_tracker->is_valid_row_query_idx(row_query_idx)) {
       m_contains_deletion_or_MNV_spanning_current_location[row_query_idx] = true;
       assert(m_index_in_deletions_MNVs_vec[i+1u] > m_index_in_deletions_MNVs_vec[i]); //at least 1 deletion/MNV
       const auto index = m_index_in_deletions_MNVs_vec[i];
@@ -101,13 +106,15 @@ void AllelesCombiner::reset_before_adding_new_sample_info_at_current_position() 
   m_deletion_MNV_allele_idx_vec.clear();
 }
 
-void AllelesCombiner::reset_for_next_query_interval() {
+template<typename ValidRowTrackerTy>
+void AllelesCombiner<ValidRowTrackerTy>::reset_for_next_query_interval() {
   m_num_calls_with_deletions_or_MNVs = 0u;
   m_num_calls_with_NON_REF_allele = 0u;
   reset_before_adding_new_sample_info_at_current_position();
 }
 
-std::pair<unsigned, bool> AllelesCombiner::handle_single_base_ALT(const char base) {
+template<typename ValidRowTrackerTy>
+std::pair<unsigned, bool> AllelesCombiner<ValidRowTrackerTy>::handle_single_base_ALT(const char base) {
   const auto merged_allele_idx = m_single_base_ALT_allele_to_merged_idx[static_cast<uint8_t>(base)];
   if(merged_allele_idx == UNDEFINED_ATTRIBUTE_IDX_VALUE) {
     const auto num_merged_alleles = m_merged_alleles_vec.size();
@@ -117,14 +124,16 @@ std::pair<unsigned, bool> AllelesCombiner::handle_single_base_ALT(const char bas
   return std::pair<unsigned, bool>(merged_allele_idx, false);
 }
 
-std::pair<unsigned, bool> AllelesCombiner::handle_insertion_or_symbolic_allele(const STRING_VIEW& ALT) {
+template<typename ValidRowTrackerTy>
+std::pair<unsigned, bool> AllelesCombiner<ValidRowTrackerTy>::handle_insertion_or_symbolic_allele(const STRING_VIEW& ALT) {
   //insert if doesn't exist
   auto result_pair = m_single_base_REF_ALT_allele_to_index.insert(
       std::pair<STRING_VIEW, unsigned>(ALT, m_merged_alleles_vec.size()));
   return std::pair<unsigned, bool>((*(result_pair.first)).second, result_pair.second);
 }
 
-void AllelesCombiner::handle_allele(const size_t row_query_idx,  const STRING_VIEW& orig_REF, AlleleConfig& allele_config) {
+template<typename ValidRowTrackerTy>
+void AllelesCombiner<ValidRowTrackerTy>::handle_allele(const size_t row_query_idx,  const STRING_VIEW& orig_REF, AlleleConfig& allele_config) {
   if(allele_config.length == 0u || allele_config.is_NON_REF_allele) //NON REF should be the last allele - don't add it to map or LUT
     return;
   STRING_VIEW REF(orig_REF);
@@ -205,7 +214,8 @@ void AllelesCombiner::handle_allele(const size_t row_query_idx,  const STRING_VI
     m_deletion_MNV_allele_idx_vec.push_back(allele_config.allele_idx);
 }
 
-void AllelesCombiner::insert_allele_info(const size_t row_query_idx, const STRING_VIEW& REF,
+template<typename ValidRowTrackerTy>
+void AllelesCombiner<ValidRowTrackerTy>::insert_allele_info(const size_t row_query_idx, const STRING_VIEW& REF,
     const STRING_VIEW& delimited_ALT_str, const bool begins_before_curr_start_position) {
   assert(row_query_idx < m_contains_MNV.size());
   assert(m_merged_alleles_vec.size() > 0u); //element 0 for REF allele
@@ -288,7 +298,8 @@ void AllelesCombiner::insert_allele_info(const size_t row_query_idx, const STRIN
   }
 }
 
-void AllelesCombiner::finished_updating_allele_info_for_current_position() {
+template<typename ValidRowTrackerTy>
+void AllelesCombiner<ValidRowTrackerTy>::finished_updating_allele_info_for_current_position() {
   //If there are deletions/MNVs that begin before current position and no samples beginning at the
   //current position have "*" in ALT list, add "*" to merged list
   assert(m_num_calls_with_deletions_or_MNVs >=
@@ -301,18 +312,16 @@ void AllelesCombiner::finished_updating_allele_info_for_current_position() {
       m_spanning_deletion_allele_idx = m_merged_alleles_vec.size();
       m_merged_alleles_vec.emplace_back(1u, STRING_VIEW("*", 1u), true);
     }
-    if(m_iterator) {
-      //Update lut for spanning deletions/MNVs
-      for(auto iter=m_iterator->begin_valid_row_query_idx();iter!=m_iterator->end_valid_row_query_idx();++iter) {
-        const auto row_query_idx = *iter;
-        if(m_contains_deletion_or_MNV_spanning_current_location[row_query_idx]) {
-          m_alleles_LUT.reset_luts_for_sample(row_query_idx);
-          m_alleles_LUT.add_input_merged_idx_pair(row_query_idx, 0u, 0u); //for REF
-          m_alleles_LUT.add_input_merged_idx_pair(row_query_idx,
-              m_allele_idx_for_deletion_or_MNV_spanning_current_location[row_query_idx],
-              m_spanning_deletion_allele_idx);
-          //not adding NON_REF - will be handled by contains_NON_REF_allele()
-        }
+    //Update lut for spanning deletions/MNVs
+    for(auto iter=m_valid_row_tracker->begin_valid_row_query_idx();iter!=m_valid_row_tracker->end_valid_row_query_idx();++iter) {
+      const auto row_query_idx = *iter;
+      if(m_contains_deletion_or_MNV_spanning_current_location[row_query_idx]) {
+        m_alleles_LUT.reset_luts_for_sample(row_query_idx);
+        m_alleles_LUT.add_input_merged_idx_pair(row_query_idx, 0u, 0u); //for REF
+        m_alleles_LUT.add_input_merged_idx_pair(row_query_idx,
+            m_allele_idx_for_deletion_or_MNV_spanning_current_location[row_query_idx],
+            m_spanning_deletion_allele_idx);
+        //not adding NON_REF - will be handled by contains_NON_REF_allele()
       }
     }
   }
@@ -321,12 +330,14 @@ void AllelesCombiner::finished_updating_allele_info_for_current_position() {
     m_merged_alleles_vec.emplace_back(1u, STRING_VIEW("<NON_REF>", 9u), true);
 }
 
-void AllelesCombiner::remove_allele_info(const size_t row_query_idx) {
+template<typename ValidRowTrackerTy>
+void AllelesCombiner<ValidRowTrackerTy>::remove_allele_info(const size_t row_query_idx) {
   m_num_calls_with_deletions_or_MNVs -= contains_deletion_or_MNV(row_query_idx);
   m_num_calls_with_NON_REF_allele -= contains_NON_REF_allele(row_query_idx); 
 }
 
-void AllelesCombiner::get_merged_VCF_spec_alleles_vec(std::string& buffer, std::vector<STRING_VIEW>& alleles_vec) const {
+template<typename ValidRowTrackerTy>
+void AllelesCombiner<ValidRowTrackerTy>::get_merged_VCF_spec_alleles_vec(std::string& buffer, std::vector<STRING_VIEW>& alleles_vec) const {
   const auto& REF = m_merged_alleles_vec[0u].allele;
   alleles_vec.push_back(REF);
   //First reserve capacity in buffer before setting pointers in alleles_vec - else dangling references
@@ -351,3 +362,5 @@ void AllelesCombiner::get_merged_VCF_spec_alleles_vec(std::string& buffer, std::
     alleles_vec.emplace_back(&(buffer[begin_idx]), buffer.size()-begin_idx);
   }
 }
+
+#endif

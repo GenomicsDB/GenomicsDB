@@ -29,7 +29,7 @@ set(GenomicsDB_library_sources
     cpp/src/query_operations/broad_combined_gvcf.cc
     cpp/src/query_operations/variant_operations_columnar.cc
     cpp/src/query_operations/broad_combined_gvcf_columnar.cc
-    cpp/src/query_operations/gt_remapper.cc
+    cpp/src/query_operations/gt_remapper_gvcf_columnar_iterator.cc
     cpp/src/genomicsdb/variant_cell.cc
     cpp/src/genomicsdb/variant_storage_manager.cc
     cpp/src/genomicsdb/variant_field_data.cc
@@ -55,7 +55,7 @@ set(GenomicsDB_library_sources
     cpp/src/utils/vid_mapper_sql.cc
     cpp/src/utils/timer.cc
     cpp/src/utils/logger.cc
-    cpp/src/utils/alleles_combiner.cc
+    cpp/src/utils/alleles_combiner_gvcf_columnar_iterator.cc
     cpp/src/vcf/vcf_adapter.cc
     cpp/src/vcf/genomicsdb_bcf_generator.cc
     cpp/src/vcf/vcf2binary.cc
