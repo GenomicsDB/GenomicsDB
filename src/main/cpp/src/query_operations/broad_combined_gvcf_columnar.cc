@@ -110,6 +110,7 @@ bool BroadCombinedGVCFOperator::write_vcf_line(WriterTy& writer, const GenomicsD
   no_overflow = no_overflow && writer. template write<char, true>('\t');
   no_overflow = no_overflow && writer. template write<char, true>(static_cast<const char*>("GT"), 2u);
   const auto num_queried_rows = m_query_config->get_num_rows_to_query();
+  const auto& gt_remapper = m_iterator->get_GT_remapper();
   for(auto row_query_idx=0ull;row_query_idx<num_queried_rows;++row_query_idx) {
     no_overflow = no_overflow && writer. template write<char, true>('\t');
     if(!(m_iterator->is_valid_row_query_idx(row_query_idx))) {
@@ -118,7 +119,7 @@ bool BroadCombinedGVCFOperator::write_vcf_line(WriterTy& writer, const GenomicsD
     }
     assert(m_iterator->is_valid_row_query_idx(row_query_idx));
     no_overflow = no_overflow
-      && m_iterator->get_GT_remapper().remap_for_row_query_idx<WriterTy, contains_phase, produce_GT_field, do_remap>(
+      && gt_remapper.remap_for_row_query_idx<WriterTy, contains_phase, produce_GT_field, do_remap>(
           writer, row_query_idx);
   }
   no_overflow = no_overflow && writer. template write<char, true>('\n');

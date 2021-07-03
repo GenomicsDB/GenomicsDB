@@ -76,10 +76,18 @@ class MergedAllelesVecEntry {
 };
 
 class AlleleConfig;
-class GenomicsDBGVCFIterator;
+
+// The template parameter ValidRowTrackerTy should define two functions:
+// bool is_valid_row_query_idx(uint64_t row_query_idx)
+// begin_valid_row_query_idx(), end_valid_row_query_idx() - this should return a forward iterator that iterates
+// over valid row query idxs. Dereferencing the iterator should give you row_query_idx (uint64_t)
+// GenomicsDBGVCFIterator is an example of a class that satisfies the requirements of ValidRowTrackerTy
+// Why template, why not just use GenomicsDBGVCFIterator? Makes unit testing difficult since I have to deal
+// with a complex GenomicsDBGVCFIterator object. I can define simple classes in the unit tests for ValidRowTrackerTy
+template<typename ValidRowTrackerTy>
 class AllelesCombiner {
   public:
-    AllelesCombiner(const GenomicsDBGVCFIterator* iterator, const size_t num_queried_rows);
+    AllelesCombiner(const ValidRowTrackerTy& tracker, const size_t num_queried_rows);
     /*
      * Called by GenomicsDBGVCFIterator.
      * This is called right before data for samples with variants beginning at the current position
@@ -215,7 +223,7 @@ class AllelesCombiner {
         {
           auto output_allele_idx = m_alleles_LUT.get_merged_idx_for_input(row_query_idx, allele_idx);
           return CombineAllelesLUT::is_missing_value(output_allele_idx)
-            ? contains_NON_REF_allele ? merged_NON_REF_allele_idx : get_bcf_gt_no_call_allele_index<int>() //static
+            ? (contains_NON_REF_allele ? merged_NON_REF_allele_idx : get_bcf_gt_no_call_allele_index<int>()) //static
             : output_allele_idx;
         }
       }
@@ -232,7 +240,7 @@ class AllelesCombiner {
     std::pair<unsigned, bool> handle_insertion_or_symbolic_allele(const STRING_VIEW& ALT);
     void handle_allele(const size_t row_query_idx, const STRING_VIEW& REF, AlleleConfig& allele_config);
   private:
-    const GenomicsDBGVCFIterator* m_iterator;
+    const ValidRowTrackerTy* m_valid_row_tracker;
     unsigned m_spanning_deletion_allele_idx; //'*' index
     uint64_t m_num_calls_with_deletions_or_MNVs;
     uint64_t m_num_calls_with_NON_REF_allele;

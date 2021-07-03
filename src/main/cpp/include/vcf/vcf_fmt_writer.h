@@ -71,7 +71,7 @@ class VCFWriterNoOverflow {
       }
     }
 
-    inline bool write_GT_allele_index(const int v) {
+    inline bool write_GT_allele_index(const uint64_t row_query_idx, const int v) {
       if(v == get_bcf_gt_no_call_allele_index<int>())
         FmtWriter::write<char>(*m_ptr, '.');
       else
@@ -79,8 +79,13 @@ class VCFWriterNoOverflow {
       return true;
     }
  
-    inline bool write_GT_phase(const int v) {
+    inline bool write_GT_phase(const uint64_t row_query_idx, const int v) {
       FmtWriter::write<char>(*m_ptr, (v == 0) ? '/' : '|');
+      return true;
+    }
+
+    inline bool write_GT_empty(const uint64_t row_query_idx) {
+      FmtWriter::write<char>(*m_ptr, '.');
       return true;
     }
 
@@ -154,17 +159,22 @@ class VCFWriterFSB {
       }
     }
 
-    inline bool write_GT_allele_index(const int v) {
+    inline bool write_GT_allele_index(const uint64_t row_query_idx, const int v) {
       if(v == get_bcf_gt_no_call_allele_index<int>())
         return FmtWriter::write_if_space_available<char>(m_ptr, m_size, m_offset, '.');
       else
         return FmtWriter::write_if_space_available<int>(m_ptr, m_size, m_offset, v);
     }
  
-    inline bool write_GT_phase(const int v) {
+    inline bool write_GT_phase(const uint64_t row_query_idx, const int v) {
       return FmtWriter::write_if_space_available<char>(m_ptr, m_size, m_offset,
           (v == 0) ? '/' : '|');
     }
+
+    inline bool write_GT_empty(const uint64_t row_query_idx) {
+      return FmtWriter::write_if_space_available<char>(m_ptr, m_size, m_offset, '.');
+    }
+
   private:
     char* m_ptr;
     size_t m_size;
