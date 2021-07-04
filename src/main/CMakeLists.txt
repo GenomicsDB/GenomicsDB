@@ -54,7 +54,7 @@ set(GenomicsDB_library_sources
     cpp/src/utils/vid_mapper.cc
     cpp/src/utils/vid_mapper_sql.cc
     cpp/src/utils/timer.cc
-    cpp/src/utils/logger.cc
+    cpp/src/utils/genomicsdb_logger.cc
     cpp/src/utils/alleles_combiner_gvcf_columnar_iterator.cc
     cpp/src/vcf/vcf_adapter.cc
     cpp/src/vcf/genomicsdb_bcf_generator.cc

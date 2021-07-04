@@ -25,7 +25,7 @@
 
 #include "broad_combined_gvcf.h"
 #include "genomicsdb_multid_vector_field.h"
-#include "logger.h"
+#include "genomicsdb_logger.h"
 
 #ifdef DO_MEMORY_PROFILING
 #include "memory_measure.h"

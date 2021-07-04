@@ -26,7 +26,7 @@
 #include "json_config.h"
 #include "genomicsdb_config_base.h"
 #include "known_field_info.h"
-#include "logger.h"
+#include "genomicsdb_logger.h"
 #include "tiledb.h"
 #include "tiledb_utils.h"
 #include "vcf.h"

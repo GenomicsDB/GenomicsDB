@@ -24,8 +24,14 @@
 #define FMT_LIB_WRITER_H
 
 #include <iterator>
+
+#ifdef USING_FMT_BUNDLED_WITH_SPDLOG
+#include <spdlog/fmt/bundled/format.h>
+#include <spdlog/fmt/bundled/printf.h>
+#else
 #include <fmt/format.h>
 #include <fmt/printf.h>
+#endif
 
 //Code for fixed iterator copied from https://github.com/fmtlib/fmt/issues/764#issuecomment-395753853
 //Useful when the buffer into which fmt must write is pre-allocated by the caller and its size cannot be changed

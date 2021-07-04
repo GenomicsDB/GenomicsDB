@@ -27,7 +27,7 @@
 #include "vid_mapper.h"
 #include "htslib/tbx.h"
 #include "tiledb_utils.h"
-#include "logger.h"
+#include "genomicsdb_logger.h"
 
 //ReferenceGenomeInfo functions
 void ReferenceGenomeInfo::initialize(const std::string& reference_genome) {
