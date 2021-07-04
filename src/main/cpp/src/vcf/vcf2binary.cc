@@ -29,7 +29,7 @@
 #include "htslib/bgzf.h"
 #include "vcf_adapter.h"
 #include "genomicsdb_multid_vector_field.h"
-#include "logger.h"
+#include "genomicsdb_logger.h"
 
 #include <errno.h>
 

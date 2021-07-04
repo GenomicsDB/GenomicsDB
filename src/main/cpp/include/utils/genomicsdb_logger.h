@@ -1,5 +1,5 @@
 /**
- * @file   logger.h
+ * @file   genomicsdb_logger.h
  *
  * @section LICENSE
  *

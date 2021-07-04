@@ -28,7 +28,7 @@
 #include <zlib.h>
 #include "genomicsdb_config_base.h"
 
-#include "logger.h"
+#include "genomicsdb_logger.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X);
 
