@@ -28,59 +28,21 @@
 #include "alleles_combiner_template_definition.hpp"
 #include "gt_remapper_template_definition.hpp"
 #include "test_valid_row_tracker.h"
+#include "test_remapped_data_receiver.h"
+#include "test_data_provider_for_remapper.h"
 
-class ValidRowTrackerAndGTDataProviderForUnitTest : public ValidRowTrackerForUnitTest
+class ValidRowTrackerAndGTDataProviderForUnitTest : public ValidRowTrackerForUnitTest, public RemappedDataReceiverForUnitTest,
+  public TestDataProviderForRemapper<int>
 {
   public:
     ValidRowTrackerAndGTDataProviderForUnitTest(const size_t num_rows)
       : ValidRowTrackerForUnitTest(num_rows),
-        m_row_query_idx_to_GT(num_rows),
-        m_row_query_idx_to_remapped_GT(num_rows),
-        m_row_query_idx_to_is_GT_missing(num_rows, false) {}
+      RemappedDataReceiverForUnitTest(num_rows),
+      TestDataProviderForRemapper<int>(num_rows) {}
 
     void set_GT_for_row_query_idx(const uint64_t row_query_idx, const std::vector<int>& data) {
-      assert(row_query_idx < m_row_query_idx_to_GT.size());
-      m_row_query_idx_to_GT[row_query_idx] = data;
+      set_data_for_row_query_idx(row_query_idx, data);
     }
-    std::pair<const uint8_t*, size_t> get_raw_pointer_and_length_for_query_idx(const uint64_t row_query_idx,
-        const int field_query_idx) const {
-      assert(row_query_idx < m_row_query_idx_to_GT.size());
-      return std::pair<const uint8_t*, size_t>(
-          reinterpret_cast<const uint8_t*>(&(m_row_query_idx_to_GT[row_query_idx].front())),
-          m_row_query_idx_to_GT[row_query_idx].size()); 
-    }
-    void clear_remapped_GT() {
-      for(auto& vec : m_row_query_idx_to_remapped_GT)
-        vec.clear();
-      m_row_query_idx_to_is_GT_missing.assign(m_row_query_idx_to_is_GT_missing.size(), false);
-    }
-    bool write_GT_allele_index(const uint64_t row_query_idx, const int v) {
-      assert(row_query_idx < m_row_query_idx_to_remapped_GT.size());
-      m_row_query_idx_to_remapped_GT[row_query_idx].push_back(v);
-      return true;
-    }
-    bool write_GT_phase(const uint64_t row_query_idx, const int v) {
-      assert(row_query_idx < m_row_query_idx_to_remapped_GT.size());
-      m_row_query_idx_to_remapped_GT[row_query_idx].push_back(v);
-      return true;
-    }
-    bool write_GT_empty(const uint64_t row_query_idx) {
-      assert(row_query_idx < m_row_query_idx_to_remapped_GT.size());
-      m_row_query_idx_to_is_GT_missing[row_query_idx] = true;
-      return true;
-    }
-    const std::vector<int>& get_remapped_GT(const uint64_t row_query_idx) const {
-      assert(row_query_idx < m_row_query_idx_to_remapped_GT.size());
-      return m_row_query_idx_to_remapped_GT[row_query_idx];
-    }
-    bool is_GT_missing(const uint64_t row_query_idx) const {
-      assert(row_query_idx < m_row_query_idx_to_remapped_GT.size());
-      return m_row_query_idx_to_is_GT_missing[row_query_idx];
-    }
-  private:
-    std::vector<std::vector<int>> m_row_query_idx_to_GT;
-    std::vector<std::vector<int>> m_row_query_idx_to_remapped_GT;
-    std::vector<bool> m_row_query_idx_to_is_GT_missing;
 };
 
 TEST_CASE("gt_remapper") {

@@ -27,6 +27,20 @@
 #include "lut.h"
 #include "gt_common.h"
 
+//Exceptions thrown
+class AllelesCombinerException : public std::exception {
+ public:
+  AllelesCombinerException(const std::string m="") : msg_("AllelesCombinerException exception : "+m) { ; }
+  ~AllelesCombinerException() { ; }
+  // ACCESSORS
+  /** Returns the exception message. */
+  const char* what() const noexcept {
+    return msg_.c_str();
+  }
+ private:
+  std::string msg_;
+};
+
 /*
  * This module deals with everything related to REF and ALT alleles
  * a. Merging REF and ALT alleles across samples
@@ -76,6 +90,7 @@ class MergedAllelesVecEntry {
 };
 
 class AlleleConfig;
+class SampleAlleleProperties;
 
 // The template parameter ValidRowTrackerTy should define two functions:
 // bool is_valid_row_query_idx(uint64_t row_query_idx)
@@ -103,6 +118,9 @@ class AllelesCombiner {
      */
     void insert_allele_info(const size_t row_query_idx, const STRING_VIEW& REF,
         const STRING_VIEW& delimited_ALT_str, const bool begins_before_curr_start_position);
+    //Same as above - rather than delimited string, takes vector<string_view>
+    void insert_allele_info(const size_t row_query_idx, const STRING_VIEW& REF,
+        const std::vector<STRING_VIEW>& ALT_vec, const bool begins_before_curr_start_position);
     /*
      * Should be called after the allele info for all samples for the current position is updated
      * Adds spanning deletions and NON_REF allele if necessary to the merged alleles vector
@@ -230,15 +248,28 @@ class AllelesCombiner {
       else //also static if !do_remap
         return allele_idx;
     }
+    //Convenience function - deals with some of the template parameters internally
+    //Should be used at places where performance is of no concern (unit tests etc)
+    int get_merged_allele_idx(const size_t row_query_idx, const int allele_idx) const;
+
     bool remapping_needed() const {
       //not (only REF allele or locations with only NON_REF allele for all samples)
       return !((m_merged_alleles_vec.size() == 1u)
         || (m_merged_alleles_vec.size() == 2u && m_num_calls_with_NON_REF_allele == m_NON_REF_idx_vec.size()));
     }
   private:
+    void store_NON_REF_properties(SampleAlleleProperties& sample_properties,
+        AlleleConfig& allele_config);
+    bool process_allele_char(const char c, SampleAlleleProperties& sample_properties,
+        AlleleConfig& allele_config);
+    void preprocess_allele_info(const size_t row_query_idx, const STRING_VIEW& REF,
+        const bool begins_before_curr_start_position);
+    void postprocess_allele_info(const size_t row_query_idx,
+        SampleAlleleProperties& sample_properties);
     std::pair<unsigned, bool> handle_single_base_ALT(const char base);
     std::pair<unsigned, bool> handle_insertion_or_symbolic_allele(const STRING_VIEW& ALT);
-    void handle_allele(const size_t row_query_idx, const STRING_VIEW& REF, AlleleConfig& allele_config);
+    void handle_allele(const size_t row_query_idx, SampleAlleleProperties& sample_properties,
+        AlleleConfig& allele_config);
   private:
     const ValidRowTrackerTy* m_valid_row_tracker;
     unsigned m_spanning_deletion_allele_idx; //'*' index
