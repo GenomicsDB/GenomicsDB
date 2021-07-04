@@ -141,10 +141,10 @@ void BroadCombinedGVCFOperator::operate_on_columnar_cell(const GenomicsDBGVCFCel
   // each version based on the value of the template parameter (c) pass template parameters to lower level functions
   // We have a big switch near the top of the callgraph to choose the right callgraph version to invoke (this switch
   // statement was produced using a script)
-  const uint64_t contains_phase = m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_GT_IDX)
+  const bool contains_phase = m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_GT_IDX)
     && m_query_config->get_length_descriptor_for_query_attribute_idx(m_GT_query_idx).contains_phase_information();
-  const uint64_t produce_GT_field = m_query_config->produce_GT_field();
-  const uint64_t do_remap = m_iterator->get_alleles_combiner().remapping_needed();
+  const bool produce_GT_field = m_query_config->produce_GT_field();
+  const bool do_remap = m_iterator->get_alleles_combiner().remapping_needed();
   //Get an integer representation of the parameters - if C++ had tuple based switch statements, this would
   //have been easier
   switch((static_cast<uint64_t>(m_writer_type_enum) << 3u)

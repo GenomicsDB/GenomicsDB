@@ -26,6 +26,16 @@
 #include "alleles_combiner.h"
 #include "known_field_info.h"
 
+//Properties for a sample (over all alleles)
+struct SampleAlleleProperties {
+  bool contains_deletion = false;
+  bool contains_MNV = false;
+  unsigned num_deletions_or_MNVs = 0u;
+  unsigned NON_REF_allele_idx = UNDEFINED_ATTRIBUTE_IDX_VALUE;
+  unsigned num_alleles = 0u;
+  STRING_VIEW REF;
+};
+
 //Convenience class grouping variables that're useful while parsing ALT alleles for samples
 class AlleleConfig {
   public:
@@ -133,10 +143,18 @@ std::pair<unsigned, bool> AllelesCombiner<ValidRowTrackerTy>::handle_insertion_o
 }
 
 template<typename ValidRowTrackerTy>
-void AllelesCombiner<ValidRowTrackerTy>::handle_allele(const size_t row_query_idx,  const STRING_VIEW& orig_REF, AlleleConfig& allele_config) {
-  if(allele_config.length == 0u || allele_config.is_NON_REF_allele) //NON REF should be the last allele - don't add it to map or LUT
+void AllelesCombiner<ValidRowTrackerTy>::handle_allele(const size_t row_query_idx,
+    SampleAlleleProperties& sample_properties, AlleleConfig& allele_config) {
+  if(allele_config.length == 0u) {
+    throw AllelesCombinerException("zero length alleles not handled");
     return;
-  STRING_VIEW REF(orig_REF);
+  }
+  //NON REF should be the last allele - don't add it to map or LUT
+  if(allele_config.is_NON_REF_allele) {
+    ++(sample_properties.num_alleles);
+    return;
+  }
+  STRING_VIEW REF(sample_properties.REF);
   STRING_VIEW ALT(allele_config.ptr, allele_config.length);
   //result_pair.first will contain index in m_merged_alleles_vec where the current ALT allele is stored
   //result_pair.second is true if this is a new ALT allele, false otherwise
@@ -212,11 +230,53 @@ void AllelesCombiner<ValidRowTrackerTy>::handle_allele(const size_t row_query_id
   //Track indexes of deletions and MNVs
   if(allele_config.is_deletion || allele_config.is_MNV)
     m_deletion_MNV_allele_idx_vec.push_back(allele_config.allele_idx);
+
+  //Update sample properties
+  sample_properties.contains_deletion = sample_properties.contains_deletion || allele_config.is_deletion;
+  sample_properties.contains_MNV = sample_properties.contains_MNV || allele_config.is_MNV;
+  sample_properties.num_deletions_or_MNVs += (allele_config.is_deletion || allele_config.is_MNV);
+  ++(sample_properties.num_alleles);
 }
 
 template<typename ValidRowTrackerTy>
-void AllelesCombiner<ValidRowTrackerTy>::insert_allele_info(const size_t row_query_idx, const STRING_VIEW& REF,
-    const STRING_VIEW& delimited_ALT_str, const bool begins_before_curr_start_position) {
+void AllelesCombiner<ValidRowTrackerTy>::store_NON_REF_properties(SampleAlleleProperties& sample_properties,
+    AlleleConfig& allele_config) {
+  allele_config.is_symbolic_allele = true;
+  allele_config.is_NON_REF_allele = true;
+  sample_properties.NON_REF_allele_idx = allele_config.allele_idx;
+}
+
+template<typename ValidRowTrackerTy>
+bool AllelesCombiner<ValidRowTrackerTy>::process_allele_char(const char curr_char, SampleAlleleProperties& sample_properties,
+    AlleleConfig& allele_config) {
+  switch(curr_char) {
+    case TILEDB_NON_REF_VARIANT_REPRESENTATION[0u]:
+      store_NON_REF_properties(sample_properties, allele_config);
+      break;
+    case TILEDB_ALT_ALLELE_SEPARATOR[0u]:
+      return true; 
+    case '<':
+    case '>':
+    case '[':
+    case ']':
+      allele_config.is_symbolic_allele = true;
+      break;
+    case '*':
+      allele_config.is_symbolic_allele = true;
+      allele_config.is_deletion = true;
+      break;
+    default:
+      allele_config.num_mismatched_bases += (allele_config.length < sample_properties.REF.length()
+          && curr_char != sample_properties.REF[allele_config.length]);
+      break;
+  }
+  ++(allele_config.length);
+  return false;
+}
+
+template<typename ValidRowTrackerTy>
+void AllelesCombiner<ValidRowTrackerTy>::preprocess_allele_info(const size_t row_query_idx, const STRING_VIEW& REF,
+    const bool begins_before_curr_start_position) {
   assert(row_query_idx < m_contains_MNV.size());
   assert(m_merged_alleles_vec.size() > 0u); //element 0 for REF allele
   //Updated merged REF allele - longest REF
@@ -227,75 +287,77 @@ void AllelesCombiner<ValidRowTrackerTy>::insert_allele_info(const size_t row_que
   //New set of alleles - reset LUT for this row
   m_alleles_LUT.reset_luts_for_sample(row_query_idx);
   m_alleles_LUT.add_input_merged_idx_pair(row_query_idx, 0u, 0u); //for REF
-  //Properties for this sample (over all alleles) 
-  auto contains_deletion = false;
-  auto contains_MNV = false;
-  auto num_deletions_or_MNVs = 0u;
-  unsigned NON_REF_allele_idx = UNDEFINED_ATTRIBUTE_IDX_VALUE;
+}
+
+template<typename ValidRowTrackerTy>
+void AllelesCombiner<ValidRowTrackerTy>::postprocess_allele_info(const size_t row_query_idx,
+    SampleAlleleProperties& sample_properties) {
+  //Update flags and indexes
+  m_contains_deletion[row_query_idx] = sample_properties.contains_deletion;
+  m_contains_MNV[row_query_idx] = sample_properties.contains_MNV;
+  m_is_REF_block[row_query_idx] = (sample_properties.num_alleles == 2u
+      && sample_properties.NON_REF_allele_idx != UNDEFINED_ATTRIBUTE_IDX_VALUE);
+  //since this row has an entry at current location, it cannot be a spanning deletion that begins before current location
+  m_contains_deletion_or_MNV_spanning_current_location[row_query_idx] = false;
+  m_NON_REF_idx_vec[row_query_idx] = sample_properties.NON_REF_allele_idx;
+  m_num_calls_with_deletions_or_MNVs += (sample_properties.contains_deletion || sample_properties.contains_MNV) ;
+  m_num_calls_with_NON_REF_allele += (sample_properties.NON_REF_allele_idx != UNDEFINED_ATTRIBUTE_IDX_VALUE);
+  if(sample_properties.num_deletions_or_MNVs) {
+    m_row_query_idx_with_deletion_MNV_at_current_location_vec.push_back(row_query_idx);
+    m_index_in_deletions_MNVs_vec.push_back(m_index_in_deletions_MNVs_vec.back()+sample_properties.num_deletions_or_MNVs);
+  }
+}
+
+template<typename ValidRowTrackerTy>
+void AllelesCombiner<ValidRowTrackerTy>::insert_allele_info(const size_t row_query_idx, const STRING_VIEW& REF,
+    const STRING_VIEW& delimited_ALT_str, const bool begins_before_curr_start_position) {
+  preprocess_allele_info(row_query_idx, REF, begins_before_curr_start_position);
   //split up ALT - delimited by |
   const char* ptr = delimited_ALT_str.data();
+  //Properties for this sample (over all alleles) 
+  SampleAlleleProperties sample_properties;
+  sample_properties.REF = REF;
+  sample_properties.num_alleles = 1u; //1 since 0 is REF
   //Per allele properties
   AlleleConfig allele_config;
-  auto num_alleles = 1u; //1 since 0 is REF
-  allele_config.begin_allele(num_alleles, ptr);
+  allele_config.begin_allele(sample_properties.num_alleles, ptr);
   for(auto i=0u;i<delimited_ALT_str.length();++i) {
-    const auto curr_char = ptr[i];
-    switch(curr_char) {
-      case TILEDB_NON_REF_VARIANT_REPRESENTATION[0u]:
-        allele_config.is_symbolic_allele = true;
-        allele_config.is_NON_REF_allele = true;
-        NON_REF_allele_idx = allele_config.allele_idx;
-        break;
-      case TILEDB_ALT_ALLELE_SEPARATOR[0u]:
-        {
-          handle_allele(row_query_idx, REF, allele_config);
-          contains_deletion = contains_deletion || allele_config.is_deletion;
-          contains_MNV = contains_MNV || allele_config.is_MNV;
-          num_deletions_or_MNVs += (allele_config.is_deletion || allele_config.is_MNV);
-          ++num_alleles;
-          //Reset per allele values
-          allele_config.begin_allele(num_alleles, ptr+i+1u);
-          allele_config.length = -1; //increment at the end of the loop body fixes this
-          break;
-        }
-      case '<':
-      case '>':
-      case '[':
-      case ']':
-        allele_config.is_symbolic_allele = true;
-        break;
-      case '*':
-        allele_config.is_symbolic_allele = true;
-        allele_config.is_deletion = true;
-        break;
-      default:
-        allele_config.num_mismatched_bases += (allele_config.length < REF.length()
-            && curr_char != REF[allele_config.length]);
-        break;
+    if(process_allele_char(ptr[i], sample_properties, allele_config)) { //hit ALT delimiter | 
+      handle_allele(row_query_idx, sample_properties, allele_config);
+      //Reset per allele values
+      allele_config.begin_allele(sample_properties.num_alleles, ptr+i+1u);
     }
-    ++(allele_config.length);
   }
   //For last ALT allele which doesn't have a separator
   if(allele_config.length) {
-    handle_allele(row_query_idx, REF, allele_config);
-    contains_deletion = contains_deletion || allele_config.is_deletion;
-    contains_MNV = contains_MNV || allele_config.is_MNV;
-    num_deletions_or_MNVs += (allele_config.is_deletion || allele_config.is_MNV);
-    ++num_alleles;
+    handle_allele(row_query_idx, sample_properties, allele_config);
   }
-  //Update flags and indexes
-  m_contains_deletion[row_query_idx] = contains_deletion;
-  m_contains_MNV[row_query_idx] = contains_MNV;
-  m_is_REF_block[row_query_idx] = (num_alleles == 2u && NON_REF_allele_idx != UNDEFINED_ATTRIBUTE_IDX_VALUE);
-  //since this row has an entry at current location, it cannot be a spanning deletion that begins before current location
-  m_contains_deletion_or_MNV_spanning_current_location[row_query_idx] = false;
-  m_NON_REF_idx_vec[row_query_idx] = NON_REF_allele_idx;
-  m_num_calls_with_deletions_or_MNVs += (contains_deletion || contains_MNV) ;
-  m_num_calls_with_NON_REF_allele += (NON_REF_allele_idx != UNDEFINED_ATTRIBUTE_IDX_VALUE);
-  if(num_deletions_or_MNVs) {
-    m_row_query_idx_with_deletion_MNV_at_current_location_vec.push_back(row_query_idx);
-    m_index_in_deletions_MNVs_vec.push_back(m_index_in_deletions_MNVs_vec.back()+num_deletions_or_MNVs);
+  postprocess_allele_info(row_query_idx, sample_properties);
+}
+
+template<typename ValidRowTrackerTy>
+void AllelesCombiner<ValidRowTrackerTy>::insert_allele_info(const size_t row_query_idx, const STRING_VIEW& REF,
+    const std::vector<STRING_VIEW>& ALT_vec, const bool begins_before_curr_start_position) {
+  preprocess_allele_info(row_query_idx, REF, begins_before_curr_start_position);
+  //Properties for this sample (over all alleles) 
+  SampleAlleleProperties sample_properties;
+  sample_properties.REF = REF;
+  sample_properties.num_alleles = 1u; //1 since 0 is REF
+  //Per allele properties
+  AlleleConfig allele_config;
+  for(auto i=0u;i<ALT_vec.size();++i) {
+    auto& curr_allele = ALT_vec[i];
+    allele_config.begin_allele(sample_properties.num_alleles, curr_allele.data());
+    for(auto curr_char : curr_allele) {
+      process_allele_char(curr_char, sample_properties, allele_config);
+    }
+    assert(allele_config.length == curr_allele.length());
+    if(allele_config.is_symbolic_allele && curr_allele == "<NON_REF>") {
+      store_NON_REF_properties(sample_properties, allele_config);
+    }
+    handle_allele(row_query_idx, sample_properties, allele_config);
   }
+  postprocess_allele_info(row_query_idx, sample_properties);
 }
 
 template<typename ValidRowTrackerTy>
@@ -333,7 +395,10 @@ void AllelesCombiner<ValidRowTrackerTy>::finished_updating_allele_info_for_curre
 template<typename ValidRowTrackerTy>
 void AllelesCombiner<ValidRowTrackerTy>::remove_allele_info(const size_t row_query_idx) {
   m_num_calls_with_deletions_or_MNVs -= contains_deletion_or_MNV(row_query_idx);
-  m_num_calls_with_NON_REF_allele -= contains_NON_REF_allele(row_query_idx); 
+  m_num_calls_with_NON_REF_allele -= contains_NON_REF_allele(row_query_idx);
+  m_contains_deletion[row_query_idx] = false;
+  m_contains_MNV[row_query_idx] = false;
+  m_NON_REF_idx_vec[row_query_idx] = UNDEFINED_ATTRIBUTE_IDX_VALUE;
 }
 
 template<typename ValidRowTrackerTy>
@@ -361,6 +426,28 @@ void AllelesCombiner<ValidRowTrackerTy>::get_merged_VCF_spec_alleles_vec(std::st
     }
     alleles_vec.emplace_back(&(buffer[begin_idx]), buffer.size()-begin_idx);
   }
+}
+
+template<typename ValidRowTrackerTy>
+int AllelesCombiner<ValidRowTrackerTy>::get_merged_allele_idx(const uint64_t row_query_idx, int allele_idx) const {
+  switch((is_REF_block(row_query_idx) << 1u)
+      | (contains_NON_REF_allele(row_query_idx))) {
+    case 0u:
+      return get_merged_allele_idx<true, false, false>(row_query_idx, allele_idx);
+    case 1u:
+      return get_merged_allele_idx<true, false, true>(row_query_idx, allele_idx);
+    case 2u:
+      throw AllelesCombinerException(
+          std::string("Illegal combination of is_REF_block and contains_NON_REF_allele for row_query_idx ")
+          + std::to_string(row_query_idx));
+      return -1;
+    case 3u:
+      return get_merged_allele_idx<true, true, true>(row_query_idx, allele_idx);
+  }
+  throw AllelesCombinerException(
+      std::string("Illegal combination of is_REF_block and contains_NON_REF_allele for row_query_idx ")
+      + std::to_string(row_query_idx));
+  return -1;
 }
 
 #endif
