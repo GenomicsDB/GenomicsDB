@@ -20,7 +20,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include "gt_remapper_template_definition.hpp"
+#include "gt_remapper_template_definition.h"
 #include "vcf_fmt_writer.h"
 #include "genomicsdb_iterators.h"
 

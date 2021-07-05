@@ -381,14 +381,14 @@ void AllelesCombiner<ValidRowTrackerTy>::finished_updating_allele_info_for_curre
         m_alleles_LUT.reset_luts_for_sample(row_query_idx);
         m_alleles_LUT.add_input_merged_idx_pair(row_query_idx, 0u, 0u); //for REF
         m_alleles_LUT.add_input_merged_idx_pair(row_query_idx,
-            m_allele_idx_for_deletion_or_MNV_spanning_current_location[row_query_idx],
+            get_allele_idx_for_deletion_or_MNV_spanning_current_location(row_query_idx),
             m_spanning_deletion_allele_idx);
         //not adding NON_REF - will be handled by contains_NON_REF_allele()
       }
     }
   }
   //Add NON_REF as the last allele in the merged vec
-  if(m_num_calls_with_NON_REF_allele > 0u)
+  if(merged_alleles_list_contains_NON_REF())
     m_merged_alleles_vec.emplace_back(1u, STRING_VIEW("<NON_REF>", 9u), true);
 }
 

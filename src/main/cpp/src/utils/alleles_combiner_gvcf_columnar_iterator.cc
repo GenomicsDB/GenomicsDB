@@ -20,7 +20,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include "alleles_combiner_template_definition.hpp"
+#include "alleles_combiner_template_definition.h"
 #include "genomicsdb_iterators.h"
 
 //Explicit instantiation

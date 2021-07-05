@@ -32,7 +32,7 @@ bool BroadCombinedGVCFOperator::write_vcf_line(WriterTy& writer, const GenomicsD
   //and let the compiler handle it
   auto no_overflow = true;
   //contig and position
-  auto curr_interval = m_iterator->get_column_range();
+  auto curr_interval = m_iterator->get_current_variant_interval();
   assert(m_contig_info_ptr && m_contig_info_ptr->m_tiledb_column_offset <= curr_interval.first && 
       curr_interval.second < m_contig_info_ptr->m_tiledb_column_offset + m_contig_info_ptr->m_length);
   auto contig_position = curr_interval.first - m_contig_info_ptr->m_tiledb_column_offset;

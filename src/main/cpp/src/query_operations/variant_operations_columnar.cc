@@ -27,7 +27,7 @@
 void SingleVariantOperatorBase::operate_on_columnar_cell(const GenomicsDBGVCFCell& variant) {
   m_iterator = variant.get_iterator();
   assert(m_iterator);
-  auto curr_interval = m_iterator->get_column_range();
+  auto curr_interval = m_iterator->get_current_variant_interval();
   //New contig - get contig info from vid
   if(!(m_contig_info_ptr && curr_interval.first >= m_contig_info_ptr->m_tiledb_column_offset
         && curr_interval.second < m_contig_info_ptr->m_tiledb_column_offset+m_contig_info_ptr->m_length)) {

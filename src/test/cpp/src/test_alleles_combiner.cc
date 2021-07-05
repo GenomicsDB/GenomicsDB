@@ -26,7 +26,7 @@
  */
 
 #include <catch2/catch.hpp>
-#include "alleles_combiner_template_definition.hpp"
+#include "alleles_combiner_template_definition.h"
 #include "test_valid_row_tracker.h"
 
 TEST_CASE("alleles_combiner") {
@@ -170,6 +170,8 @@ TEST_CASE("alleles_combiner") {
     REQUIRE(gold_alleles.size() == alleles_vec.size());
     for(auto i=0u;i<gold_alleles.size();++i)
       CHECK(gold_alleles[i] == alleles_vec[i]);
+    CHECK(combiner.get_NON_REF_allele_index_in_merged_allele_list() == merged_vec.size()-1u);
+    CHECK(combiner.get_spanning_deletion_allele_index_in_merged_allele_list() == 4u);
   }
   //Move on to next iteration
   remove_allele_info(tracker, combiner, 0u);
@@ -191,6 +193,8 @@ TEST_CASE("alleles_combiner") {
     REQUIRE(gold_alleles.size() == alleles_vec.size());
     for(auto i=0u;i<gold_alleles.size();++i)
       CHECK(gold_alleles[i] == alleles_vec[i]);
+    CHECK(combiner.get_NON_REF_allele_index_in_merged_allele_list() == merged_vec.size()-1u);
+    CHECK(combiner.get_spanning_deletion_allele_index_in_merged_allele_list() == 1u);
   }
   //Move on to next iteration
   //Remove row query idx 1u
@@ -213,6 +217,8 @@ TEST_CASE("alleles_combiner") {
     REQUIRE(gold_alleles.size() == alleles_vec.size());
     for(auto i=0u;i<gold_alleles.size();++i)
       CHECK(gold_alleles[i] == alleles_vec[i]);
+    CHECK(!combiner.merged_alleles_list_contains_NON_REF());
+    CHECK(combiner.get_spanning_deletion_allele_index_in_merged_allele_list() == 1u);
   }
   //Move on to next iteration
   remove_allele_info(tracker, combiner, 2u);
@@ -287,5 +293,7 @@ TEST_CASE("alleles_combiner") {
     REQUIRE(gold_alleles.size() == alleles_vec.size());
     for(auto i=0u;i<gold_alleles.size();++i)
       CHECK(gold_alleles[i] == alleles_vec[i]);
+    CHECK(!combiner.merged_alleles_list_contains_NON_REF());
+    CHECK(!combiner.merged_alleles_list_contains_spanning_deletion());
   }
 }

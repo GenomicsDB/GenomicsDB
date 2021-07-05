@@ -479,9 +479,6 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
     const AllelesCombiner<GenomicsDBGVCFIterator>& get_alleles_combiner() const {
       return m_alleles_combiner;
     }
-    inline ColumnRange get_column_range() const {
-      return ColumnRange(m_current_start_position, m_current_end_position);
-    }
     inline const GTRemapper<GenomicsDBGVCFIterator>& get_GT_remapper() const {
       return m_gt_remapper;
     }

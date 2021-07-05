@@ -147,13 +147,13 @@ class AllelesCombiner {
       assert(row_query_idx < m_contains_MNV.size());
       return m_contains_deletion[row_query_idx] || m_contains_MNV[row_query_idx];
     }
-    inline bool contains_NON_REF_allele(const size_t row_query_idx) const {
-      assert(row_query_idx < m_NON_REF_idx_vec.size());
-      return (m_NON_REF_idx_vec[row_query_idx] != UNDEFINED_ATTRIBUTE_IDX_VALUE);
-    }
     inline unsigned get_NON_REF_allele_idx(const size_t row_query_idx) const {
       assert(row_query_idx < m_NON_REF_idx_vec.size());
       return m_NON_REF_idx_vec[row_query_idx];
+    }
+    inline bool contains_NON_REF_allele(const size_t row_query_idx) const {
+      assert(row_query_idx < m_NON_REF_idx_vec.size());
+      return (get_NON_REF_allele_idx(row_query_idx) != UNDEFINED_ATTRIBUTE_IDX_VALUE);
     }
     /*inline bool contains_deletion_or_MNV_spanning_current_location(const size_t row_query_idx) const {*/
     /*assert(row_query_idx < m_contains_deletion_or_MNV_spanning_current_location.size());*/
@@ -180,10 +180,10 @@ class AllelesCombiner {
       return (m_spanning_deletion_allele_idx != UNDEFINED_ATTRIBUTE_IDX_VALUE);
     }
     inline unsigned get_NON_REF_allele_index_in_merged_allele_list() const {
-      assert(merged_alleles_list_contains_spanning_deletion());
       return m_merged_alleles_vec.size()-1u; //always last
     }
     inline unsigned get_spanning_deletion_allele_index_in_merged_allele_list() const {
+      assert(merged_alleles_list_contains_spanning_deletion());
       return m_spanning_deletion_allele_idx;
     }
     /*
@@ -232,8 +232,9 @@ class AllelesCombiner {
      */
     template<bool do_remap, bool is_REF_block, bool contains_NON_REF_allele>
     inline int get_merged_allele_idx(const size_t row_query_idx, const int allele_idx) const {
+      assert(!contains_NON_REF_allele || merged_alleles_list_contains_NON_REF());
       if(do_remap && allele_idx >= 0) {
-        const auto merged_NON_REF_allele_idx = m_merged_alleles_vec.size()-1u;
+        const auto merged_NON_REF_allele_idx = get_NON_REF_allele_index_in_merged_allele_list();
         if(is_REF_block) { //static
           return (allele_idx == 0)  ? 0 : merged_NON_REF_allele_idx;
         }

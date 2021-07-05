@@ -39,8 +39,8 @@
 #include "test_valid_row_tracker.h"
 #include "test_remapped_data_receiver.h"
 #include "test_data_provider_for_remapper.h"
-#include "alleles_combiner_template_definition.hpp"
-#include "gt_remapper_template_definition.hpp"
+#include "alleles_combiner_template_definition.h"
+#include "gt_remapper_template_definition.h"
 
 static std::string ctests_input_dir(GENOMICSDB_CTESTS_DIR);
 
