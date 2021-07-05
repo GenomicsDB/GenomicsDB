@@ -52,7 +52,7 @@ int main( int argc, char* argv[] )
     | Opt(g_golden_output_file, "Golden output file")
      ["--golden-output-file"]
      ("Golden output file")
-    | Opt(g_skip_GT_matching, "Skip GT matching")
+    | Opt(g_skip_GT_matching)
      ["--skip-GT-matching"]
      ("Skip GT matching")
     ;

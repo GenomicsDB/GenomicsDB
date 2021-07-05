@@ -1705,14 +1705,15 @@ def main():
                         #ignore some corner cases for now
                         if(query_type == 'vcf'
                             and 'query_filter' not in query_param_dict
-                            and test_name.find('t0_1_2_combined') == -1
-                            and test_name.find('t0_haploid_triploid_1_2_3_triploid_deletion') == -1  #fails because PL remapping is WIP
-                            and test_name.find('min_PL_spanning_deletion') == -1  #fails because PL remapping is WIP
                             ):
+                            #These tests fail because PL remapping is WIP
+                            skip_GT_matching = (test_name.find('t0_haploid_triploid_1_2_3_triploid_deletion') != -1
+                              or test_name.find('min_PL_spanning_deletion') != -1)
                             cmd = ctest_dir+'/ctests --durations yes columnar_gvcf_iterator_test ' \
                                     + ' --query-json-file ' + query_json_filename \
                                     + ' --golden-output-file '+query_param_dict['golden_output'][query_type] \
-                                    + ' --loader-json-file '+loader_json_filename
+                                    + ' --loader-json-file '+loader_json_filename \
+                                    + (' --skip-GT-matching' if(skip_GT_matching) else '')
                             run_cmd(cmd, True, 'Ctests '+test_name, dont_capture_output=True)
     test_with_java_options(top_tmpdir, lib_path, jacoco)
     test_pre_1_0_0_query_compatibility(top_tmpdir)

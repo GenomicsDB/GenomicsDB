@@ -170,87 +170,118 @@ void compare_field(BagOfRemappers& bag_of_remappers, BagOfObjects& bag, const st
         if(j == 0)
           vcf_GT_is_dot = (val == bcf_gt_missing);
         else
-          vcf_GT_is_dot = vcf_GT_is_dot && (val == get_bcf_vector_end_value<int>());
+          vcf_GT_is_dot = vcf_GT_is_dot && is_bcf_vector_end_value<DataType>(val);
       }
       one_valid = true;
     }
     else {
       //Check if field has one valid data item
-      one_valid = !((base_ptr[0] == get_bcf_missing_value<DataType>())
-        && (num_per_sample == 1 || (base_ptr[1] == get_bcf_vector_end_value<DataType>())));
+      //This is a problem for multi-sample VCF files. Every sample must have the same number of elements
+      //in the FORMAT structure of htslib (similar to bcf). So, for samples which don't have any valid
+      //value for a field, htslib inserts bcf_missing followed by bcf_vector_end (if needed). So, the field
+      //is valid if the above condition is not true
+      //Yes, the VCF format is terrible
+      one_valid = !((is_bcf_missing_value<DataType>(base_ptr[0]))
+          && (num_per_sample == 1 || (is_bcf_vector_end_value<DataType>(base_ptr[1]))));
       //for(auto j=0;j<num_per_sample;++j)
       //one_valid = one_valid || is_bcf_valid_value<DataType>(base_ptr[j]);
     }
-    if(one_valid) {
-      if(!is_GT_field || !vcf_GT_is_dot) {
-        REQUIRE(columnar_gvcf_iter->is_valid(row_query_idx));
-        REQUIRE(columnar_gvcf_iter->is_field_valid_for_row_query_idx(genomicsdb_query_field_idx, row_query_idx));
+    if(!one_valid) {
+      //Invalid data in GenomicsDB - that's good
+      if((!columnar_gvcf_iter->is_valid(row_query_idx)
+            || !columnar_gvcf_iter->is_field_valid_for_row_query_idx(genomicsdb_query_field_idx, row_query_idx))) {
+        //Same condition as if stmt - guaranteed to succeed (kept here because I like to see the number of assertions
+        //that succeeded in the unit test
+        REQUIRE((!columnar_gvcf_iter->is_valid(row_query_idx)
+            || !columnar_gvcf_iter->is_field_valid_for_row_query_idx(genomicsdb_query_field_idx, row_query_idx)));
+        continue;
       }
-      else {
-        //GT and gold VCF GT is dot - it's ok for GenomicsDB to have invalid data
-        if(!columnar_gvcf_iter->is_valid(row_query_idx)
-            || !columnar_gvcf_iter->is_field_valid_for_row_query_idx(genomicsdb_query_field_idx, row_query_idx))
-          return;
-        //However, if data is imported from a multi-sample VCF into GenomicsDB, GenomicsDB would have imported a
-        //'.' for the GT, ie, a single element with bcf_gt_no_call. This will be checked below
-        //Yes, the VCF format is terrible
-      }
-      if(is_GT_field) {
-        //<op, contains_phase, produce_GT_field, do_remap>
-        switch((bag.contains_phase << 1u) | bag.produce_GT_field) {
-          case 0u:
-            do_GT_remap_to_gold<false, false>(bag_of_remappers, bag, row_query_idx);
-            break;
-          case 1u:
-            do_GT_remap_to_gold<false, true>(bag_of_remappers, bag, row_query_idx);
-            break;
-          case 2u:
-            do_GT_remap_to_gold<true, false>(bag_of_remappers, bag, row_query_idx);
-            break;
-          case 3u:
-            do_GT_remap_to_gold<true, true>(bag_of_remappers, bag, row_query_idx);
-            break;
-        }
-      }
-      auto ptr_length_pair = columnar_gvcf_iter->get_raw_pointer_and_length_for_query_idx(row_query_idx,
-          genomicsdb_query_field_idx);
-      auto& test_remapped_GT_vec = bag_of_remappers.m_int_handler.get_remapped_GT(GoldTestRowQueryIdxEnum::TEST);
-      for(auto j=0,test_j=0;j<num_per_sample;++j) {
-        auto val = base_ptr[j];
-        if(is_bcf_vector_end_value<DataType>(val))
+      //See problem with multi-sample VCF files - here the data is imported from a multi-sample file. So,
+      //GenomicsDB thinks the data is valid even though it's filled with bcf_missing values. We let the
+      //check play out
+      //Yes, the VCF format is terrible
+    }
+    if(!is_GT_field || !vcf_GT_is_dot) {
+      REQUIRE(columnar_gvcf_iter->is_valid(row_query_idx));
+      REQUIRE(columnar_gvcf_iter->is_field_valid_for_row_query_idx(genomicsdb_query_field_idx, row_query_idx));
+    }
+    else {
+      //GT and gold VCF GT is dot - it's ok for GenomicsDB to have invalid data
+      if(!columnar_gvcf_iter->is_valid(row_query_idx)
+          || !columnar_gvcf_iter->is_field_valid_for_row_query_idx(genomicsdb_query_field_idx, row_query_idx))
+        return;
+      //However, if data is imported from a multi-sample VCF into GenomicsDB, GenomicsDB would have imported a
+      //'.' for the GT, ie, a single element with bcf_gt_no_call. This will be checked below
+      //Yes, the VCF format is terrible
+    }
+    if(is_GT_field) {
+      //<op, contains_phase, produce_GT_field, do_remap>
+      switch((bag.contains_phase << 1u) | bag.produce_GT_field) {
+        case 0u:
+          do_GT_remap_to_gold<false, false>(bag_of_remappers, bag, row_query_idx);
           break;
-        if(is_GT_field) {
-          //Phase information starts from 2nd element in VCF GT
-          if(j > 0) {
-            REQUIRE(static_cast<size_t>(test_j) < test_remapped_GT_vec.size());
-            //If the schema, doesn't store phase with GT - then the query operation
-            //always returns no phase
-            if(bag.contains_phase)
-              CHECK(bcf_gt_is_phased(val) == test_remapped_GT_vec[test_j]);
-            else
-              CHECK(test_remapped_GT_vec[test_j] == 0);
-            ++test_j;
-          }
-          REQUIRE(static_cast<size_t>(test_j) < test_remapped_GT_vec.size());
-          if(g_skip_GT_matching && bcf_gt_allele(val) != test_remapped_GT_vec[test_j]) {
-            WARN("GT mismatch for sample " << bcf_hdr_int2id(bag.hdr, BCF_DT_SAMPLE, i)
-                << " at index " << j << " gold " << bcf_gt_allele(val) << " test "
-                << test_remapped_GT_vec[test_j] << " - PL remapping is WIP");
-          }
-          else {
-            CHECK(bcf_gt_allele(val) == test_remapped_GT_vec[test_j]);
-          }
-          ++test_j;
-        }
-        else {
-          REQUIRE(static_cast<unsigned>(j) < ptr_length_pair.second);
-          CHECK(reinterpret_cast<const DataType*>(ptr_length_pair.first)[j] == val);
-        }
+        case 1u:
+          do_GT_remap_to_gold<false, true>(bag_of_remappers, bag, row_query_idx);
+          break;
+        case 2u:
+          do_GT_remap_to_gold<true, false>(bag_of_remappers, bag, row_query_idx);
+          break;
+        case 3u:
+          do_GT_remap_to_gold<true, true>(bag_of_remappers, bag, row_query_idx);
+          break;
       }
     }
-    else
-      REQUIRE((!columnar_gvcf_iter->is_valid(row_query_idx)
-            || !columnar_gvcf_iter->is_field_valid_for_row_query_idx(genomicsdb_query_field_idx, row_query_idx)));
+    auto ptr_length_pair = columnar_gvcf_iter->get_raw_pointer_and_length_for_query_idx(row_query_idx,
+        genomicsdb_query_field_idx);
+    auto& test_remapped_GT_vec = bag_of_remappers.m_int_handler.get_remapped_GT(GoldTestRowQueryIdxEnum::TEST);
+    auto hit_vector_end = false;
+    for(auto j=0,test_j=0;j<num_per_sample;++j) {
+      auto val = base_ptr[j];
+      hit_vector_end = hit_vector_end || is_bcf_vector_end_value<DataType>(val);
+      if(is_GT_field) {
+        if(hit_vector_end) {
+          //GenomicsDB must have processed all GT elements
+          REQUIRE(static_cast<size_t>(test_j) == test_remapped_GT_vec.size());
+          break;
+        }
+        //Phase information starts from 2nd element in VCF GT
+        if(j > 0) {
+          REQUIRE(static_cast<size_t>(test_j) < test_remapped_GT_vec.size());
+          //If the schema, doesn't store phase with GT - then the query operation
+          //always returns no phase
+          if(bag.contains_phase)
+            CHECK(bcf_gt_is_phased(val) == test_remapped_GT_vec[test_j]);
+          else
+            CHECK(test_remapped_GT_vec[test_j] == 0);
+          ++test_j;
+        }
+        REQUIRE(static_cast<size_t>(test_j) < test_remapped_GT_vec.size());
+        if(g_skip_GT_matching && bcf_gt_allele(val) != test_remapped_GT_vec[test_j]) {
+          WARN("GT mismatch for sample " << bcf_hdr_int2id(bag.hdr, BCF_DT_SAMPLE, i)
+              << " at index " << j << " gold " << bcf_gt_allele(val) << " test "
+              << test_remapped_GT_vec[test_j] << " - PL remapping is WIP");
+        }
+        else {
+          CHECK(bcf_gt_allele(val) == test_remapped_GT_vec[test_j]);
+        }
+        ++test_j;
+        continue;
+      }
+      //Non GT fields
+      //GenomicsDB field - all elements checked
+      if(hit_vector_end && static_cast<unsigned>(j) == ptr_length_pair.second)
+        break;
+      REQUIRE(static_cast<unsigned>(j) < ptr_length_pair.second);
+      const auto test_val = (reinterpret_cast<const DataType*>(ptr_length_pair.first))[j];
+      //Either both are missing/vector_end or are equal
+      CHECK(((is_bcf_missing_value<DataType>(val) && is_bcf_missing_value(test_val))
+          || (is_bcf_vector_end_value<DataType>(val) && is_bcf_vector_end_value<DataType>(test_val))
+          || (test_val == val)));
+      if(hit_vector_end) {
+        //Beyond vector end, either missing or vector_end values only
+        REQUIRE((is_bcf_missing_value<DataType>(test_val) || is_bcf_vector_end_value<DataType>(test_val)));
+      }
+    }
   }
 }
 
