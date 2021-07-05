@@ -41,7 +41,7 @@ int GTRemapper<ValidRowAndGTDataProviderTy>::get_merged_allele_idx(const size_t 
     return get_bcf_gt_no_call_allele_index<int>();
   else
     return (do_remap ?
-        m_alleles_combiner->get_merged_allele_idx<do_remap, is_REF_block, contains_NON_REF_allele>(row_query_idx, allele_idx)
+        m_alleles_combiner->template get_merged_allele_idx<do_remap, is_REF_block, contains_NON_REF_allele>(row_query_idx, allele_idx)
         : allele_idx);
 }
 
