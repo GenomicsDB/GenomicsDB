@@ -90,7 +90,7 @@ class MergedAllelesVecEntry {
 };
 
 class AlleleConfig;
-class SampleAlleleProperties;
+struct SampleAlleleProperties;
 
 // The template parameter ValidRowTrackerTy should define two functions:
 // bool is_valid_row_query_idx(uint64_t row_query_idx)

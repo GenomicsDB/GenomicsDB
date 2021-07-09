@@ -429,7 +429,7 @@ void AllelesCombiner<ValidRowTrackerTy>::get_merged_VCF_spec_alleles_vec(std::st
 }
 
 template<typename ValidRowTrackerTy>
-int AllelesCombiner<ValidRowTrackerTy>::get_merged_allele_idx(const uint64_t row_query_idx, int allele_idx) const {
+int AllelesCombiner<ValidRowTrackerTy>::get_merged_allele_idx(const size_t row_query_idx, const int allele_idx) const {
   switch((is_REF_block(row_query_idx) << 1u)
       | (contains_NON_REF_allele(row_query_idx))) {
     case 0u:
