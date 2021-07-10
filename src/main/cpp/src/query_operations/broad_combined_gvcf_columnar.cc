@@ -109,18 +109,74 @@ bool BroadCombinedGVCFOperator::write_vcf_line(WriterTy& writer, const GenomicsD
   }
   no_overflow = no_overflow && writer. template write<char, true>('\t');
   no_overflow = no_overflow && writer. template write<char, true>(static_cast<const char*>("GT"), 2u);
+  //FIXME: code a way to track valid fields without iterating through all rows
+  auto is_SB_valid = false;
+  const auto SB_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_SB_IDX);
+  if(m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_SB_IDX)) {
+    for(auto iter=m_iterator->begin_valid_row_query_idx();iter!=m_iterator->end_valid_row_query_idx();++iter) {
+      if(m_iterator->is_field_valid_for_valid_row_query_idx(SB_query_idx, *iter)) {
+        no_overflow = no_overflow && writer. template write<char, true>(static_cast<const char*>(":SB"), 3u);
+        is_SB_valid = true;
+        break;
+      }
+    }
+  }
+  auto is_GQ_valid = false;
+  const auto GQ_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_GQ_IDX);
+  if(m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_GQ_IDX)) {
+    for(auto iter=m_iterator->begin_valid_row_query_idx();iter!=m_iterator->end_valid_row_query_idx();++iter) {
+      if(m_iterator->is_field_valid_for_valid_row_query_idx(GQ_query_idx, *iter)) {
+        no_overflow = no_overflow && writer. template write<char, true>(static_cast<const char*>(":GQ"), 3u);
+        is_GQ_valid = true;
+        break;
+      }
+    }
+  }
   const auto num_queried_rows = m_query_config->get_num_rows_to_query();
   const auto& gt_remapper = m_iterator->get_GT_remapper();
+  const auto GT_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_GT_IDX);
   for(auto row_query_idx=0ull;row_query_idx<num_queried_rows;++row_query_idx) {
     no_overflow = no_overflow && writer. template write<char, true>('\t');
+    //No data for sample at this position, put missing value and move on
     if(!(m_iterator->is_valid_row_query_idx(row_query_idx))) {
       no_overflow = no_overflow && writer. template write<char, true>('.');
       continue;
     }
-    assert(m_iterator->is_valid_row_query_idx(row_query_idx));
-    no_overflow = no_overflow
-      && gt_remapper.remap_for_row_query_idx<WriterTy, contains_phase, produce_GT_field, do_remap>(
-          writer, row_query_idx);
+    //GT field
+    if(m_iterator->is_field_valid_for_valid_row_query_idx(GT_query_idx, row_query_idx)) {
+      assert(m_iterator->is_valid_row_query_idx(row_query_idx));
+      no_overflow = no_overflow
+        && gt_remapper.remap_for_row_query_idx<WriterTy, contains_phase, produce_GT_field, do_remap>(
+            writer, row_query_idx);
+    }
+    else {
+      no_overflow = no_overflow && writer. template write<char, true>('.');
+    }
+    //SB and GQ fields
+    if(is_SB_valid) {
+      no_overflow = no_overflow && writer. template write<char, true>(':');
+      if(m_iterator->is_field_valid_for_valid_row_query_idx(SB_query_idx, row_query_idx)) {
+        assert(m_iterator->is_valid_row_query_idx(row_query_idx));
+        auto ptr_length_pair = m_iterator->get_raw_pointer_and_length_for_query_idx(row_query_idx, SB_query_idx);
+        no_overflow = no_overflow && writer. template write<int>(
+            reinterpret_cast<const int*>(ptr_length_pair.first), ptr_length_pair.second, ',');
+      }
+      else {
+        no_overflow = no_overflow && writer. template write<char, true>('.');
+      }
+    }
+    if(is_GQ_valid) {
+      no_overflow = no_overflow && writer. template write<char, true>(':');
+      if(!(m_iterator->is_field_valid_for_valid_row_query_idx(GQ_query_idx, row_query_idx))) {
+        no_overflow = no_overflow && writer. template write<char, true>('.');
+      }
+      else {
+        assert(m_iterator->is_valid_row_query_idx(row_query_idx));
+        auto ptr_length_pair = m_iterator->get_raw_pointer_and_length_for_query_idx(row_query_idx, GQ_query_idx);
+        no_overflow = no_overflow && writer. template write<int>(
+            reinterpret_cast<const int*>(ptr_length_pair.first), ptr_length_pair.second, ',');
+      }
+    }
   }
   no_overflow = no_overflow && writer. template write<char, true>('\n');
   for(const auto& field_info : m_FORMAT_fields_vec) {

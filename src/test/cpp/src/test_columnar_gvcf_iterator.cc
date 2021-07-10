@@ -41,6 +41,7 @@
 #include "test_data_provider_for_remapper.h"
 #include "alleles_combiner_template_definition.h"
 #include "gt_remapper_template_definition.h"
+#include "broad_combined_gvcf.h"
 
 static std::string ctests_input_dir(GENOMICSDB_CTESTS_DIR);
 
@@ -73,22 +74,22 @@ TEST_CASE("gvcf iterator", "[gvcf_iterator]") {
   delete variant_counter;
 }
 
+enum GoldTestEnum {
+  GOLD=0u,
+  TEST
+};
+
 //Holds a bunch of objects that can be passed as argument to functions
 struct BagOfObjects
 {
-  bcf_hdr_t* hdr;
-  bcf1_t* rec;
-  int* vcf_buffer_ptr;
-  int vcf_buffer_length;
+  bcf_hdr_t* hdr[2u]; //gold and test
+  bcf1_t* rec[2u];
+  int* vcf_buffer_ptr[2u];
+  int vcf_buffer_length[2u];
   GenomicsDBGVCFIterator* columnar_gvcf_iter;
   std::vector<size_t> vcf_sample_idx_to_row_query_idx;
   unsigned contains_phase;
   unsigned produce_GT_field;
-};
-
-enum GoldTestRowQueryIdxEnum {
-  GOLD=0u,
-  TEST
 };
 
 class IntDataProviderAndReceiver : public RemappedDataReceiverForUnitTest, public TestDataProviderForRemapper<int>,
@@ -131,60 +132,91 @@ void do_GT_remap_to_gold(BagOfRemappers& bag_of_remappers, BagOfObjects& bag, co
     <SingleRowRemappedDataReceiverForUnitTest, contains_phase, produce_GT_field, true>
     (bag_of_remappers.m_remap_receiver, row_query_idx);
   //Now remap from test to gold - m_int_handler is both a data provider and remapped data receiver
-  bag_of_remappers.m_int_handler.set_data_for_row_query_idx(GoldTestRowQueryIdxEnum::TEST,
+  bag_of_remappers.m_int_handler.set_data_for_row_query_idx(GoldTestEnum::TEST,
       bag_of_remappers.m_remap_receiver.get_remapped_GT(0u));
   bag_of_remappers.m_int_handler.clear_remapped_GT();
   bag_of_remappers.m_test_gold_gt_remapper.remap_for_row_query_idx
     <IntDataProviderAndReceiver, contains_phase, produce_GT_field, true>
-    (bag_of_remappers.m_int_handler, GoldTestRowQueryIdxEnum::TEST);
+    (bag_of_remappers.m_int_handler, GoldTestEnum::TEST);
   //Now m_int_handler.get_remapped_GT(TEST) should have GT values remapped to gold alleles order
+}
+
+template<typename DataType>
+bool check_if_field_has_one_valid_data_item(const DataType* sample_ptr, const int num_per_sample) {
+  //Check if field has one valid data item
+  //This is a problem for multi-sample VCF files. Every sample must have the same number of elements
+  //in the FORMAT structure of htslib (similar to bcf). So, for samples which don't have any valid
+  //value for a field, htslib inserts bcf_missing followed by bcf_vector_end (if needed). So, the field
+  //is valid if the above condition is not true
+  //Yes, the VCF format is terrible
+  return !((num_per_sample <= 0) || ((is_bcf_missing_value<DataType>(sample_ptr[0]))
+      && (num_per_sample == 1 || (is_bcf_vector_end_value<DataType>(sample_ptr[1])))));
+}
+
+//To keep the compile happy when DataType = float
+template<typename DataType>
+bool is_vcf_GT_dot(const DataType* sample_ptr, const int num_per_sample) {
+  return false;
+}
+
+//template specialization for int - actual GT check
+template<>
+bool is_vcf_GT_dot(const int* sample_ptr, const int num_per_sample) {
+  //You can't just drop the GT field in a VCF - you'll at least have a '.' for a sample that doesn't
+  //have any data for a given position. The '.' gets converted to a bcf_no_call,bcf_vector_end_int32,..
+  //by htslib
+  //Yes, the VCF format is terrible
+  auto vcf_GT_is_dot = false;
+  for(auto j=0;j<num_per_sample;++j) {
+    auto val = sample_ptr[j];
+    if(j == 0)
+      vcf_GT_is_dot = (val == bcf_gt_missing);
+    else
+      vcf_GT_is_dot = vcf_GT_is_dot && is_bcf_vector_end_value<int>(val);
+  }
+  return vcf_GT_is_dot;
 }
 
 template<typename DataType>
 void compare_field(BagOfRemappers& bag_of_remappers, BagOfObjects& bag, const std::string& vcf_field_name,
     const unsigned genomicsdb_query_field_idx)
 {
-  auto num_output = bcf_get_format_int32(bag.hdr, bag.rec, vcf_field_name.c_str(), &(bag.vcf_buffer_ptr), &(bag.vcf_buffer_length));
   auto columnar_gvcf_iter = bag.columnar_gvcf_iter;
-  REQUIRE(((num_output == -3) || (num_output >= 0)));
+  int num_output[2]; //gold and test
+  num_output[GoldTestEnum::GOLD] = bcf_get_format_int32(bag.hdr[GoldTestEnum::GOLD], bag.rec[GoldTestEnum::GOLD],
+      vcf_field_name.c_str(),
+      &(bag.vcf_buffer_ptr[GoldTestEnum::GOLD]), &(bag.vcf_buffer_length[GoldTestEnum::GOLD]));
+  num_output[GoldTestEnum::TEST] = bcf_get_format_int32(bag.hdr[GoldTestEnum::TEST], bag.rec[GoldTestEnum::TEST],
+      vcf_field_name.c_str(),
+      &(bag.vcf_buffer_ptr[GoldTestEnum::TEST]), &(bag.vcf_buffer_length[GoldTestEnum::TEST]));
+  REQUIRE(((num_output[GoldTestEnum::GOLD] == -3) || (num_output[GoldTestEnum::GOLD] >= 0)));
+  REQUIRE(((num_output[GoldTestEnum::TEST] == -3) || (num_output[GoldTestEnum::TEST] >= 0)));
+  REQUIRE(num_output[GoldTestEnum::GOLD] == num_output[GoldTestEnum::TEST]);
   const auto is_GT_field = (vcf_field_name == "GT");
-  for(auto i=0;i<bcf_hdr_nsamples(bag.hdr);++i) {
+  const auto num_per_sample = bcf_hdr_nsamples(bag.hdr[GoldTestEnum::GOLD]) ?
+    num_output[GoldTestEnum::GOLD]/bcf_hdr_nsamples(bag.hdr[GoldTestEnum::GOLD]) : 0;
+  for(auto i=0;i<bcf_hdr_nsamples(bag.hdr[GoldTestEnum::GOLD]);++i) {
     auto row_query_idx = bag.vcf_sample_idx_to_row_query_idx[i];
-    if(num_output == -3) {
+    if(num_output[GoldTestEnum::GOLD] == -3) {
       //No data for field in gold VCF, so either the row is invalid or the field is invalid
       REQUIRE((!columnar_gvcf_iter->is_valid(row_query_idx)
             || !columnar_gvcf_iter->is_field_valid_for_row_query_idx(genomicsdb_query_field_idx, row_query_idx)));
+      REQUIRE(num_output[GoldTestEnum::TEST] == -3);
       continue;
     }
-    auto num_per_sample = num_output/bcf_hdr_nsamples(bag.hdr);
-    const auto base_ptr = bag.vcf_buffer_ptr + i*num_per_sample;
+    const DataType* base_ptr[2];
+    base_ptr[GoldTestEnum::GOLD] = bag.vcf_buffer_ptr[GoldTestEnum::GOLD] + i*num_per_sample;
+    base_ptr[GoldTestEnum::TEST] = bag.vcf_buffer_ptr[GoldTestEnum::TEST] + row_query_idx*num_per_sample;
     auto one_valid = false;
     auto vcf_GT_is_dot = false;
     if(is_GT_field) {
-      //You can't just drop the GT field in a VCF - you'll at least have a '.' for a sample that doesn't
-      //have any data for a given position. The '.' gets converted to a bcf_no_call,bcf_vector_end_int32,..
-      //by htslib
-      //Yes, the VCF format is terrible
-      for(auto j=0;j<num_per_sample;++j) {
-        auto val = base_ptr[j];
-        if(j == 0)
-          vcf_GT_is_dot = (val == bcf_gt_missing);
-        else
-          vcf_GT_is_dot = vcf_GT_is_dot && is_bcf_vector_end_value<DataType>(val);
-      }
+      vcf_GT_is_dot = is_vcf_GT_dot<DataType>(base_ptr[GoldTestEnum::GOLD], num_per_sample);
       one_valid = true;
     }
     else {
-      //Check if field has one valid data item
-      //This is a problem for multi-sample VCF files. Every sample must have the same number of elements
-      //in the FORMAT structure of htslib (similar to bcf). So, for samples which don't have any valid
-      //value for a field, htslib inserts bcf_missing followed by bcf_vector_end (if needed). So, the field
-      //is valid if the above condition is not true
-      //Yes, the VCF format is terrible
-      one_valid = !((is_bcf_missing_value<DataType>(base_ptr[0]))
-          && (num_per_sample == 1 || (is_bcf_vector_end_value<DataType>(base_ptr[1]))));
+      one_valid = check_if_field_has_one_valid_data_item<DataType>(base_ptr[GoldTestEnum::GOLD], num_per_sample);
       //for(auto j=0;j<num_per_sample;++j)
-      //one_valid = one_valid || is_bcf_valid_value<DataType>(base_ptr[j]);
+      //one_valid = one_valid || is_bcf_valid_value<DataType>(base_ptr[GoldTestEnum::GOLD][j]);
     }
     if(!one_valid) {
       //Invalid data in GenomicsDB - that's good
@@ -194,6 +226,9 @@ void compare_field(BagOfRemappers& bag_of_remappers, BagOfObjects& bag, const st
         //that succeeded in the unit test
         REQUIRE((!columnar_gvcf_iter->is_valid(row_query_idx)
             || !columnar_gvcf_iter->is_field_valid_for_row_query_idx(genomicsdb_query_field_idx, row_query_idx)));
+        //Test vcf should have no valid data either
+        REQUIRE((num_output[GoldTestEnum::TEST] == -3
+            || !check_if_field_has_one_valid_data_item<DataType>(base_ptr[GoldTestEnum::TEST], num_per_sample)));
         continue;
       }
       //See problem with multi-sample VCF files - here the data is imported from a multi-sample file. So,
@@ -208,8 +243,11 @@ void compare_field(BagOfRemappers& bag_of_remappers, BagOfObjects& bag, const st
     else {
       //GT and gold VCF GT is dot - it's ok for GenomicsDB to have invalid data
       if(!columnar_gvcf_iter->is_valid(row_query_idx)
-          || !columnar_gvcf_iter->is_field_valid_for_row_query_idx(genomicsdb_query_field_idx, row_query_idx))
+          || !columnar_gvcf_iter->is_field_valid_for_row_query_idx(genomicsdb_query_field_idx, row_query_idx)) {
+        //Test vcf line must have no data or GT = . (same as gold)
+        REQUIRE((num_output[GoldTestEnum::TEST] <= 0 || is_vcf_GT_dot<DataType>(base_ptr[GoldTestEnum::TEST], num_per_sample)));
         return;
+      }
       //However, if data is imported from a multi-sample VCF into GenomicsDB, GenomicsDB would have imported a
       //'.' for the GT, ie, a single element with bcf_gt_no_call. This will be checked below
       //Yes, the VCF format is terrible
@@ -233,53 +271,76 @@ void compare_field(BagOfRemappers& bag_of_remappers, BagOfObjects& bag, const st
     }
     auto ptr_length_pair = columnar_gvcf_iter->get_raw_pointer_and_length_for_query_idx(row_query_idx,
         genomicsdb_query_field_idx);
-    auto& test_remapped_GT_vec = bag_of_remappers.m_int_handler.get_remapped_GT(GoldTestRowQueryIdxEnum::TEST);
+    //This vector contains the GT values produced by GenomicsDBGVCFIterator and AllelesCombiner/GTRemapper for
+    //the queried samples
+    auto& test_GT_vec = bag_of_remappers.m_remap_receiver.get_remapped_GT(GoldTestEnum::TEST);
+    //This vector contains the GT values produced by running GTRemapper on test_GT_vec to map allele
+    //indexes from test order to gold order
+    auto& test_GT_vec_remapped_to_gold = bag_of_remappers.m_int_handler.get_remapped_GT(GoldTestEnum::TEST);
     auto hit_vector_end = false;
     for(auto j=0,test_j=0;j<num_per_sample;++j) {
-      auto val = base_ptr[j];
-      hit_vector_end = hit_vector_end || is_bcf_vector_end_value<DataType>(val);
+      DataType val[2];
+      val[GoldTestEnum::GOLD] = base_ptr[GoldTestEnum::GOLD][j];
+      val[GoldTestEnum::TEST] = base_ptr[GoldTestEnum::TEST][j];
+      hit_vector_end = hit_vector_end || is_bcf_vector_end_value<DataType>(val[GoldTestEnum::GOLD]);
       if(is_GT_field) {
         if(hit_vector_end) {
           //GenomicsDB must have processed all GT elements
-          REQUIRE(static_cast<size_t>(test_j) == test_remapped_GT_vec.size());
+          REQUIRE(static_cast<size_t>(test_j) == test_GT_vec_remapped_to_gold.size());
+          //Test vcf line must have hit a vector end value also
+          REQUIRE(is_bcf_vector_end_value<DataType>(val[GoldTestEnum::TEST]));
           break;
         }
         //Phase information starts from 2nd element in VCF GT
         if(j > 0) {
-          REQUIRE(static_cast<size_t>(test_j) < test_remapped_GT_vec.size());
+          REQUIRE(static_cast<size_t>(test_j) < test_GT_vec_remapped_to_gold.size());
           //If the schema, doesn't store phase with GT - then the query operation
           //always returns no phase
           if(bag.contains_phase)
-            CHECK(bcf_gt_is_phased(val) == test_remapped_GT_vec[test_j]);
+            CHECK(bcf_gt_is_phased(val[GoldTestEnum::GOLD]) == test_GT_vec_remapped_to_gold[test_j]);
           else
-            CHECK(test_remapped_GT_vec[test_j] == 0);
+            CHECK(test_GT_vec_remapped_to_gold[test_j] == 0);
+          //Just check if the test vcf line matches the test data produced by GenomicsDBGVCFIterator
+          //since the test data is already validated against gold
+          CHECK(test_GT_vec[test_j] == bcf_gt_is_phased(val[GoldTestEnum::TEST]));
           ++test_j;
         }
-        REQUIRE(static_cast<size_t>(test_j) < test_remapped_GT_vec.size());
-        if(g_skip_GT_matching && bcf_gt_allele(val) != test_remapped_GT_vec[test_j]) {
-          WARN("GT mismatch for sample " << bcf_hdr_int2id(bag.hdr, BCF_DT_SAMPLE, i)
-              << " at index " << j << " gold " << bcf_gt_allele(val) << " test "
-              << test_remapped_GT_vec[test_j] << " - PL remapping is WIP");
+        REQUIRE(static_cast<size_t>(test_j) < test_GT_vec_remapped_to_gold.size());
+        if(g_skip_GT_matching && bcf_gt_allele(val[GoldTestEnum::GOLD]) != test_GT_vec_remapped_to_gold[test_j]) {
+          WARN("GT mismatch for sample " << bcf_hdr_int2id(bag.hdr[GoldTestEnum::GOLD], BCF_DT_SAMPLE, i)
+              << " at index " << j << " gold " << bcf_gt_allele(val[GoldTestEnum::GOLD]) << " test "
+              << test_GT_vec_remapped_to_gold[test_j] << " - PL remapping is WIP");
         }
         else {
-          CHECK(bcf_gt_allele(val) == test_remapped_GT_vec[test_j]);
+          CHECK(bcf_gt_allele(val[GoldTestEnum::GOLD]) == test_GT_vec_remapped_to_gold[test_j]);
+          //Just check if the test vcf line matches the test data produced by GenomicsDBGVCFIterator
+          //since the test data is already validated against gold
+          CHECK(test_GT_vec[test_j] == bcf_gt_allele(val[GoldTestEnum::TEST]));
         }
         ++test_j;
         continue;
       }
       //Non GT fields
       //GenomicsDB field - all elements checked
-      if(hit_vector_end && static_cast<unsigned>(j) == ptr_length_pair.second)
+      if(hit_vector_end && static_cast<unsigned>(j) == ptr_length_pair.second) {
+        //Test vcf line must terminate the field with a vector end
+        REQUIRE(is_bcf_vector_end_value<DataType>(val[GoldTestEnum::TEST]));
         break;
+      }
       REQUIRE(static_cast<unsigned>(j) < ptr_length_pair.second);
       const auto test_val = (reinterpret_cast<const DataType*>(ptr_length_pair.first))[j];
       //Either both are missing/vector_end or are equal
-      CHECK(((is_bcf_missing_value<DataType>(val) && is_bcf_missing_value(test_val))
-          || (is_bcf_vector_end_value<DataType>(val) && is_bcf_vector_end_value<DataType>(test_val))
-          || (test_val == val)));
+      CHECK(((is_bcf_missing_value<DataType>(val[GoldTestEnum::GOLD]) && is_bcf_missing_value(test_val))
+          || (is_bcf_vector_end_value<DataType>(val[GoldTestEnum::GOLD]) && is_bcf_vector_end_value<DataType>(test_val))
+          || (val[GoldTestEnum::GOLD] == test_val)));
+      CHECK(((is_bcf_missing_value<DataType>(val[GoldTestEnum::GOLD]) && is_bcf_missing_value(val[GoldTestEnum::TEST]))
+          || (is_bcf_vector_end_value<DataType>(val[GoldTestEnum::GOLD]) && is_bcf_vector_end_value<DataType>(val[GoldTestEnum::TEST]))
+          || (val[GoldTestEnum::GOLD] == val[GoldTestEnum::TEST])));
       if(hit_vector_end) {
         //Beyond vector end, either missing or vector_end values only
         REQUIRE((is_bcf_missing_value<DataType>(test_val) || is_bcf_vector_end_value<DataType>(test_val)));
+        REQUIRE((is_bcf_missing_value<DataType>(val[GoldTestEnum::TEST])
+              || is_bcf_vector_end_value<DataType>(val[GoldTestEnum::TEST])));
       }
     }
   }
@@ -301,7 +362,10 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
   VariantQueryProcessor query_processor(&storage_manager, query_config.get_array_name(0), query_config.get_vid_mapper());
   query_processor.do_query_bookkeeping(query_processor.get_array_schema(), query_config, query_config.get_vid_mapper(), true);
   auto& vid_mapper = query_config.get_vid_mapper();
-  BagOfRemappers bag_of_remappers;
+  //We'll be running two levels of checks:
+  //(a) testing the output of GVCF iterator and remappers
+  //(b) testing the output of VCFWriter (which internally invokes the iterator and remapper functions)
+
   BagOfObjects bag;
   bag.columnar_gvcf_iter = storage_manager.begin_gvcf_iterator(
       query_processor.get_array_descriptor(), query_config,
@@ -315,21 +379,38 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
   //Golden VCF
   auto fptr = bcf_open(g_golden_output_file.c_str(), "rb");
   REQUIRE(fptr != 0);
-  bag.hdr = bcf_hdr_read(fptr);
-  REQUIRE(bag.hdr != 0);
+  bag.hdr[GoldTestEnum::GOLD] = bcf_hdr_read(fptr);
+  REQUIRE(bag.hdr[GoldTestEnum::GOLD] != 0);
   if(!query_config.sites_only_query())
   {
-    REQUIRE(bcf_hdr_nsamples(bag.hdr) == query_config.get_num_rows_to_query());
-    //Map between samples in gold hdr and test output
-    bag.vcf_sample_idx_to_row_query_idx.resize(bcf_hdr_nsamples(bag.hdr));
-    for(auto i=0;i<bcf_hdr_nsamples(bag.hdr);++i)
+    REQUIRE(bcf_hdr_nsamples(bag.hdr[GoldTestEnum::GOLD]) == query_config.get_num_rows_to_query());
+    //Map between samples in gold hdr[GoldTestEnum::GOLD] and test output
+    bag.vcf_sample_idx_to_row_query_idx.resize(bcf_hdr_nsamples(bag.hdr[GoldTestEnum::GOLD]));
+    for(auto i=0;i<bcf_hdr_nsamples(bag.hdr[GoldTestEnum::GOLD]);++i)
     {
       int64_t row_idx = 0;
-      REQUIRE(vid_mapper.get_tiledb_row_idx(row_idx, bcf_hdr_int2id(bag.hdr, BCF_DT_SAMPLE, i)));
+      REQUIRE(vid_mapper.get_tiledb_row_idx(row_idx, bcf_hdr_int2id(bag.hdr[GoldTestEnum::GOLD], BCF_DT_SAMPLE, i)));
       bag.vcf_sample_idx_to_row_query_idx[i] = query_config.get_query_row_idx_for_array_row_idx(row_idx);
     }
   }
-  bag.rec = bcf_init();
+  bag.rec[GoldTestEnum::GOLD] = bcf_init();
+  bag.rec[GoldTestEnum::TEST] = bcf_init();
+  //Avoid repeated memory reallocations by reusing a buffer
+  for(auto i=0u;i<2u;++i) {
+    bag.vcf_buffer_length[i] = 4*bcf_hdr_nsamples(bag.hdr[GoldTestEnum::GOLD]); //since SB has 4 elements per sample - will get resized if necessary
+    bag.vcf_buffer_ptr[i] = new int[bag.vcf_buffer_length[i]]; //use single buffer
+  }
+  //For test VCF
+  RWBuffer rw_buffer;
+  VCFSerializedBufferAdapter vcf_adapter(true, false);
+  vcf_adapter.initialize(query_config);
+  vcf_adapter.set_buffer(rw_buffer);
+  //Initialize operator so that you write to a string without any size limits
+  BroadCombinedGVCFOperator broad_op(vcf_adapter, vid_mapper, query_config, false, true, true);
+  //reference to string containing the VCF lines that broad_op will provide
+  auto& test_vcf_line = broad_op.get_vcf_writer_to_string().get_string_buffer();
+  //Header is generated using htslib - no point in unit testing it
+  bag.hdr[GoldTestEnum::TEST] = vcf_adapter.get_vcf_header();
   //Check SB and GQ fields since they have no allele dependence and are unmodified from input to output
   unsigned SB_query_idx = 0u;
   auto is_SB_queried = query_config.get_query_idx_for_name("SB", SB_query_idx);
@@ -338,53 +419,81 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
   unsigned GT_query_idx = 0u;
   auto is_GT_queried = query_config.get_query_idx_for_name("GT", GT_query_idx);
   //VCF info for SB, GQ, GT
-  auto do_check_SB = is_SB_queried && (bcf_hdr_id2int(bag.hdr, BCF_DT_ID, "SB") >= 0);
-  auto do_check_GQ = is_GQ_queried && (bcf_hdr_id2int(bag.hdr, BCF_DT_ID, "GQ") >= 0);
-  auto do_check_GT = is_GT_queried && (bcf_hdr_id2int(bag.hdr, BCF_DT_ID, "GT") >= 0);
-  //Avoid some memory reallocations
-  bag.vcf_buffer_length = 4*bcf_hdr_nsamples(bag.hdr); //since SB has 4 elements per sample - will get resized if necessary
-  bag.vcf_buffer_ptr = new int[bag.vcf_buffer_length]; //use single buffer
+  auto do_check_SB = is_SB_queried && (bcf_hdr_id2int(bag.hdr[GoldTestEnum::GOLD], BCF_DT_ID, "SB") >= 0);
+  auto do_check_GQ = is_GQ_queried && (bcf_hdr_id2int(bag.hdr[GoldTestEnum::GOLD], BCF_DT_ID, "GQ") >= 0);
+  auto do_check_GT = is_GT_queried && (bcf_hdr_id2int(bag.hdr[GoldTestEnum::GOLD], BCF_DT_ID, "GT") >= 0);
   std::string contig_name;
   //REF-ALT comparison
   std::vector<STRING_VIEW> gold_alleles;
   std::vector<STRING_VIEW> test_alleles;
+  std::vector<STRING_VIEW> test_vcf_line_alleles;
   std::string alleles_buffer;
   std::string tmp_buffer;
   std::vector<STRING_VIEW> tmp_alleles;
-  //Using AllelesCombiner to keep track of mapping between gold alleles and test allelesi
+  //Using AllelesCombiner to keep track of mapping between gold alleles and test alleles
   //Will be used for GT remapping etc
   //Mark both gold and test as valid samples for remapping
-  bag_of_remappers.m_int_handler.set_valid_row_query_idx(GoldTestRowQueryIdxEnum::GOLD, true);
-  bag_of_remappers.m_int_handler.set_valid_row_query_idx(GoldTestRowQueryIdxEnum::TEST, true);
+  BagOfRemappers bag_of_remappers;
+  bag_of_remappers.m_int_handler.set_valid_row_query_idx(GoldTestEnum::GOLD, true);
+  bag_of_remappers.m_int_handler.set_valid_row_query_idx(GoldTestEnum::TEST, true);
   for (; !(bag.columnar_gvcf_iter->end()); ++(*(bag.columnar_gvcf_iter))) {
+    //Gold
+    REQUIRE(bcf_read(fptr, bag.hdr[GoldTestEnum::GOLD], bag.rec[GoldTestEnum::GOLD]) == 0);
+    //Test vcf line
+    test_vcf_line.clear(); //clear out last contents
+    broad_op.operate_on_columnar_cell(**(bag.columnar_gvcf_iter));
+    //Test line must be parsed fully by htslib without errors
+    REQUIRE(bcf_deserialize(bag.rec[GoldTestEnum::TEST], reinterpret_cast<uint8_t*>(&(test_vcf_line.at(0u))),
+        0u, test_vcf_line.length(), false, bag.hdr[GoldTestEnum::TEST]) == test_vcf_line.length());
+    REQUIRE(bag.rec[GoldTestEnum::TEST]->errcode == 0);
+    //Check contig and position
     auto column_interval = bag.columnar_gvcf_iter->get_current_variant_interval();
-    REQUIRE(bcf_read(fptr, bag.hdr, bag.rec) == 0);
     int64_t contig_position = -1;
     REQUIRE(vid_mapper.get_contig_location(column_interval.first, contig_name, contig_position));
-    CHECK(contig_name == std::string(bcf_seqname(bag.hdr, bag.rec)));
-    CHECK(contig_position == bag.rec->pos);
-    //std::cerr << rec->pos <<"\n";
-    bcf_unpack(bag.rec, BCF_UN_STR);
+    REQUIRE(contig_name == std::string(bcf_seqname(bag.hdr[GoldTestEnum::GOLD], bag.rec[GoldTestEnum::GOLD])));
+    REQUIRE(contig_position == bag.rec[GoldTestEnum::GOLD]->pos);
+    //test vcf line
+    REQUIRE(std::string(bcf_seqname(bag.hdr[GoldTestEnum::GOLD], bag.rec[GoldTestEnum::GOLD]))
+         == std::string(bcf_seqname(bag.hdr[GoldTestEnum::TEST], bag.rec[GoldTestEnum::TEST])));
+    REQUIRE(bag.rec[GoldTestEnum::GOLD]->pos == bag.rec[GoldTestEnum::TEST]->pos);
+    //Variant length value
+    //Get END values
+    int num_END_value[2];
+    num_END_value[GoldTestEnum::GOLD] = bcf_get_info_int32(bag.hdr[GoldTestEnum::GOLD], bag.rec[GoldTestEnum::GOLD], "END",
+        &(bag.vcf_buffer_ptr[GoldTestEnum::GOLD]), &(bag.vcf_buffer_length[GoldTestEnum::GOLD]));
+    num_END_value[GoldTestEnum::TEST] = bcf_get_info_int32(bag.hdr[GoldTestEnum::TEST], bag.rec[GoldTestEnum::TEST], "END",
+        &(bag.vcf_buffer_ptr[GoldTestEnum::TEST]), &(bag.vcf_buffer_length[GoldTestEnum::TEST]));
+    REQUIRE(num_END_value[GoldTestEnum::GOLD] == num_END_value[GoldTestEnum::TEST]);
+    if(num_END_value[GoldTestEnum::GOLD] < 0) { //no END field, single position variant
+      REQUIRE(1u == column_interval.second - column_interval.first + 1u);
+    }
+    else {
+      REQUIRE(bag.rec[GoldTestEnum::GOLD]->rlen == column_interval.second - column_interval.first + 1u);
+    }
+    REQUIRE(bag.rec[GoldTestEnum::GOLD]->rlen == bag.rec[GoldTestEnum::TEST]->rlen);
+    //Unpack
+    bcf_unpack(bag.rec[GoldTestEnum::GOLD], BCF_UN_STR);
+    bcf_unpack(bag.rec[GoldTestEnum::TEST], BCF_UN_STR);
     //REF-ALT comparison
     gold_alleles.clear();
-    for(auto i=0u;i<bag.rec->n_allele;++i)
-      gold_alleles.emplace_back(STRING_VIEW(bag.rec->d.allele[i], strlen(bag.rec->d.allele[i])));
+    for(auto i=0u;i<bag.rec[GoldTestEnum::GOLD]->n_allele;++i)
+      gold_alleles.emplace_back(STRING_VIEW(bag.rec[GoldTestEnum::GOLD]->d.allele[i], strlen(bag.rec[GoldTestEnum::GOLD]->d.allele[i])));
     alleles_buffer.clear();
     test_alleles.clear();
     bag.columnar_gvcf_iter->get_alleles_combiner().get_merged_VCF_spec_alleles_vec(alleles_buffer, test_alleles);
     if(test_alleles[0].length() == 0u) //leftover REF block remains
-      test_alleles[0] = STRING_VIEW(bag.rec->d.allele[0], strlen(bag.rec->d.allele[0]));
+      test_alleles[0] = STRING_VIEW(bag.rec[GoldTestEnum::GOLD]->d.allele[0], strlen(bag.rec[GoldTestEnum::GOLD]->d.allele[0]));
     //Must have same alleles - possibly in a different order
     REQUIRE(gold_alleles[0u] == test_alleles[0u]);
     REQUIRE(std::unordered_set<STRING_VIEW>(gold_alleles.begin(), gold_alleles.end()) ==
         std::unordered_set<STRING_VIEW>(test_alleles.begin(), test_alleles.end()));
     //Find mapping from test alleles to gold alleles using AllelesCombiner
-    bag_of_remappers.m_gold_test_alleles_combiner.remove_allele_info(GoldTestRowQueryIdxEnum::GOLD);
-    bag_of_remappers.m_gold_test_alleles_combiner.remove_allele_info(GoldTestRowQueryIdxEnum::TEST);
+    bag_of_remappers.m_gold_test_alleles_combiner.remove_allele_info(GoldTestEnum::GOLD);
+    bag_of_remappers.m_gold_test_alleles_combiner.remove_allele_info(GoldTestEnum::TEST);
     bag_of_remappers.m_gold_test_alleles_combiner.reset_before_adding_new_sample_info_at_current_position();
-    bag_of_remappers.m_gold_test_alleles_combiner.insert_allele_info(GoldTestRowQueryIdxEnum::GOLD, gold_alleles[0],
+    bag_of_remappers.m_gold_test_alleles_combiner.insert_allele_info(GoldTestEnum::GOLD, gold_alleles[0],
         std::vector<STRING_VIEW>(gold_alleles.begin()+1u, gold_alleles.end()), false);
-    bag_of_remappers.m_gold_test_alleles_combiner.insert_allele_info(GoldTestRowQueryIdxEnum::TEST, test_alleles[0],
+    bag_of_remappers.m_gold_test_alleles_combiner.insert_allele_info(GoldTestEnum::TEST, test_alleles[0],
         std::vector<STRING_VIEW>(test_alleles.begin()+1u, test_alleles.end()), false);
     bag_of_remappers.m_gold_test_alleles_combiner.finished_updating_allele_info_for_current_position();
     tmp_buffer.clear();
@@ -394,9 +503,16 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
     REQUIRE(gold_alleles == tmp_alleles);
     //Check if mapping from test to gold is correct
     for(auto i=0u;i<test_alleles.size();++i) {
-      auto merged_idx = bag_of_remappers.m_gold_test_alleles_combiner.get_merged_allele_idx(GoldTestRowQueryIdxEnum::TEST, i);
+      auto merged_idx = bag_of_remappers.m_gold_test_alleles_combiner.get_merged_allele_idx(GoldTestEnum::TEST, i);
       REQUIRE(test_alleles[i] == gold_alleles[merged_idx]);
     }
+    //Test vcf line
+    test_vcf_line_alleles.clear();
+    for(auto i=0u;i<bag.rec[GoldTestEnum::TEST]->n_allele;++i)
+      test_vcf_line_alleles.emplace_back(STRING_VIEW(bag.rec[GoldTestEnum::TEST]->d.allele[i],
+            strlen(bag.rec[GoldTestEnum::TEST]->d.allele[i])));
+    //Test vcf line must have the same order of alleles in test_alleles (since they're produced from the same source)
+    REQUIRE(test_alleles == test_vcf_line_alleles);
     if(query_config.sites_only_query())
       continue;
     //Check SB and GQ fields since they have no allele dependence and are unmodified from input to output
@@ -404,13 +520,16 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
       compare_field<int>(bag_of_remappers, bag, "SB", SB_query_idx);
     if(do_check_GQ)
       compare_field<int>(bag_of_remappers, bag, "GQ", GQ_query_idx);
-    if(do_check_GT)
+    if(do_check_GT) {
       compare_field<int>(bag_of_remappers, bag, "GT", GT_query_idx);
+    }
   }
-  CHECK(bcf_read(fptr, bag.hdr, bag.rec) == -1); //no more records
-  delete[] bag.vcf_buffer_ptr;
-  bcf_destroy(bag.rec);
-  bcf_hdr_destroy(bag.hdr);
+  CHECK(bcf_read(fptr, bag.hdr[GoldTestEnum::GOLD], bag.rec[GoldTestEnum::GOLD]) == -1); //no more records
+  delete[] bag.vcf_buffer_ptr[GoldTestEnum::GOLD];
+  delete[] bag.vcf_buffer_ptr[GoldTestEnum::TEST];
+  bcf_destroy(bag.rec[GoldTestEnum::GOLD]);
+  bcf_destroy(bag.rec[GoldTestEnum::TEST]);
+  bcf_hdr_destroy(bag.hdr[GoldTestEnum::GOLD]);
   bcf_close(fptr);
   delete bag.columnar_gvcf_iter;
 }

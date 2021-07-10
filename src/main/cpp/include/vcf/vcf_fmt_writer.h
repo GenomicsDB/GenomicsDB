@@ -40,8 +40,11 @@ class VCFWriterNoOverflow {
           const auto val = v[i];
           if(is_bcf_valid_value<T>(val))
             FmtWriter::write<T>(*m_ptr, val);
-          else
+          else {
+            if(is_bcf_vector_end_value<T>(val))
+              break;
             FmtWriter::write<char>(*m_ptr, '.');
+          }
         }
         return true;
       }
@@ -56,16 +59,22 @@ class VCFWriterNoOverflow {
           const auto val = v[0u];
           if(is_bcf_valid_value<T>(val))
             FmtWriter::write<T>(*m_ptr, val);
-          else
+          else {
+            if(is_bcf_vector_end_value<T>(val))
+              return true;
             FmtWriter::write<char>(*m_ptr, '.');
+          }
         }
         for(auto i=1u;i<n;++i) {
           FmtWriter::write<char>(*m_ptr, sep);
           const auto val = v[i];
           if(is_bcf_valid_value<T>(val))
             FmtWriter::write<T>(*m_ptr, val);
-          else
+          else {
+            if(is_bcf_vector_end_value<T>(val))
+              break;
             FmtWriter::write<char>(*m_ptr, '.');
+          }
         }
         return true;
       }
@@ -90,6 +99,10 @@ class VCFWriterNoOverflow {
     }
 
     void reset(const size_t n) { m_buffer.resize(n); }
+
+    std::string& get_string_buffer() {
+      return m_buffer;
+    }
   private:
     WriteTargetTy* m_ptr; 
     std::string m_buffer;
@@ -126,8 +139,11 @@ class VCFWriterFSB {
           const auto val = v[i];
           if(is_bcf_valid_value<T>(val))
             no_overflow = no_overflow && FmtWriter::write_if_space_available<T>(m_ptr, m_size, m_offset, val);
-          else
+          else {
+            if(is_bcf_vector_end_value<T>(val))
+              break;
             no_overflow = no_overflow && FmtWriter::write_if_space_available<char>(m_ptr, m_size, m_offset, '.');
+          }
         }
         return no_overflow;
       }
@@ -144,16 +160,22 @@ class VCFWriterFSB {
           const auto val = v[0u];
           if(is_bcf_valid_value<T>(val))
             no_overflow = no_overflow && FmtWriter::write_if_space_available<T>(m_ptr, m_size, m_offset, val);
-          else
+          else {
+            if(is_bcf_vector_end_value<T>(val))
+              return no_overflow;
             no_overflow = no_overflow && FmtWriter::write_if_space_available<char>(m_ptr, m_size, m_offset, '.');
+          }
         }
         for(auto i=1u;i<n;++i) {
           no_overflow = no_overflow && FmtWriter::write_if_space_available<char>(m_ptr, m_size, m_offset, sep);
           const auto val = v[i];
           if(is_bcf_valid_value<T>(val))
             no_overflow = no_overflow && FmtWriter::write_if_space_available<T>(m_ptr, m_size, m_offset, val);
-          else
+          else {
+            if(is_bcf_vector_end_value<T>(val))
+              return no_overflow;
             no_overflow = no_overflow && FmtWriter::write_if_space_available<char>(m_ptr, m_size, m_offset, '.');
+          }
         }
         return no_overflow;
       }
