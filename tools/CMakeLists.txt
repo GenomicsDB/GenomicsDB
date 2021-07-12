@@ -13,6 +13,7 @@ if(NOT DISABLE_MPI)
   build_GenomicsDB_executable(vcfdiff)
   build_GenomicsDB_executable(vcf_histogram)
   build_GenomicsDB_executable(consolidate_genomicsdb_array)
+  build_GenomicsDB_executable(cli)
 
   add_test(NAME tools_tests COMMAND ${CMAKE_SOURCE_DIR}/tests/test_tools.sh ${CMAKE_SOURCE_DIR}/tests/inputs/vcfs ${CMAKE_INSTALL_PREFIX})
 endif()

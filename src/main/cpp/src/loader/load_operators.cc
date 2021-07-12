@@ -118,7 +118,7 @@ LoaderArrayWriter::LoaderArrayWriter(
   auto& id_mapper = m_import_config_ptr->get_vid_mapper();
   //Schema
   id_mapper.build_tiledb_array_schema(m_schema, array_name,
-                                      m_import_config_ptr->compress_tiledb_array(), m_import_config_ptr->no_mandatory_VCF_fields());
+                                      m_import_config_ptr->compress_tiledb_array(), m_import_config_ptr->get_tiledb_compression_type(), m_import_config_ptr->get_tiledb_compression_level(), m_import_config_ptr->no_mandatory_VCF_fields());
   //Storage manager
   size_t segment_size = m_import_config_ptr->get_segment_size();
   m_storage_manager = new VariantStorageManager(workspace, segment_size,
@@ -300,7 +300,7 @@ LoaderCombinedGVCFOperator::LoaderCombinedGVCFOperator(const GenomicsDBImportCon
   //initialize arguments
   //initialize query processor
   m_import_config_ptr->get_vid_mapper().build_tiledb_array_schema(m_schema, "",
-      false, false);
+      false, 0, 0, false);
   m_query_processor = new VariantQueryProcessor(*m_schema, m_import_config_ptr->get_vid_mapper());
   //Initialize query config
   static_cast<GenomicsDBConfigBase&>(m_query_config) = static_cast<const GenomicsDBConfigBase&>(config);

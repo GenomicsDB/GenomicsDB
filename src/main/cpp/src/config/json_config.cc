@@ -761,10 +761,14 @@ void GenomicsDBImportConfig::read_from_file(const std::string& filename, const i
   //TileDB array #cells/tile
   if (json_doc.HasMember("num_cells_per_tile") && json_doc["num_cells_per_tile"].IsInt64())
     m_num_cells_per_tile = json_doc["num_cells_per_tile"].GetInt64();
+  if (json_doc.HasMember("tiledb_compression_type") && json_doc["tiledb_compression_type"].IsInt()) {
+    int val = json_doc["tiledb_compression_type"].GetInt();
+    m_tiledb_compression_type = val;
+  }
   if (json_doc.HasMember("tiledb_compression_level") && json_doc["tiledb_compression_level"].IsInt()) {
     int val = json_doc["tiledb_compression_level"].GetInt();
-    if ((val < Z_DEFAULT_COMPRESSION) || (val > Z_BEST_COMPRESSION))
-      val = Z_DEFAULT_COMPRESSION;
+    //if ((val < Z_DEFAULT_COMPRESSION) || (val > Z_BEST_COMPRESSION))
+    //  val = Z_DEFAULT_COMPRESSION;
     m_tiledb_compression_level = val;
   }
   //flag that causes the loader to fail if this is an update (rather than a fresh load)
