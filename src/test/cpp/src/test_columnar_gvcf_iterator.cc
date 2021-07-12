@@ -401,16 +401,19 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
     bag.vcf_buffer_ptr[i] = new int[bag.vcf_buffer_length[i]]; //use single buffer
   }
   //For test VCF
-  RWBuffer rw_buffer;
-  VCFSerializedBufferAdapter vcf_adapter(true, false);
+  VCFAdapter vcf_adapter(false);
   vcf_adapter.initialize(query_config);
-  vcf_adapter.set_buffer(rw_buffer);
   //Initialize operator so that you write to a string without any size limits
   BroadCombinedGVCFOperator broad_op(vcf_adapter, vid_mapper, query_config, false, true, true);
   //reference to string containing the VCF lines that broad_op will provide
+  //initially this will contain the VCF header
   auto& test_vcf_line = broad_op.get_vcf_writer_to_string().get_string_buffer();
+  bag.hdr[GoldTestEnum::TEST] = bcf_hdr_init("r");
+  REQUIRE(
+      bcf_hdr_deserialize(bag.hdr[GoldTestEnum::TEST], reinterpret_cast<const uint8_t*>(test_vcf_line.data()), 0u, test_vcf_line.size(), 0)
+       == test_vcf_line.size());
   //Header is generated using htslib - no point in unit testing it
-  bag.hdr[GoldTestEnum::TEST] = vcf_adapter.get_vcf_header();
+  test_vcf_line.clear();
   //Check SB and GQ fields since they have no allele dependence and are unmodified from input to output
   unsigned SB_query_idx = 0u;
   auto is_SB_queried = query_config.get_query_idx_for_name("SB", SB_query_idx);
@@ -530,6 +533,7 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
   bcf_destroy(bag.rec[GoldTestEnum::GOLD]);
   bcf_destroy(bag.rec[GoldTestEnum::TEST]);
   bcf_hdr_destroy(bag.hdr[GoldTestEnum::GOLD]);
+  bcf_hdr_destroy(bag.hdr[GoldTestEnum::TEST]);
   bcf_close(fptr);
   delete bag.columnar_gvcf_iter;
 }

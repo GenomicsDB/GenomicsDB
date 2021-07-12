@@ -139,6 +139,7 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
     const bool use_columnar_iterator,
     const bool from_columnar_iterator_write_to_string)
   : GA4GHOperator(query_config, id_mapper, true),
+    m_use_columnar_iterator(use_columnar_iterator),
     m_vcf_writer_to_ostream(std::cout) {
   clear();
   if (!id_mapper.is_initialized())
@@ -332,7 +333,8 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
   auto hdr_offset = bcf_hdr_deserialize(m_vcf_hdr, &(tmp_buffer[0u]), 0u, tmp_buffer.size(), 0);
   assert(hdr_offset > 0u);
   m_vcf_adapter->set_vcf_header(m_vcf_hdr);
-  m_vcf_adapter->print_header();
+  if(!use_columnar_iterator)
+    m_vcf_adapter->print_header();
   //vector of field pointers used for handling remapped fields when dealing with spanning deletions
   //Individual pointers will be allocated later
   m_spanning_deletions_remapped_fields.resize(m_remapped_fields_query_idxs.size());
@@ -370,6 +372,18 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
       m_vcf_writer_to_ostream = std::move(VCFWriterNoOverflow<std::ostream>(std::cout));
     m_writer_type_enum = (from_columnar_iterator_write_to_string) ? VCFWRITER_ENUM::STL_STRING_NO_LIMIT
       : VCFWRITER_ENUM::STL_OSTREAM_NO_LIMIT;
+    auto& string_buffer = from_columnar_iterator_write_to_string ? m_vcf_writer_to_string.get_string_buffer() : m_vcf_writer_to_ostream.get_string_buffer();
+    string_buffer.resize(4096u); //doesn't matter - some > 0 number
+    while(true) {
+      auto offset = bcf_hdr_serialize(vcf_adapter.get_vcf_header(), reinterpret_cast<uint8_t*>(&(string_buffer.at(0u))), 0u, string_buffer.size(),
+          0, 1);
+      if(offset > 0u) {
+        string_buffer.resize(offset);
+        break;
+      }
+      else
+        string_buffer.resize(2ull*string_buffer.size()+1u);
+    }
   }
 }
 
@@ -382,7 +396,9 @@ BroadCombinedGVCFOperator::~BroadCombinedGVCFOperator() {
     }
   }
   bcf_destroy(m_bcf_out);
-  if(m_vcf_output_fptr.is_open())
+  if(m_use_columnar_iterator)
+    m_vcf_writer_to_ostream.flush_buffer_if_flush_supported();
+  if(m_vcf_output_fptr.is_open() && !GenomicsDBConfigBase::output_to_stdout(m_query_config->get_vcf_output_filename()))
     m_vcf_output_fptr.close();
   clear();
 #ifdef DO_PROFILING

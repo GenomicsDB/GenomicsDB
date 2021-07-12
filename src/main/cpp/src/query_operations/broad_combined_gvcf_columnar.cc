@@ -306,4 +306,5 @@ void BroadCombinedGVCFOperator::operate_on_columnar_cell(const GenomicsDBGVCFCel
       write_vcf_line<VCFWriterNoOverflow<std::ostream>, false, false, false>(m_vcf_writer_to_ostream, variant);
     break;
   }
+  m_vcf_writer_to_ostream.flush_buffer_if_large_and_if_flush_supported();
 }

@@ -331,8 +331,7 @@ void VCFAdapter::initialize(const GenomicsDBConfigBase& config_base) {
     if (m_output_fptr == 0) {
       logger.fatal(VCFAdapterException(logger.format("Cannot write to output file {}", output_filename)));
     }
-    if (config_base.index_output_VCF() && !output_filename.empty()
-        && !(output_filename.length() == 1u && output_filename[0] == '-')) {
+    if (config_base.index_output_VCF() && !GenomicsDBConfigBase::output_to_stdout(output_filename)) {
       if (output_format == "z")
         m_output_VCF_index_type = VCFIndexType::VCF_INDEX_TBI;
       else {
@@ -484,7 +483,7 @@ void VCFSerializedBufferAdapter::handoff_output_bcf_line(bcf1_t*& line, const si
 void VCFSerializedBufferAdapter::initialize(const GenomicsDBConfigBase& config) {
   VCFAdapter::initialize(config);
   if (m_do_output)
-    m_write_fptr = (config.get_vcf_output_filename().empty() || config.get_vcf_output_filename() == "-")
+    m_write_fptr = GenomicsDBConfigBase::output_to_stdout(config.get_vcf_output_filename())
                    ? stdout
                    : fopen(config.get_vcf_output_filename().c_str(), "w");
 }

@@ -162,6 +162,7 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   void (*m_encode_GT_vector_function_ptr)(int* inout_vec, const uint64_t input_offset,
                                           const unsigned num_elements_per_sample, uint64_t& output_idx);
   //Parameters when columnar iterator is used for producing VCF records
+  bool m_use_columnar_iterator;
   std::ofstream m_vcf_output_fptr;
   VCFWRITER_ENUM m_writer_type_enum;
   VCFWriterNoOverflow<std::string> m_vcf_writer_to_string;

@@ -154,6 +154,21 @@ class FmtWriter {
       }
 };
 
+//Template specialization for int
+template<>
+inline bool FmtWriter::write(std::string& out_str, const int v) {
+  auto f = fmt::format_int(v);
+  out_str.append(f.data(), f.size());
+  return true;
+}
+
+//Template specialization for char
+template<>
+inline bool FmtWriter::write(std::string& out_str, const char v) {
+  out_str.push_back(v);
+  return true;
+}
+
 //Template specialization for char*
 template<>
 inline bool FmtWriter::write<char>(std::string& out_str, const char* v, const size_t n) {
