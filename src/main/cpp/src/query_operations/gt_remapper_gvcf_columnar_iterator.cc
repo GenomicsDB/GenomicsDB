@@ -30,49 +30,96 @@ template class GTRemapper<GenomicsDBGVCFIterator>;
 template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterFSB, true, true, true>(VCFWriterFSB& op) const;
 template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterFSB, true, true, true>(VCFWriterFSB& op, const size_t row_query_idx) const;
+template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterFSB, true, true, false>(VCFWriterFSB& op) const;
+template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterFSB, true, true, false>(VCFWriterFSB& op, const size_t row_query_idx) const;
 template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterFSB, true, false, true>(VCFWriterFSB& op) const;
 template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterFSB, true, false, true>(VCFWriterFSB& op, const size_t row_query_idx) const;
+template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterFSB, true, false, false>(VCFWriterFSB& op) const;
+template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterFSB, true, false, false>(VCFWriterFSB& op, const size_t row_query_idx) const;
 template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterFSB, false, true, true>(VCFWriterFSB& op) const;
 template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterFSB, false, true, true>(VCFWriterFSB& op, const size_t row_query_idx) const;
+template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterFSB, false, true, false>(VCFWriterFSB& op) const;
+template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterFSB, false, true, false>(VCFWriterFSB& op, const size_t row_query_idx) const;
 template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterFSB, false, false, true>(VCFWriterFSB& op) const;
 template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterFSB, false, false, true>(VCFWriterFSB& op, const size_t row_query_idx) const;
+template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterFSB, false, false, false>(VCFWriterFSB& op) const;
+template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterFSB, false, false, false>(VCFWriterFSB& op, const size_t row_query_idx) const;
 template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::string>, true, true, true>(VCFWriterNoOverflow<std::string>& op) const;
 template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::string>, true, true, true>(VCFWriterNoOverflow<std::string>& op, const size_t row_query_idx) const;
+template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::string>, true, true, false>(VCFWriterNoOverflow<std::string>& op) const;
+template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::string>, true, true, false>(VCFWriterNoOverflow<std::string>& op, const size_t row_query_idx) const;
 template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::string>, true, false, true>(VCFWriterNoOverflow<std::string>& op) const;
 template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::string>, true, false, true>(VCFWriterNoOverflow<std::string>& op, const size_t row_query_idx) const;
+template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::string>, true, false, false>(VCFWriterNoOverflow<std::string>& op) const;
+template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::string>, true, false, false>(VCFWriterNoOverflow<std::string>& op, const size_t row_query_idx) const;
 template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::string>, false, true, true>(VCFWriterNoOverflow<std::string>& op) const;
 template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::string>, false, true, true>(VCFWriterNoOverflow<std::string>& op, const size_t row_query_idx) const;
+template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::string>, false, true, false>(VCFWriterNoOverflow<std::string>& op) const;
+template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::string>, false, true, false>(VCFWriterNoOverflow<std::string>& op, const size_t row_query_idx) const;
 template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::string>, false, false, true>(VCFWriterNoOverflow<std::string>& op) const;
 template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::string>, false, false, true>(VCFWriterNoOverflow<std::string>& op, const size_t row_query_idx) const;
+template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::string>, false, false, false>(VCFWriterNoOverflow<std::string>& op) const;
+template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::string>, false, false, false>(VCFWriterNoOverflow<std::string>& op, const size_t row_query_idx) const;
 template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::ostream>, true, true, true>(VCFWriterNoOverflow<std::ostream>& op) const;
 template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::ostream>, true, true, true>(VCFWriterNoOverflow<std::ostream>& op, const size_t row_query_idx) const;
+template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::ostream>, true, true, false>(VCFWriterNoOverflow<std::ostream>& op) const;
+template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::ostream>, true, true, false>(VCFWriterNoOverflow<std::ostream>& op, const size_t row_query_idx) const;
 template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::ostream>, true, false, true>(VCFWriterNoOverflow<std::ostream>& op) const;
 template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::ostream>, true, false, true>(VCFWriterNoOverflow<std::ostream>& op, const size_t row_query_idx) const;
+template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::ostream>, true, false, false>(VCFWriterNoOverflow<std::ostream>& op) const;
+template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::ostream>, true, false, false>(VCFWriterNoOverflow<std::ostream>& op, const size_t row_query_idx) const;
 template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::ostream>, false, true, true>(VCFWriterNoOverflow<std::ostream>& op) const;
 template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::ostream>, false, true, true>(VCFWriterNoOverflow<std::ostream>& op, const size_t row_query_idx) const;
+template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::ostream>, false, true, false>(VCFWriterNoOverflow<std::ostream>& op) const;
+template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::ostream>, false, true, false>(VCFWriterNoOverflow<std::ostream>& op, const size_t row_query_idx) const;
 template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::ostream>, false, false, true>(VCFWriterNoOverflow<std::ostream>& op) const;
 template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::ostream>, false, false, true>(VCFWriterNoOverflow<std::ostream>& op, const size_t row_query_idx) const;
+template
 bool GTRemapper<GenomicsDBGVCFIterator>::remap_all_queried_valid_rows<VCFWriterNoOverflow<std::ostream>, false, false, false>(VCFWriterNoOverflow<std::ostream>& op) const;
-
+template
+bool GTRemapper<GenomicsDBGVCFIterator>::remap_for_row_query_idx<VCFWriterNoOverflow<std::ostream>, false, false, false>(VCFWriterNoOverflow<std::ostream>& op, const size_t row_query_idx) const;
