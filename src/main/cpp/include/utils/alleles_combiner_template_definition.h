@@ -25,6 +25,7 @@
 
 #include "alleles_combiner.h"
 #include "known_field_info.h"
+#include "genomicsdb_logger.h"
 
 //Properties for a sample (over all alleles)
 struct SampleAlleleProperties {
@@ -146,7 +147,8 @@ template<typename ValidRowTrackerTy>
 void AllelesCombiner<ValidRowTrackerTy>::handle_allele(const size_t row_query_idx,
     SampleAlleleProperties& sample_properties, AlleleConfig& allele_config) {
   if(allele_config.length == 0u) {
-    throw AllelesCombinerException("zero length alleles not handled");
+    std::string msg = "zero length alleles not handled";
+    logger.fatal(AllelesCombinerException(msg), msg.c_str());
     return;
   }
   //NON REF should be the last allele - don't add it to map or LUT
@@ -437,16 +439,18 @@ int AllelesCombiner<ValidRowTrackerTy>::get_merged_allele_idx(const size_t row_q
     case 1u:
       return get_merged_allele_idx<true, false, true>(row_query_idx, allele_idx);
     case 2u:
-      throw AllelesCombinerException(
-          std::string("Illegal combination of is_REF_block and contains_NON_REF_allele for row_query_idx ")
-          + std::to_string(row_query_idx));
+    {
+      auto msg = std::string("Illegal combination of is_REF_block and contains_NON_REF_allele for row_query_idx ")
+        + std::to_string(row_query_idx);
+      logger.fatal(AllelesCombinerException(msg), msg.c_str());
       return -1;
+    }
     case 3u:
       return get_merged_allele_idx<true, true, true>(row_query_idx, allele_idx);
   }
-  throw AllelesCombinerException(
-      std::string("Illegal combination of is_REF_block and contains_NON_REF_allele for row_query_idx ")
-      + std::to_string(row_query_idx));
+  auto msg = std::string("Illegal combination of is_REF_block and contains_NON_REF_allele for row_query_idx ")
+    + std::to_string(row_query_idx);
+  logger.fatal(AllelesCombinerException(msg), msg.c_str());
   return -1;
 }
 

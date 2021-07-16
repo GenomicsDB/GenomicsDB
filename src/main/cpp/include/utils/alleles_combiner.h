@@ -31,7 +31,6 @@
 class AllelesCombinerException : public std::exception {
  public:
   AllelesCombinerException(const std::string m="") : msg_("AllelesCombinerException exception : "+m) { ; }
-  ~AllelesCombinerException() { ; }
   // ACCESSORS
   /** Returns the exception message. */
   const char* what() const noexcept {

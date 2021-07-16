@@ -32,7 +32,6 @@ class AllelesCombiner;
 class GTRemapperException : public std::exception {
  public:
   GTRemapperException(const std::string m="") : msg_("GTRemapperException exception : "+m) { ; }
-  ~GTRemapperException() { ; }
   // ACCESSORS
   /** Returns the exception message. */
   const char* what() const noexcept {

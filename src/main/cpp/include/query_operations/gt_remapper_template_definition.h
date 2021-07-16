@@ -24,6 +24,7 @@
 
 #include "gt_remapper.h"
 #include "vcf.h"
+#include "genomicsdb_logger.h"
 
 template<typename ValidRowAndGTDataProviderTy>
 GTRemapper<ValidRowAndGTDataProviderTy>::GTRemapper(const unsigned GT_query_idx,
@@ -88,10 +89,11 @@ bool GTRemapper<ValidRowAndGTDataProviderTy>::remap_for_row_query_idx(OperatorTy
       return remap_for_row_query_idx<OperatorTy, contains_phase, produce_GT_field, do_remap, true, true>(op, row_query_idx);
       break;
     default: //illegal
-      throw GTRemapperException(std::string("Is REF block but doesn't contain valid NON_REF allele index ")+std::to_string(row_query_idx));
-      //throw GTRemapperException(std::string("Both REF block and spanning deletion enabled for row query idx ")
-      //+ std::to_string(row_query_idx));
+    {
+      auto msg = std::string("Is REF block but doesn't contain valid NON_REF allele index ")+std::to_string(row_query_idx);
+      logger.fatal(GTRemapperException(msg), msg.c_str());
       break;
+    }
   }
   return false;
 }

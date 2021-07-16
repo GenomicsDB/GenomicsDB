@@ -23,6 +23,7 @@
 #include "variant_operations.h"
 #include "vcf.h"
 #include "broad_combined_gvcf.h"
+#include "genomicsdb_logger.h"
 
 void SingleVariantOperatorBase::operate_on_columnar_cell(const GenomicsDBGVCFCell& variant) {
   m_iterator = variant.get_iterator();
@@ -32,7 +33,9 @@ void SingleVariantOperatorBase::operate_on_columnar_cell(const GenomicsDBGVCFCel
   if(!(m_contig_info_ptr && curr_interval.first >= m_contig_info_ptr->m_tiledb_column_offset
         && curr_interval.second < m_contig_info_ptr->m_tiledb_column_offset+m_contig_info_ptr->m_length)) {
     auto status = m_vid_mapper->get_contig_info_for_location(curr_interval.first, m_contig_info_ptr);
-    if(!status)
-      throw VidMapperException(std::string("Could not find contig for column ")+std::to_string(curr_interval.first));
+    if(!status) {
+      auto msg = std::string("Could not find contig for column ")+std::to_string(curr_interval.first);
+      logger.fatal(VidMapperException(msg), msg.c_str());
+    }
   }
 }
