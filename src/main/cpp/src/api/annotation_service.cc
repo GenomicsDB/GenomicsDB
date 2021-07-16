@@ -179,7 +179,6 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
 
     // Iterate over each matching position in the VCF
     while (tbx_itr_next(htsfile_ptr, tbx, itr, &str) >= 0) {
-      // jDebug: what is this condition?
       if (reg_idx && !regidx_overlap(reg_idx,seq[itr->curr_tid],itr->curr_beg,itr->curr_end-1, NULL) ) {
         continue;
       }
@@ -187,6 +186,7 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
       VERIFY2(vcf_parse1(&str, hdr, rec) == 0, "Problem parsing current line of VCF");
 
       bcf_unpack((bcf1_t*)rec, BCF_UN_ALL); // Using BCF_UN_INFO is probably a little faster
+      // bcf_unpack((bcf1_t*)rec, BCF_UN_INFO); // Using BCF_UN_INFO is probably a little faster
 
       if(ref.compare(rec->d.allele[0]) != 0) {
         // REF doesn't match
@@ -221,11 +221,7 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
     }
 
    regidx_destroy(reg_idx);
-
-   // jDebug: this function wasn't found so there's probably a leak: regitr_destroy(itr);
-   // jDebug: need to find out if the iterator needs to be destroyed.
    bcf_itr_destroy(itr);
-
    bcf_hdr_destroy(hdr);
    hts_close(htsfile_ptr);
   }
