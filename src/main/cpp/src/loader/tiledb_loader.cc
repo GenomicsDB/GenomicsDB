@@ -840,6 +840,13 @@ bool VCF2TileDBLoader::produce_cells_in_column_major_order(unsigned exchange_idx
         //B. This was one of the operators that overflowed in the past call
         if (m_num_operators_overflow_in_last_round == 0u || m_operators_overflow[i]) {
           assert(!(op->overflow())); //must have buffer space
+          
+// FIXME: remove
+std::cout << "offset " << offset << std::endl;
+std::cout << "m_row_idx " << m_pq_vector[order].m_row_idx  << std::endl;
+//std::cout << "m_begin_column_idx " << m_cell->get_begin_column() << std::endl;
+std::cout << "col " << top_ptr->m_column << std::endl;
+
           op->operate(reinterpret_cast<const void*>(&(buffer[offset])));
           auto curr_overflow = op->overflow();
           m_operators_overflow[i] = curr_overflow;
