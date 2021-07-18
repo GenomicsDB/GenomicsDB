@@ -173,6 +173,9 @@ class GenomicsDBConfigBase {
   void read_from_PB(const genomicsdb_pb::ExportConfiguration* x, const int rank=0);
   void read_and_initialize_vid_and_callset_mapping_if_available(const genomicsdb_pb::ExportConfiguration*);
   static void get_pb_from_json_file(google::protobuf::Message* pb_config, const std::string& json_file);
+  static bool output_to_stdout(const std::string& name) {
+    return name.empty() || name == "-";
+  }
  protected:
   bool m_single_workspace_path;
   bool m_single_array_name;

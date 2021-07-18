@@ -27,6 +27,19 @@
 #include "lut.h"
 #include "gt_common.h"
 
+//Exceptions thrown
+class AllelesCombinerException : public std::exception {
+ public:
+  AllelesCombinerException(const std::string m="") : msg_("AllelesCombinerException exception : "+m) { ; }
+  // ACCESSORS
+  /** Returns the exception message. */
+  const char* what() const noexcept {
+    return msg_.c_str();
+  }
+ private:
+  std::string msg_;
+};
+
 /*
  * This module deals with everything related to REF and ALT alleles
  * a. Merging REF and ALT alleles across samples
@@ -76,9 +89,19 @@ class MergedAllelesVecEntry {
 };
 
 class AlleleConfig;
+struct SampleAlleleProperties;
+
+// The template parameter ValidRowTrackerTy should define two functions:
+// bool is_valid_row_query_idx(uint64_t row_query_idx)
+// begin_valid_row_query_idx(), end_valid_row_query_idx() - this should return a forward iterator that iterates
+// over valid row query idxs. Dereferencing the iterator should give you row_query_idx (uint64_t)
+// GenomicsDBGVCFIterator is an example of a class that satisfies the requirements of ValidRowTrackerTy
+// Why template, why not just use GenomicsDBGVCFIterator? Makes unit testing difficult since I have to deal
+// with a complex GenomicsDBGVCFIterator object. I can define simple classes in the unit tests for ValidRowTrackerTy
+template<typename ValidRowTrackerTy>
 class AllelesCombiner {
   public:
-    AllelesCombiner(const size_t num_queried_rows);
+    AllelesCombiner(const ValidRowTrackerTy& tracker, const size_t num_queried_rows);
     /*
      * Called by GenomicsDBGVCFIterator.
      * This is called right before data for samples with variants beginning at the current position
@@ -94,6 +117,9 @@ class AllelesCombiner {
      */
     void insert_allele_info(const size_t row_query_idx, const STRING_VIEW& REF,
         const STRING_VIEW& delimited_ALT_str, const bool begins_before_curr_start_position);
+    //Same as above - rather than delimited string, takes vector<string_view>
+    void insert_allele_info(const size_t row_query_idx, const STRING_VIEW& REF,
+        const std::vector<STRING_VIEW>& ALT_vec, const bool begins_before_curr_start_position);
     /*
      * Should be called after the allele info for all samples for the current position is updated
      * Adds spanning deletions and NON_REF allele if necessary to the merged alleles vector
@@ -120,9 +146,25 @@ class AllelesCombiner {
       assert(row_query_idx < m_contains_MNV.size());
       return m_contains_deletion[row_query_idx] || m_contains_MNV[row_query_idx];
     }
+    inline unsigned get_NON_REF_allele_idx(const size_t row_query_idx) const {
+      assert(row_query_idx < m_NON_REF_idx_vec.size());
+      return m_NON_REF_idx_vec[row_query_idx];
+    }
     inline bool contains_NON_REF_allele(const size_t row_query_idx) const {
       assert(row_query_idx < m_NON_REF_idx_vec.size());
-      return (m_NON_REF_idx_vec[row_query_idx] != UNDEFINED_ATTRIBUTE_IDX_VALUE);
+      return (get_NON_REF_allele_idx(row_query_idx) != UNDEFINED_ATTRIBUTE_IDX_VALUE);
+    }
+    /*inline bool contains_deletion_or_MNV_spanning_current_location(const size_t row_query_idx) const {*/
+    /*assert(row_query_idx < m_contains_deletion_or_MNV_spanning_current_location.size());*/
+    /*return m_contains_deletion_or_MNV_spanning_current_location[row_query_idx];*/
+    /*}*/
+    inline bool is_REF_block(const size_t row_query_idx) const {
+      assert(row_query_idx < m_is_REF_block.size());
+      return m_is_REF_block[row_query_idx];
+    }
+    inline unsigned get_allele_idx_for_deletion_or_MNV_spanning_current_location(const size_t row_query_idx) const {
+      assert(row_query_idx < m_allele_idx_for_deletion_or_MNV_spanning_current_location.size());
+      return m_allele_idx_for_deletion_or_MNV_spanning_current_location[row_query_idx];
     }
     inline uint64_t get_num_calls_with_deletions_or_MNVs() const {
       return m_num_calls_with_deletions_or_MNVs;
@@ -130,12 +172,25 @@ class AllelesCombiner {
     inline uint64_t get_num_calls_with_NON_REF_allele() const {
       return m_num_calls_with_NON_REF_allele;
     }
+    inline bool merged_alleles_list_contains_NON_REF() const {
+      return (m_num_calls_with_NON_REF_allele > 0u);
+    }
+    inline bool merged_alleles_list_contains_spanning_deletion() const {
+      return (m_spanning_deletion_allele_idx != UNDEFINED_ATTRIBUTE_IDX_VALUE);
+    }
+    inline unsigned get_NON_REF_allele_index_in_merged_allele_list() const {
+      return m_merged_alleles_vec.size()-1u; //always last
+    }
+    inline unsigned get_spanning_deletion_allele_index_in_merged_allele_list() const {
+      assert(merged_alleles_list_contains_spanning_deletion());
+      return m_spanning_deletion_allele_idx;
+    }
     /*
      * The following two functions deal with samples that begin at the current location (current defined by the
      * GenomicsDBGVCFIterator) and have deletions/MNVs.
      * Used for computing spanning deletions using min PL value.
      */
-    inline const std::vector<int64_t>& get_row_query_idx_with_deletions_or_MNVs_at_current_location_vec() const {
+    inline const std::vector<size_t>& get_row_query_idx_with_deletions_or_MNVs_at_current_location_vec() const {
       return m_row_query_idx_with_deletion_MNV_at_current_location_vec;
     }
     //Ideally this should return std::span, but that's not yet part of the standard
@@ -165,11 +220,58 @@ class AllelesCombiner {
     inline const CombineAllelesLUT& get_merged_alleles_lut() const {
       return m_alleles_LUT;
     }
+    /*
+     * Returns the index in the merged allele list for the allele in the input row's allele list
+     * The template parameters are for optimization so that the if statements are pushed up the caller
+     * stack and are not in the lowest for loops. The lowest for loop is the loop over alleles for the
+     * current row
+     * do_remap if the input and merged alleles are exactly the same for rows, then no remapping is needed
+     * is_REF_block if the current row only has <NON_REF> as the single ALT allele
+     * contains_NON_REF_allele if the row has <NON_REF> in its allele list
+     */
+    template<bool do_remap, bool is_REF_block, bool contains_NON_REF_allele>
+    inline int get_merged_allele_idx(const size_t row_query_idx, const int allele_idx) const {
+      assert(!contains_NON_REF_allele || merged_alleles_list_contains_NON_REF());
+      if(do_remap && allele_idx >= 0) {
+        const auto merged_NON_REF_allele_idx = get_NON_REF_allele_index_in_merged_allele_list();
+        if(is_REF_block) { //static
+          return (allele_idx == 0)  ? 0 : merged_NON_REF_allele_idx;
+        }
+        else
+        {
+          auto output_allele_idx = m_alleles_LUT.get_merged_idx_for_input(row_query_idx, allele_idx);
+          return CombineAllelesLUT::is_missing_value(output_allele_idx)
+            ? (contains_NON_REF_allele ? merged_NON_REF_allele_idx : get_bcf_gt_no_call_allele_index<int>()) //static
+            : output_allele_idx;
+        }
+      }
+      else //also static if !do_remap
+        return allele_idx;
+    }
+    //Convenience function - deals with some of the template parameters internally
+    //Should be used at places where performance is of no concern (unit tests etc)
+    int get_merged_allele_idx(const size_t row_query_idx, const int allele_idx) const;
+
+    bool remapping_needed() const {
+      //not (only REF allele or locations with only NON_REF allele for all samples)
+      return !((m_merged_alleles_vec.size() == 1u)
+        || (m_merged_alleles_vec.size() == 2u && m_num_calls_with_NON_REF_allele == m_NON_REF_idx_vec.size()));
+    }
   private:
+    void store_NON_REF_properties(SampleAlleleProperties& sample_properties,
+        AlleleConfig& allele_config);
+    bool process_allele_char(const char c, SampleAlleleProperties& sample_properties,
+        AlleleConfig& allele_config);
+    void preprocess_allele_info(const size_t row_query_idx, const STRING_VIEW& REF,
+        const bool begins_before_curr_start_position);
+    void postprocess_allele_info(const size_t row_query_idx,
+        SampleAlleleProperties& sample_properties);
     std::pair<unsigned, bool> handle_single_base_ALT(const char base);
     std::pair<unsigned, bool> handle_insertion_or_symbolic_allele(const STRING_VIEW& ALT);
-    void handle_allele(const size_t row_query_idx, const STRING_VIEW& REF, AlleleConfig& allele_config);
+    void handle_allele(const size_t row_query_idx, SampleAlleleProperties& sample_properties,
+        AlleleConfig& allele_config);
   private:
+    const ValidRowTrackerTy* m_valid_row_tracker;
     unsigned m_spanning_deletion_allele_idx; //'*' index
     uint64_t m_num_calls_with_deletions_or_MNVs;
     uint64_t m_num_calls_with_NON_REF_allele;
@@ -177,6 +279,11 @@ class AllelesCombiner {
     std::vector<bool> m_contains_deletion;
     std::vector<bool> m_contains_MNV;
     std::vector<bool> m_is_REF_block; //contains single ALT allele <NON_REF>
+    //true for samples with deletion/MNV that start before current location and span current location
+    std::vector<bool> m_contains_deletion_or_MNV_spanning_current_location;
+    //stores the index of the deletion/MNV allele corresponding to the spanning deletion/MNV
+    //determined using PL values
+    std::vector<unsigned> m_allele_idx_for_deletion_or_MNV_spanning_current_location;
     //Index of NON_REF allele in input ALT vec, UNDEFINED_ATTRIBUTE_IDX_VALUE if NON_REF doesn't exist
     std::vector<unsigned> m_NON_REF_idx_vec;
     //Size equal to number of merged alleles (including REF)
@@ -219,7 +326,7 @@ class AllelesCombiner {
     //Also, we only store the samples which actually have a deletion/MNV - not all samples.
     //Contains row indexes of samples with new data at current iteration and containing deletions/MNVs. By tracking
     //these indexes, we can determine which rows must insert spanning deletions in the subsequent locations
-    std::vector<int64_t> m_row_query_idx_with_deletion_MNV_at_current_location_vec;
+    std::vector<size_t> m_row_query_idx_with_deletion_MNV_at_current_location_vec;
     //The size of the vector below is m_row_query_idx_with_deletion_MNV_at_current_location_vec.size()+1
     //Each entry contains the index in m_deletion_MNV_allele_idx_vec where the deletion/MNV indexes
     //for this particular row/sample begin. The number of deletions/MNVs for each row can be computed

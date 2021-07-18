@@ -18,15 +18,10 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- **/
+*/
 
-#ifndef GENOMICSDB_TOOLS_COMMON_H
-#define GENOMICSDB_TOOLS_COMMON_H
+#include "alleles_combiner_template_definition.h"
+#include "genomicsdb_iterators.h"
 
-#include "genomicsdb_logger.h"
-#include "tiledb_utils.h"
-
-#define OK   0
-#define ERR -1
-
-#endif /* GENOMICSDB_TOOLS_COMMON_H */
+//Explicit instantiation
+template class AllelesCombiner<GenomicsDBGVCFIterator>;

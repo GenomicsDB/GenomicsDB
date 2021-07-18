@@ -31,6 +31,7 @@
 #include "htslib/faidx.h"
 #include "timer.h"
 #include "genomicsdb_config_base.h"
+#include "fmt_writer.h"
 
 enum VCFIndexType {
   VCF_INDEX_CSI=0u,
@@ -116,6 +117,7 @@ class VCFAdapter {
   char get_reference_base_at_position(const char* contig, const int64_t pos) {
     return m_reference_genome_info.get_reference_base_at_position(contig, pos);
   }
+  void close_file();
  protected:
   bool m_open_output;
   bcf_hdr_t* m_template_vcf_hdr;

@@ -28,7 +28,7 @@
 #include "column_partition_batch.h"
 #include "vid_mapper.h"
 #include "histogram.h"
-#include "logger.h"
+#include "genomicsdb_logger.h"
 
 #define PRODUCE_BINARY_CELLS 1
 /*#define PRODUCE_CSV_CELLS 1*/

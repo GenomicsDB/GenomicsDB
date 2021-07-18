@@ -361,6 +361,8 @@ class SingleVariantOperatorBase {
     m_is_reference_block_only = false;
     m_vid_mapper = (vid_mapper && vid_mapper->is_initialized()) ? vid_mapper : 0;
     m_query_config = query_config;
+    m_iterator = 0;
+    m_contig_info_ptr = 0;
   }
   virtual ~SingleVariantOperatorBase() { }
   void clear();
@@ -371,7 +373,7 @@ class SingleVariantOperatorBase {
    * (b) Merged ALT allele list and updates the alleles LUT
    */
   virtual void operate(Variant& variant);
-  virtual void operate_on_columnar_cell(const GenomicsDBGVCFCell& variant) { ; }
+  virtual void operate_on_columnar_cell(const GenomicsDBGVCFCell& variant);
   /*
    * Return true in child class if some output buffer used by the operator
    * is full. Default implementation: return false
@@ -394,6 +396,8 @@ class SingleVariantOperatorBase {
   bool m_is_reference_block_only;
   const VidMapper* m_vid_mapper;
   const VariantQueryConfig* m_query_config;
+  const GenomicsDBGVCFIterator* m_iterator;
+  const ContigInfo* m_contig_info_ptr;
 };
 
 class ProfilerOperator : public SingleVariantOperatorBase {

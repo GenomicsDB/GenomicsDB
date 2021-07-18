@@ -458,6 +458,11 @@ class VidMapper {
    */
   bool get_contig_location(const int64_t position, std::string& contig_name, int64_t& contig_position) const;
   /*
+   * Same as above, but returns ptr to ContigInfo object in this VidMapper object
+   * More efficient than the above function since it avoids reallocations and copies
+   */
+  bool get_contig_info_for_location(const int64_t position, const ContigInfo*& ptr) const;
+  /*
    * Given a position in a flattened 'address' space [TileDB column idx], get the next contig_name and starting
    * location of the contig in the flattened space
    * Returns true if valid contig found, false otherwise

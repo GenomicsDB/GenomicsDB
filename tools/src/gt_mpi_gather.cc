@@ -354,10 +354,23 @@ void scan_and_produce_Broad_GVCF(const VariantQueryProcessor& qp, const VariantQ
   delete op_ptr;
 }
 
-void iterate_columnar_gvcf(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, int command_idx) {
-  ProfilerOperator counter;
-  qp.iterate_over_gvcf_entries(qp.get_array_descriptor(), query_config, counter, true);
-  std::cerr << "Counter "<<counter.get_value() << "\n";
+void iterate_columnar_gvcf(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, int command_idx,
+    int sub_operation_type, VCFAdapter& vcf_adapter) {
+  switch(sub_operation_type) {
+    case ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_PRODUCE_GVCF:
+      {
+        BroadCombinedGVCFOperator op(vcf_adapter, query_config.get_vid_mapper(), query_config, false, true, false);
+        qp.iterate_over_gvcf_entries(qp.get_array_descriptor(), query_config, op, true);
+        break;
+      }
+    default:
+      {
+        ProfilerOperator counter;
+        qp.iterate_over_gvcf_entries(qp.get_array_descriptor(), query_config, counter, true);
+        std::cerr << "Counter "<<counter.get_value() << "\n";
+        break;
+      }
+  }
 }
 
 void print_calls(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, int command_idx, const VidMapper& id_mapper) {
@@ -500,6 +513,7 @@ int main(int argc, char *argv[]) {
   size_t segment_size = 10u*1024u*1024u; //in bytes = 10MB
   auto segment_size_set_in_command_line = false;
   auto sub_operation_type = ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_UNKNOWN;
+  auto use_columnar_iterator = false;
   while ((c=getopt_long(argc, argv, "j:l:w:A:p:O:s:r:h", long_options, NULL)) >= 0) {
     switch (c) {
     case 'p':
@@ -530,7 +544,7 @@ int main(int argc, char *argv[]) {
       sub_operation_type = PRODUCE_BROAD_GVCF_PRODUCE_GVCF;
       break;
     case ARGS_IDX_COLUMNAR_GVCF:
-      command_idx = COMMAND_COLUMNAR_GVCF;
+      use_columnar_iterator = true;
       break;
     case ARGS_IDX_PRODUCE_INTERESTING_POSITIONS:
       command_idx = COMMAND_PRODUCE_BROAD_GVCF;
@@ -575,6 +589,10 @@ int main(int argc, char *argv[]) {
     std::cerr << "Query JSON file (-j) is a mandatory argument - unspecified\n";
     print_usage();
     return -1;
+  }
+
+  if(use_columnar_iterator) {
+    command_idx = COMMAND_COLUMNAR_GVCF;
   }
 
   int rc=0;
@@ -634,7 +652,7 @@ int main(int argc, char *argv[]) {
                                     sub_operation_type, my_world_mpi_rank, skip_query_on_root);
         break;
       case COMMAND_COLUMNAR_GVCF:
-	iterate_columnar_gvcf(qp, query_config, command_idx);
+	iterate_columnar_gvcf(qp, query_config, command_idx, sub_operation_type, vcf_adapter);
 	break;
       case COMMAND_PRODUCE_HISTOGRAM:
         produce_column_histogram(qp, query_config, 100, std::vector<uint64_t>({ 128, 64, 32, 16, 8, 4, 2 }));

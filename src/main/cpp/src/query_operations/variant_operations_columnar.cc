@@ -1,6 +1,6 @@
 /**
  * The MIT License (MIT)
- * Copyright (c) 2021 Omics Data Automation, Inc.
+ * Copyright (c) 2020 Omics Data Automation Inc 
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -18,15 +18,24 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- **/
+*/
 
-#ifndef GENOMICSDB_TOOLS_COMMON_H
-#define GENOMICSDB_TOOLS_COMMON_H
-
+#include "variant_operations.h"
+#include "vcf.h"
+#include "broad_combined_gvcf.h"
 #include "genomicsdb_logger.h"
-#include "tiledb_utils.h"
 
-#define OK   0
-#define ERR -1
-
-#endif /* GENOMICSDB_TOOLS_COMMON_H */
+void SingleVariantOperatorBase::operate_on_columnar_cell(const GenomicsDBGVCFCell& variant) {
+  m_iterator = variant.get_iterator();
+  assert(m_iterator);
+  auto curr_interval = m_iterator->get_current_variant_interval();
+  //New contig - get contig info from vid
+  if(!(m_contig_info_ptr && curr_interval.first >= m_contig_info_ptr->m_tiledb_column_offset
+        && curr_interval.second < m_contig_info_ptr->m_tiledb_column_offset+m_contig_info_ptr->m_length)) {
+    auto status = m_vid_mapper->get_contig_info_for_location(curr_interval.first, m_contig_info_ptr);
+    if(!status) {
+      auto msg = std::string("Could not find contig for column ")+std::to_string(curr_interval.first);
+      logger.fatal(VidMapperException(msg), msg.c_str());
+    }
+  }
+}

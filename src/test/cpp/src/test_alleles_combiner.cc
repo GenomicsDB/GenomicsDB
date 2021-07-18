@@ -26,25 +26,30 @@
  */
 
 #include <catch2/catch.hpp>
-#include "alleles_combiner.h"
+#include "alleles_combiner_template_definition.h"
+#include "test_valid_row_tracker.h"
 
 TEST_CASE("alleles_combiner") {
-  AllelesCombiner combiner(3u);
+  auto num_rows = 3u;
+  ValidRowTrackerForUnitTest tracker(num_rows);
+  AllelesCombiner<ValidRowTrackerForUnitTest> combiner(tracker, num_rows);
   std::string buffer_str;
   //Convenience vars
-  const auto& row_query_idx_with_deletion_MNV_vec = combiner.get_row_query_idx_with_deletions_or_MNVs_at_current_location_vec();
+  const auto& row_query_idx_with_deletion_MNV_added_in_current_iteration_vec = combiner.get_row_query_idx_with_deletions_or_MNVs_at_current_location_vec();
   const auto& merged_vec = combiner.get_merged_normalized_REF_ALT_vec();
   const auto& lut = combiner.get_merged_alleles_lut();
   //Insert data
-  std::string REF("ATGC");
-  std::string delimited_ALT_0("A|AGC|TTGC|*|TAGC");
-  combiner.insert_allele_info(2u, REF, delimited_ALT_0, false);
+  std::vector<std::string> REF_vec(num_rows);
+  std::vector<std::string> delimited_ALT_vec(num_rows);
+  REF_vec[2u] = "ATGC";
+  delimited_ALT_vec[2u] = "A|AGC|TTGC|*|TAGC";
+  insert_allele_info(tracker, combiner, 2u, REF_vec[2u], delimited_ALT_vec[2u]);
   CHECK(combiner.get_num_calls_with_deletions_or_MNVs() == 1u);
   CHECK(combiner.get_num_calls_with_NON_REF_allele() == 0u);
   CHECK(combiner.contains_deletion_or_MNV(2u));
   CHECK(!combiner.contains_NON_REF_allele(2u));
-  REQUIRE(row_query_idx_with_deletion_MNV_vec.size() == 1u); //1 sample has deletion/MNV
-  CHECK(row_query_idx_with_deletion_MNV_vec[0u] == 2u);      //row query idx is 2
+  REQUIRE(row_query_idx_with_deletion_MNV_added_in_current_iteration_vec.size() == 1u); //1 sample has deletion/MNV
+  CHECK(row_query_idx_with_deletion_MNV_added_in_current_iteration_vec[0u] == 2u);      //row query idx is 2
   auto ptr_length_pair = combiner.get_deletion_MNV_indexes_for_row_query_idx_at_index(0u);
   CHECK(ptr_length_pair.second == 4u);   //row query idx 2 has 4 deletions/MNVs
   auto ptr = ptr_length_pair.first;
@@ -54,9 +59,9 @@ TEST_CASE("alleles_combiner") {
   CHECK(ptr[3u] == 5u); //AT->TA (MNV)
   REQUIRE(merged_vec.size() == 6u); //REF and ALT
   //REF
-  CHECK(merged_vec[0u].allele == REF);
+  CHECK(merged_vec[0u].allele == REF_vec[2u]);
   //ATGC->A
-  CHECK(merged_vec[1u].REF_length == REF.length());
+  CHECK(merged_vec[1u].REF_length == REF_vec[2u].length());
   CHECK(merged_vec[1u].allele == "A");
   CHECK(!merged_vec[1u].is_symbolic_allele);
   //AT->A
@@ -76,15 +81,16 @@ TEST_CASE("alleles_combiner") {
   CHECK(merged_vec[5u].allele == "TA");
   CHECK(!merged_vec[5u].is_symbolic_allele);
   //Throw in another sample with the same set of alleles + NON_REF but in a different order
-  std::string delimited_ALT_1("TTGC|*|A|TAGC|&|AGC");
-  combiner.insert_allele_info(1u, REF, delimited_ALT_1, false);
+  REF_vec[1u] = "ATGC";
+  delimited_ALT_vec[1u] = "TTGC|*|A|TAGC|&|AGC";
+  insert_allele_info(tracker, combiner, 1u, REF_vec[1u], delimited_ALT_vec[1u]);
   CHECK(combiner.get_num_calls_with_deletions_or_MNVs() == 2u);
   CHECK(combiner.get_num_calls_with_NON_REF_allele() == 1u);
   CHECK(combiner.contains_deletion_or_MNV(1u));
   CHECK(combiner.contains_NON_REF_allele(1u));
   CHECK(merged_vec.size() == 6u); //since NON_REF alleles aren't added to merged_vec
-  REQUIRE(row_query_idx_with_deletion_MNV_vec.size() == 2u); //one more sample has deletion/MNV
-  CHECK(row_query_idx_with_deletion_MNV_vec[1u] == 1u); //row query idx 1u
+  REQUIRE(row_query_idx_with_deletion_MNV_added_in_current_iteration_vec.size() == 2u); //one more sample has deletion/MNV
+  CHECK(row_query_idx_with_deletion_MNV_added_in_current_iteration_vec[1u] == 1u); //row query idx 1u
   ptr_length_pair = combiner.get_deletion_MNV_indexes_for_row_query_idx_at_index(1u); //get deletion indexes for row query idx 1u
   CHECK(ptr_length_pair.second == 4u);   //row query idx 1 has 4 deletions/MNVs
   ptr = ptr_length_pair.first;
@@ -93,13 +99,15 @@ TEST_CASE("alleles_combiner") {
   CHECK(ptr[2u] == 4u); //AT->TA (MNV)
   CHECK(ptr[3u] == 6u); //AT->A
   //throw in one more sample
-  combiner.insert_allele_info(0u, "A", "T|<SYM>|G|AGGT", false);
+  REF_vec[0u] = "A";
+  delimited_ALT_vec[0u] = "T|<SYM>|G|AGGT";
+  insert_allele_info(tracker, combiner, 0u, REF_vec[0u], delimited_ALT_vec[0u]);
   //No changes to NON_REF or deletion counters
   CHECK(combiner.get_num_calls_with_deletions_or_MNVs() == 2u);
   CHECK(combiner.get_num_calls_with_NON_REF_allele() == 1u);
   CHECK(!combiner.contains_deletion_or_MNV(0u));
   CHECK(!combiner.contains_NON_REF_allele(0u));
-  REQUIRE(row_query_idx_with_deletion_MNV_vec.size() == 2u); //no samples with deletion/MNV added
+  REQUIRE(row_query_idx_with_deletion_MNV_added_in_current_iteration_vec.size() == 2u); //no samples with deletion/MNV added
   REQUIRE(merged_vec.size() == 9u); //3 new alt alleles added
   //A-><SYM>
   CHECK(merged_vec[6u].REF_length ==1u);
@@ -162,22 +170,70 @@ TEST_CASE("alleles_combiner") {
     REQUIRE(gold_alleles.size() == alleles_vec.size());
     for(auto i=0u;i<gold_alleles.size();++i)
       CHECK(gold_alleles[i] == alleles_vec[i]);
+    CHECK(combiner.get_NON_REF_allele_index_in_merged_allele_list() == merged_vec.size()-1u);
+    CHECK(combiner.get_spanning_deletion_allele_index_in_merged_allele_list() == 4u);
+  }
+  //Move on to next iteration
+  remove_allele_info(tracker, combiner, 0u);
+  //samples 1 and 2 have spanning deletions and NON_REF
+  combiner.reset_before_adding_new_sample_info_at_current_position();
+  CHECK(combiner.get_num_calls_with_NON_REF_allele() == 1u);
+  CHECK(combiner.get_num_calls_with_deletions_or_MNVs() == 2u);
+  REQUIRE(merged_vec.size() == 1u); //must have reset, just a position for REF
+  //No new samples added in this iteration
+  combiner.finished_updating_allele_info_for_current_position();
+  CHECK(row_query_idx_with_deletion_MNV_added_in_current_iteration_vec.size() == 0u); //no new deletions/MNVs added in this iteration
+  //Merged list should have just REF + 2 alt alleles - spanning_deletion and NON_REF
+  REQUIRE(merged_vec.size() == 3u);
+  {
+    //REF is empty since it's the middle of a variant and we're not getting the base from the reference genome
+    std::vector<STRING_VIEW> gold_alleles = { "", "*","<NON_REF>" };
+    std::vector<STRING_VIEW> alleles_vec;
+    combiner.get_merged_VCF_spec_alleles_vec(buffer_str, alleles_vec);
+    REQUIRE(gold_alleles.size() == alleles_vec.size());
+    for(auto i=0u;i<gold_alleles.size();++i)
+      CHECK(gold_alleles[i] == alleles_vec[i]);
+    CHECK(combiner.get_NON_REF_allele_index_in_merged_allele_list() == merged_vec.size()-1u);
+    CHECK(combiner.get_spanning_deletion_allele_index_in_merged_allele_list() == 1u);
   }
   //Move on to next iteration
   //Remove row query idx 1u
-  combiner.remove_allele_info(1u);
+  remove_allele_info(tracker, combiner, 1u);
   CHECK(combiner.get_num_calls_with_NON_REF_allele() == 0u); //reduced by 1
   CHECK(combiner.get_num_calls_with_deletions_or_MNVs() == 1u); //reduced by 1
-  //Switch to next iteration
   combiner.reset_before_adding_new_sample_info_at_current_position();
-  CHECK(row_query_idx_with_deletion_MNV_vec.size() == 0u);
+  REQUIRE(merged_vec.size() == 1u); //must have reset, just a position for REF
+  //No new samples added in this iteration
+  combiner.finished_updating_allele_info_for_current_position();
+  CHECK(row_query_idx_with_deletion_MNV_added_in_current_iteration_vec.size() == 0u);
   CHECK(combiner.get_num_calls_with_deletions_or_MNVs() == 1u); //remains same - row_query_idx=2 should still be counted
-  combiner.remove_allele_info(2u);
+  //Merged list should have just REF + 1 alt alleles - spanning_deletion
+  REQUIRE(merged_vec.size() == 2u);
+  {
+    //REF is empty since it's the middle of a variant and we're not getting the base from the reference genome
+    std::vector<STRING_VIEW> gold_alleles = { "", "*" };
+    std::vector<STRING_VIEW> alleles_vec;
+    combiner.get_merged_VCF_spec_alleles_vec(buffer_str, alleles_vec);
+    REQUIRE(gold_alleles.size() == alleles_vec.size());
+    for(auto i=0u;i<gold_alleles.size();++i)
+      CHECK(gold_alleles[i] == alleles_vec[i]);
+    CHECK(!combiner.merged_alleles_list_contains_NON_REF());
+    CHECK(combiner.get_spanning_deletion_allele_index_in_merged_allele_list() == 1u);
+  }
+  //Move on to next iteration
+  remove_allele_info(tracker, combiner, 2u);
+  combiner.reset_before_adding_new_sample_info_at_current_position();
   CHECK(combiner.get_num_calls_with_deletions_or_MNVs() == 0u);
   //New set of alleles
-  combiner.insert_allele_info(0u, "A", "T|AGGT", false);
-  combiner.insert_allele_info(1u, "ATGC", "A|AGGTTGC", false);
-  combiner.insert_allele_info(2u, "ATGC", "TTGC|A", false);
+  REF_vec[0u] = "A";
+  delimited_ALT_vec[0u] = "T|AGGT";
+  REF_vec[1u] = "ATGC";
+  delimited_ALT_vec[1u] = "A|AGGTTGC";
+  REF_vec[2u] = "ATGC";
+  delimited_ALT_vec[2u] = "TTGC|A";
+  insert_allele_info(tracker, combiner, 0u, REF_vec[0u], delimited_ALT_vec[0u]);
+  insert_allele_info(tracker, combiner, 1u, REF_vec[1u], delimited_ALT_vec[1u]);
+  insert_allele_info(tracker, combiner, 2u, REF_vec[2u], delimited_ALT_vec[2u]);
   combiner.finished_updating_allele_info_for_current_position();
   CHECK(combiner.get_num_calls_with_deletions_or_MNVs() == 2u);
   CHECK(combiner.get_num_calls_with_NON_REF_allele() == 0u);
@@ -186,9 +242,9 @@ TEST_CASE("alleles_combiner") {
   CHECK(!combiner.contains_deletion_or_MNV(0u));
   CHECK(combiner.contains_deletion_or_MNV(1u));
   CHECK(combiner.contains_deletion_or_MNV(2u));
-  REQUIRE(row_query_idx_with_deletion_MNV_vec.size() == 2u); //2 samples have deletion/MNV
-  CHECK(row_query_idx_with_deletion_MNV_vec[0u] == 1u); //row query idxs 1 and 2 have deletions
-  CHECK(row_query_idx_with_deletion_MNV_vec[1u] == 2u);
+  REQUIRE(row_query_idx_with_deletion_MNV_added_in_current_iteration_vec.size() == 2u); //2 samples have deletion/MNV
+  CHECK(row_query_idx_with_deletion_MNV_added_in_current_iteration_vec[0u] == 1u); //row query idxs 1 and 2 have deletions
+  CHECK(row_query_idx_with_deletion_MNV_added_in_current_iteration_vec[1u] == 2u);
   ptr_length_pair = combiner.get_deletion_MNV_indexes_for_row_query_idx_at_index(0u);
   CHECK(ptr_length_pair.second == 1u);   //row query idx 1 has 1 deletions/MNVs
   CHECK(ptr_length_pair.first[0u] == 1u); //deletion is at index 1
@@ -237,5 +293,7 @@ TEST_CASE("alleles_combiner") {
     REQUIRE(gold_alleles.size() == alleles_vec.size());
     for(auto i=0u;i<gold_alleles.size();++i)
       CHECK(gold_alleles[i] == alleles_vec[i]);
+    CHECK(!combiner.merged_alleles_list_contains_NON_REF());
+    CHECK(!combiner.merged_alleles_list_contains_spanning_deletion());
   }
 }

@@ -24,6 +24,7 @@
 #include "genomicsdb_iterators.h"
 #include "variant_cell.h"
 #include "variant_query_config.h"
+#include "gt_remapper.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBIteratorException(#X);
 
@@ -809,7 +810,8 @@ GenomicsDBGVCFIterator::GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
   m_current_end_position(-1ll),
   m_next_start_position(-1ll),
   m_cell(new GenomicsDBGVCFCell(this)),
-  m_alleles_combiner(query_config.get_num_rows_to_query())
+  m_alleles_combiner(*this, query_config.get_num_rows_to_query()),
+  m_gt_remapper(query_config.get_query_idx_for_known_field_enum(GVCF_GT_IDX), *this, m_alleles_combiner)
 #ifdef DO_PROFILING
   , m_num_times_initialized(INIT_INVALID_HISTOGRAM_NUM_BINS, 0u),
   m_num_times_invalidated(INIT_INVALID_HISTOGRAM_NUM_BINS, 0u),
