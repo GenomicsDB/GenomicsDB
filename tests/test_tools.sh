@@ -111,13 +111,13 @@ run_command() {
 }
 
 # Sanity Checks
-run_command "vcf2genomicsdb_init" 1
-run_command "vcf2genomicsdb_init --help"
-run_command "vcf2genomicsdb_init --version"
-run_command "vcf2genomicsdb_init --notanargument" 1
+run_command "./cli vcf2genomicsdb_init" 1
+run_command "./cli vcf2genomicsdb_init --help"
+run_command "./cli vcf2genomicsdb_init --version"
+run_command "./cli vcf2genomicsdb_init --notanargument" 1
 
 WORKSPACE=$TEMP_DIR/ws_$RANDOM
-run_command "vcf2genomicsdb_init -w $WORKSPACE" 1
+run_command "./cli vcf2genomicsdb_init -w $WORKSPACE" 1
 
 #    $1 actual
 #    $2 expected
@@ -156,58 +156,58 @@ ERR=1
       
 # Basic Tests
 create_sample_list t0.vcf.gz
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST" 1 85 24 85 "#1"
-run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST" ERR
-run_command "vcf2genomicsdb_init -w $WORKSPACE -s non-existent-file" ERR
-run_command "vcf2genomicsdb_init -w $WORKSPACE -S non-existent-dir" ERR
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST" 1 85 24 85 "#1"
+run_command "./cli vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST" ERR
+run_command "./cli vcf2genomicsdb_init -w $WORKSPACE -s non-existent-file" ERR
+run_command "./cli vcf2genomicsdb_init -w $WORKSPACE -S non-existent-dir" ERR
 NO_SAMPLE_LIST=$TEMP_DIR/no_samples_$RANDOM
 touch $NO_SAMPLE_LIST
-run_command "vcf2genomicsdb_init -w $WORKSPACE -s $NO_SAMPLE_LIST" ERR
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#2"
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o" 1 85 24 85 "#3"
+run_command "./cli vcf2genomicsdb_init -w $WORKSPACE -s $NO_SAMPLE_LIST" ERR
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#2"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o" 1 85 24 85 "#3"
 
 # Partition Tests
 # single partition -n 0
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -n 0"  1 1 24 85 "#4"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -n 0"  1 1 24 85 "#4"
 # at least 10 partitions -n 10, will still create one partition per chromosome/contig - 85 contigs in all
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -n 10"  1 85 24 85 "#4"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -n 10"  1 85 24 85 "#4"
 # at least 100 partitions -n 100
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -n 100"  1 168 24 85 "#5"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -n 100"  1 168 24 85 "#5"
 # size of partitions -z 1000
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -z 10000000"  1 376 24 85 "#6"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -z 10000000"  1 376 24 85 "#6"
 # -z 1000 overrides -n 100
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -n 100 -z 10000000"  1 376 24 85 "#7"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -n 100 -z 10000000"  1 376 24 85 "#7"
 # merge small contigs
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -m"  1 25 24 85 "#8"
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -m -n 100"  1 108 24 85 "#9"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -m"  1 25 24 85 "#8"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -m -n 100"  1 108 24 85 "#9"
 # with interval list
 create_interval_list 1:1-100000 1:100001-1000000
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -i $INTERVAL_LIST"  1 2 24 85 "#10"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -i $INTERVAL_LIST"  1 2 24 85 "#10"
 # -n 0 overrides -i <interval_list>
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -i $INTERVAL_LIST -n 0"  1 1 24 85 "#11"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -i $INTERVAL_LIST -n 0"  1 1 24 85 "#11"
 
 # Combined vcfs Test
 create_sample_list t0_1_2_combined.vcf.gz
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 3 85 18 85 "#12"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 3 85 18 85 "#12"
 
 # Append/Incremental update Test
 create_sample_list t0.vcf.gz
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#13"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#13"
 create_sample_list t1.vcf.gz
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -a" 2 85 24 85 "#14"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -a" 2 85 24 85 "#14"
 create_sample_list t0.vcf.gz t1.vcf.gz
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -a" 2 85 24 85 "#15"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -a" 2 85 24 85 "#15"
 
 # Fields test
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -o -S $SAMPLE_DIR -f GT,DP" 2 85 2 85 "#16"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -o -S $SAMPLE_DIR -f GT,DP" 2 85 2 85 "#16"
 
 # Template loader json
 create_template_loader_json
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "#17"
+run_command_and_check_results "./cli vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "#17"
 assert_true $(grep '"segment_size": 400' $WORKSPACE/loader.json | wc -l) 1 "Test #16 segment_size from template loader json was not applied"
 
-# Validate by running vcf2genomicsdb with the generated loader json
-vcf2genomicsdb -r 1 $WORKSPACE/loader.json
+# Validate by running ./cli vcf2genomicsdb with the generated loader json
+./cli vcf2genomicsdb -r 1 $WORKSPACE/loader.json
 
 cleanup
 exit $STATUS

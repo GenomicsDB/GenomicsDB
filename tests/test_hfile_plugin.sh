@@ -104,8 +104,8 @@ cat > $LOADER_JSON  << EOF
 EOF
 
 COMBINED_VCF="$TEMP_DIR/combined.vcf"
-check_rc `create_genomicsdb_workspace $WORKSPACE`
-check_rc `vcf2genomicsdb $LOADER_JSON > $COMBINED_VCF`
+check_rc `cli create_genomicsdb_workspace $WORKSPACE`
+check_rc `cli vcf2genomicsdb $LOADER_JSON > $COMBINED_VCF`
 
 if [[ ! -f $COMBINED_VCF ]]; then
   die "vcf2genomicsdb does not seem to have generated any output"

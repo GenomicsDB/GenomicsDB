@@ -32,7 +32,7 @@ create_load_genomicsdb_cfg() {
     then
         echo "[loader]"
         echo "num_processes = 1"
-        echo "executable = ${GDBDIR}/bin/vcf2genomicsdb"
+        echo "executable = ${GDBDIR}/bin/vcf2genomicsdb cli"
         echo "tile_loader_json = ${INITDIR}/tile_loader.json"
     fi >> ${outfile}
 }
@@ -42,7 +42,7 @@ create_load_genomicsdb_cfg() {
 create_work_space() {
     rm -rf "${INITDIR}"
     cp -r ${OLD_INITDIR} ${INITDIR}
-    create_genomicsdb_workspace "${INITDIR}/workspace"
+    cli create_genomicsdb_workspace "${INITDIR}/workspace"
     mkdir -p "${INITDIR}/outputs"
     (
         cd ${INITDIR}/inputs/vcfs
