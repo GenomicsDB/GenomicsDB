@@ -143,7 +143,7 @@ int main(int argc, char* argv[]){
     MPI_Comm_size(MPI_COMM_WORLD, &procs);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);*/
 
-    initialize_MPI(&procs, &rank);
+    //initialize_MPI(&procs, &rank);
 
     //std::cout << procs << " MPI procs" << std::endl;
     //std::cout << "rank: " << rank << std::endl;
