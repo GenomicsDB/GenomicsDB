@@ -82,43 +82,43 @@ int main(int argc, char* argv[]){
             if(!rank){
                 rv = create_genomicsdb_workspace_main(argc - 1, argv + 1);
             }
-            MPI_Finalize();
+            //MPI_Finalize();
             exit(rv);
         }
         if(!std::strcmp(argv[1], "gt_mpi_gather")){
             rv = gt_mpi_gather_main(argc - 1, argv + 1);
-            MPI_Finalize();
+            //MPI_Finalize();
             exit(rv);
         }
         if(!std::strcmp(argv[1], "vcf2genomicsdb")){
             rv = vcf2genomicsdb_main(argc - 1, argv + 1);
-            MPI_Finalize();
+            //MPI_Finalize();
             exit(rv);
         }
         if(!std::strcmp(argv[1], "vcfdiff")){
             rv = vcfdiff_main(argc - 1, argv + 1);
-            MPI_Finalize();
+            //MPI_Finalize();
             exit(rv);
         }
         if(!std::strcmp(argv[1], "consolidate_genomicsdb_array")){
             if(!rank){
                 rv = consolidate_genomicsdb_array_main(argc - 1, argv + 1);
             }
-            MPI_Finalize();
+            //MPI_Finalize();
             exit(rv);
         }
         if(!std::strcmp(argv[1], "vcf2genomicsdb_init")){
             if(!rank){
                 rv = vcf2genomicsdb_init_main(argc - 1, argv + 1);
             }
-            MPI_Finalize();
+            //MPI_Finalize();
             exit(rv);
         }
         if(!std::strcmp(argv[1], "vcf_histogram")){
             if(!rank){
                 vcf_histogram_main(argc - 1, argv + 1);
             }
-            MPI_Finalize();
+            //MPI_Finalize();
             exit(rv);
         }
         

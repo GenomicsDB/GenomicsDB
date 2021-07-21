@@ -636,8 +636,6 @@ int VariantStorageManager::define_array(const VariantArraySchema* variant_array_
     dim_domains[2u*i+1u] = variant_array_schema->dim_domains()[i].second;
   }
 
-  std::cout << "ALERT variant_storage_manager compression type is " << compression[0] << ", level is " << compression_level[0] << std::endl;
-
   //TileDB C API
   TileDB_ArraySchema array_schema;
   memset(&array_schema, 0, sizeof(TileDB_ArraySchema));
