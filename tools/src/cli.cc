@@ -73,52 +73,42 @@ int main(int argc, char* argv[]){
     int procs, rank;
     initialize_MPI(&procs, &rank);
 
-    //std::cout << procs << " MPI procs" << std::endl;
-    //std::cout << "rank: " << rank << std::endl;
-
     if(argc != 1){
         int rv = 0;
         if(!std::strcmp(argv[1], "create_genomicsdb_workspace")){
             if(!rank){
                 rv = create_genomicsdb_workspace_main(argc - 1, argv + 1);
             }
-            //MPI_Finalize();
             exit(rv);
         }
         if(!std::strcmp(argv[1], "gt_mpi_gather")){
             rv = gt_mpi_gather_main(argc - 1, argv + 1);
-            //MPI_Finalize();
             exit(rv);
         }
         if(!std::strcmp(argv[1], "vcf2genomicsdb")){
             rv = vcf2genomicsdb_main(argc - 1, argv + 1);
-            //MPI_Finalize();
             exit(rv);
         }
         if(!std::strcmp(argv[1], "vcfdiff")){
             rv = vcfdiff_main(argc - 1, argv + 1);
-            //MPI_Finalize();
             exit(rv);
         }
         if(!std::strcmp(argv[1], "consolidate_genomicsdb_array")){
             if(!rank){
                 rv = consolidate_genomicsdb_array_main(argc - 1, argv + 1);
             }
-            //MPI_Finalize();
             exit(rv);
         }
         if(!std::strcmp(argv[1], "vcf2genomicsdb_init")){
             if(!rank){
                 rv = vcf2genomicsdb_init_main(argc - 1, argv + 1);
             }
-            //MPI_Finalize();
             exit(rv);
         }
         if(!std::strcmp(argv[1], "vcf_histogram")){
             if(!rank){
                 vcf_histogram_main(argc - 1, argv + 1);
             }
-            //MPI_Finalize();
             exit(rv);
         }
         
@@ -134,19 +124,6 @@ int main(int argc, char* argv[]){
         }
         exit(1);
     }
-
-    /*auto rc = MPI_Init(0, 0);
-    if (rc != MPI_SUCCESS) {
-        std::cerr << "Error starting MPI program. Terminating." << std::endl;
-        MPI_Abort(MPI_COMM_WORLD, rc);
-    }
-    MPI_Comm_size(MPI_COMM_WORLD, &procs);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);*/
-
-    //initialize_MPI(&procs, &rank);
-
-    //std::cout << procs << " MPI procs" << std::endl;
-    //std::cout << "rank: " << rank << std::endl;
 
     while(1){
         char rec_buf;
@@ -202,9 +179,6 @@ int main(int argc, char* argv[]){
         MPI_Barrier(MPI_COMM_WORLD);
         MPI_Bcast(args_ptr, arg_len, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-        std::cout << "Proc " << rank << " args: " << args_ptr << std::endl;
-        //args = std::string(args_ptr);
-
         // split by space
         std::vector<std::string> argv_vector;
 
@@ -214,12 +188,6 @@ int main(int argc, char* argv[]){
             ind = newind + 1;
         }
         argv_vector.push_back(args.substr(ind));
-
-        //std::cout << "argv_vector" << std::endl;
-        //for(auto& a : argv_vector){
-        //    std::cout << a << std::endl;
-        //}
-        //std::cout << std::endl;
 
         // construct argv
         auto argv_ptr = new char* [argv_vector.size() + 1];
@@ -233,11 +201,6 @@ int main(int argc, char* argv[]){
         }
 
         int argc_int = argv_vector.size() + 1;
-
-        //std::cout << "argc_int " << argc_int << std::endl;
-        //for(int i = 0; i < argc_int; i++){
-        //    std::cout << argv_ptr[i] << std::endl;
-        //}
 
         // parallel tools
         int code;
@@ -268,32 +231,4 @@ int main(int argc, char* argv[]){
         }
         delete [] argv_ptr;
     }   
-
-    /*int rv;
-
-    consolidate_genomics_array_main(argc, argv);
-    std::cout << std::endl;    
-
-    rv = exec_in_fork(gt_mpi_gather_main, argc, argv);
-    std::cout << "Code: " << rv << std::endl;
-    std::cout << std::endl;    
-
-    vcf2genomicsdb_init_main(argc, argv);
-    std::cout << std::endl;
-
-    vcf_histogram_main(argc, argv);
-    std::cout << std::endl;
-
-    create_genomicsdb_workspace_main(argc, argv);
-    std::cout << std::endl;
-
-    //vcf2genomicsdb_main(argc, argv);
-    //int rv = exec_vcf2genomicsdb_main(argc, argv);
-    rv = exec_in_fork(vcf2genomicsdb_main, argc, argv);
-    std::cout << "Code: " << rv << std::endl;
-    std::cout << std::endl;
-
-    rv = exec_in_fork(vcfdiff_main, argc, argv);
-    std::cout << "Code: " << rv << std::endl;
-    std::cout << std::endl;*/
 }
