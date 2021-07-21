@@ -123,9 +123,9 @@ endif()
 #Check C++ 2011 support
 include(CheckAndSetStdCXX2011Flag)
 CHECK_AND_SET_STD_CXX_2011_FLAG(test_cpp_2011)
-#if(NOT test_cpp_2011)
-#    message(FATAL_ERROR "Your compiler does not support C++ 2011, exiting")
-#endif()
+if(NOT test_cpp_2011)
+    message(FATAL_ERROR "Your compiler does not support C++ 2011, exiting")
+endif()
 #Check for stack-protector-strong
 include(CheckAndSetStackProtectorStrong)
 CHECK_AND_SET_STACK_PROTECTOR_STRONG_FLAG(test_stack_protector_strong)
