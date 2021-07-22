@@ -344,6 +344,8 @@ void VidMapper::build_vcf_fields_vectors(std::vector<std::vector<std::string>>& 
 
 void VidMapper::build_tiledb_array_schema(VariantArraySchema*& array_schema, const std::string array_name,
     const bool compress_fields,
+    const int  compression_type,
+    const int  compression_level,
     const bool no_mandatory_VCF_fields)
 const {
   auto dim_names = std::vector<std::string>({"samples", "position"});
@@ -416,8 +418,8 @@ const {
   types.push_back(std::type_index(typeid(int64_t)));
 
   std::vector<int> compression;
-  std::vector<int> compression_level;
-  for (auto i=0u; i<types.size(); ++i) { // types contains entry for coords also
+  std::vector<int> compression_levels;
+  /*for (auto i=0u; i<types.size(); ++i) { // types contains entry for coords also
     if (compress_fields) {
       compression.push_back(TILEDB_GZIP);
       compression_level.push_back(TILEDB_COMPRESSION_LEVEL_GZIP);
@@ -425,9 +427,16 @@ const {
       compression.push_back(TILEDB_NO_COMPRESSION);
       compression_level.push_back(0);
     }
+  }*/
+  if (compress_fields) {
+    compression = std::vector<int>(types.size(), compression_type);
+    compression_levels = std::vector<int>(types.size(), compression_level);
+  } else {
+    compression = std::vector<int>(types.size(), TILEDB_NO_COMPRESSION);
+    compression_levels = std::vector<int>(types.size(), 0);
   }
 
-  array_schema = new VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression, compression_level);
+  array_schema = new VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression, compression_levels);
 }
 
 void VidMapper::build_file_partitioning(const int partition_idx, const TileDBRowRange row_partition) {

@@ -76,6 +76,7 @@ message ImportConfiguration {
   optional bool compress_tiledb_array = 15 [default = true];
   optional int64 num_cells_per_tile = 16 [default = 1000];
   optional bool fail_if_updating = 17 [default = false];
+  optional int32 compression_type = 18 [default = 1];
   optional int32 tiledb_compression_level = 19 [default = -1];
   optional bool consolidate_tiledb_array_after_load = 20 [default = false];
   optional bool disable_synced_writes = 21 [default = true];
