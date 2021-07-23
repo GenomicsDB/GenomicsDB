@@ -30,6 +30,7 @@
 #include "query_variants.h"
 #include "broad_combined_gvcf.h"
 #include "vid_mapper_pb.h"
+#include "cli.h"
 
 #ifdef USE_BIGMPI
 #include "bigmpi.h"
@@ -398,7 +399,7 @@ void produce_column_histogram(const VariantQueryProcessor& qp, const VariantQuer
     histogram_op.equi_partition_and_print_bins(val);
 }
 
-void print_usage() {
+void gt_mpi_gather_print_usage() {
   std::cout << "Usage: gt_mpi_gather [options]\n"
             << "where options include:\n"
             << "\t \e[1m--help\e[0m, \e[1m-h\e[0m Print a usage message summarizing options available and exit\n"
@@ -440,11 +441,11 @@ void print_usage() {
 }
 
 void initialize_MPI_env(int *my_world_mpi_rank, int *num_mpi_processes) {
-  auto rc = MPI_Init(0, 0);
+  /*auto rc = MPI_Init(0, 0);
   if (rc != MPI_SUCCESS) {
     printf ("Error starting MPI program. Terminating.\n");
     MPI_Abort(MPI_COMM_WORLD, rc);
-  }
+  }*/
   MPI_Comm_size(MPI_COMM_WORLD, num_mpi_processes);
   MPI_Comm_rank(MPI_COMM_WORLD, my_world_mpi_rank);
 #ifdef DEBUG
@@ -459,7 +460,7 @@ void initialize_MPI_env(int *my_world_mpi_rank, int *num_mpi_processes) {
 #endif
 }
 
-int main(int argc, char *argv[]) {
+int gt_mpi_gather_main(int argc, char *argv[]) {
   int my_world_mpi_rank = 0;
   int num_mpi_processes = 0;
   initialize_MPI_env(&my_world_mpi_rank, &num_mpi_processes);
@@ -560,20 +561,24 @@ int main(int argc, char *argv[]) {
       break;
     case ARGS_IDX_VERSION:
       std::cout << GENOMICSDB_VERSION <<"\n";
+      //MPI_Finalize();
       return 0;
     case 'h':
-      print_usage();
+      gt_mpi_gather_print_usage();
+      //MPI_Finalize();
       return 0;
     default:
       std::cerr << "Unknown command line argument\n";
-      print_usage();
+      gt_mpi_gather_print_usage();
+      //MPI_Finalize();
       return -1;
     }
   }
 
   if (json_config_file.empty()) {
     std::cerr << "Query JSON file (-j) is a mandatory argument - unspecified\n";
-    print_usage();
+    gt_mpi_gather_print_usage();
+    //MPI_Finalize();
     return -1;
   }
 
@@ -660,6 +665,6 @@ int main(int argc, char *argv[]) {
     rc = -1;
   }
 
-  MPI_Finalize();
+  //MPI_Finalize();
   return rc;
 }

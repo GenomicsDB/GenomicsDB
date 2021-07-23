@@ -1,51 +1,12 @@
-#include "_consolidate_genomicsdb_array.cc"
-#include "_gt_mpi_gather.cc"
-#include "_vcf2genomicsdb_init.cc"
-#include "_vcf_histogram.cc"
-#include "_create_genomicsdb_workspace.cc"
-#include "_vcf2genomicsdb.cc"
-#include "_vcfdiff.cc"
+#include "cli.h"
 #include <iostream>
 #include <sys/wait.h>
 #include <functional>
 #include <string>
 #include <mpi.h>
-
-int exec_vcf2genomicsdb_main(int argc, char* argv[]){
-    int pid = fork();
-
-    if(!pid){ // child
-        int rv = vcf2genomicsdb_main(argc, argv);
-        exit(rv);
-    }
-    else{ // parent
-        int status;
-        if(waitpid(pid, &status, 0) < 0){
-            std::cerr << "Wait error" << std::endl;
-            exit(-1);
-        }
-
-        return WEXITSTATUS(status);
-    }
-}
-
-int exec_in_fork(std::function<int(int, char*[])> f, int argc, char* argv[]){
-    int pid = fork();
-
-    if(!pid){ // child
-        int rv = f(argc, argv);
-        exit(rv);
-    }
-    else{ // parent
-        int status;
-        if(waitpid(pid, &status, 0) < 0){
-            std::cerr << "Wait error" << std::endl;
-            exit(-1);
-        }
-
-        return WEXITSTATUS(status);
-    }
-}
+#include <cstdlib>
+#include <cstring>
+#include <vector>
 
 void print_opts(){
     std::cout << "Options: " << std::endl;

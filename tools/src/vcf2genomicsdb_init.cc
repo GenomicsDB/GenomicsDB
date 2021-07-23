@@ -41,6 +41,7 @@
 #include "genomicsdb_import_config.pb.h"
 #include "hfile_genomicsdb.h"
 #include "vid_mapper_pb.h"
+#include "cli.h"
 
 #include <spdlog/sinks/stdout_color_sinks.h>
 
@@ -817,7 +818,7 @@ void print_usage() {
 #define SLASHIFY(path) (path.back()!='/'?path+'/':path)
 #define UNSLASHIFY(path) (path.back()=='/'?path.substr(0,path.length()-2):path)
 
-int main(int argc, char** argv) {
+int vcf2genomicsdb_init_main(int argc, char** argv) {
   if (argc < 2) {
     print_usage();
     return ERR;

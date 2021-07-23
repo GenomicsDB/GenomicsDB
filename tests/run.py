@@ -1665,7 +1665,7 @@ def main():
                             loader_argument = ' -l '+loader_json_filename;
                             if("query_without_loader" in query_param_dict and query_param_dict["query_without_loader"]):
                                 loader_argument = ''
-                            query_command = (exe_path+os.path.sep+'gt_mpi_gather -s %d'+loader_argument
+                            query_command = (exe_path+os.path.sep+'cli gt_mpi_gather -s %d'+loader_argument
                                 + ' -j '
                                 +query_json_filename+' '+cmd_line_param)%(test_query_dict['segment_size']);
                         query_success,stdout_string,stderr_string = run_cmd(query_command, True,
