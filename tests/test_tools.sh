@@ -128,7 +128,7 @@ STATUS=0
 assert_true() {
   if [[ $1 -ne $2 ]]; then
     echo "Assertion Failed : $3, actual=$1 expected=$2"
-    $STATUS=1
+    STATUS=1
   fi
 }
 
