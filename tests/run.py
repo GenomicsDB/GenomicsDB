@@ -225,7 +225,7 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
     if(not success):
         return True
 
-    vcfdiff_cmd = exe_path+os.path.sep+'vcfdiff '+outfilename+'.gz '+outfilename_golden+'.gz'
+    vcfdiff_cmd = exe_path+os.path.sep+'cli vcfdiff '+outfilename+'.gz '+outfilename_golden+'.gz'
     success, vcfdiff_stdout,stderr_string = run_cmd(vcfdiff_cmd, False, 'vcfdiff cmd failed ')
     if(not success):
         return True
@@ -320,7 +320,7 @@ def test_query_compatibility_with_old_schema_verion_1(tmpdir):
     sys.stdout.write("Successful\n")
 
 def tool_sanity_checks(exe_path):
-    gt_mpi_gather_path = exe_path+os.path.sep+'gt_mpi_gather';
+    gt_mpi_gather_path = exe_path+os.path.sep+'cli gt_mpi_gather';
     try:
         st = os.stat(exe_path)
     except os.error:
@@ -1590,7 +1590,7 @@ def main():
                 import_cmd_incremental = 'java'+jacoco+' -ea TestGenomicsDBImporterWithMergedVCFHeader --size_per_column_partition 16384 ' \
                                                '--segment_size 10485760 --incremental '+str(count)+arg_list+file_list+coalesce_arg
         else:
-            import_cmd = exe_path+os.path.sep+'vcf2genomicsdb '+loader_json_filename
+            import_cmd = exe_path+os.path.sep+'cli vcf2genomicsdb '+loader_json_filename
         
         loader_cmd_success,stdout_string,stderr_string = run_cmd(import_cmd, True, 'Loader test: '+test_name)
         md5sum_hash_str = str(hashlib.md5(stdout_string).hexdigest())
@@ -1660,12 +1660,12 @@ def main():
                                 + ' ' + misc_args;
                         else:
                             if(query_type == 'consolidate_and_vcf'):
-                                run_cmd(exe_path+os.path.sep+'consolidate_genomicsdb_array '+ws_dir+' '+test_name,
+                                run_cmd(exe_path+os.path.sep+'cli consolidate_genomicsdb_array '+ws_dir+' '+test_name,
                                     True, 'TileDB array consolidation failed for test '+test_name+' : ')
                             loader_argument = ' -l '+loader_json_filename;
                             if("query_without_loader" in query_param_dict and query_param_dict["query_without_loader"]):
                                 loader_argument = ''
-                            query_command = (exe_path+os.path.sep+'gt_mpi_gather -s %d'+loader_argument
+                            query_command = (exe_path+os.path.sep+'cli gt_mpi_gather -s %d'+loader_argument
                                 + ' -j '
                                 +query_json_filename+' '+cmd_line_param)%(test_query_dict['segment_size']);
                         query_success,stdout_string,stderr_string = run_cmd(query_command, True,

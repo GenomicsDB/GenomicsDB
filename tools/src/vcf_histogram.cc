@@ -22,16 +22,18 @@
 
 #include "vcf2binary.h"
 #include "tiledb_loader.h"
+#include "cli.h"
 #include <mpi.h>
 
 #ifdef USE_GPERFTOOLS
 #include "gperftools/profiler.h"
 #endif
 
-int main(int argc, char** argv) {
+int vcf_histogram_main(int argc, char** argv) {
   if (argc <= 1) {
     std::cerr << "Needs 1 arg <json_config_file>\n";
-    exit(-1);
+    //exit(-1);
+    return -1;
   }
   //Converter object
   GenomicsDBImportConfig loader_config;

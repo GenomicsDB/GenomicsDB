@@ -279,6 +279,9 @@ class GenomicsDBImportConfig : public GenomicsDBConfigBase {
   inline size_t get_num_cells_per_tile() const {
     return m_num_cells_per_tile;
   }
+  inline int64_t get_tiledb_compression_type() const {
+    return m_tiledb_compression_type;
+  }
   inline int64_t get_tiledb_compression_level() const {
     return m_tiledb_compression_level;
   }
@@ -354,6 +357,8 @@ class GenomicsDBImportConfig : public GenomicsDBConfigBase {
   size_t m_segment_size;
   //TileDB array #cells/tile
   size_t m_num_cells_per_tile;
+  //TileDB compression type
+  int m_tiledb_compression_type;
   //TileDB compression level
   int m_tiledb_compression_level;
   //flag to disallow TileDB pre compression filter Delta Encoding for offsets to fields

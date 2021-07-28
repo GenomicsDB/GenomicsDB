@@ -22,6 +22,7 @@
 
 #include "vcf2binary.h"
 #include "tiledb_loader.h"
+#include "cli.h"
 #include <mpi.h>
 #include <getopt.h>
 
@@ -38,13 +39,13 @@ enum VCF2TileDBArgsEnum {
   VCF2TILEDB_ARG_VERSION
 };
 
-int main(int argc, char** argv) {
+int vcf2genomicsdb_main(int argc, char** argv) {
   //Initialize MPI environment
-  auto rc = MPI_Init(0, 0);
+  /*auto rc = MPI_Init(0, 0);
   if (rc != MPI_SUCCESS) {
     printf ("Error starting MPI program. Terminating.\n");
     MPI_Abort(MPI_COMM_WORLD, rc);
-  }
+  }*/
   //Get my world rank
   int my_world_mpi_rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &my_world_mpi_rank);
@@ -96,13 +97,17 @@ int main(int argc, char** argv) {
       break;
     default:
       std::cerr << "Unknown parameter "<< argv[optind] << "\n";
-      exit(-1);
+      //exit(-1);
+      MPI_Finalize();
+      return -1;
     }
   }
   if (!print_version_only) {
     if (optind+1 > argc) {
       std::cerr << "Needs <loader_json_config_file>\n";
-      exit(-1);
+      //exit(-1);
+      //MPI_Finalize();
+      return -1;
     }
     auto loader_json_config_file = std::move(std::string(argv[optind]));
 #ifdef USE_GPERFTOOLS
@@ -114,6 +119,7 @@ int main(int argc, char** argv) {
       loader_config.read_from_file(loader_json_config_file, my_world_mpi_rank);
       if (loader_config.is_partitioned_by_row()) {
         std::cerr << "Splitting is available for column partitioning, row partitioning should be trivial if samples are scattered across files. See wiki page https://github.com/Intel-HLS/GenomicsDB/wiki/Dealing-with-multiple-GenomicsDB-partitions for more information\n";
+        MPI_Finalize();
         return 0;
       }
       VidMapper id_mapper = loader_config.get_vid_mapper(); //copy

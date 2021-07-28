@@ -25,6 +25,7 @@
 #include "vcfdiff.h"
 #include "vid_mapper.h"
 #include "json_config.h"
+#include "cli.h"
 
 double g_threshold = 1e-5; //fp comparison threshold
 int64_t g_num_callsets = INT64_MAX;
@@ -878,14 +879,14 @@ void setup_samples_lut(const std::string& test_to_gold_callset_map_file, VCFDiff
   VERIFY_OR_THROW(num_samples_found == g_num_callsets && "Test-to-gold callset mapping file does not have mapping for all samples");
 }
 
-int main(int argc, char** argv) {
+int vcfdiff_main(int argc, char** argv) {
 #ifdef HTSDIR
   //Initialize MPI environment
-  auto rc = MPI_Init(0, 0);
+  /*auto rc = MPI_Init(0, 0);
   if (rc != MPI_SUCCESS) {
     printf ("Error starting MPI program. Terminating.\n");
     MPI_Abort(MPI_COMM_WORLD, rc);
-  }
+  }*/
   //Get my world rank
   int my_world_mpi_rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &my_world_mpi_rank);
@@ -924,7 +925,9 @@ int main(int argc, char** argv) {
   }
   if (optind+2 > argc) {
     std::cerr << "Needs 2 VCF files as input <gold> <test>\n";
-    exit(-1);
+    //exit(-1);
+    //MPI_Finalize();
+    return -1;
   }
   VCFDiffFile gold(argv[optind]);
   VCFDiffFile test(argv[optind+1]);

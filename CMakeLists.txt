@@ -406,6 +406,11 @@ function(build_GenomicsDB_executable target)
     build_GenomicsDB_executable_common(${target})
 endfunction()
 
+function(build_GenomicsDB_executable_dependencies target deplist)
+    add_executable(${target} src/${target}.cc ${deplist})
+    build_GenomicsDB_executable_common(${target})
+endfunction()
+
 add_subdirectory(src)
 include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})
 add_subdirectory(tools)
