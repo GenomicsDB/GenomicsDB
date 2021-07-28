@@ -106,18 +106,20 @@ run_command() {
   $($1 &> $TEMP_DIR/output)
   if [[ $? -ne $EXPECTED_RC ]]; then
     cat $TEMP_DIR/output
-    die "command '`echo $1`' returned $EXPECTED_RC unexpectedly"
+    die "command '`echo $1`' did not return expected RC=$EXPECTED_RC"
   fi
 }
 
+ERR=1
+
 # Sanity Checks
-run_command "vcf2genomicsdb_init" 1
+run_command "vcf2genomicsdb_init" ERR
 run_command "vcf2genomicsdb_init --help"
 run_command "vcf2genomicsdb_init --version"
-run_command "vcf2genomicsdb_init --notanargument" 1
+run_command "vcf2genomicsdb_init --notanargument" ERR
 
 WORKSPACE=$TEMP_DIR/ws_$RANDOM
-run_command "vcf2genomicsdb_init -w $WORKSPACE" 1
+run_command "vcf2genomicsdb_init -w $WORKSPACE" ERR
 
 #    $1 actual
 #    $2 expected
@@ -126,7 +128,7 @@ STATUS=0
 assert_true() {
   if [[ $1 -ne $2 ]]; then
     echo "Assertion Failed : $3, actual=$1 expected=$2"
-    $STATUS=1
+    STATUS=1
   fi
 }
 
@@ -150,9 +152,9 @@ run_command_and_check_results() {
   assert_true $n_partitions $3 "Test $6 Number of partitions in loader.json"
   assert_true $n_fields $4 "Test $6 Number of fields in vidmap.json"
   assert_true $n_contigs $5 "Test $6 Number of contigs in vidmap.json"
+  # Validate by running vcf2genomicsdb with the generated loader json
+  run_command "vcf2genomicsdb $WORKSPACE/loader.json"
 }
-
-ERR=1
       
 # Basic Tests
 create_sample_list t0.vcf.gz
@@ -206,8 +208,9 @@ create_template_loader_json
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "#17"
 assert_true $(grep '"segment_size": 400' $WORKSPACE/loader.json | wc -l) 1 "Test #16 segment_size from template loader json was not applied"
 
-# Validate by running vcf2genomicsdb with the generated loader json
-vcf2genomicsdb -r 1 $WORKSPACE/loader.json
+# Fail if same field in INFO and FORMAT have different types
+create_sample_list inconsistent_DP_t0.vcf.gz
+run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" ERR
 
 cleanup
 exit $STATUS
