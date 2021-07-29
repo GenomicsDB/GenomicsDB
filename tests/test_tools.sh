@@ -233,11 +233,16 @@ create_template_loader_json
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "#17"
 assert_true $(grep '"segment_size": 400' $WORKSPACE/loader.json | wc -l) 1 "Test #16 segment_size from template loader json was not applied"
 
-# try various compression types/levels
-TYPE=1
-LEVEL=-1
-create_compression_template_loader_json $TYPE $LEVEL
+# try various compression types/levels, see https://github.com/OmicsDataAutomation/TileDB/blob/b338ac9f84f5afde3b083a148d74019f37495fec/core/include/c_api/tiledb_constants.h#L146
+TILEDB_COMPRESSION_ZLIB=1
+TILEDB_COMPRESSION_ZSTD=2
+TILEDB_COMPRESSION_LZ4=3
+create_compression_template_loader_json $TILEDB_COMPRESSION_ZLIB -1
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $COMPRESSION_TEMPLATE" 2 85 24 85 "#18"
+create_compression_template_loader_json $TILEDB_COMPRESSION_ZSTD 5 1
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $COMPRESSION_TEMPLATE" 2 85 24 85 "#19"
+create_compression_template_loader_json $TILEDB_COMPRESSION_LZ4 -1 1
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $COMPRESSION_TEMPLATE" 2 85 24 85 "#20"
 
 # Fail if same field in INFO and FORMAT have different types
 create_sample_list inconsistent_DP_t0.vcf.gz
