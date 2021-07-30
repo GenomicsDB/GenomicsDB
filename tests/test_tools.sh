@@ -237,12 +237,20 @@ assert_true $(grep '"segment_size": 400' $WORKSPACE/loader.json | wc -l) 1 "Test
 TILEDB_COMPRESSION_ZLIB=1
 TILEDB_COMPRESSION_ZSTD=2
 TILEDB_COMPRESSION_LZ4=3
-create_compression_template_loader_json $TILEDB_COMPRESSION_ZLIB -1
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $COMPRESSION_TEMPLATE" 2 85 24 85 "#18"
-create_compression_template_loader_json $TILEDB_COMPRESSION_ZSTD 5 1
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $COMPRESSION_TEMPLATE" 2 85 24 85 "#19"
-create_compression_template_loader_json $TILEDB_COMPRESSION_LZ4 -1 1
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $COMPRESSION_TEMPLATE" 2 85 24 85 "#20"
+
+declare -A map=( [$TILEDB_COMPRESSION_ZLIB]="-1 1" [$TILEDB_COMPRESSION_ZSTD]="-1 1"  [$TILEDB_COMPRESSION_LZ4]="-1 1")
+
+run=17
+for tp in "${!map[@]}"
+do
+    #echo $tp
+    for lev in "${map[$tp]}":
+    do
+        run=$((run+1))
+        create_compression_template_loader_json $tp $lev
+        run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $COMPRESSION_TEMPLATE" 2 85 24 85 "#$run"
+    done
+done
 
 # Fail if same field in INFO and FORMAT have different types
 create_sample_list inconsistent_DP_t0.vcf.gz
