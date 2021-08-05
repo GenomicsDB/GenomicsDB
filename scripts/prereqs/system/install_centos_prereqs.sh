@@ -82,9 +82,10 @@ install_system_prerequisites() {
 	  yum install -y epel-release &&
 	  yum install -y zlib-devel &&
 	  yum install -y openssl-devel &&
-    yum install -y cmake3 &&
+          yum install -y cmake3 &&
 	  yum install -y libuuid libuuid-devel &&
-    install_csv &&
-    install_curl &&
-    install_test_prerequisites
+          yum install -i zstd &&
+          install_csv &&
+          install_curl &&
+          install_test_prerequisites
 }

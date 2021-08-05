@@ -742,6 +742,8 @@ class VidMapper {
   void build_vcf_fields_vectors(std::vector<std::vector<std::string>>& vcf_fields) const;
   void build_tiledb_array_schema(VariantArraySchema*& array_schema, const std::string array_name,
                                  const bool compress_fields,
+                                 const int  compression_type,
+                                 const int  compression_level,
                                  const bool no_mandatory_VCF_fields) const;
   /*
    * Get num contigs

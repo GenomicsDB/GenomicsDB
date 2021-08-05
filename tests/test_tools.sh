@@ -92,21 +92,54 @@ create_template_loader_json() {
 EOF
 }
 
+# create_compression_template_loader_json
+#    $1 tiledb_compression_type
+#    $2 tiledb_compression_level
+create_compression_template_loader_json() {
+  COMPRESSION_TEMPLATE=$TEMP_DIR/template_loader_json_$1_$2
+  cat > $COMPRESSION_TEMPLATE  << EOF
+{
+    "treat_deletions_as_intervals": true,
+    "compress_tiledb_array": true,
+    "produce_tiledb_array": true,
+    "size_per_column_partition": 700,
+    "delete_and_create_tiledb_array": true,
+    "num_parallel_vcf_files": 1,
+    "discard_vcf_index": true,
+    "num_cells_per_tile": 3,
+    "offload_vcf_output_processing": false,
+    "row_based_partitioning": false,
+    "segment_size": 400,
+    "do_ping_pong_buffering": false,
+    "tiledb_compression_type": $1,
+    "tiledb_compression_level": $2
+}
+EOF
+}
+
 # run_command
 #    $1 : command to be executed
 #    $2 : optional - 0(default) if command should return successfully
 #                    any other value if the command should return a failure
 run_command() {
-  declare -i EXPECTED_RC
-  EXPECTED_RC=0
+  declare -i EXPECT_NZ
+  declare -i GOT_NZ  
+  EXPECT_NZ=0
+  GOT_NZ=0
   if [[ $# -eq 2 && $2 -ne 0 ]]; then
-    EXPECTED_RC=255
+    EXPECT_NZ=1
   fi
   # Execute the command redirecting all output to $TEMP_DIR/output
   $($1 &> $TEMP_DIR/output)
-  if [[ $? -ne $EXPECTED_RC ]]; then
+  retval=$?
+
+  if [[ $retval -ne 0 ]]; then
+    GOT_NZ=1
+  fi
+
+  if [[ $(($GOT_NZ ^ $EXPECT_NZ)) -ne 0 ]]; then
     cat $TEMP_DIR/output
-    die "command '`echo $1`' did not return expected RC=$EXPECTED_RC"
+    die "command '`echo $1`' returned $retval unexpectedly"
   fi
 }
 
@@ -207,6 +240,29 @@ run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -o -S $SAMPLE_D
 create_template_loader_json
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "#17"
 assert_true $(grep '"segment_size": 400' $WORKSPACE/loader.json | wc -l) 1 "Test #16 segment_size from template loader json was not applied"
+
+# try various compression types/levels, see https://github.com/OmicsDataAutomation/TileDB/blob/b338ac9f84f5afde3b083a148d74019f37495fec/core/include/c_api/tiledb_constants.h#L146
+TILEDB_COMPRESSION_ZLIB=1
+TILEDB_COMPRESSION_ZSTD=2
+TILEDB_COMPRESSION_LZ4=3
+
+declare -A map=( [$TILEDB_COMPRESSION_ZLIB]="-1 1" [$TILEDB_COMPRESSION_ZSTD]="-1 1"  [$TILEDB_COMPRESSION_LZ4]="-1 1")
+
+run=17
+for tp in "${!map[@]}"
+do
+    #echo $tp
+    for lev in "${map[$tp]}":
+    do
+        run=$((run+1))
+        create_compression_template_loader_json $tp $lev
+        run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $COMPRESSION_TEMPLATE" 2 85 24 85 "#$run"
+    done
+done
+
+create_compression_template_loader_json -5 -5
+run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $COMPRESSION_TEMPLATE"
+run_command "vcf2genomicsdb $WORKSPACE/loader.json" ERR
 
 # Fail if same field in INFO and FORMAT have different types
 create_sample_list inconsistent_DP_t0.vcf.gz

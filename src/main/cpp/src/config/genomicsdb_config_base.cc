@@ -190,6 +190,7 @@ GenomicsDBImportConfig::GenomicsDBImportConfig()
   m_fail_if_updating = false;
 
   //Compression and Compression Filters(Delta Encode and Bit Shuffle)
+  m_tiledb_compression_type = TILEDB_GZIP; // some default
   m_tiledb_compression_level = Z_DEFAULT_COMPRESSION;
   m_disable_delta_encode_offsets = false;
   m_disable_delta_encode_coords = false;
