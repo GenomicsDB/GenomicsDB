@@ -20,6 +20,9 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+# Test command line tools -
+#    vcf2genomicsdb_init
+#    vcf2genomicsdb
 # $1 contains the test vcfs - t0.vcf.gz, t1.vcf.gz and t2.vcf.gz
 if [[ $# -ne 2 ]]; then
   echo "Usage: ./test_tools.sh <vcfs_dir> <install_dir>"
@@ -72,6 +75,9 @@ create_interval_list() {
   done
 }
 
+# create_template_loader_json
+#    (Optional) $1 tiledb_compression_type
+#    (Optional) $2 tiledb_compression_level
 create_template_loader_json() {
   TEMPLATE=$TEMP_DIR/template_loader_json_$RANDOM
   cat > $TEMPLATE  << EOF
@@ -87,32 +93,18 @@ create_template_loader_json() {
     "offload_vcf_output_processing": false,
     "row_based_partitioning": false,
     "segment_size": 400,
-    "do_ping_pong_buffering": false
-}
 EOF
-}
-
-# create_compression_template_loader_json
-#    $1 tiledb_compression_type
-#    $2 tiledb_compression_level
-create_compression_template_loader_json() {
-  COMPRESSION_TEMPLATE=$TEMP_DIR/template_loader_json_$1_$2
-  cat > $COMPRESSION_TEMPLATE  << EOF
-{
-    "treat_deletions_as_intervals": true,
-    "compress_tiledb_array": true,
-    "produce_tiledb_array": true,
-    "size_per_column_partition": 700,
-    "delete_and_create_tiledb_array": true,
-    "num_parallel_vcf_files": 1,
-    "discard_vcf_index": true,
-    "num_cells_per_tile": 3,
-    "offload_vcf_output_processing": false,
-    "row_based_partitioning": false,
-    "segment_size": 400,
-    "do_ping_pong_buffering": false,
+  if [[ $# -ge 1 ]]; then
+    cat >> $TEMPLATE << EOF
     "tiledb_compression_type": $1,
-    "tiledb_compression_level": $2
+EOF
+  elif [[ $# -ge 2 ]]; then
+    cat >> $TEMPLATE << EOF
+    "tiledb_compression_level": $2,
+EOF
+  fi
+  cat >> $TEMPLATE << EOF
+    "do_ping_pong_buffering": false
 }
 EOF
 }
@@ -241,32 +233,28 @@ create_template_loader_json
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "#17"
 assert_true $(grep '"segment_size": 400' $WORKSPACE/loader.json | wc -l) 1 "Test #16 segment_size from template loader json was not applied"
 
-# try various compression types/levels, see https://github.com/OmicsDataAutomation/TileDB/blob/b338ac9f84f5afde3b083a148d74019f37495fec/core/include/c_api/tiledb_constants.h#L146
+# Fail if same field in INFO and FORMAT have different types
+create_sample_list inconsistent_DP_t0.vcf.gz
+run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" ERR
+
+# Try compression types/levels,
+# see https://github.com/OmicsDataAutomation/TileDB/blob/b338ac9f84f5afde3b083a148d74019f37495fec/core/include/c_api/tiledb_constants.h#L146
 TILEDB_COMPRESSION_ZLIB=1
 TILEDB_COMPRESSION_ZSTD=2
 TILEDB_COMPRESSION_LZ4=3
 
-declare -A map=( [$TILEDB_COMPRESSION_ZLIB]="-1 1" [$TILEDB_COMPRESSION_ZSTD]="-1 1"  [$TILEDB_COMPRESSION_LZ4]="-1 1")
+create_sample_list t0.vcf.gz t1.vcf.gz
+create_template_loader_json $TILEDB_COMPRESSION_ZLIB -1
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "$18"
+create_template_loader_json $TILEDB_COMPRESSION_ZSTD -1
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "$19"
+create_template_loader_json $TILEDB_COMPRESSION_LZ4 -1
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "$20"
 
-run=17
-for tp in "${!map[@]}"
-do
-    #echo $tp
-    for lev in "${map[$tp]}":
-    do
-        run=$((run+1))
-        create_compression_template_loader_json $tp $lev
-        run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $COMPRESSION_TEMPLATE" 2 85 24 85 "#$run"
-    done
-done
-
-create_compression_template_loader_json -5 -5
-run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $COMPRESSION_TEMPLATE"
+# Fail with unsupported compression levels
+create_template_loader_json -5 -5
+run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o -t $TEMPLATE"
 run_command "vcf2genomicsdb $WORKSPACE/loader.json" ERR
-
-# Fail if same field in INFO and FORMAT have different types
-create_sample_list inconsistent_DP_t0.vcf.gz
-run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" ERR
 
 cleanup
 exit $STATUS
