@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2018 Intel Corporation
+ * Copyright (c) 2021 Omics Data Automation Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -103,7 +104,7 @@ ColumnRange parse_contig_interval_object(const rapidjson::Value& interval_object
   auto contig_name = interval_object["contig"].GetString();
   if (!id_mapper->get_contig_info(contig_name, contig_info))
     throw VidMapperException(std::string("GenomicsDBConfigBase::read_from_file: Invalid contig name : ")
-	+ contig_name);
+        + contig_name);
   if(interval_object.HasMember("end") && !interval_object.HasMember("begin"))
     throw GenomicsDBConfigException("Contig interval cannot have end without defining begin");
   int64_t begin  = interval_object.HasMember("begin")
@@ -134,21 +135,21 @@ bool extract_interval_from_PB_struct_or_return_false(const rapidjson::Value& cur
         //This could be TileDB column interval or contig interval
         if (interval_object.IsObject()) {
           //TileDB column interval
-	  if (interval_object.HasMember("column_interval") || interval_object.HasMember("tiledb_column_interval")) {
-	    if(interval_object.HasMember("column_interval") && interval_object.HasMember("tiledb_column_interval"))
-	      throw GenomicsDBConfigException("GenomicsDBColumn Protobuf object cannot have both column_interval and tiledb_column_interval");
-	    const auto& tiledb_column_interval = interval_object.HasMember("column_interval")
-	      ? interval_object["column_interval"] : interval_object["tiledb_column_interval"];
-	    VERIFY_OR_THROW(tiledb_column_interval.IsObject()
-		&& tiledb_column_interval.HasMember("begin")
-		&& tiledb_column_interval.HasMember("end"));
-	    result.first  = tiledb_column_interval["begin"].GetInt64();
-	    result.second = tiledb_column_interval["end"].GetInt64();
-	    return true;
-	  } else if (interval_object.HasMember("contig_interval")) {
-	    result = parse_contig_interval_object(interval_object["contig_interval"], id_mapper);
+          if (interval_object.HasMember("column_interval") || interval_object.HasMember("tiledb_column_interval")) {
+            if(interval_object.HasMember("column_interval") && interval_object.HasMember("tiledb_column_interval"))
+              throw GenomicsDBConfigException("GenomicsDBColumn Protobuf object cannot have both column_interval and tiledb_column_interval");
+            const auto& tiledb_column_interval = interval_object.HasMember("column_interval")
+              ? interval_object["column_interval"] : interval_object["tiledb_column_interval"];
+            VERIFY_OR_THROW(tiledb_column_interval.IsObject()
+                && tiledb_column_interval.HasMember("begin")
+                && tiledb_column_interval.HasMember("end"));
+            result.first  = tiledb_column_interval["begin"].GetInt64();
+            result.second = tiledb_column_interval["end"].GetInt64();
             return true;
-	  }
+          } else if (interval_object.HasMember("contig_interval")) {
+            result = parse_contig_interval_object(interval_object["contig_interval"], id_mapper);
+            return true;
+          }
         }
       } else {
         //Dictionary representing column position
@@ -252,9 +253,9 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
     VERIFY_OR_THROW(!(json_doc.HasMember("row_partitions") && json_doc.HasMember("column_partitions"))
                     && "Cannot have both \"row_partitions\" and \"column_partitions\" simultaneously in the JSON file");
     VERIFY_OR_THROW((json_doc.HasMember("query_column_ranges") || json_doc.HasMember("column_partitions")
-	             || json_doc.HasMember("query_contig_intervals")
+                     || json_doc.HasMember("query_contig_intervals")
                      || json_doc.HasMember("query_row_ranges") || json_doc.HasMember("row_partitions")
-		     || json_doc.HasMember("query_sample_names_lists")) &&
+                     || json_doc.HasMember("query_sample_names_lists")) &&
                     "Must have one of \"query_column_ranges\" or \"column_partitions\" or \"query_row_ranges\" or \"row_partitions\"");
     uint8_t num_column_query_fields = json_doc.HasMember("query_column_ranges") ? 1 : 0;
     num_column_query_fields += (json_doc.HasMember("column_partitions") ? 1 : 0);
@@ -324,7 +325,7 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
       VERIFY_OR_THROW(query_contig_intervals.IsArray());
       m_column_ranges[0].resize(query_contig_intervals.Size());
       for(rapidjson::SizeType i=0;i<query_contig_intervals.Size();++i)
-	m_column_ranges[0][i] = parse_contig_interval_object(query_contig_intervals[i], &m_vid_mapper);
+        m_column_ranges[0][i] = parse_contig_interval_object(query_contig_intervals[i], &m_vid_mapper);
     } else if (json_doc.HasMember("column_partitions")) {
       m_column_partitions_specified = true;
       //column_partitions_array itself is an array of the form [ { "begin" : <value> }, { "begin":<value>} ]
@@ -336,66 +337,66 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
       auto workspace_string = m_single_workspace_path ? m_workspaces[0] : "";
       auto array_name_string = m_single_array_name ? m_array_names[0] : "";
       for (rapidjson::SizeType partition_idx=0; partition_idx<column_partitions_array.Size(); ++partition_idx) {
-	m_column_ranges[partition_idx].resize(1);      //only 1 std::pair
-	//{ "begin" : <Val> }
-	const auto& curr_partition_info_dict = column_partitions_array[partition_idx];
-	VERIFY_OR_THROW(curr_partition_info_dict.IsObject());
-	VERIFY_OR_THROW(curr_partition_info_dict.HasMember("begin"));
-	auto& begin_json_value = curr_partition_info_dict["begin"];
-	//Either a TileDB column idx or a dictionary of the form { "chr1" : [ 5, 6 ] }
-	//Or "tiledb_column": 1234
-	VERIFY_OR_THROW(begin_json_value.IsInt64() || begin_json_value.IsObject());
-	if (begin_json_value.IsInt64())
-	  m_column_ranges[partition_idx][0].first = begin_json_value.GetInt64();
-	else
-	  extract_contig_interval_from_object(begin_json_value, &m_vid_mapper, m_column_ranges[partition_idx][0]);
-	m_column_ranges[partition_idx][0].second = INT64_MAX-1;
-	if (curr_partition_info_dict.HasMember("end")) {
-	  auto& end_json_value = curr_partition_info_dict["end"];
-	  //Either a TileDB column idx or a dictionary of the form { "chr1" : [ 5, 6 ] }
-	  //Or "tiledb_column": 1234
-	  VERIFY_OR_THROW(end_json_value.IsInt64() || end_json_value.IsObject());
-	  if (end_json_value.IsInt64())
-	    m_column_ranges[partition_idx][0].second = end_json_value.GetInt64();
-	  else {
-	    ColumnRange tmp_range;
-	    extract_contig_interval_from_object(end_json_value, &m_vid_mapper, tmp_range);
-	    m_column_ranges[partition_idx][0].second = tmp_range.first;
-	  }
-	}
-	if (m_column_ranges[partition_idx][0].first > m_column_ranges[partition_idx][0].second)
-	  std::swap<int64_t>(m_column_ranges[partition_idx][0].first, m_column_ranges[partition_idx][0].second);
-	if (curr_partition_info_dict.HasMember("workspace")) {
-	  if (column_partitions_array.Size() > m_workspaces.size())
-	    m_workspaces.resize(column_partitions_array.Size(), workspace_string);
-	  m_workspaces[partition_idx] = curr_partition_info_dict["workspace"].GetString();
-	  m_single_workspace_path = false;
-	}
-	if (curr_partition_info_dict.HasMember("array") || curr_partition_info_dict.HasMember("array_name")) {
-	  VERIFY_OR_THROW(!(curr_partition_info_dict.HasMember("array")
-		&& curr_partition_info_dict.HasMember("array_name")));
-	  if (column_partitions_array.Size() >= m_array_names.size())
-	    m_array_names.resize(column_partitions_array.Size(), array_name_string);
-	  m_array_names[partition_idx] = curr_partition_info_dict.HasMember("array")
-	    ? curr_partition_info_dict["array"].GetString()
-	    : curr_partition_info_dict["array_name"].GetString();
-	  m_single_array_name = false;
-	}
-	//Mapping from begin pos to index
-	begin_to_idx[m_column_ranges[partition_idx][0].first] = partition_idx;
-	m_sorted_column_partitions[partition_idx].first = m_column_ranges[partition_idx][0].first;
-	m_sorted_column_partitions[partition_idx].second = m_column_ranges[partition_idx][0].second;
+        m_column_ranges[partition_idx].resize(1);      //only 1 std::pair
+        //{ "begin" : <Val> }
+        const auto& curr_partition_info_dict = column_partitions_array[partition_idx];
+        VERIFY_OR_THROW(curr_partition_info_dict.IsObject());
+        VERIFY_OR_THROW(curr_partition_info_dict.HasMember("begin"));
+        auto& begin_json_value = curr_partition_info_dict["begin"];
+        //Either a TileDB column idx or a dictionary of the form { "chr1" : [ 5, 6 ] }
+        //Or "tiledb_column": 1234
+        VERIFY_OR_THROW(begin_json_value.IsInt64() || begin_json_value.IsObject());
+        if (begin_json_value.IsInt64())
+          m_column_ranges[partition_idx][0].first = begin_json_value.GetInt64();
+        else
+          extract_contig_interval_from_object(begin_json_value, &m_vid_mapper, m_column_ranges[partition_idx][0]);
+        m_column_ranges[partition_idx][0].second = INT64_MAX-1;
+        if (curr_partition_info_dict.HasMember("end")) {
+          auto& end_json_value = curr_partition_info_dict["end"];
+          //Either a TileDB column idx or a dictionary of the form { "chr1" : [ 5, 6 ] }
+          //Or "tiledb_column": 1234
+          VERIFY_OR_THROW(end_json_value.IsInt64() || end_json_value.IsObject());
+          if (end_json_value.IsInt64())
+            m_column_ranges[partition_idx][0].second = end_json_value.GetInt64();
+          else {
+            ColumnRange tmp_range;
+            extract_contig_interval_from_object(end_json_value, &m_vid_mapper, tmp_range);
+            m_column_ranges[partition_idx][0].second = tmp_range.first;
+          }
+        }
+        if (m_column_ranges[partition_idx][0].first > m_column_ranges[partition_idx][0].second)
+          std::swap<int64_t>(m_column_ranges[partition_idx][0].first, m_column_ranges[partition_idx][0].second);
+        if (curr_partition_info_dict.HasMember("workspace")) {
+          if (column_partitions_array.Size() > m_workspaces.size())
+            m_workspaces.resize(column_partitions_array.Size(), workspace_string);
+          m_workspaces[partition_idx] = curr_partition_info_dict["workspace"].GetString();
+          m_single_workspace_path = false;
+        }
+        if (curr_partition_info_dict.HasMember("array") || curr_partition_info_dict.HasMember("array_name")) {
+          VERIFY_OR_THROW(!(curr_partition_info_dict.HasMember("array")
+                && curr_partition_info_dict.HasMember("array_name")));
+          if (column_partitions_array.Size() >= m_array_names.size())
+            m_array_names.resize(column_partitions_array.Size(), array_name_string);
+          m_array_names[partition_idx] = curr_partition_info_dict.HasMember("array")
+            ? curr_partition_info_dict["array"].GetString()
+            : curr_partition_info_dict["array_name"].GetString();
+          m_single_array_name = false;
+        }
+        //Mapping from begin pos to index
+        begin_to_idx[m_column_ranges[partition_idx][0].first] = partition_idx;
+        m_sorted_column_partitions[partition_idx].first = m_column_ranges[partition_idx][0].first;
+        m_sorted_column_partitions[partition_idx].second = m_column_ranges[partition_idx][0].second;
       }
       //Sort in ascending order
       std::sort(m_sorted_column_partitions.begin(), m_sorted_column_partitions.end(), ColumnRangeCompare);
       //Set end value if not valid
       for (auto i=0ull; i+1u<m_sorted_column_partitions.size(); ++i) {
-	VERIFY_OR_THROW(m_sorted_column_partitions[i].first != m_sorted_column_partitions[i+1u].first
-	    && "Cannot have two column partitions with the same begin value");
-	if (m_sorted_column_partitions[i].second >= m_sorted_column_partitions[i+1u].first)
-	  m_sorted_column_partitions[i].second = m_sorted_column_partitions[i+1u].first-1;
-	auto idx = begin_to_idx[m_sorted_column_partitions[i].first];
-	m_column_ranges[idx][0].second = m_sorted_column_partitions[i].second;
+        VERIFY_OR_THROW(m_sorted_column_partitions[i].first != m_sorted_column_partitions[i+1u].first
+            && "Cannot have two column partitions with the same begin value");
+        if (m_sorted_column_partitions[i].second >= m_sorted_column_partitions[i+1u].first)
+          m_sorted_column_partitions[i].second = m_sorted_column_partitions[i+1u].first-1;
+        auto idx = begin_to_idx[m_sorted_column_partitions[i].first];
+        m_column_ranges[idx][0].second = m_sorted_column_partitions[i].second;
       }
     }
     VERIFY_OR_THROW((!json_doc.HasMember("query_row_ranges") || !json_doc.HasMember("row_partitions")) &&
@@ -409,64 +410,64 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
     //But you could have a single innermost list - with this option all ranks will query the same list
     if (json_doc.HasMember("query_row_ranges") || json_doc.HasMember("query_sample_names")) {
       if(json_doc.HasMember("query_row_ranges") && json_doc.HasMember("query_sample_names"))
-	throw GenomicsDBConfigException("Cannot have query_row_ranges and query_sample_names together");
+        throw GenomicsDBConfigException("Cannot have query_row_ranges and query_sample_names together");
       if(json_doc.HasMember("query_sample_names")) {
-	const rapidjson::Value& q1 = json_doc["query_sample_names"];
-	VERIFY_OR_THROW(q1.IsArray());
-	m_single_query_row_ranges_vector = true;
-	m_row_ranges.resize(1);
-	m_row_ranges[0].resize(q1.Size());
-	for(rapidjson::SizeType i=0;i<q1.Size();++i) {
-	  const auto& curr_q1_entry = q1[i];
-	  VERIFY_OR_THROW(curr_q1_entry.IsString());
-	  int64_t row_idx = -1;
-	  auto status = m_vid_mapper.get_tiledb_row_idx(row_idx, curr_q1_entry.GetString());
-	  if(!status)
-	    throw GenomicsDBConfigException(std::string("Unknown sample name ") + curr_q1_entry.GetString());
-	  m_row_ranges[0][i].first = row_idx;
-	  m_row_ranges[0][i].second = row_idx;
-	}
+        const rapidjson::Value& q1 = json_doc["query_sample_names"];
+        VERIFY_OR_THROW(q1.IsArray());
+        m_single_query_row_ranges_vector = true;
+        m_row_ranges.resize(1);
+        m_row_ranges[0].resize(q1.Size());
+        for(rapidjson::SizeType i=0;i<q1.Size();++i) {
+          const auto& curr_q1_entry = q1[i];
+          VERIFY_OR_THROW(curr_q1_entry.IsString());
+          int64_t row_idx = -1;
+          auto status = m_vid_mapper.get_tiledb_row_idx(row_idx, curr_q1_entry.GetString());
+          if(!status)
+            throw GenomicsDBConfigException(std::string("Unknown sample name ") + curr_q1_entry.GetString());
+          m_row_ranges[0][i].first = row_idx;
+          m_row_ranges[0][i].second = row_idx;
+        }
       }
      if(json_doc.HasMember("query_row_ranges")) {
-	const rapidjson::Value& q1 = json_doc["query_row_ranges"];
-	if (q1.Size() == 1)
-	  m_single_query_row_ranges_vector = true;
-	m_row_ranges.resize(q1.Size());
-	for (rapidjson::SizeType i=0; i<q1.Size(); ++i) {
-	  const auto& curr_q1_entry = q1[i];
-	  VERIFY_OR_THROW(curr_q1_entry.IsArray() || curr_q1_entry.IsObject());
-	  //JSON produced by Protobuf - either
-	  //  { "range_list": [ { "low":<>, "high":<> } ] } OR
-	  //  { "sample_name_list": [ "name1", "name2" ] }
-	  if (curr_q1_entry.IsObject())
-	    VERIFY_OR_THROW(curr_q1_entry.MemberCount() == 1u &&
-		curr_q1_entry.HasMember("range_list"));
-	  const rapidjson::Value& q2 = curr_q1_entry.IsArray() ? curr_q1_entry : curr_q1_entry["range_list"];
-	  VERIFY_OR_THROW(q2.IsArray());
-	  const auto base_idx = m_row_ranges[i].size();
-	  m_row_ranges[i].resize(base_idx + q2.Size());
-	  for (rapidjson::SizeType j=0; j<q2.Size(); ++j) {
-	    const rapidjson::Value& q3 = q2[j];
-	    //q3 is list of 2 elements to represent query row interval
-	    if (q3.IsArray()) {
-	      VERIFY_OR_THROW(q3.Size() == 2);
-	      VERIFY_OR_THROW(q3[0u].IsInt64());
-	      VERIFY_OR_THROW(q3[1u].IsInt64());
-	      m_row_ranges[i][base_idx+j].first = q3[0u].GetInt64();
-	      m_row_ranges[i][base_idx+j].second = q3[1u].GetInt64();
-	    } else {
-	      if (q3.IsInt64()) { //single position
-		m_row_ranges[i][base_idx+j].first = q3.GetInt64();
-		m_row_ranges[i][base_idx+j].second = q3.GetInt64();
-	      } else {
-		VERIFY_OR_THROW(q3.IsObject()); //Must be PB generated JSON object "low": <>, "high": <> 
-		VERIFY_OR_THROW(extract_interval_from_PB_struct_or_return_false(q3, &m_vid_mapper, m_row_ranges[i][base_idx+j]));
-	      }
-	    }
-	    if (m_row_ranges[i][base_idx+j].first > m_row_ranges[i][base_idx+j].second)
-	      std::swap<int64_t>(m_row_ranges[i][base_idx+j].first, m_row_ranges[i][base_idx+j].second);
-	  }
-	}
+        const rapidjson::Value& q1 = json_doc["query_row_ranges"];
+        if (q1.Size() == 1)
+          m_single_query_row_ranges_vector = true;
+        m_row_ranges.resize(q1.Size());
+        for (rapidjson::SizeType i=0; i<q1.Size(); ++i) {
+          const auto& curr_q1_entry = q1[i];
+          VERIFY_OR_THROW(curr_q1_entry.IsArray() || curr_q1_entry.IsObject());
+          //JSON produced by Protobuf - either
+          //  { "range_list": [ { "low":<>, "high":<> } ] } OR
+          //  { "sample_name_list": [ "name1", "name2" ] }
+          if (curr_q1_entry.IsObject())
+            VERIFY_OR_THROW(curr_q1_entry.MemberCount() == 1u &&
+                curr_q1_entry.HasMember("range_list"));
+          const rapidjson::Value& q2 = curr_q1_entry.IsArray() ? curr_q1_entry : curr_q1_entry["range_list"];
+          VERIFY_OR_THROW(q2.IsArray());
+          const auto base_idx = m_row_ranges[i].size();
+          m_row_ranges[i].resize(base_idx + q2.Size());
+          for (rapidjson::SizeType j=0; j<q2.Size(); ++j) {
+            const rapidjson::Value& q3 = q2[j];
+            //q3 is list of 2 elements to represent query row interval
+            if (q3.IsArray()) {
+              VERIFY_OR_THROW(q3.Size() == 2);
+              VERIFY_OR_THROW(q3[0u].IsInt64());
+              VERIFY_OR_THROW(q3[1u].IsInt64());
+              m_row_ranges[i][base_idx+j].first = q3[0u].GetInt64();
+              m_row_ranges[i][base_idx+j].second = q3[1u].GetInt64();
+            } else {
+              if (q3.IsInt64()) { //single position
+                m_row_ranges[i][base_idx+j].first = q3.GetInt64();
+                m_row_ranges[i][base_idx+j].second = q3.GetInt64();
+              } else {
+                VERIFY_OR_THROW(q3.IsObject()); //Must be PB generated JSON object "low": <>, "high": <> 
+                VERIFY_OR_THROW(extract_interval_from_PB_struct_or_return_false(q3, &m_vid_mapper, m_row_ranges[i][base_idx+j]));
+              }
+            }
+            if (m_row_ranges[i][base_idx+j].first > m_row_ranges[i][base_idx+j].second)
+              std::swap<int64_t>(m_row_ranges[i][base_idx+j].first, m_row_ranges[i][base_idx+j].second);
+          }
+        }
       }
     } else if (json_doc.HasMember("row_partitions")) {
       m_row_partitions_specified = true;
