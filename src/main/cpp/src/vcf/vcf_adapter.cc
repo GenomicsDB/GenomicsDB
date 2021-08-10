@@ -31,11 +31,18 @@
 
 //ReferenceGenomeInfo functions
 void ReferenceGenomeInfo::initialize(const std::string& reference_genome) {
-  m_reference_faidx = fai_load(reference_genome.c_str());
-  assert(m_reference_faidx);
-  m_reference_last_seq_read = "";
-  //buffer
-  m_buffer.resize(32768u+8);     //32KB
+  if (!reference_genome.empty()) {
+    if (!TileDBUtils::is_file(reference_genome)) {
+      throw VCFAdapterException(logger.format("Specified reference genome {} not found", reference_genome));
+    }
+    m_reference_faidx = fai_load(reference_genome.c_str());
+    if (!m_reference_faidx) {
+      throw VCFAdapterException(logger.format("Issues with opening reference genome {}", reference_genome));
+    }
+    m_reference_last_seq_read = "";
+    //buffer
+    m_buffer.resize(32768u+8);     //32KB
+  }
 }
 
 char ReferenceGenomeInfo::get_reference_base_at_position(const char* contig, const int64_t pos) {
@@ -341,8 +348,6 @@ void VCFAdapter::initialize(const GenomicsDBConfigBase& config_base) {
     }
   }
   //Reference genome
-  if (config_base.get_reference_genome().empty())
-    throw VCFAdapterException("No reference genome specified in query/import config");
   m_reference_genome_info.initialize(config_base.get_reference_genome());
   m_config_base_ptr = &config_base;
 }

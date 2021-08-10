@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2019-2020 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2021 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -612,12 +612,17 @@ int main(int argc, char *argv[]) {
     //Info from loader (if specified) is obtained before reading query JSON
     query_config.read_from_file(json_config_file, my_world_mpi_rank);
     //Discard intervals not part of this partition
-    if (!loader_json_config_file.empty())
+    if (!loader_json_config_file.empty()) {
       query_config.subset_query_column_ranges_based_on_partition(loader_config, my_world_mpi_rank);
+    }
     //Command line overrides
-    if (page_size > 0u)
+    if (page_size > 0u) {
       query_config.set_combined_vcf_records_buffer_size_limit(page_size);
+    }
     if (command_idx == COMMAND_PRODUCE_BROAD_GVCF) {
+      if (query_config.get_reference_genome().empty()) {
+        throw GenomicsDBConfigException("No reference genome specified in query config");
+      }
       query_config.set_vcf_output_format(output_format);
     }
     vcf_adapter.initialize(query_config);
@@ -672,6 +677,7 @@ int main(int argc, char *argv[]) {
   } catch(const GenomicsDBConfigException& genomicsdb_ex) {
     std::cerr << genomicsdb_ex.what() << "\n";
     std::cerr << "Do the config files specified to gt_mpi_gather exist? Are they parseable as JSON?\n";
+    rc = -1;
   } catch (const std::exception& ex) {
     std::cerr << ex.what() << "\n";
     std::cerr << "Try running gt_mpi_gather --help for usage" << std::endl;
