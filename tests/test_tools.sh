@@ -20,9 +20,10 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-# Test command line tools -
+# Sanity test command line tools -
 #    vcf2genomicsdb_init
 #    vcf2genomicsdb
+#    gt_mpi_gather
 # $1 contains the test vcfs - t0.vcf.gz, t1.vcf.gz and t2.vcf.gz
 if [[ $# -ne 2 ]]; then
   echo "Usage: ./test_tools.sh <vcfs_dir> <install_dir>"
@@ -42,6 +43,8 @@ WORKSPACE=$TEMP_DIR/ws
 LOADER_JSON=$TEMP_DIR/ws/loader.json
 CALLSET_MAPPING_JSON=$TEMP_DIR/ws/callset_mapping.json
 TEMPLATE_HEADER=$TESTS_DIR/ws/vcf_header.vcf
+
+REFERENCE_GENOME=$VCFS_DIR/../chr1_10MB.fasta.gz
 
 cleanup() {
   rm -fr $TEMP_DIR
@@ -105,6 +108,36 @@ EOF
   fi
   cat >> $TEMPLATE << EOF
     "do_ping_pong_buffering": false
+}
+EOF
+}
+
+# create_query_json
+#    (Optional) $1 reference file, only necessary when producing vcfs
+create_query_json() {
+  QUERY_JSON=$TEMP_DIR/query_json_$RANDOM
+  cat > $QUERY_JSON  << EOF
+{
+    "workspace": "$WORKSPACE",
+    "generate_array_name_from_partition_bounds": true,
+    "query_contig_intervals": [{
+        "contig": "1",
+        "begin": 1
+    }],
+    "query_row_ranges": [{
+        "range_list": [{
+            "low" : 0,
+            "high": 3
+        }]
+     }],
+EOF
+  if [[ $# -ge 1 ]]; then
+    cat >> $QUERY_JSON  << EOF
+    "reference_genome" : "$1",
+EOF
+  fi
+  cat >> $QUERY_JSON << EOF
+    "attributes" : [ "REF", "ALT", "BaseQRankSum", "MQ", "RAW_MQ", "MQ0", "ClippingRankSum", "MQRankSum", "ReadPosRankSum", "DP", "GT", "GQ", "SB", "AD", "PL", "DP_FORMAT", "MIN_DP", "PID", "PGT" ]
 }
 EOF
 }
@@ -237,7 +270,7 @@ assert_true $(grep '"segment_size": 400' $WORKSPACE/loader.json | wc -l) 1 "Test
 create_sample_list inconsistent_DP_t0.vcf.gz
 run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" ERR
 
-# Try compression types/levels,
+# Try supported compression types/levels,
 # see https://github.com/OmicsDataAutomation/TileDB/blob/b338ac9f84f5afde3b083a148d74019f37495fec/core/include/c_api/tiledb_constants.h#L146
 TILEDB_COMPRESSION_ZLIB=1
 TILEDB_COMPRESSION_ZSTD=2
@@ -245,16 +278,42 @@ TILEDB_COMPRESSION_LZ4=3
 
 create_sample_list t0.vcf.gz t1.vcf.gz
 create_template_loader_json $TILEDB_COMPRESSION_ZLIB -1
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "$18"
-create_template_loader_json $TILEDB_COMPRESSION_ZSTD -1
-run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "$19"
-create_template_loader_json $TILEDB_COMPRESSION_LZ4 -1
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "$20"
+create_template_loader_json $TILEDB_COMPRESSION_ZSTD -1
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "$21"
+create_template_loader_json $TILEDB_COMPRESSION_LZ4 -1
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "$22"
+# No compression level specified
+create_template_loader_json $TILEDB_COMPRESSION_ZLIB
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "$23"
 
 # Fail with unsupported compression levels
 create_template_loader_json -5 -5
 run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o -t $TEMPLATE"
 run_command "vcf2genomicsdb $WORKSPACE/loader.json" ERR
+
+# Sanity test gt_mpi_gather
+create_sample_list t0.vcf.gz
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#30"
+
+create_query_json
+run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-calls"
+
+# Fail if there is no reference genome file specified
+run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF" ERR
+
+# Fail if the reference genome is pointing to a non-existent file
+create_query_json "non-exisitent-reference-genome"
+run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF" ERR
+
+# Fail if the reference genome cannot be parsed by htslib for any reason
+create_query_json "$WORKSPACE/loader.json"
+run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF" ERR
+
+# Run with valid reference genome successfully
+create_query_json $REFERENCE_GENOME
+run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF"
 
 cleanup
 exit $STATUS
