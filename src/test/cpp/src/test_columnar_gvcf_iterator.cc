@@ -347,8 +347,12 @@ void compare_field(BagOfRemappers& bag_of_remappers, BagOfObjects& bag, const st
 }
 
 TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
-  if(g_query_json_file.empty() || g_golden_output_file.empty())
-    return;
+  if (g_query_json_file.empty() || g_golden_output_file.empty()) {
+    // Sanity testing with json files from ctests input dir when --query-json-file is not specified
+    g_loader_json_file = loader_json;
+    g_query_json_file = ctests_input_dir + "query_all_attributes.json";
+    g_golden_output_file = std::string(GENOMICSDB_TESTS_SRC_DIR) + "golden_outputs/t0_1_2_vcf_at_0";
+  }
   VariantQueryConfig query_config;
   GenomicsDBImportConfig loader_config;
   if(!g_loader_json_file.empty()) {
