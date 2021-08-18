@@ -571,7 +571,6 @@ static int update_json(import_config_t import_config) {
 
   bool found_new_samples = false;
   for (auto sample_uri: import_config.samples) {
-    genomicsdb_htslib_plugin_initialize(sample_uri.c_str());
     htsFile* fptr = hts_open(sample_uri.c_str(), "r");
     if (!fptr) {
       g_logger.error("Could not open sample {} with hts_open {}", sample_uri, strerror(errno));
@@ -680,7 +679,7 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
   }
 
   // TileDB returns only the path for cloud URIs, so get container/bucket prefix
-  std::regex uri_pattern("(.*//)(.*/)(.*$)");
+  std::regex uri_pattern("(.*//)(.*?/)(.*$)");
   std::string prefix;
   if (std::regex_search(samples_dir, uri_pattern)) {
     prefix = std::regex_replace(samples_dir, uri_pattern, "$1$2");
@@ -702,7 +701,6 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
   auto merged_header = import_config.merged_header;
   auto callset_output = import_config.callset_output;
 
-  genomicsdb_htslib_plugin_initialize(merged_header.c_str());
   htsFile* merged_header_fptr = hts_open(merged_header.c_str(), "w");
   if (!merged_header_fptr) {
     g_logger.error("Could not hts_open {} file in write mode {}", merged_header, strerror(errno));
@@ -718,7 +716,6 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
   int64_t row_index = 0;
   CallsetMappingPB* callset_protobuf = new CallsetMappingPB();
   for (auto sample_uri: samples) {
-    genomicsdb_htslib_plugin_initialize(sample_uri.c_str());
     htsFile* fptr = hts_open(sample_uri.c_str(), "r");
     if (!fptr) {
       g_logger.error("Could not open sample {} with hts_open {}", sample_uri, strerror(errno));
@@ -964,6 +961,8 @@ int main(int argc, char** argv) {
     g_logger.error("Samples dir {} specified with --samples-dir/-S option cannot be accessed", samples_dir);
     return ERR;
   }
+
+  genomicsdb_htslib_plugin_initialize();
 
   try {
     bool generate = !import_config.append_samples;
