@@ -57,7 +57,7 @@ endfunction()
 
 add_executable(ctests ${CPP_TEST_SOURCES})
 target_link_libraries_for_GenomicsDB_tests(ctests)
-target_compile_definitions(ctests PRIVATE -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/")
+target_compile_definitions(ctests PRIVATE -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/" -DGENOMICSDB_TESTS_SRC_DIR="${CMAKE_SOURCE_DIR}/tests/")
 add_test(ctests ctests -d yes)
 
 add_executable(api_tests
