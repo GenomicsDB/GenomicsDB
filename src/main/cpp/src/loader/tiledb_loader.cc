@@ -475,6 +475,7 @@ void VCF2TileDBLoader::common_constructor_initialization(
   assert(m_num_orders_owned != 0u);
   m_max_size_per_callset = m_per_partition_size/m_num_orders_owned;
   //Converter processes run independent of loader when num_converter_processes > 0
+  logger.info("Reading vcfs");
   if (m_standalone_converter_process) {
     resize_circular_buffers(4u);
     //Allocate exchange objects
@@ -774,6 +775,32 @@ bool VCF2TileDBLoader::read_next_cell_from_buffer(const int64_t row_idx) {
 }
 
 bool VCF2TileDBLoader::produce_cells_in_column_major_order(unsigned exchange_idx) {
+  static int tm = 0;
+  int interval = 5000;
+  auto progress_bar = [&] () {
+    //======================================================================================================================================
+    int now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if(now - interval > tm){
+      const ContigInfo* inf;
+      m_vid_mapper.get_contig_info_for_location(m_column_major_pq.top()->m_column, inf);
+      auto ranges = get_query_column_ranges(m_idx);
+      long total_range = 0;
+      long progress = 0;
+      for(auto& a : ranges){
+        total_range += a.second - a.first;
+        if(m_column_major_pq.top()->m_column > a.second){
+          progress += a.second - a.first;
+        }
+        else if(m_column_major_pq.top()->m_column >= a.first){
+          progress += m_column_major_pq.top()->m_column - a.first;
+        }
+      }
+      logger.info("progress: {} / {} = {:.2f}%", progress, total_range, ((double)progress / total_range) * 100);
+      tm = now;
+    }
+    //====================================================================================================================================
+  };
+
   auto& curr_exchange = m_owned_exchanges[exchange_idx];
   if (!curr_exchange.m_is_serviced)
     return false;
@@ -805,6 +832,7 @@ bool VCF2TileDBLoader::produce_cells_in_column_major_order(unsigned exchange_idx
   //requested in the next round or none are
   while (!m_column_major_pq.empty() && (!hit_invalid_cell || (m_column_major_pq.top())->m_column == top_column)
          && num_operators_overflow_in_this_round == 0u) {
+    progress_bar();
     auto* top_ptr = m_column_major_pq.top();
     auto row_idx = top_ptr->m_row_idx;
     auto column = top_ptr->m_column;
@@ -879,6 +907,7 @@ bool VCF2TileDBLoader::produce_cells_in_column_major_order(unsigned exchange_idx
     }
   }
   curr_exchange.m_all_num_tiledb_row_idx_vec_request[converter_idx] = num_rows_in_next_request;
+  progress_bar();
   return (m_column_major_pq.empty() && num_rows_in_next_request == 0u && num_designated_rows_not_in_pq == 0u);
 }
 

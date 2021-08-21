@@ -43,6 +43,7 @@ enum VCF2TileDBArgsEnum {
 void print_usage(){
     std::cerr << "Usage vcf2genomicsdb [options] <loader_json_config_file>\n"
               << "where options include:\n"
+              << "\t--help, -h\n"
               << "\t--version\n"
               << "\t--tmp-directory, -T Specify temporary directory (stores some temporary files during the import process, default is " << g_tmp_scratch_dir << ")\n"
               << "\t--rank, -r Manually assign MPI rank of process, determines on which partition the process will operate\n"
@@ -60,7 +61,7 @@ int main(int argc, char** argv) {
 #ifdef DEBUG
   spdlog::set_level(spdlog::level::debug);
 #endif
-  logger.debug("Test message");
+  //logger.debug("Test message");
 
   //Initialize MPI environment
   auto rc = MPI_Init(0, 0);
