@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2020 Omics Data Automation, Inc.
+ * Copyright (c) 2020-2021 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -107,6 +107,7 @@ VCFReader::VCFReader()
   m_vcf_file_buffer.l = 0;
   m_vcf_file_buffer.m = 4096;    //4KB
   m_vcf_file_buffer.s = (char*)malloc(m_vcf_file_buffer.m*sizeof(char));
+  genomicsdb_htslib_plugin_initialize();
 }
 
 VCFReader::~VCFReader() {
@@ -130,7 +131,6 @@ void VCFReader::initialize(const char* filename,
   //Build regions list - comma separated contigs - in increasing order of column values
   //Needed to fix traversal order of indexed reader
   //So parse the header first
-  genomicsdb_htslib_plugin_initialize(filename);
   m_fptr = bcf_open(filename, "r");
   VERIFY_OR_THROW(m_fptr && (std::string("Cannot open VCF/BCF file ")+filename).c_str());
   m_hdr = bcf_hdr_read(m_fptr);

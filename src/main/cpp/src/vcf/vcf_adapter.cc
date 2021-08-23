@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2020 Omics Data Automation, Inc.
+ * Copyright (c) 2020-2021 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -24,10 +24,12 @@
 #ifdef HTSDIR
 
 #include "vcf_adapter.h"
-#include "vid_mapper.h"
+
+#include "genomicsdb_logger.h"
+#include "hfile_genomicsdb.h"
 #include "htslib/tbx.h"
 #include "tiledb_utils.h"
-#include "genomicsdb_logger.h"
+#include "vid_mapper.h"
 
 //ReferenceGenomeInfo functions
 void ReferenceGenomeInfo::initialize(const std::string& reference_genome) {
@@ -264,6 +266,9 @@ VCFAdapter::VCFAdapter(bool open_output) {
   m_is_bcf = true;
   m_config_base_ptr = 0;
   m_output_VCF_index_type = VCFIndexType::VCF_INDEX_NONE;
+
+  // Register plugin for URI support for htslib via GenomicsDB
+  genomicsdb_htslib_plugin_initialize();
 }
 
 VCFAdapter::~VCFAdapter() {
