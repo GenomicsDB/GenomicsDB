@@ -29,6 +29,7 @@
 #include "gperftools/profiler.h"
 #endif
 
+extern bool g_show_import_progress;
 static Logger g_logger(Logger::get_logger("vcf2genomicsdb"));
 
 enum VCF2TileDBArgsEnum {
@@ -45,6 +46,7 @@ void print_usage(){
               << "where options include:\n"
               << "\t--help, -h\n"
               << "\t--version\n"
+              << "\t--progress, -p show import progress"
               << "\t--tmp-directory, -T Specify temporary directory (stores some temporary files during the import process, default is " << g_tmp_scratch_dir << ")\n"
               << "\t--rank, -r Manually assign MPI rank of process, determines on which partition the process will operate\n"
               << "\t--split-files Split the files specified by the callset mapping JSON file according to the column partitions in the loader JSON. Resulting files will be placed in the same directory as the originals\n"
@@ -61,7 +63,7 @@ int main(int argc, char** argv) {
 #ifdef DEBUG
   spdlog::set_level(spdlog::level::debug);
 #endif
-  //logger.debug("Test message");
+  g_show_import_progress = false;
 
   //Initialize MPI environment
   auto rc = MPI_Init(0, 0);
@@ -77,6 +79,7 @@ int main(int argc, char** argv) {
     {"tmp-directory",1,0,'T'},
     {"rank",1,0,'r'},
     {"help",0,0,'h'},
+    {"progress",0,0,'p'},
     {"split-files",0,0,VCF2TILEDB_ARG_SPLIT_FILES_IDX},
     {"split-all-partitions",0,0,VCF2TILEDB_ARG_SPLIT_FILES_PRODUCE_ALL_PARTITIONS_IDX},
     {"split-files-results-directory",1,0,VCF2TILEDB_ARG_SPLIT_FILES_RESULTS_DIRECTORY_IDX},
@@ -92,7 +95,7 @@ int main(int argc, char** argv) {
   std::string split_output_filename;
   auto split_callset_mapping_file = false;
   auto print_version_only = false;
-  while ((c=getopt_long(argc, argv, "T:r:h", long_options, NULL)) >= 0) {
+  while ((c=getopt_long(argc, argv, "T:r:hp", long_options, NULL)) >= 0) {
     switch (c) {
     case 'T':
       g_tmp_scratch_dir = optarg;
@@ -103,6 +106,9 @@ int main(int argc, char** argv) {
     case 'h':
       print_usage();
       exit(0);
+    case 'p':
+      g_show_import_progress = true;
+      break;
     case VCF2TILEDB_ARG_SPLIT_FILES_IDX:
       split_files = true;
       break;

@@ -27,6 +27,7 @@
 #include "vid_mapper_pb.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCF2TileDBException(#X);
+bool g_show_import_progress = false;
 
 void LoaderConverterMessageExchange::resize_vectors(int num_divisions, int64_t total_size) {
   m_all_num_tiledb_row_idx_vec_request.resize(num_divisions);
@@ -475,7 +476,9 @@ void VCF2TileDBLoader::common_constructor_initialization(
   assert(m_num_orders_owned != 0u);
   m_max_size_per_callset = m_per_partition_size/m_num_orders_owned;
   //Converter processes run independent of loader when num_converter_processes > 0
-  logger.info("Reading vcfs");
+  if(g_show_import_progress){
+    logger.info("Reading vcfs");
+  }
   if (m_standalone_converter_process) {
     resize_circular_buffers(4u);
     //Allocate exchange objects
@@ -832,7 +835,9 @@ bool VCF2TileDBLoader::produce_cells_in_column_major_order(unsigned exchange_idx
   //requested in the next round or none are
   while (!m_column_major_pq.empty() && (!hit_invalid_cell || (m_column_major_pq.top())->m_column == top_column)
          && num_operators_overflow_in_this_round == 0u) {
-    progress_bar();
+    if(g_show_import_progress){
+      progress_bar();
+    }
     auto* top_ptr = m_column_major_pq.top();
     auto row_idx = top_ptr->m_row_idx;
     auto column = top_ptr->m_column;
@@ -907,7 +912,9 @@ bool VCF2TileDBLoader::produce_cells_in_column_major_order(unsigned exchange_idx
     }
   }
   curr_exchange.m_all_num_tiledb_row_idx_vec_request[converter_idx] = num_rows_in_next_request;
-  progress_bar();
+  if(g_show_import_progress){
+    progress_bar();
+  }
   return (m_column_major_pq.empty() && num_rows_in_next_request == 0u && num_designated_rows_not_in_pq == 0u);
 }
 
