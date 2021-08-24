@@ -52,14 +52,16 @@ typedef struct annotation_source_t {
   std::string datasource;
   std::set<std::string> fields;
 
-  bool field_types_processed = false;
+  // Indicate spcific chromosomes that are in the datasource, or leave blank when all chromosomes are present.
+  std::set<std::string> file_chromosomes;
 
   // Constructor
   annotation_source_t(const std::string& filename, const std::string& datasource,
-                      const std::set<std::string>& fields) {
+                      const std::set<std::string>& fields, const std::set<std::string>& file_chromosomes) {
     this->filename = std::move(filename);
     this->datasource = std::move(datasource);
     this->fields = std::move(fields);
+    this->file_chromosomes = std::move(file_chromosomes);
   }
 
   std::map<std::string, genomic_field_type_t> field_types() {

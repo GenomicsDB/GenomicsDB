@@ -714,23 +714,35 @@ TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_
   config->set_segment_size(40);
   config->set_vcf_header_filename("inputs/template_vcf_header.vcf");
 
-  AnnotationSource* annotation_source = config->add_annotation_source();
+  // Add an annotation dataSource
+  AnnotationSource* annotation_source0 = config->add_annotation_source();
+  const std::string vcf_file0(ctests_input_dir+"test_datasource0.vcf.bgz");
+  const std::string data_source0("dataSourceZero");
+  annotation_source0->set_is_vcf(true);
+  annotation_source0->set_filename(vcf_file0);
+  annotation_source0->set_data_source(data_source0);
+  annotation_source0->add_attributes()->assign("field0");
+  annotation_source0->add_attributes()->assign("field1");
+  annotation_source0->add_attributes()->assign("field2");
+  annotation_source0->add_attributes()->assign("field3");
+  annotation_source0->add_attributes()->assign("field4");
+  annotation_source0->add_attributes()->assign("field5");
+  annotation_source0->add_attributes()->assign("field6");
+  annotation_source0->add_attributes()->assign("field7");
+  annotation_source0->add_attributes()->assign("ID");
 
-  const std::string vcf_file(ctests_input_dir+"test_datasource0.vcf.bgz");
-  const std::string data_source("dataSourceZero");
-  annotation_source->set_is_vcf(true);
-  annotation_source->set_filename(vcf_file);
-  annotation_source->set_data_source(data_source);
-
-  annotation_source->add_attributes()->assign("field0");
-  annotation_source->add_attributes()->assign("field1");
-  annotation_source->add_attributes()->assign("field2");
-  annotation_source->add_attributes()->assign("field3");
-  annotation_source->add_attributes()->assign("field4");
-  annotation_source->add_attributes()->assign("field5");
-  annotation_source->add_attributes()->assign("field6");
-  annotation_source->add_attributes()->assign("field7");
-  annotation_source->add_attributes()->assign("ID");
+  // Add a chromosome specific data-source that should not be loaded.
+  // The file is not a valid vcf, so if an error will be thrown if the file is loaded,
+  // but it won't be because the annotation service knows that the file doesn't have
+  // any matches since it only has chromosome 7 variants.
+  AnnotationSource* annotation_source7 = config->add_annotation_source();
+  const std::string vcf_file7(ctests_input_dir+"test_datasource_chr7.vcf.bgz");
+  const std::string data_source7("dataSourceChr7");
+  annotation_source7->set_is_vcf(true);
+  annotation_source7->set_filename(vcf_file7);
+  annotation_source7->set_data_source(data_source7);
+  annotation_source7->add_attributes()->assign("chrField");
+  annotation_source7->add_file_chromosomes()->assign("7");
 
   std::string config_string;
   CHECK(config->SerializeToString(&config_string));
@@ -745,7 +757,7 @@ TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_
   delete gdb;
 
   // Add an info field that doesn't exist to the configuration; expect custom exception
-  annotation_source->add_attributes()->assign("no_exist_field0");
+  annotation_source0->add_attributes()->assign("no_exist_field0");
   CHECK(config->SerializeToString(&config_string));
   config->set_array_name(array);
   CHECK(config->SerializeToString(&config_string));

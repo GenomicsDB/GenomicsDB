@@ -104,7 +104,16 @@ AnnotationService::AnnotationService(const std::string& export_configuration) {
     for(auto field : export_config.annotation_source(i).attributes()) {
       fields.insert(field);
     }
-    m_annotation_sources.emplace_back(filename, export_config.annotation_source(i).data_source(), fields);
+
+    std::set<std::string> file_chromosomes;
+    for(auto chromosome: export_config.annotation_source(i).file_chromosomes()) {
+      file_chromosomes.insert(chromosome);
+    }
+
+    m_annotation_sources.emplace_back(filename,
+                                      export_config.annotation_source(i).data_source(),
+                                      fields,
+                                      file_chromosomes);
   }
   m_annotation_buffer.reserve(64);
 }
@@ -142,6 +151,13 @@ genomic_field_t AnnotationService::get_genomic_field(const std::string &data_sou
  */
 void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) {
   for(auto annotation_source: m_annotation_sources) {
+
+    // If the dataSource is limited to specific chromosomes then skip the file if there is no chance of a match
+    if(!annotation_source.file_chromosomes.empty() &&
+        annotation_source.file_chromosomes.find(genomic_interval.contig_name) == annotation_source.file_chromosomes.end()) {
+      continue;
+    }
+
     htsFile *htsfile_ptr = hts_open(annotation_source.filename.c_str(), "r");
     VERIFY2(htsfile_ptr!=NULL, logger.format("Could not hts_open {} file in read mode", annotation_source.filename));
 
@@ -159,7 +175,8 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
     // Query using chromosome and position range
     std::string query_range = genomic_interval.contig_name + ":" + std::to_string(genomic_interval.interval.first) + "-" + std::to_string(genomic_interval.interval.second);
     hts_itr_t *itr = tbx_itr_querys(tbx, query_range.c_str());
-    VERIFY2(itr, "Could not obtain tbx query iterator");
+
+    VERIFY2(itr, "Could not obtain tbx query iterator. Possibly caused by the vcf not having any variants on the requested chromosome.");
 
     // I'm not sure what this does. Whatever it is, it takes a really long time.
     // Need to look in to how to remove this variable.
