@@ -211,7 +211,7 @@ run_command_and_check_results() {
   assert_true $n_fields $4 "Test $6 Number of fields in vidmap.json"
   assert_true $n_contigs $5 "Test $6 Number of contigs in vidmap.json"
   # Validate by running vcf2genomicsdb with the generated loader json
-  run_command "vcf2genomicsdb $WORKSPACE/loader.json"
+  run_command "vcf2genomicsdb --progress $WORKSPACE/loader.json"
 }
       
 # Basic Tests
