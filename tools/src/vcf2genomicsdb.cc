@@ -46,7 +46,7 @@ void print_usage(){
               << "where options include:\n"
               << "\t--help, -h\n"
               << "\t--version\n"
-              << "\t--progress, -p show import progress"
+              << "\t--progress, -p show import progress\n"
               << "\t--tmp-directory, -T Specify temporary directory (stores some temporary files during the import process, default is " << g_tmp_scratch_dir << ")\n"
               << "\t--rank, -r Manually assign MPI rank of process, determines on which partition the process will operate\n"
               << "\t--split-files Split the files specified by the callset mapping JSON file according to the column partitions in the loader JSON. Resulting files will be placed in the same directory as the originals\n"
