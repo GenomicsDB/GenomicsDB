@@ -292,6 +292,9 @@ create_template_loader_json -5 -5
 run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o -t $TEMPLATE"
 run_command "vcf2genomicsdb $WORKSPACE/loader.json" ERR
 
+# Run help command to appease the coverage bot
+run_command "vcf2genomicsdb --help"
+
 # Sanity test gt_mpi_gather
 create_sample_list t0.vcf.gz
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#30"
