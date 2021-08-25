@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2020 Omics Data Automation, Inc.
+ * Copyright (c) 2020-2021 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -24,10 +24,12 @@
 #ifdef HTSDIR
 
 #include "vcf_adapter.h"
-#include "vid_mapper.h"
+
+#include "genomicsdb_logger.h"
+#include "hfile_genomicsdb.h"
 #include "htslib/tbx.h"
 #include "tiledb_utils.h"
-#include "genomicsdb_logger.h"
+#include "vid_mapper.h"
 
 //ReferenceGenomeInfo functions
 void ReferenceGenomeInfo::initialize(const std::string& reference_genome) {
@@ -63,7 +65,7 @@ char ReferenceGenomeInfo::get_reference_base_at_position(const char* contig, con
 
 //VCFAdapter functions
 bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id_mapper, const std::string& field_name, int field_type_idx) {
-  auto field_info_ptr = id_mapper->get_field_info(field_name);
+  auto field_info_ptr = id_mapper->get_field_info(field_name, field_type_idx);
   auto is_multid_vector_or_tuple_element_field = (
         (field_info_ptr != 0)
         && ((field_info_ptr->get_genomicsdb_type().get_num_elements_in_tuple() > 1u)
@@ -201,8 +203,8 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
 #endif
     return true;
   } else {
-    const auto* field_info_ptr = id_mapper->get_field_info(field_name);
-    assert(field_info_ptr);
+    //const auto* field_info_ptr = id_mapper->get_field_info(field_name);
+    //assert(field_info_ptr);
     auto field_ht_type = bcf_hdr_id2type(hdr, field_type_idx, field_idx);
     //Don't bother doing any checks for the GT field
     if (field_name != "GT" && field_ht_type != BCF_HT_STR && field_type_idx != BCF_HL_FLT) {
@@ -264,6 +266,9 @@ VCFAdapter::VCFAdapter(bool open_output) {
   m_is_bcf = true;
   m_config_base_ptr = 0;
   m_output_VCF_index_type = VCFIndexType::VCF_INDEX_NONE;
+
+  // Register plugin for URI support for htslib via GenomicsDB
+  genomicsdb_htslib_plugin_initialize();
 }
 
 VCFAdapter::~VCFAdapter() {

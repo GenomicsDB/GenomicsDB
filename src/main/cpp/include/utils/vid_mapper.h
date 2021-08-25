@@ -734,6 +734,33 @@ class VidMapper {
       return 0;
     return &(get_field_info(field_idx));
   }
+  /*
+   * Given a field name and type, return FieldInfo ptr
+   * here name may be vcfname, so we'll try to append type
+   * If field is not found, return 0
+   */
+  inline const FieldInfo* get_field_info(const std::string& name, int field_type) const {
+    int field_idx = -1;
+    std::string suffix = "";
+    switch (field_type) {
+      case BCF_HL_FLT:
+        suffix = "_FILTER";
+        break;
+      case BCF_HL_INFO:
+        suffix = "_INFO";
+        break;
+      case BCF_HL_FMT:
+        suffix = "_FORMAT";
+        break;
+      default:
+        break;
+    }
+    auto status = get_global_field_idx(name+suffix, field_idx);
+    if (!status) {
+      return get_field_info(name);
+    }
+    return &(get_field_info(field_idx));
+  }
   const FieldInfo* get_flattened_field_info(const FieldInfo* field_info,
       const unsigned tuple_element_index) const;
   /*

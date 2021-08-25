@@ -39,11 +39,7 @@
 
 TEST_CASE_METHOD(TempDir, "test htslib plugin", "[test_htslib_plugin]") {
   // No exceptions should be thrown in genomicsdb_htslib_plugin_initialize
-  genomicsdb_htslib_plugin_initialize("");
-  genomicsdb_htslib_plugin_initialize("gs://ddd/d"); // Supported by htslib
-  genomicsdb_htslib_plugin_initialize("hdfs://xxx"); // Supported by genomicsdb via htslib plugin
-  genomicsdb_htslib_plugin_initialize("az://fdfd");  // Supported by genomicsdb via htslib plugin
-  genomicsdb_htslib_plugin_initialize("dfdfd://fdfd/f"); // No support
+  genomicsdb_htslib_plugin_initialize();
 
   CHECK(genomicsdb_filesystem_init(NULL, 0) == NULL);
   CHECK(genomicsdb_filesystem_init("", 0) == NULL);

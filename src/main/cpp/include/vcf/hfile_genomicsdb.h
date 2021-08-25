@@ -1,6 +1,6 @@
 /**
  * The MIT License (MIT)
- * Copyright (c) 2020 Omics Data Automation, Inc.
+ * Copyright (c) 2020-2021 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -25,7 +25,7 @@
 
 #include "hfile_internal.h"
 
-void genomicsdb_htslib_plugin_initialize(const char* filename);
+void genomicsdb_htslib_plugin_initialize();
 
 #ifdef __cplusplus
 extern "C" {
