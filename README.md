@@ -26,7 +26,7 @@ GenomicsDB is released under the MIT License and all external
 contributors are expected to grant an MIT License for their contributions.
 
 ### Checklist before creating Pull Request
-Please ensure that the code is well documented in Javadoc style for Java/Scala or roughly adhere to [Google C++ Style](https://google.github.io/styleguide/cppguide.html) for C/C++ for consistency/readabilty.
+Please ensure that the code is well documented in Javadoc style for Java/Scala. For C/C++ code, roughly adhere to [Google C++ Style](https://google.github.io/styleguide/cppguide.html) for consistency/readabilty.
 
 ```
 Use spaces instead of tabs.
