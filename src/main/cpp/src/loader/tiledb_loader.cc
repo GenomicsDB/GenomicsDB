@@ -314,9 +314,10 @@ void VCF2TileDBConverter::activate_next_batch(const unsigned exchange_idx, const
 }
 
 void VCF2TileDBConverter::read_next_batch(const unsigned exchange_idx) {
+  static bool first_call = true;
   assert(exchange_idx < m_exchanges.size());
   auto& curr_exchange = *(m_exchanges[exchange_idx]);
-  for (auto partition_idx=0u; partition_idx<m_partition_batch.size(); ++partition_idx)
+  for (auto partition_idx=0u; partition_idx<m_partition_batch.size(); ++partition_idx) {
     if (curr_exchange.is_partition_requested_by_loader(partition_idx)) {
       activate_next_batch(exchange_idx, partition_idx);
       //Find callsets which still have new data in this partition
@@ -328,11 +329,26 @@ void VCF2TileDBConverter::read_next_batch(const unsigned exchange_idx) {
       curr_exchange.m_all_num_tiledb_row_idx_vec_response[partition_idx] = idx_offset - begin_idx_offset;
     } else
       curr_exchange.m_all_num_tiledb_row_idx_vec_response[partition_idx] = 0ull;
+  }
   size_t num_exhausted_buffer_streams = 0u;
   m_exhausted_buffer_stream_identifiers.resize(m_exhausted_buffer_stream_identifiers.capacity());
   //Set upper bound on #files to process in parallel
   #pragma omp parallel for default(shared) num_threads(m_num_parallel_vcf_files)
   for (auto i=0u; i<m_file2binary_handlers.size(); ++i) {
+    static int tm = 0;
+    int interval = 5000;
+    auto progress_bar = [&] () {
+      int now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+      if (now - interval > tm) {
+        logger.info("[STAGE 2 / 3] read_next_batch {} / {} = {:.2f}%", i, m_file2binary_handlers.size(), 100*(double)i / m_file2binary_handlers.size());
+        tm = now;
+      }
+    };
+
+    if(first_call && g_show_import_progress) {
+        progress_bar();
+    }
+
     //#pragma omp critical
     //std::cerr << "Thread id "<<omp_get_thread_num()<<" level "<<omp_get_active_level()<<"\n";
     //Also advances circular buffer idx
@@ -347,6 +363,7 @@ void VCF2TileDBConverter::read_next_batch(const unsigned exchange_idx) {
     for (auto& partition_batch : m_partition_batch)
       partition_batch.advance_read_idxs();
   curr_exchange.m_is_serviced = true;
+  first_call = false;
 }
 
 void VCF2TileDBConverter::write_data_to_buffer_stream(const int64_t buffer_stream_idx, const unsigned partition_idx,
@@ -477,7 +494,7 @@ void VCF2TileDBLoader::common_constructor_initialization(
   m_max_size_per_callset = m_per_partition_size/m_num_orders_owned;
   //Converter processes run independent of loader when num_converter_processes > 0
   if(g_show_import_progress){
-    logger.info("Reading vcfs");
+    logger.info("Reading {} vcfs", m_vid_mapper.get_num_callsets());
   }
   if (m_standalone_converter_process) {
     resize_circular_buffers(4u);
@@ -797,7 +814,7 @@ bool VCF2TileDBLoader::produce_cells_in_column_major_order(unsigned exchange_idx
           progress += m_column_major_pq.top()->m_column - a.first;
         }
       }
-      logger.info("progress: {} / {} = {:.2f}%", progress, total_range, ((double)progress / total_range) * 100);
+      logger.info("[STAGE 3 / 3] progress: {} / {} = {:.2f}%", progress, total_range, ((double)progress / total_range) * 100);
       tm = now;
     }
   };

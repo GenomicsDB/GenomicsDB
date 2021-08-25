@@ -35,6 +35,8 @@
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCF2BinaryException(#X);
 
+extern int g_show_import_progress;
+
 //INFO fields like DP, RAW_MQ - the combine operation is a sum
 //When dealing with multi-sample input VCFs, divide up the value of the field among the samples
 template<class T>
@@ -399,6 +401,18 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
 }
 
 void VCF2Binary::initialize_column_partitions(const std::vector<ColumnRange>& partition_bounds) {
+  static int num_calls = 0;
+  ++num_calls;
+  static int tm = 0;
+  int interval = 5000;
+  auto progress_bar = [&] () {
+    int now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (now - interval > tm && m_vid_mapper) {
+      logger.info("[STAGE 1 / 3] Reading {} / {} = {:.2f}%", num_calls, m_vid_mapper->get_num_callsets(), 100*(double)num_calls/m_vid_mapper->get_num_callsets());
+      tm = now;
+    }
+  };
+
   //Initialize reader, if needed
   if (!m_parallel_partitions) {
     auto vcf_reader_ptr = dynamic_cast<VCFReaderBase*>(m_base_reader_ptr);
@@ -408,6 +422,9 @@ void VCF2Binary::initialize_column_partitions(const std::vector<ColumnRange>& pa
   for (auto i=0u; i<partition_bounds.size(); ++i) {
     auto vcf_column_partition_ptr = dynamic_cast<VCFColumnPartition*>(m_base_partition_ptrs[i]);
     assert(vcf_column_partition_ptr);
+    if(g_show_import_progress) {
+      progress_bar();
+    }
     //If parallel partitions, each interval gets its own reader
     if (m_parallel_partitions) {
       auto vcf_reader_ptr = dynamic_cast<VCFReaderBase*>(vcf_column_partition_ptr->m_base_reader_ptr);
