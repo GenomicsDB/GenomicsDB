@@ -30,6 +30,7 @@
 #endif
 
 extern bool g_show_import_progress;
+extern int g_progress_interval;
 static Logger g_logger(Logger::get_logger("vcf2genomicsdb"));
 
 enum VCF2TileDBArgsEnum {
@@ -47,6 +48,7 @@ void print_usage(){
               << "\t--help, -h\n"
               << "\t--version\n"
               << "\t--progress, -p show import progress\n"
+              << "\t\tspecify minimum amount of time between progress messages with --progress=<interval> or -p<interval>\n"
               << "\t--tmp-directory, -T Specify temporary directory (stores some temporary files during the import process, default is " << g_tmp_scratch_dir << ")\n"
               << "\t--rank, -r Manually assign MPI rank of process, determines on which partition the process will operate\n"
               << "\t--split-files Split the files specified by the callset mapping JSON file according to the column partitions in the loader JSON. Resulting files will be placed in the same directory as the originals\n"
@@ -79,7 +81,7 @@ int main(int argc, char** argv) {
     {"tmp-directory",1,0,'T'},
     {"rank",1,0,'r'},
     {"help",0,0,'h'},
-    {"progress",0,0,'p'},
+    {"progress",2,0,'p'},
     {"split-files",0,0,VCF2TILEDB_ARG_SPLIT_FILES_IDX},
     {"split-all-partitions",0,0,VCF2TILEDB_ARG_SPLIT_FILES_PRODUCE_ALL_PARTITIONS_IDX},
     {"split-files-results-directory",1,0,VCF2TILEDB_ARG_SPLIT_FILES_RESULTS_DIRECTORY_IDX},
@@ -95,7 +97,7 @@ int main(int argc, char** argv) {
   std::string split_output_filename;
   auto split_callset_mapping_file = false;
   auto print_version_only = false;
-  while ((c=getopt_long(argc, argv, "T:r:hp", long_options, NULL)) >= 0) {
+  while ((c=getopt_long(argc, argv, "T:r:hp::", long_options, NULL)) >= 0) {
     switch (c) {
     case 'T':
       g_tmp_scratch_dir = optarg;
@@ -107,6 +109,17 @@ int main(int argc, char** argv) {
       print_usage();
       exit(0);
     case 'p':
+      if (optarg) {
+        try {
+          g_progress_interval = (int)(std::stod(std::string(optarg)) * 1000);
+        }
+        catch ( std::exception& e ) {
+          g_progress_interval = 5000;
+        }
+      }
+      else {
+        g_progress_interval = 5000;
+      }
       g_show_import_progress = true;
       break;
     case VCF2TILEDB_ARG_SPLIT_FILES_IDX:
@@ -165,7 +178,6 @@ int main(int argc, char** argv) {
       const auto& column_partitions = loader_config.get_sorted_column_partitions();
       auto loop_bound = (produce_all_partitions ? column_partitions.size() : 1u);
       for (auto i=0ull; i<loop_bound; ++i) {
-        logger.debug("{} out of {}", i, loop_bound);
         int rank = produce_all_partitions ? i : my_world_mpi_rank;
         VCF2TileDBConverter converter(loader_config, rank,
                                       &empty_buffers, &empty_exchange);

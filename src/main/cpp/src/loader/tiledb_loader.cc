@@ -28,6 +28,7 @@
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCF2TileDBException(#X);
 bool g_show_import_progress = false;
+int g_progress_interval = 5000;
 
 void LoaderConverterMessageExchange::resize_vectors(int num_divisions, int64_t total_size) {
   m_all_num_tiledb_row_idx_vec_request.resize(num_divisions);
@@ -336,10 +337,9 @@ void VCF2TileDBConverter::read_next_batch(const unsigned exchange_idx) {
   #pragma omp parallel for default(shared) num_threads(m_num_parallel_vcf_files)
   for (auto i=0u; i<m_file2binary_handlers.size(); ++i) {
     static int tm = 0;
-    int interval = 5000;
     auto progress_bar = [&] () {
       int now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-      if (now - interval > tm) {
+      if (now - g_progress_interval > tm) {
         logger.info("[STAGE 2 / 3] read_next_batch {} / {} = {:.2f}%", i, m_file2binary_handlers.size(), 100*(double)i / m_file2binary_handlers.size());
         tm = now;
       }
@@ -796,10 +796,9 @@ bool VCF2TileDBLoader::read_next_cell_from_buffer(const int64_t row_idx) {
 
 bool VCF2TileDBLoader::produce_cells_in_column_major_order(unsigned exchange_idx) {
   static int tm = 0;
-  int interval = 5000;
   auto progress_bar = [&] () {
     int now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    if (now - interval > tm) {
+    if (now - g_progress_interval > tm) {
       const ContigInfo* inf;
       m_vid_mapper.get_contig_info_for_location(m_column_major_pq.top()->m_column, inf);
       auto ranges = get_query_column_ranges(m_idx);

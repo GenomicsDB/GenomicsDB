@@ -36,6 +36,7 @@
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCF2BinaryException(#X);
 
 extern int g_show_import_progress;
+extern int g_progress_interval;
 
 //INFO fields like DP, RAW_MQ - the combine operation is a sum
 //When dealing with multi-sample input VCFs, divide up the value of the field among the samples
@@ -404,10 +405,9 @@ void VCF2Binary::initialize_column_partitions(const std::vector<ColumnRange>& pa
   static int num_calls = 0;
   ++num_calls;
   static int tm = 0;
-  int interval = 5000;
   auto progress_bar = [&] () {
     int now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    if (now - interval > tm && m_vid_mapper) {
+    if (now - g_progress_interval > tm && m_vid_mapper) {
       logger.info("[STAGE 1 / 3] Reading {} / {} = {:.2f}%", num_calls, m_vid_mapper->get_num_callsets(), 100*(double)num_calls/m_vid_mapper->get_num_callsets());
       tm = now;
     }
