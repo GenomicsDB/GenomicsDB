@@ -30,15 +30,7 @@
 
 #include "tiledb.h"
 
-#ifdef HTSDIR   //Use htslib's headers
-
 #include "htslib/vcf.h"
-
-#else
-
-"Error: htslib is now a hard dependency"
-
-#endif //ifdef HTSDIR
 
 //For bitwise comparison of float values
 typedef union {

@@ -21,8 +21,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifdef HTSDIR
-
 #include "vcf2binary.h"
 
 #include "hfile_genomicsdb.h"
@@ -1173,5 +1171,3 @@ void VCF2Binary::close_partition_output_file(File2TileDBBinaryColumnPartitionBas
     logger.warn(" indexing of partition file {} failed", vcf_partition.m_split_filename);
   }
 }
-
-#endif //ifdef HTSDIR

@@ -290,7 +290,6 @@ void LoaderArrayWriter::finish(const int64_t column_interval_end) {
     m_storage_manager->close_array(m_array_descriptor, m_import_config_ptr->consolidate_tiledb_array_after_load());
 }
 
-#ifdef HTSDIR
 LoaderCombinedGVCFOperator::LoaderCombinedGVCFOperator(const GenomicsDBImportConfig& config,
     int partition_idx)
   : LoaderOperatorBase(config,
@@ -422,5 +421,3 @@ void LoaderCombinedGVCFOperator::finish(const int64_t column_interval_end) {
     flush_output();
   }
 }
-
-#endif

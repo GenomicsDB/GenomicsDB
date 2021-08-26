@@ -21,8 +21,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifdef HTSDIR
-
 #include "broad_combined_gvcf.h"
 #include "genomicsdb_multid_vector_field.h"
 #include "genomicsdb_logger.h"
@@ -1116,5 +1114,3 @@ bool BroadCombinedGVCFOperator::update_GT_to_correspond_to_min_PL_value(
   }
   return remap_GT_based_on_input_GT;
 }
-
-#endif //ifdef HTSDIR

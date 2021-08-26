@@ -169,7 +169,6 @@ class LoaderArrayWriter : public LoaderOperatorBase {
 #endif
 };
 
-#ifdef HTSDIR
 class LoaderCombinedGVCFOperator : public LoaderOperatorBase {
  public:
   LoaderCombinedGVCFOperator(const GenomicsDBImportConfig& config,
@@ -231,6 +230,4 @@ class LoaderCombinedGVCFOperator : public LoaderOperatorBase {
   size_t m_next_memory_limit;
 #endif
 };
-#endif
-
 #endif
