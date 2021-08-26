@@ -336,9 +336,9 @@ void VCF2TileDBConverter::read_next_batch(const unsigned exchange_idx) {
   //Set upper bound on #files to process in parallel
   #pragma omp parallel for default(shared) num_threads(m_num_parallel_vcf_files)
   for (auto i=0u; i<m_file2binary_handlers.size(); ++i) {
-    static int tm = 0;
+    static size_t tm = 0;
     auto progress_bar = [&] () {
-      int now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+      size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
       if (now - g_progress_interval > tm) {
         logger.info("[STAGE 2 / 3] read_next_batch {} / {} = {:.2f}%", i, m_file2binary_handlers.size(), 100*(double)i / m_file2binary_handlers.size());
         tm = now;
@@ -795,9 +795,9 @@ bool VCF2TileDBLoader::read_next_cell_from_buffer(const int64_t row_idx) {
 }
 
 bool VCF2TileDBLoader::produce_cells_in_column_major_order(unsigned exchange_idx) {
-  static int tm = 0;
+  static size_t tm = 0;
   auto progress_bar = [&] () {
-    int now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     if (now - g_progress_interval > tm) {
       const ContigInfo* inf;
       m_vid_mapper.get_contig_info_for_location(m_column_major_pq.top()->m_column, inf);

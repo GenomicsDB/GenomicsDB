@@ -404,9 +404,9 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
 void VCF2Binary::initialize_column_partitions(const std::vector<ColumnRange>& partition_bounds) {
   static int num_calls = 0;
   ++num_calls;
-  static int tm = 0;
+  static size_t tm = 0;
   auto progress_bar = [&] () {
-    int now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
     if (now - g_progress_interval > tm && m_vid_mapper) {
       logger.info("[STAGE 1 / 3] Reading {} / {} = {:.2f}%", num_calls, m_vid_mapper->get_num_callsets(), 100*(double)num_calls/m_vid_mapper->get_num_callsets());
       tm = now;

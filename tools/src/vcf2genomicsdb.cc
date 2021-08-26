@@ -47,12 +47,14 @@ void print_usage(){
               << "where options include:\n"
               << "\t--help, -h\n"
               << "\t--version\n"
-              << "\t--progress, -p show import progress\n"
+              << "\t--progress, -p Show import progress\n"
               << "\t\tspecify minimum amount of time between progress messages with --progress=<interval> or -p<interval>\n"
+              << "\t\twhere <interval> is a floating point number. Default units are seconds, explicitly specify seconds, minutes, or hours by appending s, m, or h to the end of the number\n"
               << "\t--tmp-directory, -T Specify temporary directory (stores some temporary files during the import process, default is " << g_tmp_scratch_dir << ")\n"
               << "\t--rank, -r Manually assign MPI rank of process, determines on which partition the process will operate\n"
-              << "\t--split-files Split the files specified by the callset mapping JSON file according to the column partitions in the loader JSON. Resulting files will be placed in the same directory as the originals\n"
-              << "\t\t default behavior is to generate split files only for the partition corresponding to the rank\n"
+              << "\t--split-files Split the files specified by the callset mapping JSON file according to the column partitions in the loader JSON\n"
+              << "\t\tresulting files will be placed in the same directory as the originals\n"
+              << "\t\tdefault behavior is to generate split files only for the partition corresponding to the rank\n"
               << "\tModifiers to --split-files:\n"
               << "\t\t--split-all-partitions Overrides --split-files default behavior and instead creates split files for all partitions\n"
               << "\t\t--split-files-results-directory Specify where to place split files, overrides default behavior of placing them in the same directory as originals\n"
@@ -111,7 +113,15 @@ int main(int argc, char** argv) {
     case 'p':
       if (optarg) {
         try {
-          g_progress_interval = (int)(std::stod(std::string(optarg)) * 1000);
+          int unit_multiplier = 1;
+          std::string optstring(optarg);
+          switch(optstring.back()){
+            case 's': optstring.pop_back(); break;
+            case 'm': unit_multiplier=60; optstring.pop_back(); break;
+            case 'h': unit_multiplier=3600; optstring.pop_back(); break;
+          }
+        
+          g_progress_interval = (int)(std::stod(std::string(optarg)) * 1000 * unit_multiplier);
         }
         catch ( std::exception& e ) {
           g_progress_interval = 5000;
