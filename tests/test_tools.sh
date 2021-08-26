@@ -290,6 +290,12 @@ run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR 
 # Test --progress switch with an interval
 run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE"
 run_command "vcf2genomicsdb --progress=2 $WORKSPACE/loader.json"
+run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE"
+run_command "vcf2genomicsdb --progress=10.5s $WORKSPACE/loader.json"
+run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE"
+run_command "vcf2genomicsdb --progress=.1m $WORKSPACE/loader.json"
+run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE"
+run_command "vcf2genomicsdb --progress=.001h $WORKSPACE/loader.json"
 
 # Fail with unsupported compression levels
 create_template_loader_json -5 -5
