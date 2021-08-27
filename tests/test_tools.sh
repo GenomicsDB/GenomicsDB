@@ -211,7 +211,7 @@ run_command_and_check_results() {
   assert_true $n_fields $4 "Test $6 Number of fields in vidmap.json"
   assert_true $n_contigs $5 "Test $6 Number of contigs in vidmap.json"
   # Validate by running vcf2genomicsdb with the generated loader json
-  run_command "vcf2genomicsdb $WORKSPACE/loader.json"
+  run_command "vcf2genomicsdb --progress $WORKSPACE/loader.json"
 }
       
 # Basic Tests
@@ -287,10 +287,23 @@ run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR 
 create_template_loader_json $TILEDB_COMPRESSION_ZLIB
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "$23"
 
+# Test --progress switch with an interval
+run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE"
+run_command "vcf2genomicsdb --progress=2 $WORKSPACE/loader.json"
+run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE"
+run_command "vcf2genomicsdb --progress=10.5s $WORKSPACE/loader.json"
+run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE"
+run_command "vcf2genomicsdb --progress=.1m $WORKSPACE/loader.json"
+run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE"
+run_command "vcf2genomicsdb --progress=.001h $WORKSPACE/loader.json"
+
 # Fail with unsupported compression levels
 create_template_loader_json -5 -5
 run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o -t $TEMPLATE"
 run_command "vcf2genomicsdb $WORKSPACE/loader.json" ERR
+
+# Run help command to appease the coverage bot
+run_command "vcf2genomicsdb --help"
 
 # Sanity test gt_mpi_gather
 create_sample_list t0.vcf.gz
