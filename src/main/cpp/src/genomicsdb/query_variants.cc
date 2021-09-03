@@ -385,13 +385,11 @@ void VariantQueryProcessor::scan_and_operate(
     stats_ptr->update_stat(GTProfileStats::GT_NUM_CELLS, 1u);
     stats_ptr->update_stat(GTProfileStats::GT_NUM_ATTR_CELLS_ACCESSED, query_config.get_num_queried_attributes());
 #endif
-#ifdef DUPLICATE_CELL_AT_END
     //Ignore cell copies at END positions
     auto cell_column_value = cell.get_begin_column();
     auto END_v = *(cell.get_field_ptr_for_query_idx<int64_t>(query_config.get_query_idx_for_known_field_enum(GVCF_END_IDX)));
     if (cell_column_value > END_v)
       continue;
-#endif
     end_loop = scan_handle_cell(query_config, column_interval_idx, variant, variant_operator, cell,
                                 end_pq, tmp_pq_buffer, current_start_position, next_start_position,
 				num_calls_with_deletions_or_MNVs, handle_spanning_deletions, stats_ptr);
@@ -682,11 +680,7 @@ void VariantQueryProcessor::gt_get_column_interval(
     gt_get_column(ad, query_config, column_interval_idx, interval_begin_variant,
                   0,
                   stats_ptr,
-#ifdef DUPLICATE_CELL_AT_END
                   0
-#else
-                  &query_row_idx_in_order
-#endif
                  );
     //This interval contains many Calls, likely un-aligned (no common start/end). Split this variant
     //into multiple Variants, each containing calls that are satisfy the GA4GH properties for merging calls
@@ -819,17 +813,12 @@ void VariantQueryProcessor::gt_get_column(
 #if VERBOSE>0
   std::cerr << "[query_variants:gt_get_column] Fetching column : " << col << std::endl;
 #endif
-#ifdef DUPLICATE_CELL_AT_END
   //If cells are duplicated at the end, we only need a forward iterator starting at col
   //i.e. start at the smallest cell with co-ordinate >= col
   VariantArrayCellIterator* cell_iter = arg_cell_iter ? *arg_cell_iter : 0;
   gt_initialize_forward_iter(ad, query_config, query_config.get_column_interval(column_interval_idx).first, cell_iter);
-#endif //ifdef DUPLICATE_CELL_AT_END
   // Indicates how many rows have been filled.
   uint64_t filled_rows = 0;
-#ifndef DUPLICATE_CELL_AT_END
-  uint64_t num_valid_rows = 0;
-#endif
   // Fill the genotyping column
   while (!(cell_iter->end()) && filled_rows < query_config.get_num_rows_to_query()) {
 #ifdef DO_PROFILING
@@ -839,36 +828,18 @@ void VariantQueryProcessor::gt_get_column(
     stats_ptr->update_stat(GTProfileStats::GT_NUM_ATTR_CELLS_ACCESSED, query_config.get_num_queried_attributes());
 #endif
     auto& cell = **cell_iter;
-#ifdef DUPLICATE_CELL_AT_END
     // If next cell is not on the left of col, and
     // The rowIdx is being queried and
     // The row/call is uninitialized (uninvestigated) in the Variant
     if (cell.get_begin_column() >= static_cast<int64_t>(col) && query_config.is_queried_array_row_idx(cell.get_row()))
-#else
-    // If next cell is not on the right of col, and
-    // The rowIdx is being queried and
-    // The row/call is uninitialized (uninvestigated) in the Variant
-    if (cell.get_begin_column() <= static_cast<int64_t>(col) && query_config.is_queried_array_row_idx(cell.get_row()))
-#endif
     {
       auto curr_query_row_idx = query_config.get_query_row_idx_for_array_row_idx(cell.get_row());
       auto& curr_call = variant.get_call(curr_query_row_idx);
       if (!(curr_call.is_initialized())) {
         gt_fill_row(variant, cell.get_row(), cell.get_begin_column(), query_config, cell, stats_ptr
-#ifdef DUPLICATE_CELL_AT_END
                     , true
-#endif
                    );
         ++filled_rows;
-#ifndef DUPLICATE_CELL_AT_END
-        //If cells are NOT duplicated, then the order in which cells are traversed is reverse of column-major order
-        //If cells are duplicated, no claim can be made since the order of END cells has no bearing on the order of
-        //begin values
-        if (curr_call.is_valid() && query_row_idx_in_order) {
-          assert(num_valid_rows < query_row_idx_in_order->size());
-          (*query_row_idx_in_order)[num_valid_rows++] = curr_query_row_idx;
-        }
-#endif
       }
     }
     ++(*cell_iter);
@@ -880,11 +851,6 @@ void VariantQueryProcessor::gt_get_column(
     *arg_cell_iter = cell_iter;
   else
     delete cell_iter;
-
-#ifndef DUPLICATE_CELL_AT_END
-  if (query_row_idx_in_order)
-    query_row_idx_in_order->resize(num_valid_rows);
-#endif
 
 #ifdef DO_PROFILING
   stats_ptr->m_interval_sweep_timer.stop();
@@ -957,10 +923,8 @@ void VariantQueryProcessor::binary_deserialize(Variant& variant, const VariantQu
 void VariantQueryProcessor::gt_fill_row(
   Variant& variant, int64_t row, int64_t column,
   const VariantQueryConfig& query_config,
-  const BufferVariantCell& cell, GTProfileStats* stats_ptr
-#ifdef DUPLICATE_CELL_AT_END
-  , bool traverse_end_copies
-#endif
+  const BufferVariantCell& cell, GTProfileStats* stats_ptr, 
+  bool traverse_end_copies
 ) const {
 #ifdef DO_PROFILING
   assert(stats_ptr);
@@ -984,7 +948,6 @@ void VariantQueryProcessor::gt_fill_row(
   auto* END_ptr = cell.get_field_ptr_for_query_idx<int64_t>(query_config.get_query_idx_for_known_field_enum(GVCF_END_IDX));
   auto END_v = *END_ptr;
   // First check if the row contains valid data, i.e., check whether the interval intersects with the current queried interval
-#ifdef DUPLICATE_CELL_AT_END
   //Counterpart of reverse iterator when traverse_end_copies == true
   //If this is a begin cell and it begins after the query interval, mark invalid
   //If this is an END cell, then its begin value is guaranteed to be before the query_column_value. This
@@ -995,11 +958,6 @@ void VariantQueryProcessor::gt_fill_row(
   //should be returned as invalid (and must be handled by the caller)
   if ((traverse_end_copies && cell_begin_value <= END_v && cell_begin_value > query_column_value)
       || (!traverse_end_copies && cell_begin_value > END_v))
-#else
-  //When no duplicate cells are present and the reverse iterator is used, if the cell ends before the query column,
-  //mark the cell as initialized but invalid as the row has no valid data for this query position
-  if (END_v < query_column_value)
-#endif
   {
     curr_call.mark_valid(false);
     return;
@@ -1008,10 +966,8 @@ void VariantQueryProcessor::gt_fill_row(
 #ifdef DO_PROFILING
   stats_ptr->update_stat(GTProfileStats::GT_NUM_VALID_CELLS_IN_QUERY, 1u);
 #endif
-#ifdef DUPLICATE_CELL_AT_END
   if (column > END_v)
     std::swap(column, END_v);
-#endif
   //Set begin,end of the Call - NOTE: need not be same as Variant's begin,end
   curr_call.set_column_interval(column, END_v);
   //END should be the first queried attribute - see reorder_query_fields()

@@ -316,31 +316,31 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
   void finish_read_all(const VCF2TileDBLoaderReadState& read_state);
   //For buffer streams
   size_t get_max_num_buffer_stream_identifiers() const {
-  return m_converter->get_max_num_buffer_stream_identifiers();
+    return m_converter->get_max_num_buffer_stream_identifiers();
   }
   /*
    * Get buffer stream identifiers that are exhausted - used by caller to provide more data
    */
   const std::vector<BufferStreamIdentifier>& get_exhausted_buffer_stream_identifiers() const {
-  return m_converter->get_exhausted_buffer_stream_identifiers();
+    return m_converter->get_exhausted_buffer_stream_identifiers();
   }
   /*
    * Write to buffer stream
    */
   void write_data_to_buffer_stream(const int64_t buffer_stream_idx, const unsigned partition_idx, const uint8_t* data, const size_t num_bytes) {
-  return m_converter->write_data_to_buffer_stream(buffer_stream_idx, partition_idx, data, num_bytes);
+    return m_converter->write_data_to_buffer_stream(buffer_stream_idx, partition_idx, data, num_bytes);
   }
   /*
    * Get the order value at which the given row idx appears
    */
   inline int64_t get_order_for_row_idx(const int64_t row_idx) const {
-  return m_standalone_converter_process ? row_idx : m_converter->get_order_for_row_idx(row_idx);
+    return m_standalone_converter_process ? row_idx : m_converter->get_order_for_row_idx(row_idx);
   }
   inline int64_t get_designated_row_idx_for_order(const int64_t order) const {
-  return m_standalone_converter_process ? order : m_converter->get_designated_row_idx_for_order(order);
+    return m_standalone_converter_process ? order : m_converter->get_designated_row_idx_for_order(order);
   }
   inline size_t get_num_order_values() const {
-  return m_standalone_converter_process ? m_num_callsets_owned : m_converter->get_num_order_values();
+    return m_standalone_converter_process ? m_num_callsets_owned : m_converter->get_num_order_values();
   }
   inline int64_t get_buffer_start_offset_for_row_idx(const int64_t row_idx) const {
     assert(get_order_for_row_idx(row_idx) >= 0 && get_order_for_row_idx(row_idx) < m_num_callsets_owned);

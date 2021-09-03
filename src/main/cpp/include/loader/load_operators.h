@@ -59,10 +59,8 @@ class LoaderOperatorBase {
     m_first_cell = true;
     m_import_config_ptr = &config;
     m_partition_idx = partition_idx;
-#ifdef DUPLICATE_CELL_AT_END
     m_cell_copies.resize(config.get_row_bounds().second+1ull, 0); //to make things easy, allocate up to ub_row_idx
     m_last_end_position_for_row.resize(config.get_row_bounds().second+1ull, -1ll);
-#endif
   }
   virtual ~LoaderOperatorBase() { ; }
   /*
@@ -108,12 +106,10 @@ class LoaderOperatorBase {
   int m_partition_idx;
   bool m_crossed_column_partition_begin;
   bool m_first_cell;
-#ifdef DUPLICATE_CELL_AT_END
   //Copy of cell buffers
   std::vector<uint8_t*> m_cell_copies;
   //End position of last cell seen for current row
   std::vector<int64_t> m_last_end_position_for_row;
-#endif
   const GenomicsDBImportConfig* m_import_config_ptr;
 };
 
@@ -131,11 +127,9 @@ class LoaderArrayWriter : public LoaderOperatorBase {
       delete m_schema;
     if (m_storage_manager)
       delete m_storage_manager;
-#ifdef DUPLICATE_CELL_AT_END
     for (auto ptr : m_cell_copies)
       free(ptr);
     m_cell_copies.clear();
-#endif
   }
   virtual void operate(const void* cell_ptr);
   virtual void finish(const int64_t column_interval_end);
@@ -143,7 +137,6 @@ class LoaderArrayWriter : public LoaderOperatorBase {
   int m_array_descriptor;
   VariantArraySchema* m_schema;
   VariantStorageManager* m_storage_manager;
-#ifdef DUPLICATE_CELL_AT_END
   /*
    * Function that writes top element from the PQ to disk
    * If the top element is a begin cell that spans multiple columns, create an END copy
@@ -166,7 +159,6 @@ class LoaderArrayWriter : public LoaderOperatorBase {
   };
   //top() contains CellWrapper with the smallest cell in column major order
   std::priority_queue<CellWrapper, std::vector<CellWrapper>, ColumnMajorCellCompareGT> m_cell_wrapper_pq;
-#endif
 };
 
 class LoaderCombinedGVCFOperator : public LoaderOperatorBase {

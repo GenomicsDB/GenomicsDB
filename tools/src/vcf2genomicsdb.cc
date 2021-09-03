@@ -201,9 +201,7 @@ int main(int argc, char** argv) {
     } else {
       //Loader object
       VCF2TileDBLoader loader(loader_json_config_file, my_world_mpi_rank);
-#ifdef HTSDIR
       loader.read_all();
-#endif
     }
 #ifdef USE_GPERFTOOLS
     ProfilerStop();

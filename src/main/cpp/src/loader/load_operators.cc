@@ -153,7 +153,6 @@ LoaderArrayWriter::LoaderArrayWriter(
       m_import_config_ptr->get_column_partition(m_partition_idx).second);
 }
 
-#ifdef DUPLICATE_CELL_AT_END
 void LoaderArrayWriter::write_top_element_to_disk() {
   //Copy not reference
   CellWrapper top_element = m_cell_wrapper_pq.top();
@@ -176,7 +175,6 @@ void LoaderArrayWriter::write_top_element_to_disk() {
   } else //no need to keep this cell anymore, free "heap"
     m_memory_manager.push(idx_in_vector);
 }
-#endif
 
 void LoaderArrayWriter::operate(const void* cell_ptr) {
   assert(m_storage_manager);
@@ -196,7 +194,6 @@ void LoaderArrayWriter::operate(const void* cell_ptr) {
     if (!m_crossed_column_partition_begin)      //still did not cross
       return;
   }
-#ifdef DUPLICATE_CELL_AT_END
   //Reason: the whole setup works only if the intervals for a given row/sample are non-overlapping. This
   //property must be enforced by the loader
   //We maintain the last END value seen for every row - if the new cell has a begin
@@ -274,18 +271,13 @@ void LoaderArrayWriter::operate(const void* cell_ptr) {
   m_cell_wrapper_pq.push(curr_cell_wrapper);
   //Update last END value seen
   m_last_end_position_for_row[row] = column_end;
-#else //ifdef DUPLICATE_CELL_AT_END
-  m_storage_manager->write_cell_sorted(m_array_descriptor, cell_ptr);
-#endif //ifdef DUPLICATE_CELL_AT_END
 }
 
 void LoaderArrayWriter::finish(const int64_t column_interval_end) {
   LoaderOperatorBase::finish(column_interval_end);
-#ifdef DUPLICATE_CELL_AT_END
   //some cells may be left in the PQ, write them to disk
   while (!m_cell_wrapper_pq.empty())
     write_top_element_to_disk();
-#endif
   if (m_storage_manager && m_array_descriptor >= 0)
     m_storage_manager->close_array(m_array_descriptor, m_import_config_ptr->consolidate_tiledb_array_after_load());
 }
