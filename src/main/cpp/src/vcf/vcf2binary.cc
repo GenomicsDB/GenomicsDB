@@ -719,7 +719,7 @@ bool VCF2Binary::convert_field_to_tiledb(std::vector<uint8_t>& buffer, VCFColumn
   //However, flag fields have num_values == 1, but no value is returned in the buffer
   //#define DEBUG_VARIANT_CELL_OFFSETS
 #ifdef DEBUG_VARIANT_CELL_OFFSETS
-  std::cerr << field_name << " write_offset "<< buffer_offset << "\n";
+  logger.info("{} write_offset {}", field_name, buffer_offset);
 #endif
   if (num_values <= 0
       || (num_values == 1 && bcf_ht_type != BCF_HT_FLAG && is_bcf_missing_value<FieldType>(ptr[0]))) {

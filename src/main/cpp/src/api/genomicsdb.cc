@@ -44,6 +44,7 @@
 #include "variant_query_config.h"
 #include "vcf_adapter.h"
 #include "vid_mapper_pb.h"
+#include "genomicsdb_logger.h"
 
 #define TO_VARIANT_QUERY_CONFIG(X) (reinterpret_cast<VariantQueryConfig *>(static_cast<void *>(X)))
 #define TO_VARIANT_STORAGE_MANAGER(X) (reinterpret_cast<VariantStorageManager *>(static_cast<void *>(X)))
@@ -322,7 +323,7 @@ void GatherVariantCalls::operate(VariantCall& variant_call,
                                  const VariantQueryConfig& query_config,
                                  const VariantArraySchema& schema) {
   // m_variant_calls.push_back(std::move(variant_call));
-  std::cout << "TBD: In GatherVariantCalls::operate()" << std::endl;
+  logger.info("TBD: In GatherVariantCalls::operate()");
 }
 
 void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& cell,
@@ -345,8 +346,7 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
   std::string contig_name;
   int64_t contig_position;
   if (!m_vid_mapper.get_contig_location(coords[1], contig_name, contig_position)) {
-    std::cerr << "Could not find genomic interval associated with Variant(Call) at "
-              << coords[1] << std::endl;
+    logger.warn("Could not find genomic interval associated with Variant(Call) at {}", coords[1]);
     return;
   }
 
