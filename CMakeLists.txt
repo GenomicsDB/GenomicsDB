@@ -169,7 +169,6 @@ if(DISABLE_OPENMP)
 endif()
 
 add_definitions(-D_FILE_OFFSET_BITS=64)  #large file support
-add_definitions(-DHTSDIR=1) #htslib is a mandatory requirement
 add_definitions(-DDUPLICATE_CELL_AT_END=1) #mandatory
 add_definitions(-DGENOMICSDB_VERSION=\"${GENOMICSDB_VERSION}\")
 

@@ -23,8 +23,6 @@
 #ifndef BROAD_COMBINED_GVCF_OPERATOR_H
 #define BROAD_COMBINED_GVCF_OPERATOR_H
 
-#ifdef HTSDIR
-
 #include "variant_operations.h"
 #include "vcf_adapter.h"
 #include "vid_mapper.h"
@@ -171,7 +169,5 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   uint64_t m_next_memory_limit;
 #endif
 };
-
-#endif //ifdef HTSDIR
 
 #endif

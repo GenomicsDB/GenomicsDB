@@ -129,7 +129,6 @@ void VCF2TileDBLoaderConverterBase::determine_num_callsets_owned(const VidMapper
   std::sort(m_owned_row_idx_vec.begin(), m_owned_row_idx_vec.end());
 }
 
-#ifdef HTSDIR
 VCF2TileDBConverter::VCF2TileDBConverter(
   const GenomicsDBImportConfig& config,
   int idx,
@@ -440,8 +439,6 @@ void VCF2TileDBConverter::print_all_partitions(const std::string& results_direct
     m_file2binary_handlers[i]->print_all_partitions(results_directory, output_type, rank, true);
 }
 
-#endif //ifdef HTSLIB
-
 //Loader functions
 VCF2TileDBLoader::VCF2TileDBLoader(
   const std::string& config_filename,
@@ -479,9 +476,7 @@ void VCF2TileDBLoader::common_constructor_initialization(
   const int idx) {
   m_vid_mapper.parse_callsets_json(buffer_stream_callset_mapping_json_string, false);
   m_vid_mapper.set_buffer_stream_info(buffer_stream_info_vec);
-#ifdef HTSDIR
   m_converter = 0;
-#endif
   m_previous_cell_row_idx = -1;
   m_previous_cell_column = -1;
   clear();
@@ -500,12 +495,10 @@ void VCF2TileDBLoader::common_constructor_initialization(
     resize_circular_buffers(4u);
     //Allocate exchange objects
   } else {
-#ifdef HTSDIR
     m_converter = new VCF2TileDBConverter(
       *this, idx,
       &m_ping_pong_buffers,
       &m_owned_exchanges);
-#endif
     //Num order values
     auto num_order_values = get_num_order_values();
     //Initialize exchange objects
@@ -535,16 +528,12 @@ void VCF2TileDBLoader::common_constructor_initialization(
   m_num_operators_overflow_in_last_round = 0u;
 #ifdef PRODUCE_BINARY_CELLS
   if (m_produce_combined_vcf) {
-#ifdef HTSDIR
     //Operators
     m_operators.push_back(dynamic_cast<LoaderOperatorBase*>(
                             new LoaderCombinedGVCFOperator(
                               *this,
                               m_idx)));
     m_operators_overflow.push_back(false);
-#else
-    throw VCF2TileDBException("To produce VCFs, you need the htslib library - recompile with HTSDIR set");
-#endif //ifdef HTSDIR
   }
   if (m_produce_tiledb_array) {
     m_operators.push_back(dynamic_cast<LoaderOperatorBase*>(
@@ -556,7 +545,6 @@ void VCF2TileDBLoader::common_constructor_initialization(
 #endif //ifdef PRODUCE_BINARY_CELLS
 }
 
-#ifdef HTSDIR
 void VCF2TileDBLoader::read_all() {
   VCF2TileDBLoaderReadState read_state(m_owned_exchanges.size(), m_do_ping_pong_buffering, m_offload_vcf_output_processing);
   read_all(read_state);
@@ -676,7 +664,6 @@ void VCF2TileDBLoader::read_all(VCF2TileDBLoaderReadState& read_state) {
   read_state.m_exchange_counter = exchange_counter;
   read_state.m_time_in_read_all.stop();
 }
-#endif
 
 void VCF2TileDBLoader::reserve_entries_in_circular_buffer(unsigned exchange_idx) {
   auto converter_idx = 0u;

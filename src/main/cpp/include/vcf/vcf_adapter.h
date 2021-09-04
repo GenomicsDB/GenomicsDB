@@ -23,8 +23,6 @@
 #ifndef VCF_ADAPTER_H
 #define VCF_ADAPTER_H
 
-#ifdef HTSDIR
-
 #include "headers.h"
 #include "gt_common.h"
 #include "htslib/vcf.h"
@@ -207,7 +205,5 @@ class VCFSerializedBufferAdapter: public VCFAdapter {
   bool m_do_output;
   FILE* m_write_fptr;
 };
-
-#endif  //ifdef HTSDIR
 
 #endif

@@ -21,8 +21,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifdef HTSDIR
-
 #include "vcf_adapter.h"
 
 #include "genomicsdb_logger.h"
@@ -497,5 +495,3 @@ void VCFSerializedBufferAdapter::initialize(const GenomicsDBConfigBase& config) 
                    ? stdout
                    : fopen(config.get_vcf_output_filename().c_str(), "w");
 }
-
-#endif //ifdef HTSDIR
