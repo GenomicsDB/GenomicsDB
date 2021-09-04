@@ -122,6 +122,7 @@ if(BUILD_DISTRIBUTABLE_LIBRARY)
         set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
     endif()
 endif()
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 
 #Check C++ 2011 support
 include(CheckAndSetStdCXX2011Flag)
@@ -156,20 +157,16 @@ else()
 endif()
 
 if(NOT DISABLE_OPENMP)
-    find_package(OpenMPv4)
-    if(NOT OPENMPV4_FOUND)
-        set(DISABLE_OPENMP True)
-    else()
-        set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    endif()
+    find_package(OpenMP)
+      message(STATUS "Andrei " ${OpenMP_CXX_LIB_NAMES})
+      set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+      set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 endif()
 if(DISABLE_OPENMP)
     add_definitions(-DDISABLE_OPENMP=1)
 endif()
 
 add_definitions(-D_FILE_OFFSET_BITS=64)  #large file support
-add_definitions(-DDUPLICATE_CELL_AT_END=1) #mandatory
 add_definitions(-DGENOMICSDB_VERSION=\"${GENOMICSDB_VERSION}\")
 
 if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
@@ -398,6 +395,7 @@ function(build_GenomicsDB_links target)
         target_link_libraries(${target} ${GPERFTOOLS_PROFILER_LIBRARY})
     endif()
     target_link_libraries(${target} ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES})
+    target_link_libraries(${target} OpenMP::OpenMP_CXX)
 endfunction()
 
 function(build_GenomicsDB_executable target)
