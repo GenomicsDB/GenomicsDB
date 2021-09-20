@@ -36,6 +36,8 @@
 #include "genomicsdb_exception.h"
 
 #include <map>
+#include <set>
+#include <fstream>
 #include <memory>
 #include <sstream>
 #include <stdint.h>
@@ -236,6 +238,36 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
   std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
 };
 
+class GENOMICSDB_EXPORT GenomicsDBPedMapProcessor : public GenomicsDBVariantCallProcessor {
+  public:
+    GenomicsDBPedMapProcessor(std::string prefix = "output") : prefix(prefix) {
+      ped_file.open(prefix + ".ped", std::ios::out); // create / clear
+      ped_file.close();
+      //ped_file.open(prefix + ".ped", std::ios::out | std::ios::in | std::ios::app);
+      ped_file.open(prefix + ".ped", std::ios::out | std::ios::in);
+      map_file.open(prefix + ".map", std::ios::out);
+      ped_file.seekg(0);
+    }
+
+    virtual void process(const interval_t& interval);
+    virtual void process(const std::string& sample_name,
+                         const int64_t* coordinates,
+                         const genomic_interval_t& genomic_interval,
+                         const std::vector<genomic_field_t>& genomic_fields);
+    void advance_state();
+  //private:
+    // flattened coordinate to place in sorted map, REF
+    std::map<uint64_t, std::pair<uint64_t, char>> variant_map;
+    std::string prefix;
+    // sample name to place in sorted map
+    std::map<std::string, uint64_t> sample_map;
+    std::fstream ped_file;
+    int ped_file_line = 0;
+    std::fstream map_file;
+    uint64_t last_column = 0;
+    int state = 0;
+};
+
 // Forward Declarations for keeping Variant* classes opaque
 class Variant;
 class VariantCall;
@@ -351,6 +383,15 @@ class GenomicsDB {
   GENOMICSDB_EXPORT void generate_vcf(const std::string& output = "",
                                       const std::string& output_format = "",
                                       bool overwrite = false);
+
+  /**
+   * Query by column and row ranges, use results to generate plink .ped and .map files
+   * The two files will be named <output_prefix>.ped and <output_prefix>.map
+   */
+  GENOMICSDB_EXPORT void generate_ped_map(const std::string& array,
+                                          VariantQueryConfig* query_config,
+                                          const std::string& output_prefix,
+                                          bool overwrite);
 
   /**
    * Utility template functions to extract information from Variant and VariantCall classes

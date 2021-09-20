@@ -238,7 +238,7 @@ std::vector<Variant>* GenomicsDB::query_variants(const std::string& array, Varia
   }
 
 #if(DEBUG)
-  print_variants(*pvariants, "default", *query_config);
+  //print_variants(*pvariants, "default", *query_config);
 #endif
 
   delete query_processor;
@@ -401,7 +401,7 @@ std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& arr
                                         *query_config, query_config->get_vid_mapper(), true);
 
 #if(DEBUG)
-  print_variant_calls(*query_config, *query_processor, query_config->get_vid_mapper());
+  //print_variant_calls(*query_config, *query_processor, query_config->get_vid_mapper());
 #endif
 
   // Perform Query over all the intervals
@@ -485,6 +485,26 @@ void GenomicsDB::generate_vcf(const std::string& array, VariantQueryConfig* quer
 
   delete gvcf_operator;
   delete query_processor;
+}
+
+void GenomicsDB::generate_ped_map(const std::string& array,
+                                  VariantQueryConfig* query_config,
+                                  const std::string& output_prefix,
+                                  bool overwrite) {
+  std::cout << "placeholder" << std::endl;
+
+  GenomicsDBPedMapProcessor proc; 
+
+  query_variant_calls(array, query_config, (GenomicsDBVariantCallProcessor&)proc);
+  proc.advance_state();
+  query_variant_calls(array, query_config, (GenomicsDBVariantCallProcessor&)proc);
+
+
+  std::cout << proc.sample_map.size() << std::endl;
+  std::cout << proc.variant_map.size() << std::endl;
+  for(auto& a : proc.variant_map) {
+    std::cout << a.first << std::endl;
+  }
 }
 
 // Template to get the mapped interval from the GenomicsDB array for the Variant(Call)
@@ -674,4 +694,108 @@ void GenomicsDBVariantCallProcessor::process(const std::string& sample_name,
 
 void GenomicsDBVariantCallProcessor::process(const interval_t& interval) {
   std::cout << "----------------\nInterval:[" << interval.first << "," << interval.second << "]\n\n";
+}
+
+void GenomicsDBPedMapProcessor::process(const std::string& sample_name,
+                                        const int64_t* coords,
+                                        const genomic_interval_t& genomic_interval,
+                                        const std::vector<genomic_field_t>& genomic_fields) {
+  //std::cerr << "hello" << std::endl;
+  //GenomicsDBVariantCallProcessor::process(sample_name, coords, genomic_interval, genomic_fields);
+  bool include = true;
+  char ref, alt;
+  std::string ref_string;
+  for(auto& f : genomic_fields) {
+    if(f.name == "ALT") {
+      std::string combined_alt = f.recombine_ALT_value();
+      //std::cout << combined_alt << std::endl;
+      //std::string combined_alt = f.to_string();
+      //std::string combined_alt = "[A]";
+      if(combined_alt.length() != 3) {
+        include = false;
+      } 
+      else {
+        alt = combined_alt[1];
+      }
+    }
+    if(f.name == "REF") {
+      ref_string = f.to_string(get_genomic_field_type(f.name));
+      if(ref_string.length() != 1) {
+        include = false;
+      }
+      else {
+        ref = ref_string[0];
+      }
+    }
+  }
+
+  if(include) {
+//std::cerr << "REF IS " << ref << ", ALT " << alt << std::endl;
+
+    if(!state) {
+      if(last_column != genomic_interval.interval.first) {
+        last_column = genomic_interval.interval.first;
+        map_file << genomic_interval.contig_name << " " << genomic_interval.contig_name << ":" << genomic_interval.interval.first << " 0 " << genomic_interval.interval.first << std::endl;
+      }
+
+      sample_map.insert(std::make_pair(sample_name, -1));
+      variant_map.insert(std::make_pair(coords[1], std::make_pair(-1, ref)));
+    }
+
+    else if(state == 1) {
+      // seek to line corresponding to sample
+      auto sample_line = sample_map[sample_name];
+      /*std::cout << "sample is " << sample_name << ", index " << sample_line << std::endl;
+      std::cout << "current line " << ped_file_line << std::endl;
+      std::cout << "read line, file pointer at " << ped_file.tellg() << std::endl;
+      std::cout << "write pointer at " << ped_file.tellp() << std::endl;*/
+      if(ped_file_line >= sample_line) {
+        ped_file.clear();
+        ped_file.seekg(0);
+        ped_file_line = 0;
+        //std::cout << "rewind" << std::endl;
+      }
+      // lines
+      for(auto i = ped_file_line; i < sample_line; i++) {
+        ped_file.ignore(std::numeric_limits<std::streamsize>::max(),'\n');
+        ++ped_file_line;
+        //std::cout << "read line, file pointer at " << ped_file.tellg() << std::endl;
+      }
+      // position in line corresponding to variant
+      int offset = 2*sample_name.length() + 6 + (variant_map[coords[1]].first * 4); // working here
+      ped_file.seekp(ped_file.tellg() + offset);
+      //std::cout << "sample " << sample_name << ", coord " << coords[1] << ", file pointer at " << ped_file.tellp() << ", should be " << ped_file.tellg() << " + " << offset << " = " << ped_file.tellg() + offset << std::endl;
+      ped_file << alt;
+    }
+  }
+}
+
+void GenomicsDBPedMapProcessor::process(const interval_t& interval) {
+  GenomicsDBVariantCallProcessor::process(interval);
+}
+
+void GenomicsDBPedMapProcessor::advance_state() {
+  if(!state) {
+    // preallocate .ped file and associate samples with sorted position
+    int i = -1;
+    for(auto& a : sample_map) {
+      ped_file << a.first << " " << a.first;
+      for(auto& b : variant_map) {
+        ped_file << " 0 " << b.second.second;
+      }
+      ped_file << std::endl;
+      ++i;
+      a.second = (uint64_t)i;
+    }
+    // associate coords with sorted position
+    i = -1;
+    for(auto& b : variant_map) {
+      ++i;
+      b.second.first = (uint64_t)i;
+    }
+    ped_file.clear();
+    ped_file.seekg(0);
+  }
+
+  ++state;
 }

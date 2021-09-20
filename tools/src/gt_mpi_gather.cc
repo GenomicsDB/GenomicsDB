@@ -30,6 +30,7 @@
 #include "query_variants.h"
 #include "broad_combined_gvcf.h"
 #include "vid_mapper_pb.h"
+#include "genomicsdb.h"
 
 #ifdef USE_BIGMPI
 #include "bigmpi.h"
@@ -47,6 +48,7 @@ enum ArgsEnum {
   ARGS_IDX_PRODUCE_HISTOGRAM,
   ARGS_IDX_PRINT_CALLS,
   ARGS_IDX_PRINT_CSV,
+  ARGS_IDX_PED_MAP,
   ARGS_IDX_VERSION,
   ARGS_IDX_PRODUCE_INTERESTING_POSITIONS,
   ARGS_IDX_PRINT_ALT_ALLELE_COUNTS,
@@ -60,6 +62,7 @@ enum CommandsEnum {
   COMMAND_PRODUCE_HISTOGRAM,
   COMMAND_PRINT_CALLS,
   COMMAND_PRINT_CSV,
+  COMMAND_PED_MAP,
   COMMAND_PRINT_ALT_ALLELE_COUNTS,
   COMMAND_COLUMNAR_GVCF
 };
@@ -435,6 +438,8 @@ void print_usage() {
             << "\t\t Optional, prints VariantCalls in a JSON format\n"
             << "\t \e[1m--print-csv\e[0m\n"
             << "\t\t Optional, outputs CSV with the fields and the order of CSV lines determined by the query attributes\n"
+            << "\t \e[1m--produce-ped-map[=output_prefix]\e[0m\n"
+            << "\t\t Optional, outputs .ped and .map files for use with plink named <output_prefix>.ped and <output_prefix>.map if output_prefix is specified, output.ped and output.map otherwise\n"
             << "\t \e[1m--produce-Broad-GVCF\e[0m\n"
             << "\t\t Optional, produces combined gVCF from the GenomicsDB data constrained by the query configuration\n"
             << "\t\t \e[1m--output-format\e[0m=<output_format>, \e[1m-O\e[0m <output_format>\n"
@@ -492,6 +497,7 @@ int main(int argc, char *argv[]) {
     {"produce-histogram",0,0,ARGS_IDX_PRODUCE_HISTOGRAM},
     {"print-calls",0,0,ARGS_IDX_PRINT_CALLS},
     {"print-csv",0,0,ARGS_IDX_PRINT_CSV},
+    {"produce-ped-map", 2, 0, ARGS_IDX_PED_MAP},
     {"print-AC",0,0,ARGS_IDX_PRINT_ALT_ALLELE_COUNTS},
     {"array",1,0,'A'},
     {"version",0,0,ARGS_IDX_VERSION},
@@ -514,6 +520,7 @@ int main(int argc, char *argv[]) {
   auto segment_size_set_in_command_line = false;
   auto sub_operation_type = ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_UNKNOWN;
   auto use_columnar_iterator = false;
+  std::string ped_map_prefix = "output";
   while ((c=getopt_long(argc, argv, "j:l:w:A:p:O:s:r:h", long_options, NULL)) >= 0) {
     switch (c) {
     case 'p':
@@ -565,6 +572,12 @@ int main(int argc, char *argv[]) {
       break;
     case ARGS_IDX_PRINT_CSV:
       command_idx = COMMAND_PRINT_CSV;
+      break;
+    case ARGS_IDX_PED_MAP:
+      command_idx = COMMAND_PED_MAP;
+      if(optarg) {
+        ped_map_prefix = std::string(optarg);
+      }
       break;
     case ARGS_IDX_PRINT_ALT_ALLELE_COUNTS:
       command_idx = COMMAND_PRINT_ALT_ALLELE_COUNTS;
@@ -666,6 +679,19 @@ int main(int argc, char *argv[]) {
       case COMMAND_PRINT_CSV:
       case COMMAND_PRINT_ALT_ALLELE_COUNTS:
         print_calls(qp, query_config, command_idx, query_config.get_vid_mapper());
+        break;
+      case COMMAND_PED_MAP:
+        std::cerr << "Command ped map" << std::endl;
+        std::cerr << query_config.get_workspace(my_world_mpi_rank) << std::endl;
+        std::cerr << query_config.get_vid_mapping_file() << std::endl;
+        std::cerr << query_config.get_callset_mapping_file() << std::endl;
+        std::cerr << query_config.get_reference_genome() << std::endl;
+        GenomicsDB gdb(query_config.get_workspace(my_world_mpi_rank),
+                       query_config.get_callset_mapping_file(),
+                       query_config.get_vid_mapping_file(),
+                       query_config.get_reference_genome());
+        std::string pref = "pref";
+        gdb.generate_ped_map(array_name, &query_config, pref, true);
         break;
     }
 #ifdef USE_GPERFTOOLS
