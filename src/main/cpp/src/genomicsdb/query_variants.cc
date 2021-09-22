@@ -675,7 +675,7 @@ void VariantQueryProcessor::gt_get_column_interval(
     //This is the reverse of the cell position order (as reverse iterators are used in gt_get_column)
     vector<uint64_t> query_row_idx_in_order = vector<uint64_t>(query_config.get_num_rows_to_query(), UNDEFINED_NUM_ROWS_VALUE);
 #if VERBOSE>0
-    std::cerr << "[query_variants:gt_get_column_interval] Getting " << query_config.get_num_rows_to_query() << " rows" << std::endl;
+    logger.info("[query_variants:gt_get_column_interval] Getting {} rows", query_config.get_num_rows_to_query());
 #endif
     gt_get_column(ad, query_config, column_interval_idx, interval_begin_variant,
                   0,
@@ -704,8 +704,7 @@ void VariantQueryProcessor::gt_get_column_interval(
     Variant tmp_variant(&subset_query_config);
     tmp_variant.resize_based_on_query();
 #if VERBOSE>0
-    std::cerr << "[query_variants:gt_get_column_interval] Fetching columns from " << query_config.get_column_begin(column_interval_idx) + 1;
-    std::cerr << " to " << query_config.get_column_end(column_interval_idx) << std::endl;
+    logger.info("[query_variants:gt_get_column_interval] Fetching columns from {} to {}", query_config.get_column_begin(column_interval_idx) + 1, query_config.get_column_end(column_interval_idx));
 #endif
     //Used for paging
     auto last_column_idx = start_column_forward_sweep;
@@ -756,7 +755,7 @@ void VariantQueryProcessor::gt_get_column_interval(
       last_column_idx = curr_column_idx;
     }
 #if VERBOSE>0
-    std::cerr << "[query_variants:gt_get_column_interval] Fetching columns complete " << std::endl;
+    logger.info("[query_variants:gt_get_column_interval] Fetching columns complete");
 #endif
     delete forward_iter;
   }
@@ -768,7 +767,7 @@ void VariantQueryProcessor::gt_get_column_interval(
     paging_info->shift_left_variants(variants);
   }
 #if VERBOSE>0
-  std::cerr << "[query_variants:gt_get_column_interval] re-arrangement of variants " << std::endl;
+  logger.info("[query_variants:gt_get_column_interval] re-arrangement of variants");
 #endif
   GA4GHOperator variant_operator(query_config, *m_vid_mapper, false);
   for (auto i=start_variant_idx; i<variants.size(); ++i)
@@ -785,7 +784,7 @@ void VariantQueryProcessor::gt_get_column_interval(
   if (paging_info)
     paging_info->serialize_page_end(m_array_schema->array_name());
 #if VERBOSE>0
-  std::cerr << "[query_variants:gt_get_column_interval] query complete " << std::endl;
+  logger.info("[query_variants:gt_get_column_interval] query complete");
 #endif
 }
 
@@ -811,7 +810,7 @@ void VariantQueryProcessor::gt_get_column(
   //TODO: Still single position query
   uint64_t col = query_config.get_column_interval(column_interval_idx).first;
 #if VERBOSE>0
-  std::cerr << "[query_variants:gt_get_column] Fetching column : " << col << std::endl;
+  logger.info("[query_variants:gt_get_column] Fetching column : {}", col);
 #endif
   //If cells are duplicated at the end, we only need a forward iterator starting at col
   //i.e. start at the smallest cell with co-ordinate >= col
@@ -931,7 +930,7 @@ void VariantQueryProcessor::gt_fill_row(
   stats_ptr->m_genomicsdb_cell_fill_timer.start();
 #endif
 #if VERBOSE>1
-  std::cerr << "[query_variants:gt_fill_row] Fill Row " << row << " column " << column << std::endl;
+  logger.info("[query_variants:gt_fill_row] Fill Row {} column {}", row, column);
 #endif
   //Current row should be part of query
   assert(query_config.is_queried_array_row_idx(row));

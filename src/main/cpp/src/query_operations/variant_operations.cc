@@ -23,6 +23,7 @@
 #include "variant_operations.h"
 #include "query_variants.h"
 #include "genomicsdb_multid_vector_field.h"
+#include "genomicsdb_logger.h"
 
 fi_union bcf_float_missing_union = { .i = bcf_float_missing };
 fi_union bcf_float_vector_end_union = { .i = bcf_float_vector_end };
@@ -531,14 +532,16 @@ bool GA4GHOperator::check_if_too_many_alleles_and_print_message(
     std::string contig_name;
     int64_t  contig_position = -1;
     auto contig_status = m_vid_mapper->get_contig_location(variant.get_column_begin(), contig_name, contig_position);
+    std::stringstream ss;
     if (contig_status)
-      std::cerr << "Chromosome "<<contig_name<<" position "<<contig_position+1<<" ("; //VCF contig coords are 1 based
-    std::cerr << "TileDB column "<<variant.get_column_begin();
+      ss << "Chromosome "<<contig_name<<" position "<<contig_position+1<<" ("; //VCF contig coords are 1 based
+    ss << "TileDB column "<<variant.get_column_begin();
     if (contig_status)
-      std::cerr << ")";
-    std::cerr << " has too many alleles in the combined VCF record : "<<num_merged_alleles-1
+      ss << ")";
+    ss << " has too many alleles in the combined VCF record : "<<num_merged_alleles-1
       << " : current limit : "<<m_max_diploid_alt_alleles_that_can_be_genotyped
       << ". Fields, such as  PL, with length equal to the number of genotypes will NOT be added for this location.\n";
+    logger.warn(ss.str());
     return true;
   }
   return false;
@@ -567,27 +570,29 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
       std::string callset_name;
       auto callset_status = m_vid_mapper->get_callset_name(
 	  orig_call.get_row_idx(), callset_name);
+      std::stringstream ss;
       if(callset_status)
-	std::cerr << "Sample/Callset "<<callset_name << "( ";
-      std::cerr << "TileDB row idx "<<orig_call.get_row_idx();
+	ss << "Sample/Callset "<<callset_name << "( ";
+      ss << "TileDB row idx "<<orig_call.get_row_idx();
       if(callset_status)
-	std::cerr << ")";
-      std::cerr << " at ";
+	ss << ")";
+      ss << " at ";
       if (contig_status)
-	std::cerr << "Chromosome "<<contig_name<<" position "<<contig_position+1<<" ("; //VCF contig coords are 1 based
-      std::cerr << "TileDB column "<<variant.get_column_begin();
+	ss << "Chromosome "<<contig_name<<" position "<<contig_position+1<<" ("; //VCF contig coords are 1 based
+      ss << "TileDB column "<<variant.get_column_begin();
       if (contig_status)
-	std::cerr << ")";
-      std::cerr << " has too many genotypes in the combined VCF record : ";
+	ss << ")";
+      ss << " has too many genotypes in the combined VCF record : ";
       auto num_genotypes = KnownFieldInfo::get_number_of_genotypes(num_merged_alleles-1u, curr_ploidy);
       if(num_genotypes == UINT64_MAX)
-	std::cerr << "<uint64_t overflow>";
+	ss << "<uint64_t overflow>";
       else
-	std::cerr << num_genotypes;
-      std::cerr  << " : current limit : "<<m_max_genotype_count
+	ss << num_genotypes;
+      ss  << " : current limit : "<<m_max_genotype_count
 	<< " (num_alleles, ploidy) = ("<<num_merged_alleles<< ", "<<curr_ploidy
 	<< "). Fields, such as  PL, with length equal to the number of genotypes will NOT be added \
 	for this sample for this location.\n";
+      logger.warn(ss.str());
       remapped_field->set_valid(false);
       return false; //no remapping done
     }
@@ -771,7 +776,7 @@ void ColumnHistogramOperator::operate_on_columnar_cell(const GenomicsDBColumnarC
 
 bool ColumnHistogramOperator::equi_partition_and_print_bins(uint64_t num_bins, std::ostream& fptr) const {
   if (num_bins >= m_bin_counts_vector.size()) {
-    std::cerr << "Requested #equi bins is smaller than allocated bin counts vector, returning\n";
+    logger.info("Requested #equi bins is smaller than allocated bin counts vector, returning");
     return false;
   }
   auto total_count = 0ull;
