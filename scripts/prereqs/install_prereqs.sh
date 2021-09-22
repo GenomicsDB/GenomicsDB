@@ -27,7 +27,7 @@ set -e
 #    $INSTALL_PREFIX allows for dependencies maven/protobuf/etc. that are built to be installed to $INSTALL_PREFIX for user installs
 #    $PREREQS_ENV will set up file that can be sourced to set up the ENV for building GenomicsDB
 if [[ `uname` == "Darwin" || `id -u` -ne 0 ]]; then
-  INSTALL_PREFIX=${INSTALL_PREFIX:-$HOME/genomicsdb}
+  INSTALL_PREFIX=${INSTALL_PREFIX:-$HOME/genomicsdb_prereqs}
   MAVEN_INSTALL_PREFIX=INSTALL_PREFIX
   PREREQS_ENV=${PREREQS_ENV:-$HOME/genomicsdb_prereqs.sh}
   echo "GenomicsDB dependencies(e.g. maven, protobuf, etc. that are built from source will be installed to \$INSTALL_PREFIX=$INSTALL_PREFIX"
@@ -152,8 +152,8 @@ install_curl() {
     # curl is supported natively in macOS
     return 0
   fi
-  if [[ ! -f $CURL_PREFIX/libcurl.so ]]; then
-    echo "Installing CURL"
+  if [[ ! -f $CURL_PREFIX/libcurl.a ]]; then
+    echo "Installing CURL into $CURL_PREFIX"
     pushd /tmp
     git clone https://github.com/curl/curl.git &&
       cd curl &&
@@ -173,7 +173,7 @@ install_uuid() {
     return 0
   fi
   if [[ ! -f $UUID_PREFIX/libuuid.a ]]; then
-    echo "Installing libuuid"
+    echo "Installing libuuid into $UUID_PREFIX"
     pushd /tmp
     wget https://sourceforge.net/projects/libuuid/files/libuuid-1.0.3.tar.gz &&
       tar -xvzf libuuid-1.0.3.tar.gz &&
@@ -228,10 +228,10 @@ install_os_prerequisites() {
 
 install_prerequisites() {
   echo "1 PREREQS_ENV=$PREREQS_ENV"
-  install_os_prerequisites &&
+  install_os_prerequisites && echo "Install OS prerequistes successful" &&
     source $PREREQS_ENV &&
     install_mvn
-#    install_protobuf
+  #    install_protobuf
 }
 
 finalize() {
