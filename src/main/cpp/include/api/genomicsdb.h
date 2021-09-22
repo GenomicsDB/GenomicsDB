@@ -243,8 +243,13 @@ class GENOMICSDB_EXPORT GenomicsDBPedMapProcessor : public GenomicsDBVariantCall
     GenomicsDBPedMapProcessor(std::string prefix = "output") : prefix(prefix) {
       ped_file.open(prefix + ".ped", std::ios::out); // create / clear
       ped_file.close();
-      //ped_file.open(prefix + ".ped", std::ios::out | std::ios::in | std::ios::app);
       ped_file.open(prefix + ".ped", std::ios::out | std::ios::in);
+      temp_file.open("ped_temp", std::ios::out);
+      temp_file.close();
+      temp_file.open("ped_temp", std::ios::out | std::ios::in);
+      alt_file.open("alts_temp", std::ios::out);
+      alt_file.close();
+      alt_file.open("alts_temp", std::ios::out | std::ios::in);
       map_file.open(prefix + ".map", std::ios::out);
       ped_file.seekg(0);
     }
@@ -254,18 +259,18 @@ class GENOMICSDB_EXPORT GenomicsDBPedMapProcessor : public GenomicsDBVariantCall
                          const int64_t* coordinates,
                          const genomic_interval_t& genomic_interval,
                          const std::vector<genomic_field_t>& genomic_fields);
-    void advance_state();
+    void finalize();
   //private:
     // flattened coordinate to place in sorted map, REF
-    std::map<uint64_t, std::pair<uint64_t, char>> variant_map;
+    std::map<uint64_t, std::pair<uint64_t, std::string>> variant_map;
     std::string prefix;
     // sample name to place in sorted map
     std::map<std::string, uint64_t> sample_map;
-    std::fstream ped_file;
-    int ped_file_line = 0;
+    std::fstream ped_file, temp_file, alt_file;
+    int temp_file_line = 0;
     std::fstream map_file;
     uint64_t last_column = 0;
-    int state = 0;
+    uint64_t total_ref_length;
 };
 
 // Forward Declarations for keeping Variant* classes opaque
