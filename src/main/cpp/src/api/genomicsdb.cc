@@ -44,6 +44,7 @@
 #include "variant_query_config.h"
 #include "vcf_adapter.h"
 #include "vid_mapper_pb.h"
+#include "genomicsdb_logger.h"
 
 #define TO_VARIANT_QUERY_CONFIG(X) (reinterpret_cast<VariantQueryConfig *>(static_cast<void *>(X)))
 #define TO_VARIANT_STORAGE_MANAGER(X) (reinterpret_cast<VariantStorageManager *>(static_cast<void *>(X)))
@@ -495,7 +496,9 @@ void GenomicsDB::generate_ped_map(const std::string& array,
   GenomicsDBPedMapProcessor proc; 
 
   query_variant_calls(array, query_config, (GenomicsDBVariantCallProcessor&)proc);
-  proc.finalize();
+  proc.advance_state();
+  query_variant_calls(array, query_config, (GenomicsDBVariantCallProcessor&)proc);
+  proc.advance_state();
 }
 
 // Template to get the mapped interval from the GenomicsDB array for the Variant(Call)
@@ -691,78 +694,128 @@ void GenomicsDBPedMapProcessor::process(const std::string& sample_name,
                                         const int64_t* coords,
                                         const genomic_interval_t& genomic_interval,
                                         const std::vector<genomic_field_t>& genomic_fields) {
-  std::string ref_string, alt_string;
+  std::string ref_string, alt_string, gt_string;
   for(auto& f : genomic_fields) {
     if(f.name == "ALT") {
       std::string combined_alt = f.recombine_ALT_value();
-     
-      auto comma = combined_alt.find(",");
-      if(comma != std::string::npos) {
-        alt_string = combined_alt.substr(1, comma - 1);
-      }
-      else {
-        alt_string = combined_alt.substr(1, combined_alt.length() - 2);
-      }
+      alt_string = combined_alt.substr(1, combined_alt.length() - 2);
     }
     if(f.name == "REF") {
       ref_string = f.to_string(get_genomic_field_type(f.name));
     }
+    if(f.name == "GT") {
+      gt_string = f.to_string(get_genomic_field_type(f.name));
+    }
   }
 
-  bool new_col = (last_column != genomic_interval.interval.first);
-  if(new_col) {
-    last_column = genomic_interval.interval.first;
+  bool new_col = (last_coord != coords[1]);
+
+  if(!state) {
+    sample_map.insert(std::make_pair(sample_name, -1));
+    variant_map.insert(std::make_pair(coords[1], std::make_pair(-1, ref_string)));
+    if(new_col) {
+      map_file << genomic_interval.contig_name << " " << genomic_interval.contig_name << ":" << genomic_interval.interval.first << " 0 " << genomic_interval.interval.first << std::endl;
+    }
+    last_coord = coords[1];
+    return;
   }
 
-  if(new_col) {
-    map_file << genomic_interval.contig_name << " " << genomic_interval.contig_name << ":" << genomic_interval.interval.first << " 0 " << genomic_interval.interval.first << std::endl;
-  }
+  int sind = sample_map[sample_name];
+  int vind = variant_map[coords[1]].first;
 
-  sample_map.insert(std::make_pair(sample_name, -1));
-  variant_map.insert(std::make_pair(coords[1], std::make_pair(-1, ref_string)));
-  alt_file << alt_string + " ";
+  if(state == 1) {
+    // if skipped some samples backfill with ref
+    int lo = sind + 1;
+    if(vind > last_variant && last_variant != -1){
+      lo = 0;
+      for(int i = last_sample + 1; i < sample_map.size(); i++) {
+        alt_file << variant_map[last_coord].second << " " << variant_map[last_coord].second << " ";
+        alt_file_entries += 2;
+      }
+    }
+    for(int i = lo; i < sind; i++) {
+      alt_file << variant_map[coords[1]].second << " " << variant_map[coords[1]].second << " ";
+      alt_file_entries += 2;
+    }
+
+    std::vector<std::string> vec = {ref_string};
+    int index;
+    while((index = alt_string.find(", ")) != std::string::npos) {
+      vec.push_back(alt_string.substr(0, index));
+      alt_string.erase(0, index + 2);
+    }
+    vec.push_back(alt_string);
+
+    std::vector<int> gt_vec;
+    while((index = gt_string.find("|")) != std::string::npos) {
+      gt_vec.push_back(std::stoi(gt_string.substr(0, index)));
+      gt_string.erase(0, index + 1);
+    }
+    gt_vec.push_back(std::stoi(gt_string));
+
+    if(gt_vec.size() < 2) {
+      logger.error("Samples must be at least diploid");
+    }
+
+    alt_file << vec[gt_vec[0]] << " " << vec[gt_vec[1]] << " ";
+    alt_file_entries += 2;
+    last_sample = sind;
+    last_variant = vind;
+    last_coord = coords[1];
+  }
 }
 
 void GenomicsDBPedMapProcessor::process(const interval_t& interval) {
   GenomicsDBVariantCallProcessor::process(interval);
 }
 
-void GenomicsDBPedMapProcessor::finalize() {
-  // preallocate .ped file and associate samples with sorted position
-  int i = -1;
-  for(auto& a : sample_map) {
-    temp_file << a.first << "\t" << a.first << "\t0\t0\t0\t0";
+void GenomicsDBPedMapProcessor::advance_state() {
+  // associate samples with sorted position
+  if(!state) {
+    int i = -1;
+    for(auto& a : sample_map) {
+      ++i;
+      a.second = (uint64_t)i;
+    }
+    // associate variants with sorted position
+    i = -1;
     for(auto& b : variant_map) {
-      temp_file <<  "\t" << b.second.second;
+      ++i;
+      b.second.first = (uint64_t)i;
     }
-    temp_file << std::endl;
-    ++i;
-    a.second = (uint64_t)i;
+    last_sample = -1;
+    last_variant = -1;
+    last_coord = -1;
   }
-  // associate coords with sorted position
-  i = -1;
-  for(auto& b : variant_map) {
-    ++i;
-    b.second.first = (uint64_t)i;
-  }
-  temp_file.clear();
-  temp_file.seekg(0);
-  temp_file.clear();
-  temp_file.seekg(0);
-  alt_file.clear();
-  alt_file.seekg(0);
 
-  for(int i = 0; i < sample_map.size(); i++) {
-    // first 6 columns of ped: family id, within family id, within family id of father, mother, sex code, phenotype value
-    std::string fid, wfid, fath, moth, sex, phen;
-    temp_file >> fid >> wfid >> fath >> moth >> sex >> phen;
-    ped_file << fid << "\t" << wfid << "\t" << fath << "\t" << moth << "\t" << sex << "\t" << phen;
-    std::string alt_string, ref_string;
-    for(int j = 0; j < variant_map.size(); j++) {
-      alt_file >> alt_string;
-      temp_file >> ref_string;
-      ped_file << "\t" << alt_string << "\t" << ref_string;
+  if(state == 1) {
+    // if skipped some samples at end, fill with reample_map.insert(std::make_pair(sample_name, -1));
+    for(int i = alt_file_entries; i < sample_map.size() * variant_map.size() * 2; i+=2) {
+      alt_file << variant_map[last_coord].second << " " << variant_map[last_coord].second << " ";
     }
-    ped_file << std::endl;
+
+    alt_file.clear();
+    alt_file.seekg(0);
+
+    for(auto& s : sample_map) {
+      // first 6 columns of ped: family id, within family id, within family id of father, mother, sex code, phenotype value
+      ped_file << s.first << " " << s.first << " 0 0 0 0";
+
+      int index = s.second;
+      for(int i = 0; i < variant_map.size(); i+=2) {
+        alt_file.clear();
+        alt_file.seekg(0);
+
+        std::string s1, s2;
+        for(int j = 0; j <= index; j++){
+          alt_file >> s1 >> s2;
+        }
+    
+        ped_file << " " << s1 << " " << s2;
+        index += sample_map.size();
+      }
+      ped_file << std::endl;
+    }
   }
+  state++;
 }
