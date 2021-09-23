@@ -126,9 +126,9 @@ def create_loader_json(ws_dir, test_name, test_params_dict, col_part, test_dir):
     test_dict['column_partitions'] = col_part;
     for col_part in test_dict['column_partitions']:
         col_part["workspace"] = ws_dir;
-	if "array" in col_part:
+        if "array" in col_part:
             col_part["array"] = test_name+col_part["array"];
-	else:
+        else:
             col_part["array_name"] = test_name+col_part["array_name"];
     test_dict["callset_mapping_file"] = test_params_dict['callset_mapping_file'];
     if('vid_mapping_file' in test_params_dict):
@@ -475,6 +475,8 @@ def main():
                 spark_cmd = 'spark-submit --class TestGenomicsDBSparkHDFS --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --template_vcf_header '+template_vcf_header_path+' --spark_master '+spark_master+' --jar_dir '+jar_dir;
                 if (test_name == "t6_7_8"):
                     spark_cmd = spark_cmd + ' --use-query-protobuf';
+                if (test_name == "t0_1_2_combined"):
+                  spark_cmd += ' --use-loader-protobuf';
                 if (test_name == "t0_overlapping"):
                     spark_cmd = spark_cmd + ' --hostfile ' + hostfile_path
                 pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);

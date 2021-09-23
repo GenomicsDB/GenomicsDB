@@ -37,6 +37,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.genomicsdb.spark.GenomicsDBConfiguration;
 import org.genomicsdb.spark.GenomicsDBInputFormat;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.model.GenomicsDBImportConfiguration;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -47,7 +48,9 @@ import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Base64;
 
+import org.genomicsdb.shaded.com.google.protobuf.Message;
 import com.googlecode.protobuf.format.JsonFormat;
+import com.googlecode.protobuf.format.JsonFormat.ParseException;
 
 public final class TestGenomicsDBSparkHDFS {
 
@@ -56,9 +59,17 @@ public final class TestGenomicsDBSparkHDFS {
     return new String(encoded, encoding);
   }
 
+  public static String getProtobufBase64StringFromFile(Message.Builder builder, String file) 
+      throws IOException, ParseException{
+    String jsonString = readFile(file, Charset.defaultCharset());
+    JsonFormat.merge(jsonString, builder);
+    byte[] pb = builder.build().toByteArray();
+    return Base64.getEncoder().encodeToString(pb);
+  }
+
   public static void main(final String[] args) throws IOException,
         org.json.simple.parser.ParseException {
-    LongOpt[] longopts = new LongOpt[7];
+    LongOpt[] longopts = new LongOpt[8];
     longopts[0] = new LongOpt("loader", LongOpt.REQUIRED_ARGUMENT, null, 'l');
     longopts[1] = new LongOpt("query", LongOpt.REQUIRED_ARGUMENT, null, 'q');
     longopts[2] = new LongOpt("hostfile", LongOpt.REQUIRED_ARGUMENT, null, 'h');
@@ -66,17 +77,19 @@ public final class TestGenomicsDBSparkHDFS {
     longopts[4] = new LongOpt("spark_master", LongOpt.REQUIRED_ARGUMENT, null, 's');
     longopts[5] = new LongOpt("jar_dir", LongOpt.REQUIRED_ARGUMENT, null, 'j');
     longopts[6] = new LongOpt("use-query-protobuf", LongOpt.NO_ARGUMENT, null, 'p');
+    longopts[7] = new LongOpt("use-loader-protobuf", LongOpt.NO_ARGUMENT, null, 'e');
 
     if (args.length < 10) {
       System.err.println("Usage:\n\t--loader <loader.json> --query <query.json> --hostfile <hostfile>"
             +" --template_vcf_header <templateVCFHeader> --spark_master <sparkMaster> --jar_dir <jar_dir>"
-            +"\nOptional args:\n --hostfile <hostfile> --use-query-protobuf");
+            +"\nOptional args:\n --hostfile <hostfile> --use-query-protobuf --user-loader-protobuf");
       System.exit(-1);
     }
     String loaderFile, queryFile, hostfile, templateVCFHeader, sparkMaster, jarDir;
     boolean useQueryProtobuf = false;
+    boolean useLoaderProtobuf = false;
     loaderFile = queryFile = hostfile = templateVCFHeader = sparkMaster = jarDir = "";
-    Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:t:s:j:p", longopts);
+    Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:t:s:j:p:e", longopts);
     int c = -1;
     String optarg;
 
@@ -103,6 +116,9 @@ public final class TestGenomicsDBSparkHDFS {
         case 'p':
           useQueryProtobuf = true;
           break;
+        case 'e':
+          useLoaderProtobuf = true;
+          break;
         default:
           System.err.println("Unknown command line option "+g.getOptarg());
           System.exit(-1);
@@ -114,34 +130,35 @@ public final class TestGenomicsDBSparkHDFS {
     Path qSrc = Paths.get(queryFile);
     Path lSrc = Paths.get(loaderFile);
     File qDstFile = null;
+    File lDstFile = null;
+    JavaSparkContext sc = new JavaSparkContext(conf);
     if(!useQueryProtobuf) {
       qDstFile = File.createTempFile("query", ".json", new File(dstdir.toString()));
       qDstFile.deleteOnExit();
-    }
-    File lDstFile = File.createTempFile("loader", ".json", new File(dstdir.toString()));
-    lDstFile.deleteOnExit();
-    if(!useQueryProtobuf) {
       Files.copy(qSrc, qDstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-    }
-    Files.copy(lSrc, lDstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-    JavaSparkContext sc = new JavaSparkContext(conf);
-    if(!useQueryProtobuf) {
       sc.addFile(qDstFile.getName());
     }
-    sc.addFile(lDstFile.getName());
+    if (!useLoaderProtobuf) {
+      lDstFile = File.createTempFile("loader", ".json", new File(dstdir.toString()));
+      lDstFile.deleteOnExit();
+      Files.copy(lSrc, lDstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+      sc.addFile(lDstFile.getName());
+    }
     Configuration hadoopConf = sc.hadoopConfiguration();
-    hadoopConf.set(GenomicsDBConfiguration.LOADERJSON, lDstFile.getName());
+    if(!useLoaderProtobuf) {
+      hadoopConf.set(GenomicsDBConfiguration.LOADERJSON, lDstFile.getName());
+    }
+    else {
+      String pbString = getProtobufBase64StringFromFile(GenomicsDBImportConfiguration.ImportConfiguration.newBuilder(),
+                                                        loaderFile);
+      hadoopConf.set(GenomicsDBConfiguration.LOADERPB, pbString);
+    }
     if(!useQueryProtobuf) {
       hadoopConf.set(GenomicsDBConfiguration.QUERYJSON, qDstFile.getName());
     }
     else {
-      GenomicsDBExportConfiguration.ExportConfiguration.Builder builder =
-          GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
-      String jsonString = readFile(queryFile, Charset.defaultCharset());
-      JsonFormat.merge(jsonString, builder);
-      byte[] pb = builder.build().toByteArray();
-      String pbString = Base64.getEncoder().encodeToString(pb);
+      String pbString = getProtobufBase64StringFromFile(GenomicsDBExportConfiguration.ExportConfiguration.newBuilder(),
+                                                        queryFile);
       hadoopConf.set(GenomicsDBConfiguration.QUERYPB, pbString);
     }
     if(!hostfile.isEmpty()) {
