@@ -135,7 +135,7 @@ public final class TestGenomicsDBSource {
 
   public static void main(final String[] args) throws IOException,
         ParseException {
-    LongOpt[] longopts = new LongOpt[7];
+    LongOpt[] longopts = new LongOpt[8];
     longopts[0] = new LongOpt("loader", LongOpt.REQUIRED_ARGUMENT, null, 'l');
     longopts[1] = new LongOpt("query", LongOpt.REQUIRED_ARGUMENT, null, 'q');
     longopts[2] = new LongOpt("vid", LongOpt.REQUIRED_ARGUMENT, null, 'v');
@@ -157,7 +157,7 @@ public final class TestGenomicsDBSource {
     boolean useLoaderProtobuf = false;
     gdbDataSource = "org.genomicsdb.spark.sources.GenomicsDBSource";
     loaderFile = queryFile = hostfile = sparkMaster = vidMapping = "";
-    Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:s:d:v:p", longopts);
+    Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:s:d:v:p:e", longopts);
     int c = -1;
     String optarg;
 

@@ -126,7 +126,10 @@ def create_loader_json(ws_dir, test_name, test_params_dict, col_part, test_dir):
     test_dict['column_partitions'] = col_part;
     for col_part in test_dict['column_partitions']:
         col_part["workspace"] = ws_dir;
-        col_part["array"] = test_name+col_part["array"];
+	if "array" in col_part:
+            col_part["array"] = test_name+col_part["array"];
+	else:
+            col_part["array_name"] = test_name+col_part["array_name"];
     test_dict["callset_mapping_file"] = test_params_dict['callset_mapping_file'];
     if('vid_mapping_file' in test_params_dict):
         test_dict['vid_mapping_file'] = test_params_dict['vid_mapping_file'];
@@ -479,8 +482,8 @@ def main():
                 if(pid.returncode != 0):
                     sys.stderr.write('Query test: '+test_name+' with query file '+query_json_filename+' failed\n');
                     sys.stderr.write('Spark command was: '+spark_cmd+'\n');
-                    sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
-                    sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
+                    sys.stderr.write('Spark stdout was: '+stdout_string.decode('utf-8')+'\n');
+                    sys.stderr.write('Spark stderr was: '+stderr_string.decode('utf-8')+'\n');
                     sys.stderr.write('Query file was: '+json.dumps(test_query_dict)+'\n');
                     cleanup_and_exit(namenode, tmpdir, -1);
                 stdout_list = stdout_string.decode('utf-8').splitlines(True);
@@ -493,8 +496,8 @@ def main():
                         sys.stdout.write('Mismatch in query test: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions\n');
                         print_diff(golden_stdout, stdout_filter);
                         sys.stderr.write('Spark command was: '+spark_cmd+'\n');
-                        sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
-                        sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
+                        sys.stderr.write('Spark stdout was: '+stdout_string.decode('utf-8')+'\n');
+                        sys.stderr.write('Spark stderr was: '+stderr_string.decode('utf-8')+'\n');
                         sys.stderr.write('Query file was: '+json.dumps(test_query_dict)+'\n');
                         cleanup_and_exit(namenode, tmpdir, -1);
                     else:
@@ -509,8 +512,8 @@ def main():
                   spark_cmd_v2 += ' --gdb_datasource=' + gdb_datasource
                 if (test_name == "t6_7_8"):
                   spark_cmd_v2 = spark_cmd_v2 + ' --use-query-protobuf';
-		if (test_name == "t0_1_2_combined"):
-		  spark_cmd_v2 += spark_cmd_v2 + ' --user-loader-protobuf';
+                if (test_name == "t0_1_2_combined"):
+                  spark_cmd_v2 += ' --use-loader-protobuf';
                 if (test_name == "t0_overlapping"):
                     spark_cmd = spark_cmd_v2 + ' --hostfile ' + hostfile_path
                 pid = subprocess.Popen(spark_cmd_v2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);

@@ -40,6 +40,7 @@ import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.apache.spark.sql.types.StructType;
 
 import org.genomicsdb.spark.GenomicsDBInput;
+import org.genomicsdb.spark.GenomicsDBInputFormat;
 import org.genomicsdb.spark.GenomicsDBVidSchema;
 
 import org.json.simple.parser.ParseException;
@@ -71,6 +72,13 @@ public class GenomicsDBInputPartitionReader implements PartitionReader<InternalR
           GenomicsDBInput.createTargetExportConfigurationPB(
               query, inputPartition.getPartitionInfo(), 
               inputPartition.getQueryInfoList(), inputPartition.getQueryIsPB());
+
+      if (!(exportConfiguration.hasCallsetMapping() || exportConfiguration.hasCallsetMappingFile())) {
+        exportConfiguration = GenomicsDBInputFormat.getCallsetFromLoader(exportConfiguration, loader, inputPartition.getLoaderIsPB());
+      }
+      if (!(exportConfiguration.hasVidMapping() || exportConfiguration.hasVidMappingFile())) {
+        exportConfiguration = GenomicsDBInputFormat.getVidFromLoader(exportConfiguration, loader, inputPartition.getLoaderIsPB());
+      }
     } catch (ParseException | IOException e) {
       e.printStackTrace();
       exportConfiguration = null;

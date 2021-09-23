@@ -23,8 +23,10 @@
 package org.genomicsdb.spark;
 
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
+import org.genomicsdb.exception.GenomicsDBException;
 import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.model.GenomicsDBImportConfiguration;
 import org.genomicsdb.spark.sources.GenomicsDBRecordReader;
 
 import htsjdk.tribble.Feature;
@@ -47,6 +49,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 
 public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
   extends InputFormat<String, VCONTEXT> implements Configurable {
@@ -95,6 +100,67 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     return (List)input.divideInput();
   }
 
+  private static String getJsonField(String filename, String attr) {
+    try (final FileReader reader = new FileReader(filename)) {
+      JSONParser parser = new JSONParser();
+      JSONObject objLoad = (JSONObject) parser.parse(reader);
+
+      return (String) objLoad.get(attr);
+    } catch (ParseException|IOException e) {
+      throw new GenomicsDBException("Error parsing loader file", e);
+    }
+  }
+
+  public static GenomicsDBExportConfiguration.ExportConfiguration getCallsetFromLoader(
+      GenomicsDBExportConfiguration.ExportConfiguration export, 
+      final String pbOrFile, final boolean isPB) throws InvalidProtocolBufferException {
+    GenomicsDBExportConfiguration.ExportConfiguration.Builder builder = export.toBuilder();
+
+    if (isPB) {
+      GenomicsDBImportConfiguration.ImportConfiguration loader = 
+          (GenomicsDBImportConfiguration.ImportConfiguration)
+          GenomicsDBConfiguration.getProtobufFromBase64EncodedString(
+              GenomicsDBImportConfiguration.ImportConfiguration.newBuilder(),
+              pbOrFile);
+      if (loader.hasCallsetMapping()) {
+        builder.setCallsetMapping(loader.getCallsetMapping());
+      }
+      else {
+        builder.setCallsetMappingFile(loader.getCallsetMappingFile());
+      }
+    }
+    else {
+      builder.setCallsetMappingFile(getJsonField(pbOrFile, "callset_mapping_file"));
+    }
+
+    return builder.build();
+  }
+
+  public static GenomicsDBExportConfiguration.ExportConfiguration getVidFromLoader(
+      GenomicsDBExportConfiguration.ExportConfiguration export, 
+      final String pbOrFile, final boolean isPB) throws InvalidProtocolBufferException {
+    GenomicsDBExportConfiguration.ExportConfiguration.Builder builder = export.toBuilder();
+
+    if (isPB) {
+      GenomicsDBImportConfiguration.ImportConfiguration loader = 
+          (GenomicsDBImportConfiguration.ImportConfiguration)
+          GenomicsDBConfiguration.getProtobufFromBase64EncodedString(
+              GenomicsDBImportConfiguration.ImportConfiguration.newBuilder(),
+              pbOrFile);
+      if (loader.hasVidMapping()) {
+        builder.setVidMapping(loader.getVidMapping());
+      }
+      else {
+        builder.setVidMappingFile(loader.getVidMappingFile());
+      }
+    }
+    else {
+      builder.setVidMappingFile(getJsonField(pbOrFile, "vid_mapping_file"));
+    }
+
+    return builder.build();
+  }
+
   @Override
   public RecordReader<String, VCONTEXT>
     createRecordReader(InputSplit inputSplit, TaskAttemptContext taskAttemptContext)
@@ -135,8 +201,22 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
               GenomicsDBInput.createTargetExportConfigurationPB(query, 
               gSplit.getPartitionInfo(),
               gSplit.getQueryInfoList(), isPB);
+
+      String pbOrFile;
+      if (configuration.get(GenomicsDBConfiguration.LOADERPB) != null) {
+        pbOrFile = configuration.get(GenomicsDBConfiguration.LOADERPB);
+      }
+      else{
+        pbOrFile = configuration.get(GenomicsDBConfiguration.LOADERJSON);
+      }
+      if (!(exportConfiguration.hasCallsetMapping() || exportConfiguration.hasCallsetMappingFile())) {
+        exportConfiguration = getCallsetFromLoader(exportConfiguration, pbOrFile, configuration.get(GenomicsDBConfiguration.LOADERPB) != null);
+      }
+      if (!(exportConfiguration.hasVidMapping() || exportConfiguration.hasVidMappingFile())) {
+        exportConfiguration = getVidFromLoader(exportConfiguration, pbOrFile, configuration.get(GenomicsDBConfiguration.LOADERPB) != null);
+      }
     }
-    catch (ParseException e) {
+    catch (ParseException | InvalidProtocolBufferException e) {
       e.printStackTrace();
       return null;
     }

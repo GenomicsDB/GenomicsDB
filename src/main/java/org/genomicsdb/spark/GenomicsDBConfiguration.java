@@ -27,15 +27,17 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-
 import org.genomicsdb.model.*;
 
-import scala.collection.JavaConverters;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
+
 import java.util.Iterator;
 import java.util.Base64;
 import java.lang.RuntimeException;
@@ -340,13 +342,11 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     }
   }
 
-  private void readColumnPartitionsPB(String pb) throws
-        com.google.protobuf.InvalidProtocolBufferException {
+  private void readColumnPartitionsPB(String pb) throws InvalidProtocolBufferException {
     GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder = 
              GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
-    byte[] pbDecoded = Base64.getDecoder().decode(pb);
-    importConfigurationBuilder.mergeFrom(pbDecoded);
-    GenomicsDBImportConfiguration.ImportConfiguration loaderPB = importConfigurationBuilder.build();
+    GenomicsDBImportConfiguration.ImportConfiguration loaderPB = 
+        (GenomicsDBImportConfiguration.ImportConfiguration)getProtobufFromBase64EncodedString(importConfigurationBuilder, pb);
 
     if (partitionInfoList==null) {
       partitionInfoList = new ArrayList<>();
@@ -365,13 +365,11 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     }
   }
 
-  private void readQueryRangesPB(String pb) throws 
-        com.google.protobuf.InvalidProtocolBufferException {
+  private void readQueryRangesPB(String pb) throws InvalidProtocolBufferException {
     GenomicsDBExportConfiguration.ExportConfiguration.Builder exportConfigurationBuilder = 
              GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
-    byte[] pbDecoded = Base64.getDecoder().decode(pb);
-    exportConfigurationBuilder.mergeFrom(pbDecoded);
-    GenomicsDBExportConfiguration.ExportConfiguration queryPB = exportConfigurationBuilder.build();
+    GenomicsDBExportConfiguration.ExportConfiguration queryPB = 
+        (GenomicsDBExportConfiguration.ExportConfiguration)getProtobufFromBase64EncodedString(exportConfigurationBuilder, pb);
 
     if (queryInfoList==null) {
       queryInfoList = new ArrayList<>();
@@ -427,6 +425,13 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
         System.err.println("Could not parse protobuf while populating partition and query lists");
         e.printStackTrace();
     }
+  }
+
+  public static Message getProtobufFromBase64EncodedString(Message.Builder builder, String pbString) 
+      throws InvalidProtocolBufferException {
+    byte[] pbDecoded = Base64.getDecoder().decode(pbString);
+    builder.mergeFrom(pbDecoded);
+    return builder.build();
   }
 }
 
