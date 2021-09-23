@@ -81,7 +81,7 @@ public class GenomicsDBInputPartitionReader implements PartitionReader<InternalR
           new GenomicsDBFeatureReader<>(
               exportConfiguration,
               (FeatureCodec<VariantContext, PositionalBufferedStream>) new BCF2Codec(),
-              Optional.of(loader));
+              Optional.of("")); // don't need loader since we're using query pb
       this.iterator = fReader.iterator();
     } catch (IOException e) {
       e.printStackTrace();

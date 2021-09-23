@@ -33,6 +33,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.InterruptedException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
 public class GenomicsDBInputFormatTest {
@@ -235,6 +236,24 @@ public class GenomicsDBInputFormatTest {
     }
   }
 
+  public void checkTests6And7(List<InputSplit> splits) {
+    Assert.assertEquals(splits.size(), 5);
+    // check first partition
+    Assert.assertEquals(((GenomicsDBInputSplit)splits.get(0)).getPartitionInfo().getBeginPosition(), 0);
+    // check that query chunks span the original query range
+    Assert.assertEquals(((GenomicsDBInputSplit)splits.get(0)).getQueryInfoList().get(0).getBeginPosition(), 9000);
+    Assert.assertEquals(((GenomicsDBInputSplit)splits.get(4)).getQueryInfoList().get(0).getEndPosition(), 24500);
+    for(int i=0; i<splits.size()-1; i++) {
+      GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(i);
+      GenomicsDBInputSplit gSplitNext = (GenomicsDBInputSplit)splits.get(i+1);
+      // check that query ranges do not overlap, OR if they do they are targetting different partitions
+      // the latter check is because we sometimes send the same query range to differnt partitions. Genomicsdb can handle this
+      // and each array only worries about the column ranges it owns
+      Assert.assertTrue((gSplit.getQueryInfoList().get(0).getEndPosition()+1 == gSplitNext.getQueryInfoList().get(0).getBeginPosition()) ||
+                           gSplit.getPartitionInfo().getBeginPosition() < gSplitNext.getPartitionInfo().getBeginPosition());
+    }
+  }
+
   @Test(testName = "Test query larger than query block size",
       dataProvider = "loaderQueryHostFilesTest6",
       dataProviderClass = GenomicsDBTestUtils.class)
@@ -257,22 +276,23 @@ public class GenomicsDBInputFormatTest {
 
     GenomicsDBInputFormat format = new GenomicsDBInputFormat();
     format.setConf(conf);
-    List<InputSplit> splits = format.getSplits(job);
-    Assert.assertEquals(splits.size(), 5);
-    // check first partition
-    Assert.assertEquals(((GenomicsDBInputSplit)splits.get(0)).getPartitionInfo().getBeginPosition(), 0);
-    // check that query chunks span the original query range
-    Assert.assertEquals(((GenomicsDBInputSplit)splits.get(0)).getQueryInfoList().get(0).getBeginPosition(), 9000);
-    Assert.assertEquals(((GenomicsDBInputSplit)splits.get(4)).getQueryInfoList().get(0).getEndPosition(), 24500);
-    for(int i=0; i<splits.size()-1; i++) {
-      GenomicsDBInputSplit gSplit = (GenomicsDBInputSplit)splits.get(i);
-      GenomicsDBInputSplit gSplitNext = (GenomicsDBInputSplit)splits.get(i+1);
-      // check that query ranges do not overlap, OR if they do they are targetting different partitions
-      // the latter check is because we sometimes send the same query range to differnt partitions. Genomicsdb can handle this
-      // and each array only worries about the column ranges it owns
-      Assert.assertTrue((gSplit.getQueryInfoList().get(0).getEndPosition()+1 == gSplitNext.getQueryInfoList().get(0).getBeginPosition()) ||
-                           gSplit.getPartitionInfo().getBeginPosition() < gSplitNext.getPartitionInfo().getBeginPosition());
-    }
+    checkTests6And7(format.getSplits(job));
+  }
+
+  @Test(testName = "Test loader and query are protobuf",
+      dataProvider = "loaderQueryPB7",
+      dataProviderClass = GenomicsDBTestUtils.class)
+  public void testLoaderPB(String loader, 
+              String query) 
+              throws IOException, FileNotFoundException, InterruptedException {
+    Job job = Job.getInstance();
+    Configuration conf = job.getConfiguration();
+    conf.set(GenomicsDBConfiguration.LOADERPB, loader);
+    conf.set(GenomicsDBConfiguration.QUERYPB, query);
+
+    GenomicsDBInputFormat format = new GenomicsDBInputFormat();
+    format.setConf(conf);
+    checkTests6And7(format.getSplits(job));
   }
 
 }

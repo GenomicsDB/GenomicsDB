@@ -94,11 +94,14 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   }
 
   public void setOptions(Map<String,String> options){
-    if(options.containsKey(LOADERJSON)) {
+    if(options.containsKey(LOADERPB)) {
+      this.setLoaderPB(options.get(LOADERPB));
+    }
+    else if(options.containsKey(LOADERJSON)) {
       this.setLoaderJsonFile(options.get(LOADERJSON));
     }
     else {
-      throw new RuntimeException("Must specify "+LOADERJSON);
+      throw new RuntimeException("Must specify either "+LOADERJSON+" or "+LOADERPB);
     }
     
     if(options.containsKey(QUERYPB)) {
@@ -125,6 +128,11 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
 
   public GenomicsDBConfiguration setLoaderJsonFile(String path) {
     set(LOADERJSON, path);
+    return this;
+  }
+
+  public GenomicsDBConfiguration setLoaderPB(String path) {
+    set(LOADERPB, path);
     return this;
   }
 

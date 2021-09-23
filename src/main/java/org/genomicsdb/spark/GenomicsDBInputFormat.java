@@ -70,10 +70,16 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
   public List<InputSplit> getSplits(JobContext jobContext) throws FileNotFoundException {
 
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(configuration);
-    genomicsDBConfiguration.setLoaderJsonFile(
-      configuration.get(GenomicsDBConfiguration.LOADERJSON));
+    if (configuration.get(GenomicsDBConfiguration.LOADERPB) != null) {
+      genomicsDBConfiguration.setLoaderPB(
+        configuration.get(GenomicsDBConfiguration.LOADERPB));
+    }
+    else {
+      genomicsDBConfiguration.setLoaderJsonFile(
+        configuration.get(GenomicsDBConfiguration.LOADERJSON));
+    }
     if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
-      genomicsDBConfiguration.setQueryJsonFile(
+      genomicsDBConfiguration.setQueryPB(
         configuration.get(GenomicsDBConfiguration.QUERYPB));
     }
     else {
@@ -103,31 +109,22 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
 
     boolean isPB;
     if (taskAttemptContext != null) {
-      Configuration configuration = taskAttemptContext.getConfiguration();
-      loaderJson = configuration.get(GenomicsDBConfiguration.LOADERJSON);
-      if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
-        query = configuration.get(GenomicsDBConfiguration.QUERYPB);
-        isPB = true;
-      }
-      else {
-        query = configuration.get(GenomicsDBConfiguration.QUERYJSON);
-        isPB = false;
-      }
+      configuration = taskAttemptContext.getConfiguration();
     } else {
-      // If control comes here, means this method is called from
-      // GenomicsDBRDD. Hence, the configuration object must be
-      // set by setConf method, else this will lead to
-      // NullPointerException
       assert(configuration!=null);
+    }
+    if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
+      // if using query pb, loader json is not needed for spark query
+      // query pb will have callset/vid info
+      query = configuration.get(GenomicsDBConfiguration.QUERYPB);
+      loaderJson = "";
+      isPB = true;
+    }
+    else {
+      query = configuration.get(GenomicsDBConfiguration.QUERYJSON);
+      // query json is deprecated so we won't bother supporting loader pb in this case
       loaderJson = configuration.get(GenomicsDBConfiguration.LOADERJSON);
-      if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
-        query = configuration.get(GenomicsDBConfiguration.QUERYPB);
-        isPB = true;
-      }
-      else {
-        query = configuration.get(GenomicsDBConfiguration.QUERYJSON);
-        isPB = false;
-      }
+      isPB = false;
     }
 
     // Need to amend query file being passed in based on inputSplit
@@ -186,6 +183,11 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     return this;
   }
 
+  public GenomicsDBInputFormat<VCONTEXT, SOURCE> setLoaderPB(String pb) {
+    input.getGenomicsDBConfiguration().setLoaderPB(pb);
+    return this;
+  }
+
   /**
    * Set the query JSON file path
    * @param jsonFile  Full qualified path of the query JSON file
@@ -193,6 +195,11 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
    */
   public GenomicsDBInputFormat<VCONTEXT, SOURCE> setQueryJsonFile(String jsonFile) {
     input.getGenomicsDBConfiguration().setQueryJsonFile(jsonFile);
+    return this;
+  }
+
+  public GenomicsDBInputFormat<VCONTEXT, SOURCE> setQueryPB(String pb) {
+    input.getGenomicsDBConfiguration().setQueryPB(pb);
     return this;
   }
 

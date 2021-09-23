@@ -363,18 +363,17 @@ def main():
                     ]
             },
             { "name" : "t0_1_2_combined", 'golden_output' : 'golden_outputs/t0_1_2_combined',
-                'callset_mapping_file': 'inputs/callsets/t0_1_2_combined.json',
+                'callset_mapping_file': 'inputs/callsets/t0_1_2_combined_pb.json',
+		'vid_mapping_file': 'inputs/vid.json',
                 "column_partitions": [
-                    [ {"begin": 0, "workspace":"/tmp/ws", "array": "test0"} ],
-                    [ {"begin": 0, "workspace":"/tmp/ws", "array": "test1"},
-                      {"begin": 10000, "workspace":"/tmp/ws", "array": "test2"}
-                       ],
-                    [ {"begin": 0, "workspace":"/tmp/ws", "array": "test3"},
-                      {"begin": 3000, "workspace":"/tmp/ws", "array": "test4"},
-                      {"begin": 6000, "workspace":"/tmp/ws", "array": "test5"},
-                      {"begin": 9000, "workspace":"/tmp/ws", "array": "test6"},
-                      {"begin": 12000, "workspace":"/tmp/ws", "array": "test7"}
-                       ]
+		    [ { "begin": { "tiledb_column": 0 }, "workspace":"/tmp/ws", "array_name": "test0",}],
+		    [ { "begin": { "tiledb_column": 0 }, "workspace":"/tmp/ws", "array_name": "test1",},
+		      { "begin": { "tiledb_column": 10000 }, "workspace":"/tmp/ws", "array_name": "test2",}],
+		    [ { "begin": { "tiledb_column": 0 }, "workspace":"/tmp/ws", "array_name": "test3",},
+		      { "begin": { "tiledb_column": 3000 }, "workspace":"/tmp/ws", "array_name": "test4",},
+		      { "begin": { "tiledb_column": 6000 }, "workspace":"/tmp/ws", "array_name": "test5",},
+		      { "begin": { "tiledb_column": 9000 }, "workspace":"/tmp/ws", "array_name": "test6",},
+		      { "begin": { "tiledb_column": 12000 }, "workspace":"/tmp/ws", "array_name": "test7",}],
                     ],
                 "query_params": [
                     { "query_column_ranges" : [0, 1000000], "golden_output": {
@@ -510,6 +509,8 @@ def main():
                   spark_cmd_v2 += ' --gdb_datasource=' + gdb_datasource
                 if (test_name == "t6_7_8"):
                   spark_cmd_v2 = spark_cmd_v2 + ' --use-query-protobuf';
+		if (test_name == "t0_1_2_combined"):
+		  spark_cmd_v2 += spark_cmd_v2 + ' --user-loader-protobuf';
                 if (test_name == "t0_overlapping"):
                     spark_cmd = spark_cmd_v2 + ' --hostfile ' + hostfile_path
                 pid = subprocess.Popen(spark_cmd_v2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
