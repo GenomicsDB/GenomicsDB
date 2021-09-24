@@ -85,13 +85,16 @@ public class GenomicsDBSchemaFactory {
     // TODO: we don't currently support multiple types for field
     switch (fieldtype) {
       case "int":
-      case "Integer":
       case "integer":
+      case "Integer":
         return Integer.class;
       case "char":
+      case "String":
         return String.class;
       case "float":
+      case "Float":
       case "double":
+      case "Double":
         // TODO: switching to double below because that is what VC
         // seems to be giving us. Otherwise spark will complain later
         // when we try to create the dataframe about unboxing from double to float

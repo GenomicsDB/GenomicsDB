@@ -367,7 +367,7 @@ def main():
             },
             { "name" : "t0_1_2_combined", 'golden_output' : 'golden_outputs/t0_1_2_combined',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2_combined_pb.json',
-		'vid_mapping_file': 'inputs/vid.json',
+		'vid_mapping_file': 'inputs/vid_pb.json',
                 "column_partitions": [
 		    [ { "begin": { "tiledb_column": 0 }, "workspace":"/tmp/ws", "array_name": "test0",}],
 		    [ { "begin": { "tiledb_column": 0 }, "workspace":"/tmp/ws", "array_name": "test1",},

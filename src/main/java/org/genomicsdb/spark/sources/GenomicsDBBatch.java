@@ -39,10 +39,12 @@ import scala.collection.JavaConverters;
 import org.genomicsdb.spark.GenomicsDBInput;
 import org.genomicsdb.model.GenomicsDBImportConfiguration;
 import org.genomicsdb.model.GenomicsDBVidMapProto;
+import org.genomicsdb.model.GenomicsDBVidMapProto.VidMappingPB;
 import org.genomicsdb.spark.GenomicsDBConfiguration;
 import org.genomicsdb.spark.GenomicsDBSchemaFactory;
 import org.genomicsdb.GenomicsDBUtils;
 import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
 
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -59,7 +61,7 @@ import com.googlecode.protobuf.format.JsonFormat;
  * Represents a physical plan, logical table scan is converted to this at runtime.
  * Defines a factory that is sent to an executor, thus Datasource partitions are planned here.
  **/
-public class GenomicsDBBatch implements Batch {
+public class GenomicsDBBatch implements Batch, JsonFileExtensions {
 
   GenomicsDBInput<GenomicsDBInputPartition> input;
   private final Map<String, String> properties;
@@ -114,29 +116,21 @@ public class GenomicsDBBatch implements Batch {
     if (config.hasProtoLoader()) {
       GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder = 
              GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
-      byte[] pbDecoded = Base64.getDecoder().decode(config.getLoaderPB());
-      importConfigurationBuilder.mergeFrom(pbDecoded);
-      GenomicsDBImportConfiguration.ImportConfiguration importPB = importConfigurationBuilder.build();
+      GenomicsDBImportConfiguration.ImportConfiguration importPB = 
+          (GenomicsDBImportConfiguration.ImportConfiguration)JsonFileExtensions.getProtobufFromBase64EncodedString(
+              importConfigurationBuilder, 
+              config.getLoaderPB());
       if (importPB.hasVidMapping()) {
         return new GenomicsDBSchemaFactory(importPB.getVidMapping());
       }
       else {
         // if we get a loader protobuf, we'll assume that even the vid file is proto serialized
-        return new GenomicsDBSchemaFactory(getVidPBFromFile(importPB.getVidMappingFile()));
+        return new GenomicsDBSchemaFactory(generateVidMapFromFile(importPB.getVidMappingFile()));
       }
     }
     else {
       return new GenomicsDBSchemaFactory(config.getLoaderJsonFile());
     }
-  }
-
-  private static GenomicsDBVidMapProto.VidMappingPB getVidPBFromFile(String file) 
-      throws com.googlecode.protobuf.format.JsonFormat.ParseException {
-    String vidfile = GenomicsDBUtils.readEntireFile(file);
-    GenomicsDBVidMapProto.VidMappingPB.Builder vidMapBuilder =
-        GenomicsDBVidMapProto.VidMappingPB.newBuilder();
-    JsonFormat.merge(vidfile, vidMapBuilder);
-    return vidMapBuilder.build();
   }
 
   @Override

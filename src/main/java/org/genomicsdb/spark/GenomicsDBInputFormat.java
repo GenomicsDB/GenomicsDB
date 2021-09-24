@@ -24,6 +24,7 @@ package org.genomicsdb.spark;
 
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
 import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
 import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.genomicsdb.model.GenomicsDBImportConfiguration;
@@ -54,7 +55,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 
 public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
-  extends InputFormat<String, VCONTEXT> implements Configurable {
+  extends InputFormat<String, VCONTEXT> implements Configurable, JsonFileExtensions {
 
   private Configuration configuration;
   private GenomicsDBInput<GenomicsDBInputSplit> input;
@@ -119,7 +120,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     if (isPB) {
       GenomicsDBImportConfiguration.ImportConfiguration loader = 
           (GenomicsDBImportConfiguration.ImportConfiguration)
-          GenomicsDBConfiguration.getProtobufFromBase64EncodedString(
+          JsonFileExtensions.getProtobufFromBase64EncodedString(
               GenomicsDBImportConfiguration.ImportConfiguration.newBuilder(),
               pbOrFile);
       if (loader.hasCallsetMapping()) {
@@ -144,7 +145,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     if (isPB) {
       GenomicsDBImportConfiguration.ImportConfiguration loader = 
           (GenomicsDBImportConfiguration.ImportConfiguration)
-          GenomicsDBConfiguration.getProtobufFromBase64EncodedString(
+          JsonFileExtensions.getProtobufFromBase64EncodedString(
               GenomicsDBImportConfiguration.ImportConfiguration.newBuilder(),
               pbOrFile);
       if (loader.hasVidMapping()) {
@@ -166,7 +167,6 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     createRecordReader(InputSplit inputSplit, TaskAttemptContext taskAttemptContext)
       throws IOException, InterruptedException {
 
-    String loaderJson;
     String query;
 
     GenomicsDBFeatureReader<VCONTEXT, SOURCE> featureReader;
@@ -180,16 +180,12 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
       assert(configuration!=null);
     }
     if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
-      // if using query pb, loader json is not needed for spark query
-      // query pb will have callset/vid info
       query = configuration.get(GenomicsDBConfiguration.QUERYPB);
-      loaderJson = "";
       isPB = true;
     }
     else {
       query = configuration.get(GenomicsDBConfiguration.QUERYJSON);
       // query json is deprecated so we won't bother supporting loader pb in this case
-      loaderJson = configuration.get(GenomicsDBConfiguration.LOADERJSON);
       isPB = false;
     }
 
@@ -227,7 +223,9 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
 
     //featureReader = new GenomicsDBFeatureReader<>(exportConfiguration,
     //        (FeatureCodec<VCONTEXT,SOURCE>) new BCF2Codec(), Optional.of(loaderJson));
-    featureReader = getGenomicsDBFeatureReader(exportConfiguration, loaderJson);
+    // using query pb so loader json is not needed for spark query
+    // we've ensured query pb will have callset/vid info
+    featureReader = getGenomicsDBFeatureReader(exportConfiguration, "");
     recordReader = new GenomicsDBRecordReader<>(featureReader);
     return recordReader;
   }

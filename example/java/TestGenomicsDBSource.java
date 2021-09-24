@@ -29,9 +29,12 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-
+import org.genomicsdb.GenomicsDBUtils;
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.genomicsdb.model.GenomicsDBImportConfiguration;
+import org.genomicsdb.model.GenomicsDBVidMapProto;
+import org.genomicsdb.model.GenomicsDBVidMapProto.VidMappingPB;
 import org.genomicsdb.spark.GenomicsDBSchemaFactory;
 import org.genomicsdb.spark.GenomicsDBVidSchema;
 
@@ -49,16 +52,11 @@ import static org.apache.spark.sql.functions.col;
 import org.genomicsdb.shaded.com.google.protobuf.Message;
 import com.googlecode.protobuf.format.JsonFormat;
 
-public final class TestGenomicsDBSource {
+public final class TestGenomicsDBSource implements JsonFileExtensions {
 
   public static String[] floatFields = {
     "BaseQRankSum", "ClippingRankSum", "MQRankSum", "ReadPosRankSum", "MQ", "RAW_MQ", "MLEAF"
   };
-
-  private static String readFile(String path, Charset encoding) throws IOException {
-    byte[] encoded = Files.readAllBytes(Paths.get(path));
-    return new String(encoded, encoding);
-  }
 
   public static boolean schemaContainsField(StructType schema, String s) {
     String[] fields = schema.fieldNames();
@@ -70,7 +68,7 @@ public final class TestGenomicsDBSource {
     return false;
   }
 
-  public static StructType getSchemaFromQuery(File query, String vidmapping)
+  public static StructType getSchemaFromQuery(File query, String vidmapping) 
       throws IOException, ParseException {
     try {
       JSONParser qparser = new JSONParser();
@@ -125,16 +123,29 @@ public final class TestGenomicsDBSource {
     }
   }
 
-  public static String getProtobufBase64StringFromFile(Message.Builder builder, String file) 
-      throws IOException, ParseException{
-    String jsonString = readFile(file, Charset.defaultCharset());
-    JsonFormat.merge(jsonString, builder);
-    byte[] pb = builder.build().toByteArray();
-    return Base64.getEncoder().encodeToString(pb);
+  public VidMappingPB getVidMapPBFromLoaderPB(String file) 
+      throws com.googlecode.protobuf.format.JsonFormat.ParseException {
+    GenomicsDBImportConfiguration.ImportConfiguration.Builder loader = 
+        GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
+    
+    String jsonString = GenomicsDBUtils.readEntireFile(file);
+    JsonFormat.merge(jsonString, loader);
+
+    GenomicsDBVidMapProto.VidMappingPB.Builder vBuilder = 
+        GenomicsDBVidMapProto.VidMappingPB.newBuilder();
+
+    if (loader.hasVidMapping()) {
+      vBuilder.mergeFrom(loader.getVidMapping());
+    } else {
+      vBuilder.mergeFrom(generateVidMapFromFile(loader.getVidMappingFile()));
+    }
+
+    return vBuilder.build();
   }
 
   public static void main(final String[] args) throws IOException,
         ParseException {
+    TestGenomicsDBSource test = new TestGenomicsDBSource();
     LongOpt[] longopts = new LongOpt[8];
     longopts[0] = new LongOpt("loader", LongOpt.REQUIRED_ARGUMENT, null, 'l');
     longopts[1] = new LongOpt("query", LongOpt.REQUIRED_ARGUMENT, null, 'q');
@@ -215,11 +226,19 @@ public final class TestGenomicsDBSource {
     }
 
     StructType schema = null;
+    String loaderPBString = null;
     try {
-      GenomicsDBSchemaFactory schemaBuilder = new GenomicsDBSchemaFactory(loaderFile);
+      GenomicsDBSchemaFactory schemaBuilder = null;
+      if (useLoaderProtobuf) {
+        schemaBuilder = new GenomicsDBSchemaFactory(test.getVidMapPBFromLoaderPB(loaderFile));
+      }
+      else {
+        schemaBuilder = new GenomicsDBSchemaFactory(loaderFile);
+
+      }
       StructType querySchema = getSchemaFromQuery(new File(queryFile), vidMapping);
       schema = schemaBuilder.buildSchemaWithVid(querySchema.fields());
-    } catch (ParseException e) {
+    } catch (com.googlecode.protobuf.format.JsonFormat.ParseException e) {
       e.printStackTrace();
     }
 
@@ -228,7 +247,7 @@ public final class TestGenomicsDBSource {
             .format(gdbDataSource)
             .schema(schema);
     if (useLoaderProtobuf) {
-      String pbString = getProtobufBase64StringFromFile(GenomicsDBImportConfiguration.ImportConfiguration.newBuilder(),
+      String pbString = JsonFileExtensions.getProtobufAsBase64StringFromFile(GenomicsDBImportConfiguration.ImportConfiguration.newBuilder(),
                                                         loaderFile);
       reader = reader.option("genomicsdb.input.loaderprotobuf", pbString);
     } else {
@@ -238,7 +257,7 @@ public final class TestGenomicsDBSource {
       reader = reader.option("genomicsdb.input.mpi.hostfile", hostfile);
     }
     if (useQueryProtobuf) {
-      String pbString = getProtobufBase64StringFromFile(GenomicsDBExportConfiguration.ExportConfiguration.newBuilder(),
+      String pbString = JsonFileExtensions.getProtobufAsBase64StringFromFile(GenomicsDBExportConfiguration.ExportConfiguration.newBuilder(),
                                                         queryFile);
 
       reader = reader.option("genomicsdb.input.queryprotobuf", pbString);

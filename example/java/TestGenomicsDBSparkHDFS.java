@@ -36,6 +36,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 
 import org.genomicsdb.spark.GenomicsDBConfiguration;
 import org.genomicsdb.spark.GenomicsDBInputFormat;
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.genomicsdb.model.GenomicsDBImportConfiguration;
 
@@ -53,19 +54,6 @@ import com.googlecode.protobuf.format.JsonFormat;
 import com.googlecode.protobuf.format.JsonFormat.ParseException;
 
 public final class TestGenomicsDBSparkHDFS {
-
-  private static String readFile(String path, Charset encoding) throws IOException {
-    byte[] encoded = Files.readAllBytes(Paths.get(path));
-    return new String(encoded, encoding);
-  }
-
-  public static String getProtobufBase64StringFromFile(Message.Builder builder, String file) 
-      throws IOException, ParseException{
-    String jsonString = readFile(file, Charset.defaultCharset());
-    JsonFormat.merge(jsonString, builder);
-    byte[] pb = builder.build().toByteArray();
-    return Base64.getEncoder().encodeToString(pb);
-  }
 
   public static void main(final String[] args) throws IOException,
         org.json.simple.parser.ParseException {
@@ -149,7 +137,7 @@ public final class TestGenomicsDBSparkHDFS {
       hadoopConf.set(GenomicsDBConfiguration.LOADERJSON, lDstFile.getName());
     }
     else {
-      String pbString = getProtobufBase64StringFromFile(GenomicsDBImportConfiguration.ImportConfiguration.newBuilder(),
+      String pbString = JsonFileExtensions.getProtobufAsBase64StringFromFile(GenomicsDBImportConfiguration.ImportConfiguration.newBuilder(),
                                                         loaderFile);
       hadoopConf.set(GenomicsDBConfiguration.LOADERPB, pbString);
     }
@@ -157,7 +145,7 @@ public final class TestGenomicsDBSparkHDFS {
       hadoopConf.set(GenomicsDBConfiguration.QUERYJSON, qDstFile.getName());
     }
     else {
-      String pbString = getProtobufBase64StringFromFile(GenomicsDBExportConfiguration.ExportConfiguration.newBuilder(),
+      String pbString = JsonFileExtensions.getProtobufAsBase64StringFromFile(GenomicsDBExportConfiguration.ExportConfiguration.newBuilder(),
                                                         queryFile);
       hadoopConf.set(GenomicsDBConfiguration.QUERYPB, pbString);
     }
