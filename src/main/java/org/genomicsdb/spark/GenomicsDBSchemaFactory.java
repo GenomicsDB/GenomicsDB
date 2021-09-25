@@ -23,27 +23,26 @@
 package org.genomicsdb.spark;
 
 import org.apache.spark.sql.types.StructType;
+import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
 import org.genomicsdb.model.GenomicsDBVidMapProto;
 import org.genomicsdb.model.GenomicsDBVidMapProto.VidMappingPB;
+import org.genomicsdb.model.GenomicsDBImportConfiguration;
 import org.apache.spark.sql.types.*;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import scala.collection.JavaConverters;
 
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Collection;
-import java.util.Set;
-import java.util.HashSet;
+
+import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Defines the default schema and provides methods to extend upon the default schema. 
@@ -54,7 +53,7 @@ import java.util.HashSet;
  * the vid map is not needed, such as from the scala api - then this is treated as a 
  * utility class.
  **/
-public class GenomicsDBSchemaFactory {
+public class GenomicsDBSchemaFactory implements JsonFileExtensions {
 
   private final Map<String, GenomicsDBVidSchema> vidMap;
 
@@ -63,25 +62,56 @@ public class GenomicsDBSchemaFactory {
   }
 
   public GenomicsDBSchemaFactory(VidMappingPB vidmapPB) {
-    this.vidMap = new HashMap<String, GenomicsDBVidSchema>();
+    this.vidMap = generateMapFromVidMap(vidmapPB);
+  }
+
+  private static Map<String, GenomicsDBVidSchema> generateMapFromVidMap(VidMappingPB vidmapPB) {
+    Map<String, GenomicsDBVidSchema> vidMap = new HashMap<String, GenomicsDBVidSchema>();
     for (GenomicsDBVidMapProto.GenomicsDBFieldInfo f : vidmapPB.getFieldsList()) {
       String key = f.getName();
       Class<?> clazz = getFieldType(f.getType(0));
       String length = getFieldLength(f);
       if (f.getVcfFieldClassCount() == 1) {
-        this.vidMap.put((String) key, new GenomicsDBVidSchema(f.getVcfFieldClass(0).equals("INFO"), clazz, length));
+        vidMap.put((String) key, new GenomicsDBVidSchema(f.getVcfFieldClass(0).equals("INFO"), clazz, length));
       }
       // if field is both, add entries for INFO under it's name
       // and then add an entry for FORMAT by adding the suffix _FORMAT
       // mainly this is for DP
       else {
-        this.vidMap.put((String) key, new GenomicsDBVidSchema(true, clazz, length));
-        this.vidMap.put((String) key + "_FORMAT", new GenomicsDBVidSchema(false, clazz, length));
+        vidMap.put((String) key, new GenomicsDBVidSchema(true, clazz, length));
+        vidMap.put((String) key + "_FORMAT", new GenomicsDBVidSchema(false, clazz, length));
       }
+    }
+    return vidMap;
+  }
+
+  public GenomicsDBSchemaFactory(GenomicsDBConfiguration config)
+      throws GenomicsDBException {
+    try {
+      if (config.hasProtoLoader()) {
+        GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder = 
+               GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
+        GenomicsDBImportConfiguration.ImportConfiguration importPB = 
+            (GenomicsDBImportConfiguration.ImportConfiguration)JsonFileExtensions.getProtobufFromBase64EncodedString(
+                importConfigurationBuilder, 
+                config.getLoaderPB());
+        if (importPB.hasVidMapping()) {
+          this.vidMap = generateMapFromVidMap(importPB.getVidMapping());
+        }
+        else {
+          // if we get a loader protobuf, we'll assume that even the vid file is proto serialized
+          this.vidMap = generateMapFromVidMap(generateVidMapFromFile(importPB.getVidMappingFile()));
+        }
+      }
+      else {
+        this.vidMap = buildVidSchemaMap(config.getLoaderJsonFile());
+      }
+    } catch(com.googlecode.protobuf.format.JsonFormat.ParseException | InvalidProtocolBufferException e ) {
+      throw new GenomicsDBException("Error parsing protobuf:", e);
     }
   }
 
-  private Class<?> getFieldType(String fieldtype) {
+  private static Class<?> getFieldType(String fieldtype) {
     // TODO: we don't currently support multiple types for field
     switch (fieldtype) {
       case "int":
@@ -106,7 +136,7 @@ public class GenomicsDBSchemaFactory {
     }
   }
 
-  private String getFieldLength(GenomicsDBVidMapProto.GenomicsDBFieldInfo field) {
+  private static String getFieldLength(GenomicsDBVidMapProto.GenomicsDBFieldInfo field) {
     // TODO: we don't currently support multiple lengths for field
     if (field.getLengthCount() == 0) {
       return "1";

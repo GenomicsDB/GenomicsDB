@@ -22,40 +22,19 @@
 
 package org.genomicsdb.spark.sources;
 
-import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-import org.apache.spark.sql.types.*;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
-import scala.collection.JavaConverters;
-
 import org.genomicsdb.spark.GenomicsDBInput;
-import org.genomicsdb.model.GenomicsDBImportConfiguration;
-import org.genomicsdb.model.GenomicsDBVidMapProto;
-import org.genomicsdb.model.GenomicsDBVidMapProto.VidMappingPB;
 import org.genomicsdb.spark.GenomicsDBConfiguration;
 import org.genomicsdb.spark.GenomicsDBSchemaFactory;
-import org.genomicsdb.GenomicsDBUtils;
-import org.genomicsdb.exception.GenomicsDBException;
 import org.genomicsdb.importer.extensions.JsonFileExtensions;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.Base64;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.googlecode.protobuf.format.JsonFormat;
 
 /**
  * Represents a physical plan, logical table scan is converted to this at runtime.
@@ -79,13 +58,7 @@ public class GenomicsDBBatch implements Batch, JsonFileExtensions {
 
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration((Map<String,String>)options);
 
-    GenomicsDBSchemaFactory schemaBuilder;
-    try {
-      schemaBuilder = getSchemaFactoryFromConfiguration(genomicsDBConfiguration);
-    }
-    catch (InvalidProtocolBufferException | com.googlecode.protobuf.format.JsonFormat.ParseException e) {
-      throw new RuntimeException("Could not read protobuf:"+e);
-    }
+    GenomicsDBSchemaFactory schemaBuilder = new GenomicsDBSchemaFactory(genomicsDBConfiguration);
     StructType finalSchema = null;
     if (schema != null){ 
       finalSchema = schemaBuilder.buildSchemaWithVid(schema.fields()); 
@@ -109,28 +82,6 @@ public class GenomicsDBBatch implements Batch, JsonFileExtensions {
             blocksize,
             maxblock,
             GenomicsDBInputPartition.class);
-  }
-
-  private GenomicsDBSchemaFactory getSchemaFactoryFromConfiguration(GenomicsDBConfiguration config) 
-      throws com.googlecode.protobuf.format.JsonFormat.ParseException, InvalidProtocolBufferException {
-    if (config.hasProtoLoader()) {
-      GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder = 
-             GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
-      GenomicsDBImportConfiguration.ImportConfiguration importPB = 
-          (GenomicsDBImportConfiguration.ImportConfiguration)JsonFileExtensions.getProtobufFromBase64EncodedString(
-              importConfigurationBuilder, 
-              config.getLoaderPB());
-      if (importPB.hasVidMapping()) {
-        return new GenomicsDBSchemaFactory(importPB.getVidMapping());
-      }
-      else {
-        // if we get a loader protobuf, we'll assume that even the vid file is proto serialized
-        return new GenomicsDBSchemaFactory(generateVidMapFromFile(importPB.getVidMappingFile()));
-      }
-    }
-    else {
-      return new GenomicsDBSchemaFactory(config.getLoaderJsonFile());
-    }
   }
 
   @Override
