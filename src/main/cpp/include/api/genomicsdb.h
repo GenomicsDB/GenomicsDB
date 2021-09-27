@@ -269,7 +269,7 @@ class GENOMICSDB_EXPORT GenomicsDBPedMapProcessor : public GenomicsDBVariantCall
     uint64_t total_ref_length;
     int state = 0;
     int last_sample = -1;
-    int last_variant = -1;
+    int last_variant = 0;
     int last_coord = -1;
     int alt_file_entries = 0;
 };

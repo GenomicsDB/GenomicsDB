@@ -694,11 +694,26 @@ void GenomicsDBPedMapProcessor::process(const std::string& sample_name,
                                         const int64_t* coords,
                                         const genomic_interval_t& genomic_interval,
                                         const std::vector<genomic_field_t>& genomic_fields) {
-  std::string ref_string, alt_string, gt_string;
+  // ===============================================
+  if(state) {
+    std::cout << "\t sample=" << sample_name << "\n";
+  std::cout << "\t row=" << coords[0] << " position=" << coords[1]
+            << "\n\t genomic_interval=" << genomic_interval.contig_name
+            << ":" << genomic_interval.interval.first << "," << genomic_interval.interval.second << "\n";
+  std::cout << "\t genomic_fields\n";
+  for(auto genomic_field: genomic_fields) {
+    std::cout << "\t\t" << genomic_field.name << ":" << genomic_field.to_string(get_genomic_field_type(genomic_field.name));
+  }
+  std::cout << std::endl;
+  }
+  // ===============================================
+  std::string ref_string, alt_string, gt_string, id_string;
   for(auto& f : genomic_fields) {
     if(f.name == "ALT") {
       std::string combined_alt = f.recombine_ALT_value();
-      alt_string = combined_alt.substr(1, combined_alt.length() - 2);
+      if(combined_alt.size()) {
+        alt_string = combined_alt.substr(1, combined_alt.length() - 2);
+      }
     }
     if(f.name == "REF") {
       ref_string = f.to_string(get_genomic_field_type(f.name));
@@ -706,6 +721,22 @@ void GenomicsDBPedMapProcessor::process(const std::string& sample_name,
     if(f.name == "GT") {
       gt_string = f.to_string(get_genomic_field_type(f.name));
     }
+    if(f.name == "ID") {
+      id_string = f.to_string(get_genomic_field_type(f.name));
+    }
+  }
+
+  if(!alt_string.size()) {
+    logger.error("No ALT field for sample {}", sample_name);
+    exit(1);
+  }
+  if(!ref_string.size()) {
+    logger.error("No REF field for sample {}", sample_name);
+    exit(1);
+  }
+  if(!gt_string.size()) {
+    logger.error("No GT field for sample {}", sample_name);
+    exit(1);
   }
 
   bool new_col = (last_coord != coords[1]);
@@ -714,7 +745,12 @@ void GenomicsDBPedMapProcessor::process(const std::string& sample_name,
     sample_map.insert(std::make_pair(sample_name, -1));
     variant_map.insert(std::make_pair(coords[1], std::make_pair(-1, ref_string)));
     if(new_col) {
-      map_file << genomic_interval.contig_name << " " << genomic_interval.contig_name << ":" << genomic_interval.interval.first << " 0 " << genomic_interval.interval.first << std::endl;
+      if(id_string.size()) {
+        map_file << genomic_interval.contig_name << " " << id_string << " 0 " << genomic_interval.interval.first << std::endl;
+      }
+      else {
+        map_file << genomic_interval.contig_name << " " << genomic_interval.contig_name << ":" << genomic_interval.interval.first << " 0 " << genomic_interval.interval.first << std::endl;
+      }
     }
     last_coord = coords[1];
     return;
@@ -725,7 +761,7 @@ void GenomicsDBPedMapProcessor::process(const std::string& sample_name,
 
   if(state == 1) {
     // if skipped some samples backfill with ref
-    int lo = sind + 1;
+    /*int lo = sind + 1;
     if(vind > last_variant && last_variant != -1){
       lo = 0;
       for(int i = last_sample + 1; i < sample_map.size(); i++) {
@@ -736,6 +772,11 @@ void GenomicsDBPedMapProcessor::process(const std::string& sample_name,
     for(int i = lo; i < sind; i++) {
       alt_file << variant_map[coords[1]].second << " " << variant_map[coords[1]].second << " ";
       alt_file_entries += 2;
+    }*/
+
+    int to_fill = (vind - last_variant) * sample_map.size() + sind - (last_sample + 1);
+    for(int i = 0; i < to_fill; i++) {
+      alt_file << "0 0 ";
     }
 
     std::vector<std::string> vec = {ref_string};
@@ -755,6 +796,7 @@ void GenomicsDBPedMapProcessor::process(const std::string& sample_name,
 
     if(gt_vec.size() < 2) {
       logger.error("Samples must be at least diploid");
+      exit(1);
     }
 
     alt_file << vec[gt_vec[0]] << " " << vec[gt_vec[1]] << " ";
@@ -784,14 +826,15 @@ void GenomicsDBPedMapProcessor::advance_state() {
       b.second.first = (uint64_t)i;
     }
     last_sample = -1;
-    last_variant = -1;
+    last_variant = 0;
     last_coord = -1;
   }
 
   if(state == 1) {
     // if skipped some samples at end, fill with reample_map.insert(std::make_pair(sample_name, -1));
     for(int i = alt_file_entries; i < sample_map.size() * variant_map.size() * 2; i+=2) {
-      alt_file << variant_map[last_coord].second << " " << variant_map[last_coord].second << " ";
+      //alt_file << variant_map[last_coord].second << " " << variant_map[last_coord].second << " ";
+      alt_file << "0 0 ";
     }
 
     alt_file.clear();
@@ -802,7 +845,7 @@ void GenomicsDBPedMapProcessor::advance_state() {
       ped_file << s.first << " " << s.first << " 0 0 0 0";
 
       int index = s.second;
-      for(int i = 0; i < variant_map.size(); i+=2) {
+      for(int i = 0; i < variant_map.size(); i++) {
         alt_file.clear();
         alt_file.seekg(0);
 
