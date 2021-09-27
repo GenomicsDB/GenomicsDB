@@ -227,7 +227,7 @@ install_os_prerequisites() {
 }
 
 install_prerequisites() {
-  echo "1 PREREQS_ENV=$PREREQS_ENV"
+  echo "PREREQS_ENV=$PREREQS_ENV"
   install_os_prerequisites && echo "Install OS prerequistes successful" &&
     source $PREREQS_ENV &&
     install_mvn
