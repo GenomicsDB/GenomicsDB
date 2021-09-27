@@ -250,49 +250,6 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     input = new GenomicsDBInput<>(conf, null, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
   }
 
-  /**
-   * Set the loader JSON file path
-   *
-   * @param jsonFile  Full qualified path of the loader JSON file
-   * @return  Returns the same object for forward function calls
-   */
-  public GenomicsDBInputFormat<VCONTEXT, SOURCE> setLoaderJsonFile(String jsonFile) {
-    input.getGenomicsDBConfiguration().setLoaderJsonFile(jsonFile);
-    return this;
-  }
-
-  public GenomicsDBInputFormat<VCONTEXT, SOURCE> setLoaderPB(String pb) {
-    input.getGenomicsDBConfiguration().setLoaderPB(pb);
-    return this;
-  }
-
-  /**
-   * Set the query JSON file path
-   * @param jsonFile  Full qualified path of the query JSON file
-   * @return  Returns the same object for forward function calls
-   */
-  public GenomicsDBInputFormat<VCONTEXT, SOURCE> setQueryJsonFile(String jsonFile) {
-    input.getGenomicsDBConfiguration().setQueryJsonFile(jsonFile);
-    return this;
-  }
-
-  public GenomicsDBInputFormat<VCONTEXT, SOURCE> setQueryPB(String pb) {
-    input.getGenomicsDBConfiguration().setQueryPB(pb);
-    return this;
-  }
-
-  /**
-   * Set the host file path
-   * @param hostFile  Full qualified path of the hosts file
-   * @return  Returns the same object for forward function calls
-   * @throws FileNotFoundException thrown if the hosts file is not found
-   */
-  public GenomicsDBInputFormat<VCONTEXT, SOURCE> setHostFile(String hostFile)
-      throws FileNotFoundException {
-    input.getGenomicsDBConfiguration().setHostFile(hostFile);
-    return this;
-  }
-
   @Override
   public void setConf(Configuration configuration) {
     this.configuration = configuration;

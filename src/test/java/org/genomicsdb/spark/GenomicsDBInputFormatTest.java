@@ -22,19 +22,23 @@
 package org.genomicsdb.spark;
 
 import org.genomicsdb.GenomicsDBTestUtils;
+import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.*;
 import org.apache.hadoop.util.ReflectionUtils;
 
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.InterruptedException;
 import java.util.ArrayList;
-import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class GenomicsDBInputFormatTest {
 
@@ -293,6 +297,51 @@ public class GenomicsDBInputFormatTest {
     GenomicsDBInputFormat format = new GenomicsDBInputFormat();
     format.setConf(conf);
     checkTests6And7(format.getSplits(job));
+  }
+
+  @Test(testName = "Test loader not specified",
+      expectedExceptions = RuntimeException.class,
+      expectedExceptionsMessageRegExp = "Must specify either.*")
+  public void testLoaderNotSpecified() {
+    Map<String, String> options = new HashMap<String, String>();
+    options.put(GenomicsDBConfiguration.QUERYJSON, "fakequeryfile");
+    GenomicsDBConfiguration config = new GenomicsDBConfiguration(options);
+  }
+
+  @Test(testName = "Test assert on malformed protobuf",
+      dataProvider = "loaderQueryPB7",
+      dataProviderClass = GenomicsDBTestUtils.class)
+  public void testMalformedLoaderProtobuf(String loader, 
+              String query) 
+              throws IOException, FileNotFoundException, InterruptedException {
+    Job job = Job.getInstance();
+    Configuration conf = job.getConfiguration();
+    // mess with loader pb to malform it
+    conf.set(GenomicsDBConfiguration.LOADERPB, loader);
+    conf.set(GenomicsDBConfiguration.QUERYPB, query);
+
+    GenomicsDBInputFormat format = new GenomicsDBInputFormat();
+    format.setConf(conf);
+    List<GenomicsDBInputSplit> input = format.getSplits(job);
+    conf.set(GenomicsDBConfiguration.LOADERPB, 
+        loader.substring(0, 10)+'A'+loader.substring(12,loader.length()-1));
+    format.setConf(conf);
+    Assert.assertNull(format.createRecordReader(input.get(0), null));
+  }
+
+  @Test(testName = "Test assert of malformed json",
+      expectedExceptions = GenomicsDBException.class,
+      expectedExceptionsMessageRegExp = "Error parsing loader.*")
+  public void testMalformedLoaderJson() throws IOException {
+    GenomicsDBExportConfiguration.ExportConfiguration export = 
+        GenomicsDBExportConfiguration.ExportConfiguration.newBuilder().setWorkspace("value").build();
+    String malformed = "{\"size_per_column_partition, 123}";
+    File tmpQFile = File.createTempFile("query", ".json");
+    tmpQFile.deleteOnExit();
+    FileWriter fQ = new FileWriter(tmpQFile);
+    fQ.write(malformed);
+    fQ.close();
+    GenomicsDBInputFormat.getCallsetFromLoader(export, tmpQFile.getAbsolutePath(), false);
   }
 
 }
