@@ -40,6 +40,7 @@ import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.apache.spark.sql.types.StructType;
 
 import org.genomicsdb.spark.GenomicsDBInput;
+import org.genomicsdb.spark.GenomicsDBInputFormat;
 import org.genomicsdb.spark.GenomicsDBVidSchema;
 
 import org.json.simple.parser.ParseException;
@@ -71,6 +72,13 @@ public class GenomicsDBInputPartitionReader implements PartitionReader<InternalR
           GenomicsDBInput.createTargetExportConfigurationPB(
               query, inputPartition.getPartitionInfo(), 
               inputPartition.getQueryInfoList(), inputPartition.getQueryIsPB());
+
+      if (!(exportConfiguration.hasCallsetMapping() || exportConfiguration.hasCallsetMappingFile())) {
+        exportConfiguration = GenomicsDBInputFormat.getCallsetFromLoader(exportConfiguration, loader, inputPartition.getLoaderIsPB());
+      }
+      if (!(exportConfiguration.hasVidMapping() || exportConfiguration.hasVidMappingFile())) {
+        exportConfiguration = GenomicsDBInputFormat.getVidFromLoader(exportConfiguration, loader, inputPartition.getLoaderIsPB());
+      }
     } catch (ParseException | IOException e) {
       e.printStackTrace();
       exportConfiguration = null;
@@ -81,7 +89,7 @@ public class GenomicsDBInputPartitionReader implements PartitionReader<InternalR
           new GenomicsDBFeatureReader<>(
               exportConfiguration,
               (FeatureCodec<VariantContext, PositionalBufferedStream>) new BCF2Codec(),
-              Optional.of(loader));
+              Optional.of("")); // don't need loader since we're using query pb
       this.iterator = fReader.iterator();
     } catch (IOException e) {
       e.printStackTrace();
