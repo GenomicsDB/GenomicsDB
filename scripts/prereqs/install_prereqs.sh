@@ -51,6 +51,11 @@ BUILD_DISTRIBUTABLE_LIBRARY=${1:-false}
 OPENSSL_VERSION=1.0.2o
 MAVEN_VERSION=3.6.3
 
+if [[ `uname` == "Darwin" ]]; then
+  MACOSX_DEPLOYMENT_TARGET=11.0
+  echo "export MACOSX_DEPLOYMENT_TARGET=11.0" >> $PREREQS_ENV
+fi
+
 ################################# Should not have to change anything below ############################
 
 CENTOS_VERSION=0
@@ -227,7 +232,7 @@ install_os_prerequisites() {
 }
 
 install_prerequisites() {
-  echo "1 PREREQS_ENV=$PREREQS_ENV"
+  echo "PREREQS_ENV=$PREREQS_ENV"
   install_os_prerequisites && echo "Install OS prerequistes successful" &&
     source $PREREQS_ENV &&
     install_mvn

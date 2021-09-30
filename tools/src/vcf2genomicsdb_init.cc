@@ -691,8 +691,8 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
     if (std::regex_search(sample_file, pattern)) {
       samples.insert(TileDBUtils::real_dir(prefix+sample_file));
     }
-
   }
+
   return samples;
 }
 
@@ -715,7 +715,23 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
 
   int64_t row_index = 0;
   CallsetMappingPB* callset_protobuf = new CallsetMappingPB();
+  size_t samples_size = samples.size();
+  size_t processed_samples = 0;
+  g_logger.info("Merging headers for {} samples...", samples_size);
+  // VCF2GENOMICSDB_INIT_PROGRESS_UPDATE_SAMPLE_SIZE env is meant for testing
+  char *progress_update_sample_size = getenv("VCF2GENOMICSDB_INIT_PROGRESS_UPDATE_SAMPLE_SIZE");
+  long progress_update_size = 1024;
+  if (progress_update_sample_size) {
+    progress_update_size = std::atol(progress_update_sample_size);
+  }
   for (auto sample_uri: samples) {
+    if (samples_size > progress_update_size) {
+      if ((processed_samples%progress_update_size) == 0) {
+        g_logger.info("  Processing {}/{}", processed_samples, samples_size);
+      }
+      processed_samples++;
+    }
+
     htsFile* fptr = hts_open(sample_uri.c_str(), "r");
     if (!fptr) {
       g_logger.error("Could not open sample {} with hts_open {}", sample_uri, strerror(errno));
@@ -747,6 +763,7 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
     bcf_hdr_destroy(hdr);
     hts_close(fptr);
   }
+  g_logger.info("Merging headers to create template header DONE");
 
   g_logger.debug("Writing out template header file to {}", merged_header);
   if (bcf_hdr_write(merged_header_fptr, merged_hdr)) {
