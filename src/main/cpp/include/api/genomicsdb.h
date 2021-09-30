@@ -34,6 +34,7 @@
 #define GENOMICSDB_H
 
 #include "genomicsdb_exception.h"
+#include "variant_query_config.h"
 
 #include <map>
 #include <set>
@@ -45,6 +46,7 @@
 #include <typeindex>
 #include <typeinfo>
 #include <vector>
+#include <mpi.h>
 
 // Override project visibility set to hidden for api
 #if (defined __GNUC__ && __GNUC__ >= 4) || defined __INTEL_COMPILER
@@ -240,7 +242,7 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
 
 class GENOMICSDB_EXPORT GenomicsDBPedMapProcessor : public GenomicsDBVariantCallProcessor {
   public:
-    GenomicsDBPedMapProcessor(std::string prefix = "output") : prefix(prefix) {
+    GenomicsDBPedMapProcessor(VariantQueryConfig* qc, double progress_interval = -1, std::string fam_list = "") : query_config(qc), progress_interval(progress_interval), fam_list(fam_list) {
       ped_file.open(prefix + ".ped", std::ios::out); // create / clear
       ped_file.close();
       ped_file.open(prefix + ".ped", std::ios::out | std::ios::in);
@@ -248,6 +250,15 @@ class GENOMICSDB_EXPORT GenomicsDBPedMapProcessor : public GenomicsDBVariantCall
       alt_file.close();
       alt_file.open("alts_temp", std::ios::out | std::ios::in);
       map_file.open(prefix + ".map", std::ios::out);
+
+      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+      for(auto& a : query_config->get_query_row_ranges(rank)) {
+        total_rows += a.second - a.first + 1;
+      }
+      for(auto& b : query_config->get_query_column_ranges(rank)) {
+        total_cols += b.second - b.first + 1;
+      }
     }
 
     virtual void process(const interval_t& interval);
@@ -257,21 +268,25 @@ class GENOMICSDB_EXPORT GenomicsDBPedMapProcessor : public GenomicsDBVariantCall
                          const std::vector<genomic_field_t>& genomic_fields);
     void advance_state();
   //private:
-    // flattened coordinate to place in sorted map, REF
+    // flattened coordinate to place in sorted map, line from .fam file (if any exists)
     std::map<uint64_t, std::pair<int64_t, std::string>> variant_map;
-    std::string prefix;
+    double progress_interval;
+    std::string fam_list;
+    std::string prefix = "output";
+    VariantQueryConfig* query_config;
     // sample name to place in sorted map
-    std::map<std::string, int64_t> sample_map;
+    std::map<std::string, std::pair<int64_t, std::string>> sample_map;
     std::fstream ped_file, alt_file;
     int temp_file_line = 0;
     std::fstream map_file;
-    uint64_t last_column = 0;
-    uint64_t total_ref_length;
     int state = 0;
     int last_sample = -1;
     int last_variant = 0;
     int last_coord = -1;
     int alt_file_entries = 0;
+    int total_rows = 0;
+    int total_cols = 0;
+    int rank;
 };
 
 // Forward Declarations for keeping Variant* classes opaque
@@ -397,7 +412,8 @@ class GenomicsDB {
   GENOMICSDB_EXPORT void generate_ped_map(const std::string& array,
                                           VariantQueryConfig* query_config,
                                           const std::string& output_prefix,
-                                          bool overwrite);
+                                          double progress_interval = -1,
+                                          const std::string& fam_list = "");
 
   /**
    * Utility template functions to extract information from Variant and VariantCall classes

@@ -49,6 +49,8 @@ enum ArgsEnum {
   ARGS_IDX_PRINT_CALLS,
   ARGS_IDX_PRINT_CSV,
   ARGS_IDX_PED_MAP,
+  ARGS_IDX_FAM_LIST,
+  ARGS_IDX_PROG,
   ARGS_IDX_VERSION,
   ARGS_IDX_PRODUCE_INTERESTING_POSITIONS,
   ARGS_IDX_PRINT_ALT_ALLELE_COUNTS,
@@ -439,7 +441,14 @@ void print_usage() {
             << "\t \e[1m--print-csv\e[0m\n"
             << "\t\t Optional, outputs CSV with the fields and the order of CSV lines determined by the query attributes\n"
             << "\t \e[1m--produce-ped-map[=output_prefix]\e[0m\n"
-            << "\t\t Optional, outputs .ped and .map files for use with plink named <output_prefix>.ped and <output_prefix>.map if output_prefix is specified, output.ped and output.map otherwise\n"
+            << "\t\t Optional, outputs .ped and .map files for use with plink, named <output_prefix>.ped and <output_prefix>.map if output_prefix is specified, output.ped and output.map otherwise\n"
+            << "\t\t \e[1m--fam-list<=filename>\e[0m\n"
+            << "\t\t\t used with \e[1m--produce-ped-map\e[0m\n"
+            << "\t\t\t Takes a file containing the names of .fam files to include this information in the output ped file\n"
+            << "\t\t\t The within-family id (second column) values of the .fam files should match the sample names in GenomicsDB to be correctly associated\n"
+            << "\t\t \e[1m--progress[=interval] Show query progress (currently implemented for: --produce-ped-map\e[0m\n"
+            << "\t\t\t specify minimum amount of time between progress messages\n"
+            << "\t\t\t where <interval> is a floating point number. Default units are seconds, explicitly specify seconds, minutes, or hours by appending s, m, or h to the end of the number\n"
             << "\t \e[1m--produce-Broad-GVCF\e[0m\n"
             << "\t\t Optional, produces combined gVCF from the GenomicsDB data constrained by the query configuration\n"
             << "\t\t \e[1m--output-format\e[0m=<output_format>, \e[1m-O\e[0m <output_format>\n"
@@ -498,6 +507,8 @@ int main(int argc, char *argv[]) {
     {"print-calls",0,0,ARGS_IDX_PRINT_CALLS},
     {"print-csv",0,0,ARGS_IDX_PRINT_CSV},
     {"produce-ped-map", 2, 0, ARGS_IDX_PED_MAP},
+    {"progress",2,0, ARGS_IDX_PROG},
+    {"fam-list", 1, 0, ARGS_IDX_FAM_LIST},
     {"print-AC",0,0,ARGS_IDX_PRINT_ALT_ALLELE_COUNTS},
     {"array",1,0,'A'},
     {"version",0,0,ARGS_IDX_VERSION},
@@ -521,6 +532,8 @@ int main(int argc, char *argv[]) {
   auto sub_operation_type = ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_UNKNOWN;
   auto use_columnar_iterator = false;
   std::string ped_map_prefix = "output";
+  std::string fam_list = "";
+  double progress_interval = -1;
   while ((c=getopt_long(argc, argv, "j:l:w:A:p:O:s:r:h", long_options, NULL)) >= 0) {
     switch (c) {
     case 'p':
@@ -577,6 +590,31 @@ int main(int argc, char *argv[]) {
       command_idx = COMMAND_PED_MAP;
       if(optarg) {
         ped_map_prefix = std::string(optarg);
+      }
+      break;
+    case ARGS_IDX_PROG:
+      if (optarg) {
+        try {
+          int unit_multiplier = 1;
+          std::string optstring(optarg);
+          switch(optstring.back()){
+            case 's': optstring.pop_back(); break;
+            case 'm': unit_multiplier=60; optstring.pop_back(); break;
+            case 'h': unit_multiplier=3600; optstring.pop_back(); break;
+          }
+          progress_interval = (int)(std::stod(std::string(optarg)) * 1000 * unit_multiplier);
+        }
+        catch ( std::exception& e ) {
+          progress_interval = 5000;
+        }
+      }
+      else {
+        progress_interval = 5000;
+      }
+      break;
+    case ARGS_IDX_FAM_LIST:
+      if(optarg) {
+        fam_list = std::string(optarg);
       }
       break;
     case ARGS_IDX_PRINT_ALT_ALLELE_COUNTS:
@@ -691,7 +729,7 @@ int main(int argc, char *argv[]) {
                        query_config.get_vid_mapping_file(),
                        query_config.get_reference_genome());
         std::string pref = "pref";
-        gdb.generate_ped_map(array_name, &query_config, pref, true);
+        gdb.generate_ped_map(array_name, &query_config, pref, progress_interval, fam_list);
         break;
     }
 #ifdef USE_GPERFTOOLS
