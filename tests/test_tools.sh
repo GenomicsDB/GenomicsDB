@@ -246,6 +246,9 @@ run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR 
 # -n 0 overrides -i <interval_list>
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -i $INTERVAL_LIST -n 0"  1 1 24 85 "#11"
 
+# Check with explicit progress update set
+VCF2GENOMICSDB_INIT_PROGRESS_UPDATE_SAMPLE_SIZE=1
+
 # Combined vcfs Test
 create_sample_list t0_1_2_combined.vcf.gz
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 3 85 18 85 "#12"

@@ -718,9 +718,15 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
   size_t samples_size = samples.size();
   size_t processed_samples = 0;
   g_logger.info("Merging headers for {} samples...", samples_size);
+  // VCF2GENOMICSDB_INIT_PROGRESS_UPDATE_SAMPLE_SIZE env is meant for testing
+  char *progress_update_sample_size = getenv("VCF2GENOMICSDB_INIT_PROGRESS_UPDATE_SAMPLE_SIZE");
+  long progress_update_size = 1024;
+  if (progress_update_sample_size) {
+    progress_update_size = std::atol(progress_update_sample_size);
+  }
   for (auto sample_uri: samples) {
-    if (samples_size > 1024) {
-      if ((processed_samples%1024) == 0) {
+    if (samples_size > progress_update_size) {
+      if ((processed_samples%progress_update_size) == 0) {
         g_logger.info("  Processing {}/{}", processed_samples, samples_size);
       }
       processed_samples++;
