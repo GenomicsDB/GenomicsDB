@@ -11,4 +11,7 @@ The following variables can be used to experiment with different codecs and filt
 * GENOMICSDB_GT_ENABLE_BIT_SHUFFLE
 * GENOMICSDB_GT_ENABLE_LZ4_COMPRESSION
 
+* VCF2GENOMICSDB_INIT_PROGRESS_UPDATE_SAMPLE_SIZE
+     Default for monitoring progress of merging headers is 2048 samples. Use this env to override default
+
 
