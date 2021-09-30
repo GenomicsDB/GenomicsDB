@@ -23,14 +23,13 @@
 #ifndef VCF_ADAPTER_H
 #define VCF_ADAPTER_H
 
-#ifdef HTSDIR
-
 #include "headers.h"
 #include "gt_common.h"
 #include "htslib/vcf.h"
 #include "htslib/faidx.h"
 #include "timer.h"
 #include "genomicsdb_config_base.h"
+#include "fmt_writer.h"
 
 enum VCFIndexType {
   VCF_INDEX_CSI=0u,
@@ -116,6 +115,7 @@ class VCFAdapter {
   char get_reference_base_at_position(const char* contig, const int64_t pos) {
     return m_reference_genome_info.get_reference_base_at_position(contig, pos);
   }
+  void close_file();
  protected:
   bool m_open_output;
   bcf_hdr_t* m_template_vcf_hdr;
@@ -205,7 +205,5 @@ class VCFSerializedBufferAdapter: public VCFAdapter {
   bool m_do_output;
   FILE* m_write_fptr;
 };
-
-#endif  //ifdef HTSDIR
 
 #endif

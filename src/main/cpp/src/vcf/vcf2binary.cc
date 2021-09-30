@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2020 Omics Data Automation, Inc.
+ * Copyright (c) 2020-2021 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -21,19 +21,20 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifdef HTSDIR
-
 #include "vcf2binary.h"
 
 #include "hfile_genomicsdb.h"
 #include "htslib/bgzf.h"
 #include "vcf_adapter.h"
 #include "genomicsdb_multid_vector_field.h"
-#include "logger.h"
+#include "genomicsdb_logger.h"
 
 #include <errno.h>
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCF2BinaryException(#X);
+
+extern int g_show_import_progress;
+extern int g_progress_interval;
 
 //INFO fields like DP, RAW_MQ - the combine operation is a sum
 //When dealing with multi-sample input VCFs, divide up the value of the field among the samples
@@ -107,6 +108,7 @@ VCFReader::VCFReader()
   m_vcf_file_buffer.l = 0;
   m_vcf_file_buffer.m = 4096;    //4KB
   m_vcf_file_buffer.s = (char*)malloc(m_vcf_file_buffer.m*sizeof(char));
+  genomicsdb_htslib_plugin_initialize();
 }
 
 VCFReader::~VCFReader() {
@@ -130,7 +132,6 @@ void VCFReader::initialize(const char* filename,
   //Build regions list - comma separated contigs - in increasing order of column values
   //Needed to fix traversal order of indexed reader
   //So parse the header first
-  genomicsdb_htslib_plugin_initialize(filename);
   m_fptr = bcf_open(filename, "r");
   VERIFY_OR_THROW(m_fptr && (std::string("Cannot open VCF/BCF file ")+filename).c_str());
   m_hdr = bcf_hdr_read(m_fptr);
@@ -399,6 +400,17 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
 }
 
 void VCF2Binary::initialize_column_partitions(const std::vector<ColumnRange>& partition_bounds) {
+  static int num_calls = 0;
+  ++num_calls;
+  static size_t tm = 0;
+  auto progress_bar = [&] () {
+    size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (now - g_progress_interval > tm && m_vid_mapper) {
+      logger.info("[STAGE 1 / 3] Reading {} / {} = {:.2f}%", num_calls, m_vid_mapper->get_num_callsets(), 100*(double)num_calls/m_vid_mapper->get_num_callsets());
+      tm = now;
+    }
+  };
+
   //Initialize reader, if needed
   if (!m_parallel_partitions) {
     auto vcf_reader_ptr = dynamic_cast<VCFReaderBase*>(m_base_reader_ptr);
@@ -408,6 +420,9 @@ void VCF2Binary::initialize_column_partitions(const std::vector<ColumnRange>& pa
   for (auto i=0u; i<partition_bounds.size(); ++i) {
     auto vcf_column_partition_ptr = dynamic_cast<VCFColumnPartition*>(m_base_partition_ptrs[i]);
     assert(vcf_column_partition_ptr);
+    if(g_show_import_progress) {
+      progress_bar();
+    }
     //If parallel partitions, each interval gets its own reader
     if (m_parallel_partitions) {
       auto vcf_reader_ptr = dynamic_cast<VCFReaderBase*>(vcf_column_partition_ptr->m_base_reader_ptr);
@@ -702,7 +717,7 @@ bool VCF2Binary::convert_field_to_tiledb(std::vector<uint8_t>& buffer, VCFColumn
   //However, flag fields have num_values == 1, but no value is returned in the buffer
   //#define DEBUG_VARIANT_CELL_OFFSETS
 #ifdef DEBUG_VARIANT_CELL_OFFSETS
-  std::cerr << field_name << " write_offset "<< buffer_offset << "\n";
+  logger.info("{} write_offset {}", field_name, buffer_offset);
 #endif
   if (num_values <= 0
       || (num_values == 1 && bcf_ht_type != BCF_HT_FLAG && is_bcf_missing_value<FieldType>(ptr[0]))) {
@@ -1156,5 +1171,3 @@ void VCF2Binary::close_partition_output_file(File2TileDBBinaryColumnPartitionBas
     logger.warn(" indexing of partition file {} failed", vcf_partition.m_split_filename);
   }
 }
-
-#endif //ifdef HTSDIR

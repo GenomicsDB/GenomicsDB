@@ -32,7 +32,7 @@
 
 #include <spdlog/sinks/stdout_color_sinks.h>
 
-#include "logger.h"
+#include "genomicsdb_logger.h"
 
 #define LOGGER_NAME "NativeGenomicsDB"
 #define LOGGER_NAME_STRING "GenomicsDB.String"
@@ -40,17 +40,22 @@
 /** Global thread safe logger */
 Logger logger;
 
+std::shared_ptr<spdlog::logger> Logger::get_logger(const std::string& name) {
+  auto new_logger = spdlog::stderr_color_mt(name);
+  // Follow default log4j pattern for now
+  new_logger->set_pattern("%H:%M:%S.%e %4!l  %n - pid=%P tid=%t %v");
+#ifdef NDEBUG
+  new_logger->set_level(spdlog::level::info);
+#else
+  new_logger->set_level(spdlog::level::debug);
+#endif
+  return new_logger;
+}
+
 Logger::Logger() {
   m_logger = spdlog::get(LOGGER_NAME);
   if (m_logger == nullptr) {
-    m_logger = spdlog::stderr_color_mt(LOGGER_NAME);
-    // Follow default log4j pattern for now
-    m_logger->set_pattern("%H:%M:%S.%e %4!l  %n - pid=%P tid=%t %v");
-#ifdef NDEBUG
-    m_logger->set_level(spdlog::level::info);
-#else
-    m_logger->set_level(spdlog::level::debug);
-#endif
+    m_logger = get_logger(LOGGER_NAME);
   }
 
   setup_string_logger();

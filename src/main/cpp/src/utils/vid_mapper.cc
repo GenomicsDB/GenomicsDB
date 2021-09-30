@@ -26,7 +26,7 @@
 #include "json_config.h"
 #include "genomicsdb_config_base.h"
 #include "known_field_info.h"
-#include "logger.h"
+#include "genomicsdb_logger.h"
 #include "tiledb.h"
 #include "tiledb_utils.h"
 #include "vcf.h"
@@ -232,7 +232,7 @@ void VidMapper::clear() {
   m_owner_idx_to_file_idx_vec.clear();
 }
 
-bool VidMapper::get_contig_location(int64_t query_position, std::string& contig_name, int64_t& contig_position) const {
+bool VidMapper::get_contig_info_for_location(int64_t query_position, const ContigInfo*& contig_info) const {
   int idx = -1;
   std::pair<int64_t, int> query_pair;
   query_pair.first = query_position;
@@ -260,11 +260,22 @@ bool VidMapper::get_contig_location(int64_t query_position, std::string& contig_
   auto contig_offset = m_contig_idx_to_info[idx].m_tiledb_column_offset;
   auto contig_length = m_contig_idx_to_info[idx].m_length;
   if ((query_position >= contig_offset) && (query_position < contig_offset+contig_length)) {
-    contig_name = m_contig_idx_to_info[idx].m_name;
-    contig_position = query_position - contig_offset;
+    contig_info = &(m_contig_idx_to_info[idx]);
     return true;
   }
   return false;
+}
+
+bool VidMapper::get_contig_location(int64_t query_position, std::string& contig_name, int64_t& contig_position) const {
+  const ContigInfo* ptr = 0;
+  auto status = get_contig_info_for_location(query_position, ptr);
+  if(status) {
+    contig_name = ptr->m_name;
+    contig_position = query_position - ptr->m_tiledb_column_offset;
+    return true;
+  }
+  else
+    return false;
 }
 
 bool VidMapper::get_next_contig_location(int64_t query_position, std::string& next_contig_name, int64_t& next_contig_offset) const {
@@ -333,6 +344,8 @@ void VidMapper::build_vcf_fields_vectors(std::vector<std::vector<std::string>>& 
 
 void VidMapper::build_tiledb_array_schema(VariantArraySchema*& array_schema, const std::string array_name,
     const bool compress_fields,
+    const int  compression_type,
+    const int  compression_level,
     const bool no_mandatory_VCF_fields)
 const {
   auto dim_names = std::vector<std::string>({"samples", "position"});
@@ -404,19 +417,18 @@ const {
   // Add type for coords
   types.push_back(std::type_index(typeid(int64_t)));
 
-  std::vector<int> compression;
-  std::vector<int> compression_level;
-  for (auto i=0u; i<types.size(); ++i) { // types contains entry for coords also
-    if (compress_fields) {
-      compression.push_back(TILEDB_GZIP);
-      compression_level.push_back(TILEDB_COMPRESSION_LEVEL_GZIP);
-    } else {
-      compression.push_back(TILEDB_NO_COMPRESSION);
-      compression_level.push_back(0);
-    }
+  std::vector<int> compression_types;
+  std::vector<int> compression_levels;
+  
+  if (compress_fields) {
+    compression_types = std::vector<int>(types.size(), compression_type);
+    compression_levels = std::vector<int>(types.size(), compression_level);
+  } else {
+    compression_types = std::vector<int>(types.size(), TILEDB_NO_COMPRESSION);
+    compression_levels = std::vector<int>(types.size(), 0);
   }
 
-  array_schema = new VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression, compression_level);
+  array_schema = new VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression_types, compression_levels);
 }
 
 void VidMapper::build_file_partitioning(const int partition_idx, const TileDBRowRange row_partition) {

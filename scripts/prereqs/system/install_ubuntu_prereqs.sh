@@ -112,6 +112,7 @@ install_system_prerequisites() {
     install_package curl 1 &&
     install_package git &&
     install_package libcsv-dev &&
+    install_package zstd &&
     install_package sudo 1 &&
     apt-get update -q &&
     install_gcc &&

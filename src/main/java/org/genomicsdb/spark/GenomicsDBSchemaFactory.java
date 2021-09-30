@@ -23,25 +23,26 @@
 package org.genomicsdb.spark;
 
 import org.apache.spark.sql.types.StructType;
+import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
+import org.genomicsdb.model.GenomicsDBVidMapProto;
+import org.genomicsdb.model.GenomicsDBVidMapProto.VidMappingPB;
+import org.genomicsdb.model.GenomicsDBImportConfiguration;
 import org.apache.spark.sql.types.*;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-import scala.collection.JavaConverters;
 
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Collection;
-import java.util.Set;
-import java.util.HashSet;
+
+import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Defines the default schema and provides methods to extend upon the default schema. 
@@ -52,12 +53,100 @@ import java.util.HashSet;
  * the vid map is not needed, such as from the scala api - then this is treated as a 
  * utility class.
  **/
-public class GenomicsDBSchemaFactory {
+public class GenomicsDBSchemaFactory implements JsonFileExtensions {
 
   private final Map<String, GenomicsDBVidSchema> vidMap;
 
   public GenomicsDBSchemaFactory(String loader){
     this.vidMap = buildVidSchemaMap(loader);
+  }
+
+  public GenomicsDBSchemaFactory(VidMappingPB vidmapPB) {
+    this.vidMap = generateMapFromVidMap(vidmapPB);
+  }
+
+  private static Map<String, GenomicsDBVidSchema> generateMapFromVidMap(VidMappingPB vidmapPB) {
+    Map<String, GenomicsDBVidSchema> vidMap = new HashMap<String, GenomicsDBVidSchema>();
+    for (GenomicsDBVidMapProto.GenomicsDBFieldInfo f : vidmapPB.getFieldsList()) {
+      String key = f.getName();
+      Class<?> clazz = getFieldType(f.getType(0));
+      String length = getFieldLength(f);
+      if (f.getVcfFieldClassCount() == 1) {
+        vidMap.put((String) key, new GenomicsDBVidSchema(f.getVcfFieldClass(0).equals("INFO"), clazz, length));
+      }
+      // if field is both, add entries for INFO under it's name
+      // and then add an entry for FORMAT by adding the suffix _FORMAT
+      // mainly this is for DP
+      else {
+        vidMap.put((String) key, new GenomicsDBVidSchema(true, clazz, length));
+        vidMap.put((String) key + "_FORMAT", new GenomicsDBVidSchema(false, clazz, length));
+      }
+    }
+    return vidMap;
+  }
+
+  public GenomicsDBSchemaFactory(GenomicsDBConfiguration config)
+      throws GenomicsDBException {
+    try {
+      if (config.hasProtoLoader()) {
+        GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder = 
+               GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
+        GenomicsDBImportConfiguration.ImportConfiguration importPB = 
+            (GenomicsDBImportConfiguration.ImportConfiguration)JsonFileExtensions.getProtobufFromBase64EncodedString(
+                importConfigurationBuilder, 
+                config.getLoaderPB());
+        if (importPB.hasVidMapping()) {
+          this.vidMap = generateMapFromVidMap(importPB.getVidMapping());
+        }
+        else {
+          // if we get a loader protobuf, we'll assume that even the vid file is proto serialized
+          this.vidMap = generateMapFromVidMap(generateVidMapFromFile(importPB.getVidMappingFile()));
+        }
+      }
+      else {
+        this.vidMap = buildVidSchemaMap(config.getLoaderJsonFile());
+      }
+    } catch(com.googlecode.protobuf.format.JsonFormat.ParseException | InvalidProtocolBufferException e ) {
+      throw new GenomicsDBException("Error parsing protobuf:", e);
+    }
+  }
+
+  private static Class<?> getFieldType(String fieldtype) {
+    // TODO: we don't currently support multiple types for field
+    switch (fieldtype) {
+      case "int":
+      case "integer":
+      case "Integer":
+        return Integer.class;
+      case "char":
+      case "String":
+        return String.class;
+      case "float":
+      case "Float":
+      case "double":
+      case "Double":
+        // TODO: switching to double below because that is what VC
+        // seems to be giving us. Otherwise spark will complain later
+        // when we try to create the dataframe about unboxing from double to float
+        return Double.class;
+      case "flag":
+        return Boolean.class;
+      default:
+        throw new RuntimeException("Unsupported type " + fieldtype + " in vid mapping");
+    }
+  }
+
+  private static String getFieldLength(GenomicsDBVidMapProto.GenomicsDBFieldInfo field) {
+    // TODO: we don't currently support multiple lengths for field
+    if (field.getLengthCount() == 0) {
+      return "1";
+    }
+    if (field.getLength(0).hasFixedLength()) {
+      return Integer.toString(field.getLength(0).getFixedLength());
+    }
+    else {
+      return field.getLength(0).getVariableLengthDescriptor();
+    }
   }
    
   public Map<String, GenomicsDBVidSchema> getVidMap(){
@@ -79,46 +168,28 @@ public class GenomicsDBSchemaFactory {
           DataTypes.createArrayType(DataTypes.StringType, true), true));
     return fields;
   }
+
+  public static List<String> defaultFieldNames() {
+    List<String> names = new ArrayList<>();
+    for (StructField f: defaultFields()) {
+      names.add(f.name());
+    }
+
+    return names;
+  }
  
   public static StructType defaultSchema(){
     return DataTypes.createStructType(defaultFields());
   }
 
-  public static List<StructField> extendSchema(StructField[] addFields){
-    List<StructField> defaults = defaultFields();
-    StructType additional = DataTypes.createStructType(addFields);
-    Set<String> names = new HashSet<String>(Arrays.asList(additional.fieldNames()));
-    List<StructField> fields = new ArrayList<>();
-    for (StructField f: defaults){
-      if (names.contains(f.name())){
-        continue;
-      }else{
-        fields.add(f);
-      }
-    }
-    fields.addAll(Arrays.asList(addFields));
-    return fields;
-  }
-
-  private List<StructField> extendSchemaWithVid(StructField[] addFields){
-    List<StructField> defaults = defaultFields();
-    List<StructField> fields = new ArrayList<>();
-    StructType additional = DataTypes.createStructType(fields);
-    Set<String> names =  new HashSet<String>(Arrays.asList(additional.fieldNames())); 
-    for (StructField f: defaults){
-      if (names.contains(f.name())){
-        continue;
-      }else{
-        fields.add(f);
-      }
-    }
-    fields.addAll(addFieldsWithVid(addFields));
-    return fields;
-  }
-
   private List<StructField> addFieldsWithVid(StructField[] addFields){
     List<StructField> fields = new ArrayList<>();
+    List<String> defaults = defaultFieldNames();
+    fields.addAll(defaultFields());
     for (StructField f: addFields){
+      if (defaults.contains(f.name())) {
+        continue;
+      }
       GenomicsDBVidSchema field = this.vidMap.get(f.name());
       if (field == null) {
         throw new RuntimeException("Schema field " + f.name() + " not available in vid");      
@@ -128,12 +199,8 @@ public class GenomicsDBSchemaFactory {
     return fields;
   }
 
-  public static StructType buildSchema(StructField[] addFields){
-    return DataTypes.createStructType(extendSchema(addFields));
-  }
-
   public StructType buildSchemaWithVid(StructField[] addFields){
-    return DataTypes.createStructType(extendSchemaWithVid(addFields));
+    return DataTypes.createStructType(addFieldsWithVid(addFields));
   }
 
   private Map<String, GenomicsDBVidSchema> buildVidSchemaMap(String loader){
@@ -157,27 +224,9 @@ public class GenomicsDBSchemaFactory {
           HashMap<?,?> v = (HashMap<?,?>) vObj;
           JSONArray fieldClass = (JSONArray) v.get("vcf_field_class");
           if (fieldClass != null) {
-            Class<?> clazz;
             String vType = (String) v.get("type");
-            switch (vType) {
-              case "int":
-                clazz = Integer.class;
-                break;
-              case "char":
-                clazz = String.class;
-                break;
-                // TODO: switching to double below because that is what VC
-                // seems to be giving us. Otherwise spark will complain later
-                // when we try to create the dataframe about unboxing from double to float
-              case "float":
-                clazz = Double.class;
-                break;
-              case "flag":
-                clazz = Boolean.class;
-                break;
-              default:
-                throw new RuntimeException("Unsupported type " + vType + " in vid mapping");
-            }
+            Class<?> clazz = getFieldType(vType);
+            
             String length;
             if(v.get("length") == null) {
               length = "1";

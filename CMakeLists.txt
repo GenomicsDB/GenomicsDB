@@ -37,6 +37,9 @@ set(HTSLIB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/htslib" CACHE PATH "Path
 set(TILEDB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/TileDB" CACHE PATH "Path to TileDB source directory")
 set(RAPIDJSON_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/dependencies/RapidJSON/include" CACHE PATH "Path to RapidJSON include directory")
 set(SPDLOG_INCLUDE_DIR  "${CMAKE_SOURCE_DIR}/dependencies/spdlog/include" CACHE PATH "Path to SpdLog include directory")
+#The fmt headers are in dependencies/spdlog/include/spdlog/fmt/bundled - source files will include "fmt/bundled/format.h"
+set(FMT_ROOT_DIR "${SPDLOG_INCLUDE_DIR}" CACHE PATH "Path to fmt library")
+set(USING_FMT_BUNDLED_WITH_SPDLOG True CACHE BOOL "Disable if using fmt library that's not bundled with spdlog")
 
 #GIT_COMMIT_HASH derived from git tag to be used as part of GENOMICSDB_VERSION
 execute_process(
@@ -47,7 +50,7 @@ execute_process(
     )
 
 #Build parameters/options
-set(GENOMICSDB_RELEASE_VERSION "1.4.1-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+set(GENOMICSDB_RELEASE_VERSION "1.4.2-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 set(GENOMICSDB_VERSION "${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}" CACHE STRING "GenomicsDB full version string")
 
 set(DISABLE_MPI False CACHE BOOL "Disable use of any MPI compiler/libraries")
@@ -58,9 +61,10 @@ set(BUILD_JAVA False CACHE BOOL "Build Java/JNI interface for combined VCF recor
 
 set(HTSLIB_INSTALL_DIR "" CACHE PATH "Path to htslib install directory")
 
-set(GENOMICSDB_PROTOBUF_VERSION "3.0.2" CACHE STRING "Version of Google Protocol Buffer library")
-set(PROTOBUF_LIBRARY "" CACHE PATH "Path to protobuf headers and library")
-set(PROTOBUF_STATIC_LINKING True CACHE BOOL "Statically link Protobuf libraries")
+#Sync the GENOMICSDB_PROTOBUF_VERSION with protobuf.version in pom.xml!
+set(GENOMICSDB_PROTOBUF_VERSION "3.8.0" CACHE STRING "Version of Google Protocol Buffer library")
+set(PROTOBUF_ROOT_DIR "$ENV{HOME}/protobuf-install/${GENOMICSDB_PROTOBUF_VERSION}" CACHE PATH "Path to installed protobuf")
+set(PROTOBUF_URL "https://github.com/protocolbuffers/protobuf/archive/v${GENOMICSDB_PROTOBUF_VERSION}.zip" CACHE STRING "URL to protobuf github release")
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
 set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf files in build directory")
 
@@ -115,7 +119,7 @@ if(BUILD_DISTRIBUTABLE_LIBRARY)
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     endif()
     if(APPLE)  
-        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0")
     endif()
 endif()
 
@@ -165,7 +169,6 @@ if(DISABLE_OPENMP)
 endif()
 
 add_definitions(-D_FILE_OFFSET_BITS=64)  #large file support
-add_definitions(-DHTSDIR=1) #htslib is a mandatory requirement
 add_definitions(-DDUPLICATE_CELL_AT_END=1) #mandatory
 add_definitions(-DGENOMICSDB_VERSION=\"${GENOMICSDB_VERSION}\")
 
@@ -207,6 +210,13 @@ include_directories(${TILEDB_INCLUDE_DIR})
 #librt
 find_library(LIBRT_LIBRARY rt)
 
+#fmt library
+find_package(fmt REQUIRED)
+include_directories(${FMT_INCLUDE_DIR})
+if(USING_FMT_BUNDLED_WITH_SPDLOG)
+  add_definitions(-DUSING_FMT_BUNDLED_WITH_SPDLOG)
+endif()
+
 #pgsql driver and dbi libs
 #find_package(libdbi)
 #if(LIBDBI_FOUND)
@@ -222,11 +232,6 @@ else()
   set(PROTOBUF_JAVA_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/src/main/java")
 endif()
 include_directories(${PROTOBUF_INCLUDE_DIRS})
-CHECK_IF_USING_PROTOBUF_V_3_0_0_BETA_1(USE_PROTOBUF_V_3_0_0_BETA_1)
-if(USE_PROTOBUF_V_3_0_0_BETA_1)
-  add_definitions(-DUSE_PROTOBUF_V_3_0_0_BETA_1)
-  message(STATUS "Using Protobuf v3.0.0-beta-1")
-endif()
 
 #JNI
 if(BUILD_JAVA)
@@ -354,7 +359,7 @@ if(SAFESTRINGLIB_FOUND)
     set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES} ${SAFESTRINGLIB_LIBRARY})
 endif()
 set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES}
-  ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBUUID_LIBRARY})
+  ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBUUID_LIBRARY} ${CMAKE_DL_LIBS})
 
 if(IPPROOT AND ${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   find_package(IPP REQUIRED)

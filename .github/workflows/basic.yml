@@ -15,16 +15,18 @@ env:
   SPARK_ENV: ${{github.workspace}}/spark_env.sh
   HADOOP_ENV: ${{github.workspace}}/hadoop_env.sh
   PREREQS_INSTALL_DIR: ${{github.workspace}}/prereqs
+  PROTOBUF_VERSION: 3.8.0
   CMAKE_INSTALL_PREFIX: ${{github.workspace}}/install
   GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
   GENOMICSDB_RELEASE_VERSION: x.y.z.test
-  HADOOP_VER: 3.2.1
+  HADOOP_VER: 3.2.2
   SPARK_VER: 3.0.1
   SPARK_HADOOP_VER: 2.7
 
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-18.04,macos-10.15]
         type: [basic]
@@ -33,9 +35,9 @@ jobs:
           - os: ubuntu-18.04
             type: hdfs
             java: 8
-          - os: ubuntu-18.04
-            type: hdfs
-            java: 11
+            #- os: ubuntu-18.04
+            #  type: hdfs
+            #  java: 11
 
     env: 
       OS_TYPE: ${{matrix.os}} 
@@ -70,12 +72,13 @@ jobs:
       with:
         path: |
           ${{env.PREREQS_INSTALL_DIR}}
-           ~/.m2/repository
+          ~/.m2/repository
           ~/awssdk-install
           ~/gcssdk-install
-        key: ${{matrix.os}}-cache-prereqs-v2
+          ~/protobuf-install/${{env.PROTOBUF_VERSION}}
+        key: ${{matrix.os}}-cache-prereqs-v3
 
-    # TODO: See https://github.com/actions/cache/pull/285 using platform-indepenedent "pip cache dir"
+    # TODO: See https://github.com/actions/cache/pull/285 using platform-independent "pip cache dir"
     - name: Cache Python artifacts for Ubuntu 
       uses: actions/cache@v2
       if: startsWith(matrix.os, 'ubuntu')
@@ -139,7 +142,10 @@ jobs:
         source $PREREQS_ENV
         JAVA_HOME=$JAVA_LINUX
         echo $JAVA_LINUX/bin >> $GITHUB_PATH
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1 -DGENOMICSDB_MAVEN_PROFILE=$GENOMICSDB_MAVEN_PROFILE
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
+        -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION         \
+        -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1                          \
+        -DGENOMICSDB_MAVEN_PROFILE=$GENOMICSDB_MAVEN_PROFILE
 
     - name: Configure CMake Build macos 
       shell: bash
@@ -150,7 +156,10 @@ jobs:
           GENOMICSDB_MAVEN_PROFILE=java11
         fi
         source $PREREQS_ENV
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1 -DGENOMICSDB_MAVEN_PROFILE=$GENOMICSDB_MAVEN_PROFILE
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX         \
+        -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl                       \
+        -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION \
+        -DBUILD_JAVA=1 -DGENOMICSDB_MAVEN_PROFILE=$GENOMICSDB_MAVEN_PROFILE
     
     - name: Build
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}

@@ -458,6 +458,11 @@ class VidMapper {
    */
   bool get_contig_location(const int64_t position, std::string& contig_name, int64_t& contig_position) const;
   /*
+   * Same as above, but returns ptr to ContigInfo object in this VidMapper object
+   * More efficient than the above function since it avoids reallocations and copies
+   */
+  bool get_contig_info_for_location(const int64_t position, const ContigInfo*& ptr) const;
+  /*
    * Given a position in a flattened 'address' space [TileDB column idx], get the next contig_name and starting
    * location of the contig in the flattened space
    * Returns true if valid contig found, false otherwise
@@ -729,6 +734,33 @@ class VidMapper {
       return 0;
     return &(get_field_info(field_idx));
   }
+  /*
+   * Given a field name and type, return FieldInfo ptr
+   * here name may be vcfname, so we'll try to append type
+   * If field is not found, return 0
+   */
+  inline const FieldInfo* get_field_info(const std::string& name, int field_type) const {
+    int field_idx = -1;
+    std::string suffix = "";
+    switch (field_type) {
+      case BCF_HL_FLT:
+        suffix = "_FILTER";
+        break;
+      case BCF_HL_INFO:
+        suffix = "_INFO";
+        break;
+      case BCF_HL_FMT:
+        suffix = "_FORMAT";
+        break;
+      default:
+        break;
+    }
+    auto status = get_global_field_idx(name+suffix, field_idx);
+    if (!status) {
+      return get_field_info(name);
+    }
+    return &(get_field_info(field_idx));
+  }
   const FieldInfo* get_flattened_field_info(const FieldInfo* field_info,
       const unsigned tuple_element_index) const;
   /*
@@ -737,6 +769,8 @@ class VidMapper {
   void build_vcf_fields_vectors(std::vector<std::vector<std::string>>& vcf_fields) const;
   void build_tiledb_array_schema(VariantArraySchema*& array_schema, const std::string array_name,
                                  const bool compress_fields,
+                                 const int  compression_type,
+                                 const int  compression_level,
                                  const bool no_mandatory_VCF_fields) const;
   /*
    * Get num contigs

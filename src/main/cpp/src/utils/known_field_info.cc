@@ -22,7 +22,7 @@
 */
 
 #include "known_field_info.h"
-#include "logger.h"
+#include "genomicsdb_logger.h"
 #include "vid_mapper.h"
 #include "variant_operations.h"
 
