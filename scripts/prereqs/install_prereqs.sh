@@ -51,7 +51,7 @@ BUILD_DISTRIBUTABLE_LIBRARY=${1:-false}
 OPENSSL_VERSION=1.0.2o
 MAVEN_VERSION=3.6.3
 
-if [[ `uname` == "Darwin" ]]; then
+if [[ `uname` == "Darwin" && BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
   MACOSX_DEPLOYMENT_TARGET=11.0
   echo "export MACOSX_DEPLOYMENT_TARGET=11.0" >> $PREREQS_ENV
 fi
