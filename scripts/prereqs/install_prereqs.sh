@@ -51,9 +51,9 @@ BUILD_DISTRIBUTABLE_LIBRARY=${1:-false}
 OPENSSL_VERSION=1.0.2o
 MAVEN_VERSION=3.6.3
 
-if [[ `uname` == "Darwin" && BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
-  MACOSX_DEPLOYMENT_TARGET=11.0
-  echo "export MACOSX_DEPLOYMENT_TARGET=11.0" >> $PREREQS_ENV
+if [[ `uname` == "Darwin" && $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
+  export MACOSX_DEPLOYMENT_TARGET=10.13
+  echo "export MACOSX_DEPLOYMENT_TARGET=10.13" >> $PREREQS_ENV
 fi
 
 ################################# Should not have to change anything below ############################
@@ -232,8 +232,7 @@ install_os_prerequisites() {
 }
 
 install_prerequisites() {
-  echo "PREREQS_ENV=$PREREQS_ENV"
-  install_os_prerequisites && echo "Install OS prerequistes successful" &&
+  PREREQS_ENV=$PREREQS_ENV install_os_prerequisites && echo "Install OS prerequistes successful" &&
     source $PREREQS_ENV &&
     install_mvn
   #    install_protobuf

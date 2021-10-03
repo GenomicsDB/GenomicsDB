@@ -119,7 +119,7 @@ if(BUILD_DISTRIBUTABLE_LIBRARY)
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     endif()
     if(APPLE)  
-        set(CMAKE_OSX_DEPLOYMENT_TARGET "11.0")
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
     endif()
 endif()
 

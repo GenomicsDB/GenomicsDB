@@ -76,7 +76,7 @@ jobs:
           ~/awssdk-install
           ~/gcssdk-install
           ~/protobuf-install/${{env.PROTOBUF_VERSION}}
-        key: ${{matrix.os}}-cache-prereqs-v3
+        key: ${{matrix.os}}-cache-prereqs-v4
 
     # TODO: See https://github.com/actions/cache/pull/285 using platform-independent "pip cache dir"
     - name: Cache Python artifacts for Ubuntu 
@@ -108,7 +108,7 @@ jobs:
         echo "matrix.os = ${{matrix.os}}"
         if [[ ${{matrix.os}} == macos* ]]; then
           echo "Installing Prerequistes for MacOS..."
-          INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh true
+          INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
         else
           echo "Install Prerequisites for Linux.."
           sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
@@ -131,36 +131,23 @@ jobs:
       shell: bash
       run: mkdir -p $GENOMICSDB_BUILD_DIR
 
-    - name: Configure CMake Build ubuntu
+    - name: Configure CMake Build
       shell: bash
-      if: startsWith(matrix.os, 'ubuntu')
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
         if [[ $JAVA_VER == '11' ]]; then
           GENOMICSDB_MAVEN_PROFILE=java11
         fi
         source $PREREQS_ENV
-        JAVA_HOME=$JAVA_LINUX
-        echo $JAVA_LINUX/bin >> $GITHUB_PATH
+        if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
+          JAVA_HOME=$JAVA_LINUX
+          echo $JAVA_LINUX/bin >> $GITHUB_PATH
+        fi
         cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
         -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION         \
         -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DBUILD_JAVA=1                          \
         -DGENOMICSDB_MAVEN_PROFILE=$GENOMICSDB_MAVEN_PROFILE
 
-    - name: Configure CMake Build macos 
-      shell: bash
-      if: startsWith(matrix.os, 'macos')
-      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
-      run: |
-        if [[ $JAVA_VER == '11' ]]; then
-          GENOMICSDB_MAVEN_PROFILE=java11
-        fi
-        source $PREREQS_ENV
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX         \
-        -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl                       \
-        -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION \
-        -DBUILD_JAVA=1 -DGENOMICSDB_MAVEN_PROFILE=$GENOMICSDB_MAVEN_PROFILE
-    
     - name: Build
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       shell: bash
@@ -170,9 +157,6 @@ jobs:
           echo $JAVA_LINUX/bin >> $GITHUB_PATH
         fi
         source $PREREQS_ENV
-        if [[ $OS_TYPE == macos* ]]; then
-          export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
-        fi
         make -j4
         make install
 
