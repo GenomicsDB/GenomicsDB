@@ -240,16 +240,33 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
   std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
 };
 
-class GENOMICSDB_EXPORT GenomicsDBPedMapProcessor : public GenomicsDBVariantCallProcessor {
+class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallProcessor {
   public:
-    GenomicsDBPedMapProcessor(VariantQueryConfig* qc, double progress_interval = -1, std::string fam_list = "") : query_config(qc), progress_interval(progress_interval), fam_list(fam_list) {
-      ped_file.open(prefix + ".ped", std::ios::out); // create / clear
-      ped_file.close();
-      ped_file.open(prefix + ".ped", std::ios::out | std::ios::in);
-      alt_file.open("alts_temp", std::ios::out);
-      alt_file.close();
-      alt_file.open("alts_temp", std::ios::out | std::ios::in);
-      map_file.open(prefix + ".map", std::ios::out);
+    GenomicsDBPlinkProcessor(VariantQueryConfig* qc, double progress_interval = -1, std::string fam_list = "") : query_config(qc), progress_interval(progress_interval), fam_list(fam_list) {
+      tped_file.open(prefix + ".tped", std::ios::out); // create / clear
+      tped_file.close();
+      tped_file.open(prefix + ".tped", std::ios::out | std::ios::in);
+      fam_file.open(prefix + ".fam", std::ios::out);
+      bim_file.open(prefix + ".bim", std::ios::out);
+      bed_file.open(prefix + ".bed", std::ios::out | std::ios::binary);
+
+      char magic_numbers[] = {0x6c, 0x1b, 0x01};
+      bed_file.write(magic_numbers, 3); // BED: magic numbers
+
+      bgen_file.open(prefix + ".bgen", std::ios::out | std::ios::binary);
+
+      int32_t zero = 0;
+      int32_t offset = 20; // BGEN: offset of first variant data block relative to 5th byte. Always 20 here because free data area left empty
+      bgen_file.write((char*)&offset, 4); // BGEN: first 4 bytes has offset
+      bgen_file.write((char*)&offset, 4); // BGEN: beginning of header, next 4 bytes same in this case
+      bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of variants (M), filled in later
+      bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of samples (N), filled in later
+
+      char bgen_magic_numbers[] = {'b', 'g', 'e', 'n'};
+      bgen_file.write(bgen_magic_numbers, 4); // BGEN: 4 bytes bgen magic number
+
+      int32_t flags = 0b00001000000000000000000000000001
+      bgen_file.write((char*)flags, 4); // BGEN: 4 bytes flags flags, end of header
 
       MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
@@ -269,24 +286,43 @@ class GENOMICSDB_EXPORT GenomicsDBPedMapProcessor : public GenomicsDBVariantCall
     void advance_state();
   //private:
     // flattened coordinate to place in sorted map, line from .fam file (if any exists)
-    std::map<uint64_t, std::pair<int64_t, std::string>> variant_map;
+    std::map<uint64_t, int> variant_map;
     double progress_interval;
     std::string fam_list;
     std::string prefix = "output";
     VariantQueryConfig* query_config;
     // sample name to place in sorted map
-    std::map<std::string, std::pair<int64_t, std::string>> sample_map;
-    std::fstream ped_file, alt_file;
+    std::map<std::string, int> sample_map;
+    // fam is identical to tfam, used with bed, tped respectively
+    std::fstream tped_file, fam_file, bim_file, bed_file, bgen_file;
     int temp_file_line = 0;
-    std::fstream map_file;
     int state = 0;
     int last_sample = -1;
     int last_variant = 0;
     int last_coord = -1;
-    int alt_file_entries = 0;
+    int rank;
     int total_rows = 0;
     int total_cols = 0;
-    int rank;
+    char bed_buf = 0;
+    char bed_buf_state = 0;
+    void flush_to_bed() {
+      if(bed_buf_state) {
+        bed_file.write(&bed_buf, 1);
+        std::cout << "\tWRITE " << bed_buf << " to file (flush)" << std::endl;
+        bed_buf = 0;
+        bed_buf_state = 0;
+      }
+    }
+
+    void write_to_bed(char x) {
+      bed_buf += x << bed_buf_state * 2;
+      ++bed_buf_state %= 4;    
+      if(!bed_buf_state){
+        bed_file.write(&bed_buf, 1);
+        std::cout << "\tWRITE " << bed_buf << " to file (write)" << std::endl;
+        bed_buf = 0;
+      }
+    }
 };
 
 // Forward Declarations for keeping Variant* classes opaque
