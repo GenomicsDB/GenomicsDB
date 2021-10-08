@@ -65,44 +65,42 @@ typedef struct annotation_source_t {
   }
 
   std::map<std::string, genomic_field_type_t> field_types() {
-    printf("jDebug: field_types.68\n");
-    // htsFile *htsfile_ptr = hts_open(this->filename.c_str(), "r");
-    // VERIFY2(htsfile_ptr!=NULL, logger.format("Could not hts_open {} file in read mode", filename));
+    htsFile *htsfile_ptr = hts_open(this->filename.c_str(), "r");
+    VERIFY2(htsfile_ptr!=NULL, logger.format("Could not hts_open {} file in read mode", filename));
 
     // Only supporting vcf files now
-    // enum htsExactFormat format = hts_get_format(htsfile_ptr)->format;
-    // VERIFY2(format==vcf, logger.format("File {} is not VCF (c)", filename));
-    //
-    // bcf_hdr_t *hdr = bcf_hdr_read(htsfile_ptr);
-    // VERIFY2(hdr!=NULL, logger.format("Could not read header in file {}", filename));
+    enum htsExactFormat format = hts_get_format(htsfile_ptr)->format;
+    VERIFY2(format==vcf, logger.format("File {} is not VCF (c)", filename));
+
+    bcf_hdr_t *hdr = bcf_hdr_read(htsfile_ptr);
+    VERIFY2(hdr!=NULL, logger.format("Could not read header in file {}", filename));
 
     std::map<std::string, genomic_field_type_t> genomic_field_types;
     std::set<std::string> processed_fields;
 
-    // for (int i=0; i<hdr->nhrec; i++) {
-    //   bcf_hrec_t* hrec = hdr->hrec[i];
-    //   VERIFY2(hrec!=NULL, logger.format("Could not get header records from {}", filename));
-    //   construct_field_type(hrec, genomic_field_types, processed_fields);
-    // }
-    //
-    // bcf_hdr_destroy(hdr);
-    // hts_close(htsfile_ptr);
+    for (int i=0; i<hdr->nhrec; i++) {
+      bcf_hrec_t* hrec = hdr->hrec[i];
+      VERIFY2(hrec!=NULL, logger.format("Could not get header records from {}", filename));
+      construct_field_type(hrec, genomic_field_types, processed_fields);
+    }
 
-    // if (fields.size() != processed_fields.size()) {
+    bcf_hdr_destroy(hdr);
+    hts_close(htsfile_ptr);
+
+    if (fields.size() != processed_fields.size()) {
       for (auto field: fields) {
-        printf("jDebug: field_types.93: field=%s\n", field.c_str());
-        // if (processed_fields.find(field) == processed_fields.end()) {
-          // VERIFY2(field.compare("ID") == 0,
-                  // logger.format("No type information could be deduced for annotation info field {}", field));
+        if (processed_fields.find(field) == processed_fields.end()) {
+          VERIFY2(field.compare("ID") == 0,
+                  logger.format("No type information could be deduced for annotation info field {}", field));
           genomic_field_types.insert(std::make_pair(datasource + "_" + field,
                                                     genomic_field_type_t(typeid(char),
                                                                          false,/*is_fixed_num_elements*/
                                                                          1,/*num_elements*/
                                                                          1,/*num_dimensions*/
                                                                          false/*contains_phase_info*/)));
-        // }
+        }
       }
-    // }
+    }
 
     return genomic_field_types;
   }

@@ -104,26 +104,24 @@ AnnotationService::AnnotationService(const std::string& export_configuration, st
     }
 
     // If the vcf file is chromosome-specific and the query doesn't cover those chromosomes
-    // then don't both loading the file.
+    // then don't bother loading the file.
     if(!export_config.annotation_source(i).file_chromosomes().empty()) {
       bool isVcfChromosomeInQuery = false;
       for(auto j=0; j<export_config.annotation_source(i).file_chromosomes_size(); ++j) {
         std::string vcf_contig = export_config.annotation_source(i).file_chromosomes(j);
         if(contigs.find(vcf_contig) != contigs.end()) {
+          // The chromosome-specifc vcf and the query have a chromosome in common
           isVcfChromosomeInQuery = true;
           break;
         }
       }
 
       if(!isVcfChromosomeInQuery) {
-        printf("jDebug: AnnotationService(): skipping query that is guaranteed not to have matches in vcf %s\n", filename.c_str());
+      	// Don't load the chromosome-specific VCF 
         continue;
       }
     }
 
-    printf("jDebug: AnnotationService(): loading chromosome specific vcf file %s\n", filename.c_str());
-
-    // jDebug: what does this do?
     genomicsdb_htslib_plugin_initialize(filename.c_str());
 
     std::set<std::string> fields;
@@ -177,16 +175,6 @@ genomic_field_t AnnotationService::get_genomic_field(const std::string &data_sou
  */
 void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) {
   for(auto annotation_source: m_annotation_sources) {
-
-    // If the dataSource is limited to specific chromosomes then skip the file if there is no chance of a match
-    printf("jDebug: annotate: isEmpty=%d, find=%s, end=%s\n", annotation_source.file_chromosomes.empty(),
-    	annotation_source.file_chromosomes.find(genomic_interval.contig_name)->c_str(), annotation_source.file_chromosomes.end()->c_str());
-
-    if(!annotation_source.file_chromosomes.empty() &&
-        annotation_source.file_chromosomes.find(genomic_interval.contig_name) == annotation_source.file_chromosomes.end()) {
-        printf("jDebug: annotate: skipping %s\n", annotation_source.filename.c_str());
-      continue;
-    }
 
     htsFile *htsfile_ptr = hts_open(annotation_source.filename.c_str(), "r");
     VERIFY2(htsfile_ptr!=NULL, logger.format("Could not hts_open {} file in read mode", annotation_source.filename));
