@@ -47,6 +47,7 @@
 #include <typeinfo>
 #include <vector>
 #include <mpi.h>
+#include <functional>
 
 // Override project visibility set to hidden for api
 #if (defined __GNUC__ && __GNUC__ >= 4) || defined __INTEL_COMPILER
@@ -265,8 +266,8 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
       char bgen_magic_numbers[] = {'b', 'g', 'e', 'n'};
       bgen_file.write(bgen_magic_numbers, 4); // BGEN: 4 bytes bgen magic number
 
-      int32_t flags = 0b00001000000000000000000000000001
-      bgen_file.write((char*)flags, 4); // BGEN: 4 bytes flags flags, end of header
+      int32_t flags = 0b00001000000000000000000000000001;
+      bgen_file.write((char*)&flags, 4); // BGEN: 4 bytes flags flags, end of header
 
       MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
@@ -303,6 +304,7 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
     int rank;
     int total_rows = 0;
     int total_cols = 0;
+    // BED variables/functions
     char bed_buf = 0;
     char bed_buf_state = 0;
     void flush_to_bed() {
@@ -323,6 +325,42 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
         bed_buf = 0;
       }
     }
+    // BGEN variables
+    int min_ploidy, max_ploidy;
+    // fixme: hard coded for B = 8
+    // get probability expects GT vector if phased, allele counts otherwise
+    void bgen_enumerate_probabilities(int ploidy, int alleles, bool phased, std::function<char(const std::vector<int>&)> get_probability) {
+      if(phased) {
+        for(int i = 0; i < ploidy; i++) {
+          for(int j = 0; j < alleles; j++) {
+            char prob = get_probability({i, j});
+            bgen_file.write(&prob, 1);
+          }
+        }
+      }
+      else {
+        std::vector<int> allele_counts(alleles);
+        std::function<void(int, int)> enumerate_unphased;
+        enumerate_unphased = [&] (int used, int depth) {
+          for(int i = 0; i <= alleles - used; i++) {
+            allele_counts[depth] = i;
+            if(depth) {
+              enumerate_unphased(used + i, depth - 1);
+            }
+            else if(i < alleles) {
+              char prob = get_probability(allele_counts);
+              bgen_file.write(&prob, 1);
+            }
+          }
+        };
+      }
+    }
+    // locations in file
+    int bgen_variant_size_offset;
+    int bgen_min_ploidy_offset;
+    int bgen_max_ploidy_offset;
+    int bgen_ploidy_info_offset;
+    int bgen_probability_offset;
 };
 
 // Forward Declarations for keeping Variant* classes opaque
