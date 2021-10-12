@@ -258,15 +258,27 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
 
       int32_t zero = 0;
       int32_t offset = 20; // BGEN: offset of first variant data block relative to 5th byte. Always 20 here because free data area left empty
+      bw();
+      std::cout << "\twriting offset " << offset << " to first 4 bytes" << std::endl;
       bgen_file.write((char*)&offset, 4); // BGEN: first 4 bytes has offset
+      bw();
+      std::cout << "\twriting offset " << offset << " to header" << std::endl;
       bgen_file.write((char*)&offset, 4); // BGEN: beginning of header, next 4 bytes same in this case
+      bw();
+      std::cout << "\twriting 0 for M" << std::endl;
       bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of variants (M), filled in later
+      bw();
+      std::cout << "\twriting 0 for N" << std::endl;
       bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of samples (N), filled in later
 
       char bgen_magic_numbers[] = {'b', 'g', 'e', 'n'};
+      bw();
+      std::cout << "\twriting magic numbers" << std::endl;
       bgen_file.write(bgen_magic_numbers, 4); // BGEN: 4 bytes bgen magic number
 
       int32_t flags = 0b00001000000000000000000000000001;
+      bw();
+      std::cout << "\twriting flags " << flags << std::endl;
       bgen_file.write((char*)&flags, 4); // BGEN: 4 bytes flags flags, end of header
 
       MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -286,8 +298,8 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
                          const std::vector<genomic_field_t>& genomic_fields);
     void advance_state();
   //private:
-    // flattened coordinate to place in sorted map, line from .fam file (if any exists)
-    std::map<uint64_t, int> variant_map;
+    // flattened coordinate to place in sorted map, phased status of column for bgen purposes (unphased if any are)
+    std::map<uint64_t, std::pair<int, bool>> variant_map;
     double progress_interval;
     std::string fam_list;
     std::string prefix = "output";
@@ -326,15 +338,22 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
       }
     }
     // BGEN variables
-    int min_ploidy, max_ploidy;
+    char min_ploidy, max_ploidy;
+    int32_t bgen_gt_size;
     // fixme: hard coded for B = 8
     // get probability expects GT vector if phased, allele counts otherwise
-    void bgen_enumerate_probabilities(int ploidy, int alleles, bool phased, std::function<char(const std::vector<int>&)> get_probability) {
+    int bgen_enumerate_probabilities(int ploidy, int alleles, bool phased, std::function<char(const std::vector<int>&)> get_probability) {
+      bw();
+      std::cout << "\tin bgen enumerate probabilities, phased " << phased << std::endl;
+      int size = 0;
       if(phased) {
         for(int i = 0; i < ploidy; i++) {
           for(int j = 0; j < alleles; j++) {
             char prob = get_probability({i, j});
+            bw();
+            std::cout << "\tin phased iter " << i << ", " << j << ", prob is " << (int)prob << std::endl;
             bgen_file.write(&prob, 1);
+            size++;
           }
         }
       }
@@ -349,14 +368,56 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
             }
             else if(i < alleles) {
               char prob = get_probability(allele_counts);
+              bw();
+              std::cout << "\tin unphased, counts are ";
+              for(auto& a : allele_counts) {
+                std::cout << a << " "; 
+              }
+              std::cout << "prob is " << (int)prob << std::endl;
               bgen_file.write(&prob, 1);
+              size++;
             }
           }
         };
       }
+      return size;
     }
+
+    void bgen_empty_cell(int ploidy, int alleles, bool phased) {
+      bgen_gt_size += bgen_enumerate_probabilities(ploidy, alleles, phased, [] (const std::vector<int>& v) { return 0; });
+    }
+
+    void bw() {
+      std::cout << "bgen fp: " << bgen_file.tellp() << ", bgen_gt_size: " << bgen_gt_size << std::endl;
+    }
+
+    // fill in size, min/max ploidy of last column
+    void bgen_finish_gt() {
+      bw();
+      std::cout << "In bgen finish gt" << std::endl;
+      int offset = bgen_file.tellp();
+      bgen_file.seekp(bgen_gt_size_offset);
+      bw();
+      std::cout << "\twriting gt size " << bgen_gt_size << std::endl;
+      bgen_file.write((char*)&bgen_gt_size, 4); // BGEN: size of previous gt probability data
+      bgen_file.seekp(bgen_min_ploidy_offset);
+      bw();
+      std::cout << "\twriting min ploidy " << (int)min_ploidy << std::endl;
+      bgen_file.write(&min_ploidy, 1); // BGEN: min ploidy of previous gt probability data
+      bgen_file.seekp(bgen_max_ploidy_offset);
+      bw();
+      std::cout << "\twriting max ploidy " << (int)max_ploidy << std::endl;
+      bgen_file.write(&max_ploidy, 1); // BGEN: max ploidy of previous gt probability data
+      bgen_gt_size = 0;
+      min_ploidy = 64;
+      max_ploidy = -1;
+      bgen_file.seekp(offset);
+      bw();
+      std::cout << "Done with bgen finish gt" << std::endl;
+    }
+
     // locations in file
-    int bgen_variant_size_offset;
+    int bgen_gt_size_offset;
     int bgen_min_ploidy_offset;
     int bgen_max_ploidy_offset;
     int bgen_ploidy_info_offset;
