@@ -21,11 +21,9 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifdef HTSDIR
-
 #include "broad_combined_gvcf.h"
 #include "genomicsdb_multid_vector_field.h"
-#include "logger.h"
+#include "genomicsdb_logger.h"
 
 #ifdef DO_MEMORY_PROFILING
 #include "memory_measure.h"
@@ -135,8 +133,12 @@ inline void encode_GT_vector<false, false>(int* inout_vec, const uint64_t input_
 
 BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, const VidMapper& id_mapper,
     const VariantQueryConfig& query_config,
-    const bool use_missing_values_only_not_vector_end)
-  : GA4GHOperator(query_config, id_mapper, true) {
+    const bool use_missing_values_only_not_vector_end,
+    const bool use_columnar_iterator,
+    const bool from_columnar_iterator_write_to_string)
+  : GA4GHOperator(query_config, id_mapper, true),
+    m_use_columnar_iterator(use_columnar_iterator),
+    m_vcf_writer_to_ostream(std::cout) {
   clear();
   if (!id_mapper.is_initialized())
     throw BroadCombinedGVCFException("Id mapper is not initialized");
@@ -329,7 +331,8 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
   auto hdr_offset = bcf_hdr_deserialize(m_vcf_hdr, &(tmp_buffer[0u]), 0u, tmp_buffer.size(), 0);
   assert(hdr_offset > 0u);
   m_vcf_adapter->set_vcf_header(m_vcf_hdr);
-  m_vcf_adapter->print_header();
+  if(!use_columnar_iterator)
+    m_vcf_adapter->print_header();
   //vector of field pointers used for handling remapped fields when dealing with spanning deletions
   //Individual pointers will be allocated later
   m_spanning_deletions_remapped_fields.resize(m_remapped_fields_query_idxs.size());
@@ -356,6 +359,30 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
 #endif
   m_bcf_record_size = 0ull;
   m_should_add_GQ_field = true; //always added in new version of CombineGVCFs
+  //Check if we need to use the columnar iterator
+  if(use_columnar_iterator) {
+    if(!GenomicsDBConfigBase::output_to_stdout(query_config.get_vcf_output_filename())) {
+      m_vcf_adapter->close_file();
+      m_vcf_output_fptr.open(query_config.get_vcf_output_filename());
+      m_vcf_writer_to_ostream = std::move(VCFWriterNoOverflow<std::ostream>(m_vcf_output_fptr));
+    }
+    else
+      m_vcf_writer_to_ostream = std::move(VCFWriterNoOverflow<std::ostream>(std::cout));
+    m_writer_type_enum = (from_columnar_iterator_write_to_string) ? VCFWRITER_ENUM::STL_STRING_NO_LIMIT
+      : VCFWRITER_ENUM::STL_OSTREAM_NO_LIMIT;
+    auto& string_buffer = from_columnar_iterator_write_to_string ? m_vcf_writer_to_string.get_string_buffer() : m_vcf_writer_to_ostream.get_string_buffer();
+    string_buffer.resize(4096u); //doesn't matter - some > 0 number
+    while(true) {
+      auto offset = bcf_hdr_serialize(vcf_adapter.get_vcf_header(), reinterpret_cast<uint8_t*>(&(string_buffer.at(0u))), 0u, string_buffer.size(),
+          0, 1);
+      if(offset > 0u) {
+        string_buffer.resize(offset);
+        break;
+      }
+      else
+        string_buffer.resize(2ull*string_buffer.size()+1u);
+    }
+  }
 }
 
 BroadCombinedGVCFOperator::~BroadCombinedGVCFOperator() {
@@ -367,6 +394,10 @@ BroadCombinedGVCFOperator::~BroadCombinedGVCFOperator() {
     }
   }
   bcf_destroy(m_bcf_out);
+  if(m_use_columnar_iterator)
+    m_vcf_writer_to_ostream.flush_buffer_if_flush_supported();
+  if(m_vcf_output_fptr.is_open() && !GenomicsDBConfigBase::output_to_stdout(m_query_config->get_vcf_output_filename()))
+    m_vcf_output_fptr.close();
   clear();
 #ifdef DO_PROFILING
   m_bcf_t_creation_timer.print("bcf_t creation time", std::cerr);
@@ -877,12 +908,11 @@ void BroadCombinedGVCFOperator::operate(Variant& variant) {
   statm_t mem_result;
   read_off_memory_status(mem_result);
   if (mem_result.resident >= m_next_memory_limit) {
-    std::cerr << "Crossed "<<m_next_memory_limit
-              << " memory used (bytes) " << mem_result.resident
-              <<" at contig "
-              << bcf_hdr_id2name(m_vcf_hdr, m_curr_contig_hdr_idx)
-              << " position " << m_bcf_out->pos+1
-              << "\n";
+    logger.info("Crossed {} memory used (bytes) {} at contig {} position {}",
+                 m_next_memory_limit,
+                 mem_result.resident,
+                 bcf_hdr_id2name(m_vcf_hdr, m_curr_contig_hdr_idx),
+                 m_bcf_out->pos+1);
     m_next_memory_limit = std::max<uint64_t>(m_next_memory_limit, mem_result.resident)
                           + 100*ONE_MB;
   }
@@ -1083,5 +1113,3 @@ bool BroadCombinedGVCFOperator::update_GT_to_correspond_to_min_PL_value(
   }
   return remap_GT_based_on_input_GT;
 }
-
-#endif //ifdef HTSDIR

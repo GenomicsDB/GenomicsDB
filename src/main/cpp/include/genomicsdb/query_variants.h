@@ -348,9 +348,7 @@ class VariantQueryProcessor {
   void gt_fill_row(
     Variant& variant, int64_t row, int64_t column, const VariantQueryConfig& query_config,
     const BufferVariantCell& cell, GTProfileStats* stats
-#ifdef DUPLICATE_CELL_AT_END
     , bool traverse_end_copies=false
-#endif
   ) const;
   /**
    * Initializes forward iterators for joint genotyping for column col.

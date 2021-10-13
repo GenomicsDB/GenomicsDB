@@ -879,7 +879,6 @@ void setup_samples_lut(const std::string& test_to_gold_callset_map_file, VCFDiff
 }
 
 int main(int argc, char** argv) {
-#ifdef HTSDIR
   //Initialize MPI environment
   auto rc = MPI_Init(0, 0);
   if (rc != MPI_SUCCESS) {
@@ -1113,8 +1112,5 @@ int main(int argc, char** argv) {
   if (vid_mapper)
     delete vid_mapper;
   MPI_Finalize();
-#else //ifdef HTSDIR
-  std::cerr << "vcf diff needs htslib - recompile with HTSDIR set\n";
-#endif  //ifdef HTSDIR
   return 0;
 }

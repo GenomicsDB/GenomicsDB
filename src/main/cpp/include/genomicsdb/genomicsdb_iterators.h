@@ -31,6 +31,7 @@
 #include "timer.h"
 #include "variant_query_config.h"
 #include "alleles_combiner.h"
+#include "gt_remapper.h"
 
 //Exceptions thrown
 class GenomicsDBIteratorException : public std::exception {
@@ -422,6 +423,7 @@ class GVCFEndSetElementComparator {
 };
 
 class GenomicsDBGVCFCell;
+
 class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
   public:
     GenomicsDBGVCFIterator(TileDB_CTX* tiledb_ctx,
@@ -474,8 +476,11 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
     bool is_field_valid_for_row_query_idx(const unsigned field_idx, const size_t idx) const {
       return is_valid_row_query_idx(idx) && is_field_valid_for_valid_row_query_idx(field_idx, idx);
     }
-    const AllelesCombiner& get_alleles_combiner() const {
+    const AllelesCombiner<GenomicsDBGVCFIterator>& get_alleles_combiner() const {
       return m_alleles_combiner;
+    }
+    inline const GTRemapper<GenomicsDBGVCFIterator>& get_GT_remapper() const {
+      return m_gt_remapper;
     }
   private:
     /*
@@ -510,7 +515,8 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
     unsigned m_REF_query_idx;
     unsigned m_ALT_query_idx;
     GenomicsDBGVCFCell* m_cell;
-    AllelesCombiner m_alleles_combiner;
+    AllelesCombiner<GenomicsDBGVCFIterator> m_alleles_combiner;
+    GTRemapper<GenomicsDBGVCFIterator> m_gt_remapper;
 #ifdef DO_PROFILING
     std::vector<uint64_t> m_num_times_initialized;
     std::vector<uint64_t> m_num_times_invalidated;

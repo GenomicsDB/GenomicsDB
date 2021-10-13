@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # The MIT License (MIT)
-# Copyright (c) 2020 Omics Data Automation, Inc.
+# Copyright (c) 2020-2021 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -38,8 +38,11 @@ GENOMICSDB_USER_DIR=`eval echo ~$GENOMICSDB_USER`
 GENOMICSDB_DIR=$GENOMICSDB_USER_DIR/GenomicsDB
 echo GENOMICSDB_DIR=$GENOMICSDB_DIR
 
-cmake3 && CMAKE=cmake3
-cmake3 || CMAKE=cmake
+CMAKE=`which cmake3`
+if [[ -z $CMAKE ]]; then
+  echo "cmake3 not found. Cannot continue"
+  exit 1
+fi
 
 if [[ $ENABLE_BINDINGS == *java* ||  $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
 	BUILD_JAVA=true
@@ -71,7 +74,7 @@ build_genomicsdb() {
 	mkdir build &&
 	pushd build &&
 	echo "	$CMAKE .. -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DBUILD_DISTRIBUTABLE_LIBRARY=$BUILD_DISTRIBUTABLE_LIBRARY -DBUILD_JAVA=$BUILD_JAVA" &&
-	$CMAKE .. -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DBUILD_DISTRIBUTABLE_LIBRARY=$BUILD_DISTRIBUTABLE_LIBRARY -DBUILD_JAVA=$BUILD_JAVA && make -j 4 && make install &&
+	$CMAKE .. -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DBUILD_DISTRIBUTABLE_LIBRARY=$BUILD_DISTRIBUTABLE_LIBRARY -DBUILD_JAVA=$BUILD_JAVA && make && make install &&
 	popd &&
 	echo "Building GenomicsDB DONE" &&
 	popd

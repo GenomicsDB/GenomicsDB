@@ -49,12 +49,7 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniGenomicsDBImporter(
   VCF2TileDBLoader loader(
     loader_configuration_file_cstr,
     g_jni_mpi_init.get_mpi_rank(rank));
-#ifdef HTSDIR
   loader.read_all();
-#else
-  throw GenomicsDBJNIException(
-    "Htslib is now a mandatory dependency - re-compile with HTSDIR set");
-#endif
   //Cleanup
   env->ReleaseStringUTFChars(
     loader_configuration_file,

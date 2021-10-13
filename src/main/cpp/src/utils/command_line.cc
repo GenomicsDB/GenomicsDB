@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include "command_line.h"
+#include "genomicsdb_logger.h"
 
 enum ArgsIdxEnum {
   ARGS_IDX_IS_PRESORTED=1000,
@@ -89,7 +90,7 @@ void parse_command_line(int argc, char** argv, CommandLineOpts& cl) {
       cl.m_test_C_pointers = true;
       break;
     default:
-      std::cerr << "Unknown argument "<<argv<<"\n";
+      logger.error("Unknown argument {}", argv[optind - 1]);
       exit(-1);
     }
   }

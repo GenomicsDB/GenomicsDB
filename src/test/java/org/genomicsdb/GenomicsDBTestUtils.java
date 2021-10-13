@@ -26,6 +26,17 @@ import htsjdk.tribble.FeatureReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
+
+import org.genomicsdb.model.GenomicsDBCallsetsMapProto;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.model.GenomicsDBExportConfigurationSpec;
+import org.genomicsdb.model.GenomicsDBImportConfiguration;
+import org.genomicsdb.model.GenomicsDBVidMapProto;
+import org.genomicsdb.model.Coordinates.GenomicsDBColumn;
+import org.genomicsdb.model.Coordinates.GenomicsDBColumnInterval;
+import org.genomicsdb.model.Coordinates.GenomicsDBColumnOrInterval;
+import org.genomicsdb.model.Coordinates.TileDBColumnInterval;
+import org.genomicsdb.model.GenomicsDBExportConfiguration.GenomicsDBColumnOrIntervalList;
 import org.testng.annotations.DataProvider;
 
 import java.io.File;
@@ -33,6 +44,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Base64;
 
 public final class GenomicsDBTestUtils {
 
@@ -321,4 +333,34 @@ public final class GenomicsDBTestUtils {
     return new Object[][] { { tmpQFile.getAbsolutePath(), tmpLFile.getAbsolutePath(), tmpHFile.getAbsolutePath() } };
   }
 
+  @DataProvider(name="loaderQueryPB7")
+  public static Object[][] loaderQueryPB7() throws IOException {
+    GenomicsDBImportConfiguration.ImportConfiguration.Builder importBuilder = 
+        GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
+    importBuilder.setVidMappingFile("value");
+    importBuilder.setCallsetMappingFile("value");
+    importBuilder.setSizePerColumnPartition(10240);
+    for(int i=0; i<3; i++) {
+      GenomicsDBImportConfiguration.Partition.Builder pbuilder = importBuilder.addColumnPartitionsBuilder();
+      GenomicsDBColumn.Builder column = GenomicsDBColumn.newBuilder();
+      pbuilder.setBegin(column.setTiledbColumn(i*10000));
+      pbuilder.setWorkspace("/tmp/workspace");
+      pbuilder.setArrayName("array"+Integer.toString(i));
+    }
+
+    GenomicsDBExportConfiguration.ExportConfiguration.Builder exportBuilder = 
+        GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
+
+    exportBuilder.setWorkspace("/tmp/workspace");
+    exportBuilder.setArrayName("array0");
+    GenomicsDBColumnOrInterval.Builder qColumnBuilder = GenomicsDBColumnOrInterval.newBuilder();
+    TileDBColumnInterval.Builder tdbColumnBuilder = TileDBColumnInterval.newBuilder();
+    tdbColumnBuilder.setBegin(9000).setEnd(24500);
+    qColumnBuilder.setColumnInterval(GenomicsDBColumnInterval.newBuilder().setTiledbColumnInterval(tdbColumnBuilder));
+    exportBuilder.addQueryColumnRanges(GenomicsDBColumnOrIntervalList.newBuilder().addColumnOrIntervalList(qColumnBuilder));
+    exportBuilder.setSparkConfig(GenomicsDBExportConfiguration.SparkConfig.newBuilder().setQueryBlockSize(5000).setQueryBlockSizeMargin(1000));
+
+    return new Object[][] { { Base64.getEncoder().encodeToString(importBuilder.build().toByteArray()),
+                              Base64.getEncoder().encodeToString(exportBuilder.build().toByteArray())} };
+  }
 }

@@ -22,28 +22,17 @@
 
 package org.genomicsdb.spark.sources;
 
-import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.Batch;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-import org.apache.spark.sql.types.*;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
-import scala.collection.JavaConverters;
-
 import org.genomicsdb.spark.GenomicsDBInput;
 import org.genomicsdb.spark.GenomicsDBConfiguration;
 import org.genomicsdb.spark.GenomicsDBSchemaFactory;
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -51,7 +40,7 @@ import java.util.Map;
  * Represents a physical plan, logical table scan is converted to this at runtime.
  * Defines a factory that is sent to an executor, thus Datasource partitions are planned here.
  **/
-public class GenomicsDBBatch implements Batch {
+public class GenomicsDBBatch implements Batch, JsonFileExtensions {
 
   GenomicsDBInput<GenomicsDBInputPartition> input;
   private final Map<String, String> properties;
@@ -69,13 +58,12 @@ public class GenomicsDBBatch implements Batch {
 
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration((Map<String,String>)options);
 
-    GenomicsDBSchemaFactory schemaBuilder = 
-      new GenomicsDBSchemaFactory(genomicsDBConfiguration.getLoaderJsonFile());
+    GenomicsDBSchemaFactory schemaBuilder = new GenomicsDBSchemaFactory(genomicsDBConfiguration);
     StructType finalSchema = null;
     if (schema != null){ 
-      finalSchema = schema;
-    } else { 
       finalSchema = schemaBuilder.buildSchemaWithVid(schema.fields()); 
+    } else { 
+      finalSchema = GenomicsDBSchemaFactory.defaultSchema();
     }
 
     Long blocksize = new Long(1);

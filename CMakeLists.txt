@@ -37,6 +37,9 @@ set(HTSLIB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/htslib" CACHE PATH "Path
 set(TILEDB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/TileDB" CACHE PATH "Path to TileDB source directory")
 set(RAPIDJSON_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/dependencies/RapidJSON/include" CACHE PATH "Path to RapidJSON include directory")
 set(SPDLOG_INCLUDE_DIR  "${CMAKE_SOURCE_DIR}/dependencies/spdlog/include" CACHE PATH "Path to SpdLog include directory")
+#The fmt headers are in dependencies/spdlog/include/spdlog/fmt/bundled - source files will include "fmt/bundled/format.h"
+set(FMT_ROOT_DIR "${SPDLOG_INCLUDE_DIR}" CACHE PATH "Path to fmt library")
+set(USING_FMT_BUNDLED_WITH_SPDLOG True CACHE BOOL "Disable if using fmt library that's not bundled with spdlog")
 
 #GIT_COMMIT_HASH derived from git tag to be used as part of GENOMICSDB_VERSION
 execute_process(
@@ -166,7 +169,6 @@ if(DISABLE_OPENMP)
 endif()
 
 add_definitions(-D_FILE_OFFSET_BITS=64)  #large file support
-add_definitions(-DHTSDIR=1) #htslib is a mandatory requirement
 add_definitions(-DDUPLICATE_CELL_AT_END=1) #mandatory
 add_definitions(-DGENOMICSDB_VERSION=\"${GENOMICSDB_VERSION}\")
 
@@ -207,6 +209,13 @@ include_directories(${TILEDB_INCLUDE_DIR})
 
 #librt
 find_library(LIBRT_LIBRARY rt)
+
+#fmt library
+find_package(fmt REQUIRED)
+include_directories(${FMT_INCLUDE_DIR})
+if(USING_FMT_BUNDLED_WITH_SPDLOG)
+  add_definitions(-DUSING_FMT_BUNDLED_WITH_SPDLOG)
+endif()
 
 #pgsql driver and dbi libs
 #find_package(libdbi)
@@ -350,7 +359,7 @@ if(SAFESTRINGLIB_FOUND)
     set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES} ${SAFESTRINGLIB_LIBRARY})
 endif()
 set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES}
-  ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBUUID_LIBRARY})
+  ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBUUID_LIBRARY} ${CMAKE_DL_LIBS})
 
 if(IPPROOT AND ${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   find_package(IPP REQUIRED)

@@ -33,6 +33,7 @@
 std::string g_query_json_file = "";
 std::string g_loader_json_file = "";
 std::string g_golden_output_file = "";
+bool g_skip_GT_matching = false;
 
 int main( int argc, char* argv[] )
 {
@@ -51,6 +52,9 @@ int main( int argc, char* argv[] )
     | Opt(g_golden_output_file, "Golden output file")
      ["--golden-output-file"]
      ("Golden output file")
+    | Opt(g_skip_GT_matching)
+     ["--skip-GT-matching"]
+     ("Skip GT matching")
     ;
 
   // Now pass the new composite back to Catch so it uses that
