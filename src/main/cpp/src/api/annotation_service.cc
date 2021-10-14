@@ -36,7 +36,7 @@
 
 #include "genomicsdb_export_config.pb.h"
 #include "hfile_genomicsdb.h"
-#include "logger.h"
+#include "genomicsdb_logger.h"
 #include "tiledb_utils.h"
 #include "vid_mapper.h"
 
@@ -122,7 +122,7 @@ AnnotationService::AnnotationService(const std::string& export_configuration, st
       }
     }
 
-    genomicsdb_htslib_plugin_initialize(filename.c_str());
+    genomicsdb_htslib_plugin_initialize();
 
     std::set<std::string> fields;
     for(auto field : export_config.annotation_source(i).attributes()) {
