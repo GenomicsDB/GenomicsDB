@@ -23,8 +23,6 @@
 #ifndef VCF2BINARY_H
 #define VCF2BINARY_H
 
-#ifdef HTSDIR
-
 #include "headers.h"
 #include "vid_mapper.h"
 #include "htslib/synced_bcf_reader.h"
@@ -313,7 +311,5 @@ class VCF2Binary : public File2TileDBBinaryBase {
   //The buffer in with the serialized VCF header used for initialization
   const uint8_t* m_vcf_buffer_reader_init_buffer;
 };
-
-#endif //ifdef HTSDIR
 
 #endif

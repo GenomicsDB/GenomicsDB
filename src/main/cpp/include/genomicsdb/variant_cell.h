@@ -192,6 +192,7 @@ class GenomicsDBGVCFCell {
     GenomicsDBGVCFCell(const GenomicsDBGVCFIterator* iter) {
       m_iterator = iter;
     }
+    const GenomicsDBGVCFIterator* get_iterator() const { return m_iterator; }
   private:
     const GenomicsDBGVCFIterator* m_iterator;
 };

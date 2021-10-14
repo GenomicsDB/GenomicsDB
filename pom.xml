@@ -68,7 +68,7 @@
     <log4j.version>[2.13.0,)</log4j.version>
     <!-- Sync the protobuf.version with GENOMICSDB_PROTOBUF_VERSION in CMakeLists.txt -->
     <protobuf.version>3.8.0</protobuf.version>
-    <protobuf_shade_version>>org.genomicsdb.shaded.com.google.protobuf</protobuf_shade_version>
+    <protobuf_shade_version>org.genomicsdb.shaded.com.google.protobuf</protobuf_shade_version>
     <testng.version>6.10</testng.version>
     <gnu.getopt.version>1.0.13</gnu.getopt.version>
     <surefire.plugin.version>2.20</surefire.plugin.version>

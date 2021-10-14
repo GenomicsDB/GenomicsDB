@@ -1,5 +1,6 @@
 package org.genomicsdb.importer.extensions;
 
+import com.google.protobuf.Message;
 import com.googlecode.protobuf.format.JsonFormat;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
@@ -14,7 +15,11 @@ import org.genomicsdb.model.GenomicsDBVidMapProto;
 
 import java.io.*;
 import java.util.Set;
+import java.util.Base64;
 import java.util.List;
+
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 
 import static java.util.stream.Collectors.toList;
 import static com.googlecode.protobuf.format.JsonFormat.*;
@@ -135,5 +140,34 @@ public interface JsonFileExtensions {
         }
         return contigList.get(0).getTiledbColumnOffset() < bounds[1] &&
             contigList.get(0).getTiledbColumnOffset() >= bounds[0];
+    }
+
+    /**
+     * Serialize Protobuf json file into a base64 encoded string
+     * 
+     * @param builder protobuf message builder
+     * @param file Protobuf jsonfile
+     * @return String base64 encoded protobuf string
+     */
+    static String getProtobufAsBase64StringFromFile(Message.Builder builder,
+            String file) throws com.googlecode.protobuf.format.JsonFormat.ParseException {
+        String jsonString = GenomicsDBUtils.readEntireFile(file);
+        JsonFormat.merge(jsonString, builder);
+        byte[] pb = builder.build().toByteArray();
+        return Base64.getEncoder().encodeToString(pb);
+    }
+
+    /**
+     * Create Protobuf message from base64 encoded string
+     * @param builder protobuf message builder
+     * @param pbString base64 encoded protobug string
+     * @return protobuf message
+     * @throws InvalidProtocolBufferException
+     */
+    static Message getProtobufFromBase64EncodedString(Message.Builder builder, String pbString) 
+            throws InvalidProtocolBufferException {
+        byte[] pbDecoded = Base64.getDecoder().decode(pbString);
+        builder.mergeFrom(pbDecoded);
+        return builder.build();
     }
 }

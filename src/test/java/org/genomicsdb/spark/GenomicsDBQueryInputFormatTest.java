@@ -33,6 +33,24 @@ public class GenomicsDBQueryInputFormatTest {
     Assert.assertEquals(inputFormat.getConf().get(GenomicsDBConfiguration.MPIHOSTFILE), "hostfile");
   }
 
+  @Test
+  public void testBasicWithLoaderProtobuf() throws IOException, InterruptedException {
+    GenomicsDBQueryInputFormat inputFormat = new GenomicsDBQueryInputFormat();
+    Assert.assertNull(inputFormat.getConf());
+    Job job = Job.getInstance();
+    Configuration conf = job.getConfiguration();
+    conf.set(GenomicsDBConfiguration.LOADERPB, "fakeloaderpbstring");
+    conf.set(GenomicsDBConfiguration.QUERYPB, "fakequerypbstring");
+
+    inputFormat.setConf(conf);
+    Assert.assertEquals(inputFormat.getConf().get(GenomicsDBConfiguration.LOADERPB), "fakeloaderpbstring");
+    Assert.assertEquals(inputFormat.getConf().get(GenomicsDBConfiguration.QUERYPB), "fakequerypbstring");
+
+    inputFormat = new GenomicsDBQueryInputFormat(new GenomicsDBConfiguration(conf));
+    Assert.assertEquals(inputFormat.getConf().get(GenomicsDBConfiguration.LOADERPB), "fakeloaderpbstring");
+    Assert.assertEquals(inputFormat.getConf().get(GenomicsDBConfiguration.QUERYPB), "fakequerypbstring");
+  }
+
   @Test(expectedExceptions = IOException.class)
   public void testNullBasicInputSplits() throws IOException, InterruptedException {
     final GenomicsDBQueryInputFormat tryNullInputFormat = new GenomicsDBQueryInputFormat(new GenomicsDBConfiguration());

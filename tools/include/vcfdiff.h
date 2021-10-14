@@ -23,8 +23,6 @@
 #ifndef VCFDIFF_H
 #define VCFDIFF_H
 
-#ifdef HTSDIR
-
 #include "headers.h"
 #include "lut.h"
 #include "vcf.h"
@@ -158,7 +156,5 @@ class VCFDiffFile {
   std::vector<int> m_test_allele_idx_vec_for_curr_gt;
   std::vector<uint64_t> m_remap_count_vector;
 };
-
-#endif
 
 #endif

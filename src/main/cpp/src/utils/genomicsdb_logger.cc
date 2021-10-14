@@ -32,7 +32,7 @@
 
 #include <spdlog/sinks/stdout_color_sinks.h>
 
-#include "logger.h"
+#include "genomicsdb_logger.h"
 
 #define LOGGER_NAME "NativeGenomicsDB"
 #define LOGGER_NAME_STRING "GenomicsDB.String"

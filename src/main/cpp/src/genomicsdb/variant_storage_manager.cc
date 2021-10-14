@@ -30,7 +30,7 @@
 #include "json_config.h"
 #include <dirent.h>
 #include <uuid/uuid.h>
-#include "logger.h"
+#include "genomicsdb_logger.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VariantStorageManagerException(#X);
 #define METADATA_FILE_PREFIX "genomicsdb_meta"
