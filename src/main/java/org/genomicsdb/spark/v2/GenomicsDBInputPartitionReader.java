@@ -39,6 +39,7 @@ import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.genomicsdb.spark.GenomicsDBVidSchema;
 import org.genomicsdb.spark.GenomicsDBInput;
+import org.genomicsdb.spark.GenomicsDBInputFormat;
 
 import org.json.simple.parser.ParseException;
 import scala.collection.JavaConverters;
@@ -68,6 +69,13 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
           GenomicsDBInput.createTargetExportConfigurationPB(
               query, inputPartition.getPartitionInfo(), 
               inputPartition.getQueryInfoList(), inputPartition.getQueryIsPB());
+
+      if (!(exportConfiguration.hasCallsetMapping() || exportConfiguration.hasCallsetMappingFile())) {
+        exportConfiguration = GenomicsDBInputFormat.getCallsetFromLoader(exportConfiguration, loader, inputPartition.getLoaderIsPB());
+      }
+      if (!(exportConfiguration.hasVidMapping() || exportConfiguration.hasVidMappingFile())) {
+        exportConfiguration = GenomicsDBInputFormat.getVidFromLoader(exportConfiguration, loader, inputPartition.getLoaderIsPB());
+      }
     } catch (ParseException | IOException e) {
       e.printStackTrace();
       exportConfiguration = null;
@@ -78,7 +86,7 @@ public class GenomicsDBInputPartitionReader implements InputPartitionReader<Inte
           new GenomicsDBFeatureReader<>(
               exportConfiguration,
               (FeatureCodec<VariantContext, PositionalBufferedStream>) new BCF2Codec(),
-              Optional.of(loader));
+              Optional.of(""));
       this.iterator = fReader.iterator();
     } catch (IOException e) {
       e.printStackTrace();

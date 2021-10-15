@@ -173,6 +173,9 @@ class GenomicsDBConfigBase {
   void read_from_PB(const genomicsdb_pb::ExportConfiguration* x, const int rank=0);
   void read_and_initialize_vid_and_callset_mapping_if_available(const genomicsdb_pb::ExportConfiguration*);
   static void get_pb_from_json_file(google::protobuf::Message* pb_config, const std::string& json_file);
+  static bool output_to_stdout(const std::string& name) {
+    return name.empty() || name == "-";
+  }
  protected:
   bool m_single_workspace_path;
   bool m_single_array_name;
@@ -276,6 +279,9 @@ class GenomicsDBImportConfig : public GenomicsDBConfigBase {
   inline size_t get_num_cells_per_tile() const {
     return m_num_cells_per_tile;
   }
+  inline int64_t get_tiledb_compression_type() const {
+    return m_tiledb_compression_type;
+  }
   inline int64_t get_tiledb_compression_level() const {
     return m_tiledb_compression_level;
   }
@@ -351,6 +357,8 @@ class GenomicsDBImportConfig : public GenomicsDBConfigBase {
   size_t m_segment_size;
   //TileDB array #cells/tile
   size_t m_num_cells_per_tile;
+  //TileDB compression type
+  int m_tiledb_compression_type;
   //TileDB compression level
   int m_tiledb_compression_level;
   //flag to disallow TileDB pre compression filter Delta Encoding for offsets to fields

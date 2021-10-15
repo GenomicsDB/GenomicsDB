@@ -45,6 +45,7 @@
 #include "variant_query_config.h"
 #include "vcf_adapter.h"
 #include "vid_mapper_pb.h"
+#include "genomicsdb_logger.h"
 
 #define TO_VARIANT_QUERY_CONFIG(X) (reinterpret_cast<VariantQueryConfig *>(static_cast<void *>(X)))
 #define TO_VARIANT_STORAGE_MANAGER(X) (reinterpret_cast<VariantStorageManager *>(static_cast<void *>(X)))
@@ -140,8 +141,21 @@ GenomicsDB::GenomicsDB(const std::string& query_configuration,
       query_config->read_from_JSON_string(query_configuration, concurrency_rank); break;
     case PROTOBUF_BINARY_STRING: {
       query_config->read_from_PB_binary_string(query_configuration, concurrency_rank);
+
+      // Determine which chromosomes are included in the query and pass the list to the annotation service 
+      // so it knows not to bother opening chromosome-specific vcfs that aren't relevant. 
+      // ColumnRange is std::pair<int64_t, int64_t> see genomicsdb.h:71
+      ColumnRange column_partition = query_config->get_column_partition(concurrency_rank);
+      // ContigIntervalTuple is std::tuple<std::string, int64_t, int64_t> see vid_mapper.cc:33
+      std::vector<ContigIntervalTuple> contig_intervals = query_config->get_vid_mapper().get_contig_intervals_for_column_partition(column_partition.first, column_partition.second, true);
+      std::set<std::string> contigs;
+      for (auto interval : contig_intervals) {
+        // std::cerr << "Interval=" << std::get<0>(interval) << ":" << std::get<1>(interval) << std::get<2>(interval) << std::endl;
+        contigs.insert(std::get<0>(interval));
+      }
+
       // Create an annotationService class.
-      m_annotation_service = new AnnotationService(query_configuration);
+      m_annotation_service = new AnnotationService(query_configuration, contigs);
       AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
       break;
     }
@@ -344,7 +358,7 @@ void GatherVariantCalls::operate(VariantCall& variant_call,
                                  const VariantQueryConfig& query_config,
                                  const VariantArraySchema& schema) {
   // m_variant_calls.push_back(std::move(variant_call));
-  std::cout << "TBD: In GatherVariantCalls::operate()" << std::endl;
+  logger.info("TBD: In GatherVariantCalls::operate()");
 }
 
 void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& cell,
@@ -367,8 +381,7 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
   std::string contig_name;
   int64_t contig_position;
   if (!m_vid_mapper.get_contig_location(coords[1], contig_name, contig_position)) {
-    std::cerr << "Could not find genomic interval associated with Variant(Call) at "
-              << coords[1] << std::endl;
+    logger.warn("Could not find genomic interval associated with Variant(Call) at {}", coords[1]);
     return;
   }
 

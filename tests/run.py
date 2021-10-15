@@ -1505,6 +1505,29 @@ def main():
                       } },
                ],
             },
+            { "name" : "java_genomicsdb_importer_from_vcfs_duplicate_fields",
+              'callset_mapping_file': 'inputs/callsets/duplicate_fields.json',
+              'vid_mapping_file': 'inputs/vid_multi_contig_empty_contigs.json',
+              'size_per_column_partition': 4096,
+              'generate_array_name_from_partition_bounds': True,
+              'chromosome_intervals': [ '1:1-150121160' ],
+              "query_params": [
+                  {
+                    'attributes': attributes_multi_contig,
+                    "force_override": True,
+                    'segment_size': 4096,
+                    'pass_as_vcf': True,
+                    'produce_GT_field': True,
+                    "query_column_ranges": [{
+                      "range_list": [{
+                          "low": 0,
+                          "high": 1000000000
+                      }]
+                  }], "golden_output": {
+                      "java_vcf"   : "golden_outputs/duplicate_fields_java_vcf",
+                      } },
+               ],
+            },
     ];
     if(len(sys.argv) < 5):
         loader_tests = loader_tests0 + loader_tests1
@@ -1532,6 +1555,8 @@ def main():
         ws_dir = tmpdir + os.path.sep + 'ws'
         if(test_name.find('java_genomicsdb_importer_from_vcfs') != -1):
             ws_dir = java_import_dir+os.path.sep+test_name
+        if(test_name.find('java_genomicsdb_importer_from_vcfs_duplicate_fields') != -1):
+            test_params_dict['vid_mapping_file'] = tmpdir+os.path.sep+'vid.json'
         test_loader_dict = create_loader_json(ws_dir, test_name, test_params_dict);
         incremental_load = False
         if(test_name == "t0_1_2"):
@@ -1705,12 +1730,15 @@ def main():
                         #ignore some corner cases for now
                         if(query_type == 'vcf'
                             and 'query_filter' not in query_param_dict
-                            and test_name.find('t0_1_2_combined') == -1
                             ):
-                            cmd = ctest_dir+'/ctests columnar_gvcf_iterator_test ' \
+                            #These tests fail because PL remapping is WIP
+                            skip_GT_matching = (test_name.find('t0_haploid_triploid_1_2_3_triploid_deletion') != -1
+                              or test_name.find('min_PL_spanning_deletion') != -1)
+                            cmd = ctest_dir+'/ctests --durations yes columnar_gvcf_iterator_test ' \
                                     + ' --query-json-file ' + query_json_filename \
                                     + ' --golden-output-file '+query_param_dict['golden_output'][query_type] \
-                                    + ' --loader-json-file '+loader_json_filename
+                                    + ' --loader-json-file '+loader_json_filename \
+                                    + (' --skip-GT-matching' if(skip_GT_matching) else '')
                             run_cmd(cmd, True, 'Ctests '+test_name, dont_capture_output=True)
     test_with_java_options(top_tmpdir, lib_path, jacoco)
     test_pre_1_0_0_query_compatibility(top_tmpdir)

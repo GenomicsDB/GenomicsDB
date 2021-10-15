@@ -59,6 +59,7 @@ message AnnotationSource {
   required string data_source = 2;
   repeated string attributes = 3;
   optional bool is_vcf = 4 [default = true];
+  repeated string file_chromosomes = 5;
 }
 
 message ExportConfiguration {
