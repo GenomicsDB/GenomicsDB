@@ -498,10 +498,15 @@ void GenomicsDB::generate_ped_map(const std::string& array,
 
   GenomicsDBPlinkProcessor proc(query_config, progress_interval, fam_list); 
 
+  std::cout << "After 0" << std::endl;
   query_variant_calls(array, query_config, (GenomicsDBVariantCallProcessor&)proc);
+  std::cout << "After 1" << std::endl;
   proc.advance_state();
+  std::cout << "After 2" << std::endl;
   query_variant_calls(array, query_config, (GenomicsDBVariantCallProcessor&)proc);
+  std::cout << "After 3" << std::endl;
   proc.advance_state();
+  std::cout << "After 4" << std::endl;
 }
 
 // Template to get the mapped interval from the GenomicsDB array for the Variant(Call)
@@ -697,6 +702,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
                                         const int64_t* coords,
                                         const genomic_interval_t& genomic_interval,
                                         const std::vector<genomic_field_t>& genomic_fields) {
+  std::cout << "\t\t\t\tdebugging Process state " << state << std::endl;
   static size_t tm = 0;
   auto progress_bar = [&] () {
     size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -723,7 +729,11 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
         }
       }
       
-      logger.info("Query progress: r:{} c:{}, {} / {} = {:.2f}%", row, col, (long)col * total_rows + row, (long)total_rows * total_cols, 100 * ((double)col * total_rows + row)/(total_rows * total_cols));
+      long num = (long)col * total_rows + row + ((bool)state)*((long)total_rows * total_cols);
+      long den = (long)total_rows * total_cols * 2;
+
+      //logger.info("Query progress: r:{} c:{}, {} / {} = {:.2f}%", row, col, (long)col * total_rows + row, (long)total_rows * total_cols, 100 * ((double)col * total_rows + row)/(total_rows * total_cols));
+      logger.info("Query progress: r:{} c:{}, {} / {} = {:.2f}%", row, col, num, den, 100 * (double)num / den);
 
       tm = now;
     }
@@ -733,9 +743,11 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     progress_bar();
   }
 
+  std::cout << "hello" << std::endl;
+
   // ===============================================
-  if(state) {
-  std::cout << "========================================== sample " << sample_map[sample_name] << " / " << sample_map.size() << ", variant " << variant_map[coords[1]].first << " / " << variant_map.size() << " ==========================================" << std::endl;
+  if(state && sample_map.count(coords[0])) {
+  std::cout << "========================================== sample " << sample_map[coords[0]].first + 1 << " / " << sample_map.size() << ", variant " << variant_map[coords[1]].first + 1 << " / " << variant_map.size() << " ==========================================" << std::endl;
     std::cout << "\t sample=" << sample_name << "\n";
   std::cout << "\t row=" << coords[0] << " position=" << coords[1]
             << "\n\t genomic_interval=" << genomic_interval.contig_name
@@ -747,7 +759,9 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
   std::cout << std::endl;
   }
   // ===============================================
-  std::string ref_string, alt_string, gt_string, id_string;
+  std::cout << "goodbye" << std::endl;
+
+  std::string ref_string, alt_string, gt_string, id_string, pl_string, pq_string;
   for(auto& f : genomic_fields) {
     if(f.name == "ALT") {
       std::string combined_alt = f.recombine_ALT_value();
@@ -755,14 +769,20 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
         alt_string = combined_alt.substr(1, combined_alt.length() - 2);
       }
     }
-    if(f.name == "REF") {
+    else if(f.name == "REF") {
       ref_string = f.to_string(get_genomic_field_type(f.name));
     }
-    if(f.name == "GT") {
+    else if(f.name == "GT") {
       gt_string = f.to_string(get_genomic_field_type(f.name));
     }
-    if(f.name == "ID") {
+    else if(f.name == "ID") {
       id_string = f.to_string(get_genomic_field_type(f.name));
+    }
+    else if(f.name == "PL") {
+      pl_string = f.to_string(get_genomic_field_type(f.name));
+    }
+    else if(f.name == "PQ") {
+      pq_string = f.to_string(get_genomic_field_type(f.name));
     }
   }
 
@@ -787,39 +807,53 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
   }
   vec.push_back(alt_string);
 
+  std::cout << "\t\t\t\tdebugging " << vec.size() << " alleles " << std::endl;
+
   std::vector<int> gt_vec;
   auto iter = gt_string.begin();
-  bool phased = false;
-  while((iter = find_if(gt_string.begin(), gt_string.end(), [] (char c) { return c == '|' || c == '/'; })) != gt_string.end()) {
-    index = iter - gt_string.begin();
-    if(*iter == '|') {
-      phased = true;
+  bool sample_phased = false;
+ 
+  bool new_col = (last_coord != coords[1] || last_sample == -1);
+
+  std::cout << "\t\t\t\tdebugging sample map size " << sample_map.size() << std::endl;
+  std::cout << "\t\t\t\tdebugging sample " << sample_name << ", " << coords[0] << ", col " << coords[1] << ", gt = " << gt_string << std::endl;
+
+  try {
+    while((iter = find_if(gt_string.begin(), gt_string.end(), [] (char c) { return c == '|' || c == '/'; })) != gt_string.end()) {
+      index = iter - gt_string.begin();
+      if(*iter == '|') {
+        sample_phased = true;
+      }
+      gt_vec.push_back(std::stoi(gt_string.substr(0, index)));
+      gt_string.erase(0, index + 1);
     }
-    gt_vec.push_back(std::stoi(gt_string.substr(0, index)));
-    gt_string.erase(0, index + 1);
+    gt_vec.push_back(std::stoi(gt_string));
   }
-  gt_vec.push_back(std::stoi(gt_string));
+  catch (...) { // behave as if this cell is missing (probably ./.)
+    std::cout << "\t\t\t\tdebugging omitting " << sample_name << std::endl;
+    return;
+  }
+
+  std::cout << "\t\t\t\t\t\t\t\t\tINFO WARNING FIXME remove always phased" << std::endl;
+  sample_phased = true;
+
+  if(!state) {
+    sample_map.insert(std::make_pair(coords[0], std::make_pair(-1, sample_name)));
+    if(!variant_map.count(coords[1])) {
+      variant_map.insert(std::make_pair(coords[1], std::make_pair(-1, sample_phased)));
+    }
+    else {
+      variant_map[coords[1]].second = variant_map[coords[1]].second & sample_phased;
+    }
+    last_coord = coords[1];
+    return;
+  }
 
   int16_t ploidy = gt_vec.size();
 
   if(ploidy < 2) { // FIXME: not applicable for bgen
     logger.error("Samples must be at least diploid");
     exit(1);
-  }
-
-
-  bool new_col = (last_coord != coords[1] || last_sample == -1);
-
-  if(!state) {
-    sample_map.insert(std::make_pair(sample_name, -1));
-    if(!variant_map.count(coords[1])) {
-      variant_map.insert(std::make_pair(coords[1], std::make_pair(-1, phased)));
-    }
-    else {
-      variant_map[coords[1]].second = variant_map[coords[1]].second & phased;
-    }
-    last_coord = coords[1];
-    return;
   }
 
   if(state == 1) {
@@ -831,14 +865,16 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     gt_vec.push_back(std::stoi(gt_string)); */
 
     std::string rsid;
+    std::string rsid_row;
     if(id_string.size()) {
-      rsid = genomic_interval.contig_name + " " + id_string + " 0 " + std::to_string(genomic_interval.interval.first);
+      rsid = id_string;
     }
     else {
-      rsid = genomic_interval.contig_name + " " + genomic_interval.contig_name + ":" + std::to_string(genomic_interval.interval.first) + " 0 " + std::to_string(genomic_interval.interval.first);
+      rsid = genomic_interval.contig_name + ":" + std::to_string(genomic_interval.interval.first);
     }
+    rsid_row = genomic_interval.contig_name + " " + rsid + " 0 " + std::to_string(genomic_interval.interval.first);
 
-    int sind = sample_map[sample_name];
+    int sind = sample_map[coords[0]].first;
     int vind = variant_map[coords[1]].first;
 
     // backfill if needed
@@ -855,37 +891,49 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
       for(int i = 0; i < add_to_prev; i++) { // backfill samples missing from previous variant
         tped_file << " 0 0";
         write_to_bed(1);
-        std::cout << "sample " << sample_map[sample_name] << " write 1 to bed (backfill 1)" << std::endl;
+        std::cout << "sample " << sample_map[coords[0]].first << " write 1 to bed (backfill 1)" << std::endl;
         std::cout << "backfill" << std::endl;
 
-        // BGEN: backfill probability data FIXME should not need to, missingness
-        //bgen_empty_cell(ploidy, vec.size(), phased);
+        // BGEN: backfill probability data
+        std::cout << "bgen backfill 1 alleles " << last_alleles << std::endl;
+        bgen_empty_cell(2, last_alleles, variant_map[coords[1]].second);
       }
       std::cout << "flush to bed" << std::endl;
       flush_to_bed();
-   
-      // tped header
-      tped_file << std::endl; 
-      tped_file << rsid;
-    
-      std::cout << "header" << std::endl;
+
+      std::cout << "tped newline" << std::endl;
+      if(last_sample != -1) { // first line should not have newline
+        tped_file << std::endl;
+      }
+      tped_file << rsid_row;
 
       // BGEN: fill in genotype block size and min/max ploidy from previous iteration
       if(last_sample != -1) { // no need on first column
         bw();
         std::cout << "new col, calling bgen finish gt" << std::endl;
+        if(samples_in_column < sample_map.size()) {
+          min_ploidy = (min_ploidy > 2) ? 2 : min_ploidy;
+          max_ploidy = (max_ploidy < 2) ? 2 : max_ploidy;
+        }
+        samples_in_column = 0;
         bgen_finish_gt();
       }
+      min_ploidy = 64;
+      max_ploidy = -1;
 
       // BGEN: variant data blocks
-      int32_t N = sample_map.size();
-      bw();
-      std::cout << "\twriting N " << N << std::endl;
-      bgen_file.write((char*)&N, 4); // BGEN: 4 byte N
+      //int32_t N = sample_map.size();
+      //bw();
+      //std::cout << "\twriting N " << N << std::endl;
+      //bgen_file.write((char*)&N, 4); // BGEN: 4 byte N
       int16_t zero = 0;
       bw();
-      std::cout << "\twriting 0 length of variant id" << std::endl;
-      bgen_file.write((char*)&zero, 2); // BGEN: 2 byte length of variant identifier, not stored in GenomicsDB so length 0/omitted. May need to use dummy instead
+      int16_t one = 1;
+      std::cout << "\twriting 1 length of variant id" << std::endl;
+      bgen_file.write((char*)&one, 2); // BGEN: 2 byte length of variant identifier, not stored in GenomicsDB so using dummy
+      bw();
+      std::cout << "\twriting 1 dummy variant id" << std::endl;
+      bgen_file.write((char*)&one, 1); // BGEN: dummy variant id
       int16_t rsid_len = rsid.length();
       bw();
       std::cout << "\twriting length of rsid " << rsid_len << std::endl;
@@ -896,7 +944,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
       std::string chrom = genomic_interval.contig_name;
       int16_t chrom_len = chrom.length();
       bw();
-      std::cout << "\twriting chrom len " << chrom_len; 
+      std::cout << "\twriting chrom len " << chrom_len << std::endl; 
       bgen_file.write((char*)&chrom_len, 2); // BGEN: 2 byte chrom length
       bw();
       std::cout << "\twriting chrom " << chrom << std::endl;
@@ -926,57 +974,77 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
       bgen_gt_size_offset = bgen_file.tellp();
       bgen_gt_size = 0;
       int32_t fourB_zero = 0;
-      bw();
+      /*bw();
       std::cout << "\twriting 0 to length of gt block" << std::endl;
       bgen_file.write((char*)&fourB_zero, 4); // BGEN: length C of rest of data in variant (placeholder)
+      if(compression) {
+        std::cout << "\twriting 0 to D (uncompressed size)" << std::endl;
+        bgen_file.write((char*)&fourB_zero, 4); // BGEN: length C of rest of data in variant (placeholder)
+      }*/
 
       // BGEN: preallocate probability data storage
-      bw();
-      std::cout << "\twriting N " << N << std::endl;
-      bgen_file.write((char*)&N, 4); // BGEN: 4 byte N
-      bw();
-      std::cout << "\twriting K " << K << std::endl;
-      bgen_file.write((char*)&K, 2); // BGEN: 2 byte K
+      int32_t N = sample_map.size();
+      std::cout << "buf size " << codec_buf.size() << std::endl;
+      std::cout << "\tbuffering N " << N << std::endl;
+      //bgen_file.write((char*)&N, 4); // BGEN: 4 byte N
+      codec_buf.append((char*)&N, 4); // BGEN: 4 byte N
+      std::cout << "buf size " << codec_buf.size() << std::endl;
+      std::cout << "\tbuffering K " << K << std::endl;
+      //bgen_file.write((char*)&K, 2); // BGEN: 2 byte K
+      codec_buf.append((char*)&K, 2); // BGEN: 2 byte K
       bgen_min_ploidy_offset = bgen_file.tellp();
-      bw();
-      std::cout << "\twriting 0 to min ploidy " << std::endl;
-      bgen_file.write((char*)&fourB_zero, 1); // BGEN: 1 byte min ploidy (placeholder)
-      bw();
-      std::cout << "\twriting 0 to max ploidy " << std::endl;
+      std::cout << "buf size " << codec_buf.size() << std::endl;
+      std::cout << "\tbuffering 0 to min ploidy " << std::endl;
+      //bgen_file.write((char*)&fourB_zero, 1); // BGEN: 1 byte min ploidy (placeholder)
+      codec_buf.append((char*)&fourB_zero, 1); // BGEN: 1 byte min ploidy (placeholder)
+      std::cout << "buf size " << codec_buf.size() << std::endl;
+      std::cout << "\tbuffering 0 to max ploidy " << std::endl;
       bgen_max_ploidy_offset = bgen_file.tellp();
-      bgen_file.write((char*)&fourB_zero, 1); // BGEN: 1 byte max ploidy (placeholder)
+      //bgen_file.write((char*)&fourB_zero, 1); // BGEN: 1 byte max ploidy (placeholder)
+      codec_buf.append((char*)&fourB_zero, 1); // BGEN: 1 byte max ploidy (placeholder)
       bgen_ploidy_info_offset = bgen_file.tellp();
-      char default_sample_info = 0b10000000; // default missingness and ploidy information: set to missing/ploidy unspecified
+      char default_sample_info = 0b10000010; // default missingness and ploidy information: set to missing/diploid unspecified
       for(int j = 0; j < N; j++) {
-        bw();
-        std::cout << "\twriting " << j << " / " << N << " default info " << default_sample_info << std::endl;
-        bgen_file.write(&default_sample_info, 1); // BGEN: default sample information within this variant: because missing is set to 1, no need to backfill skipped cells
+        std::cout << "buf size " << codec_buf.size() << std::endl;
+        std::cout << "\tbuffering " << j << " / " << N << " default info " << (int)default_sample_info << std::endl;
+        //bgen_file.write(&default_sample_info, 1); // BGEN: default sample information within this variant: because missing is set to 1, no need to backfill skipped cells
+        codec_buf.append(&default_sample_info, 1); // BGEN: default sample information within this variant: because missing is set to 1, no need to backfill skipped cells
       }
-      bw();
-      std::cout << "\twriting phased " << variant_map[coords[1]].second << std::endl;
-      bgen_file.write((char*)&variant_map[coords[1]].second, 1); // BGEN: 1 byte phased
+      std::cout << "buf size " << codec_buf.size() << std::endl;
+      std::cout << "\tbuffering phased " << variant_map[coords[1]].second << std::endl;
+      //bgen_file.write((char*)&variant_map[coords[1]].second, 1); // BGEN: 1 byte phased
+      codec_buf.append((char*)&variant_map[coords[1]].second, 1); // BGEN: 1 byte phased
       char B = 8; // precision at one byte to avoid alignment difficulties
-      bw();
-      std::cout << "\twriting precision " << B << std::endl;
-      bgen_file.write(&B, 1); // BGEN: 1 byte unsigned bits of precision
+      std::cout << "buf size " << codec_buf.size() << std::endl;
+      std::cout << "\tbuffering precision " << (int)B << std::endl;
+      //bgen_file.write(&B, 1); // BGEN: 1 byte unsigned bits of precision
+      codec_buf.append(&B, 1); // BGEN: 1 byte unsigned bits of precision
       bgen_probability_offset = bgen_file.tellp();
-      bgen_gt_size = 10 + N; // size of metainfo for gt, still needs probability sizes
+      //bgen_gt_size = 10 + N; // size of metainfo for gt, still needs probability sizes
+    }
+    else {
+      samples_in_column++;
     }
 
     for(int i = 0; i < add_to_current; i++) { // backfill samples missing from current variant
       std::cout << "backfill 2" << std::endl;
 
       write_to_bed(1);
-      std::cout << "sample " << sample_map[sample_name] << " write 1 to bed (backfill 2)" << std::endl;
+      std::cout << "sample " << sample_map[coords[0]].first << " write 1 to bed (backfill 2)" << std::endl;
 
       tped_file << " 0 0";
 
       // BGEN: backfill probability data FIXME should not need to, missingness
-      // bgen_empty_cell(ploidy, vec.size(), phased);
+      std::cout << "bgen backfill 2 alleles " << last_alleles << std::endl;
+      bgen_empty_cell(2, vec.size(), variant_map[coords[1]].second);
     }
 
+    // safe to update now that backfilling is over
+    last_alleles = vec.size();
+    std::cout << "\t\t\t\tdebug last alleles is " << last_alleles << std::endl;
+
     if(new_col) {
-      bim_file << rsid;
+      bim_file << rsid_row;
       bim_file << " " << vec[0] << " " << vec[1] << std::endl;
     }
 
@@ -984,7 +1052,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
 
     std::cout << "wrote " << vec[gt_vec[0]] << " " << vec[gt_vec[1]] << std::endl;
 
-    last_sample = sample_map[sample_name];
+    last_sample = sample_map[coords[0]].first;
     last_variant = vind;
     last_coord = coords[1];
 
@@ -1004,33 +1072,93 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     }
 
     write_to_bed(gt_code);
-    std::cout << "sample " << sample_map[sample_name] << " write " << (int)gt_code << " to bed" << std::endl;
+    std::cout << "sample " << sample_map[coords[0]].first << " write " << (int)gt_code << " to bed" << std::endl;
 
-    // BGEN: write probability data: for now
-    auto get_probabilities = [&] (const std::vector<int>& v) {
-      if(variant_map[coords[1]].second) {
-        return v == gt_vec ? -1 : 0;
+    // convert PL to BGEN format
+    std::vector<double> pl_vec;
+    try {
+      if(pl_string.length()) {
+        while((index = pl_string.find(",")) != std::string::npos) {
+          pl_vec.push_back(std::stoi(pl_string.substr(0, index)));
+          pl_string.erase(0, index + 1);
+        }
+        pl_vec.push_back(std::stoi(pl_string));
       }
-      else {
+    }
+    catch(...) {
+      pl_vec.clear();
+    }
+    
+    std::vector<char> probs;
+    
+    double total = 0;
+    for(auto& a : pl_vec) {
+      a = std::pow(10, (double)a/-10);
+      total += a;      
+    }
+
+    for(auto& a : pl_vec) {
+      char prob = (char)((double)std::numeric_limits<char>::max() * a / total);
+      probs.push_back(prob);
+    }
+
+    double pq;
+    if(pq_string.length()) {
+      try {
+        pq = std::pow(10, (double)std::stoi(pq_string)/-10);
+      }
+      catch(...) {
+        pq_string.clear();
+      }
+    }
+
+    auto write_phased_probability = [&] (const std::vector<int>& v, int ind) {
+      char p = gt_vec[v[0]] == v[1] ? -1 : 0;
+      std::cout << "buf size " << codec_buf.size() << std::endl;
+      std::cout << "\tbuffering phased probability " << (int)p << std::endl;
+      //bgen_file.write(&p, 1);
+      //bgen_gt_size++;
+      codec_buf.push_back(p);
+    };
+
+    auto write_unphased_probability = [&] (const std::vector<int>& v, int ind) {
+      char p;
+      if(!probs.size()) {
         std::vector<int> counts(vec.size(), 0);
         for(auto& g : gt_vec) {
           counts[g]++;
         }
-        return counts == v ? -1 : 0;
+        p = counts == v ? -1 : 0;
       }
+      else {
+        p = probs[ind];
+      }
+      std::cout << "buf size " << codec_buf.size() << std::endl;
+      std::cout << "\tbuffering unphased probability " << (int)p << std::endl;
+      //bgen_file.write(&p, 1);
+      //bgen_gt_size++;
+      codec_buf.push_back(p);
     };
+
     // store sample as not missing/ploidy info
     if(ploidy < 64) {
       min_ploidy = ploidy < min_ploidy ? ploidy : min_ploidy;
       max_ploidy = ploidy > max_ploidy ? ploidy : max_ploidy;
-      int offset = bgen_file.tellp();
-      bgen_file.seekp(bgen_ploidy_info_offset + sample_map[sample_name]);
+      //int offset = bgen_file.tellp();
+      //bgen_file.seekp(bgen_ploidy_info_offset + sample_map[coords[0]].first);
       char p = ploidy;
-      bw();
-      std::cout << "\twriting missingness/ploidy info " << (int)p << std::endl;
-      bgen_file.write(&p, 1); //BGEN: write ploidy/missingness info first bit will be 0 for not missing because < 64
-      bgen_file.seekp(offset);
-      bgen_gt_size += bgen_enumerate_probabilities(ploidy, vec.size(), variant_map[coords[1]].second, get_probabilities);
+      //bw();
+      std::cout << "buf size " << codec_buf.size() << std::endl;
+      std::cout << "\tbufferingmissingness/ploidy info " << (int)p << std::endl;
+      //bgen_file.write(&p, 1); //BGEN: write ploidy/missingness info first bit will be 0 for not missing because < 64
+      //bgen_file.seekp(offset);
+      codec_buf[8 + sample_map[coords[0]].first] = p;
+      if(variant_map[coords[1]].second) { // phased
+        bgen_enumerate_phased(ploidy, vec.size(), write_phased_probability);
+      }
+      else { // unphased
+        bgen_enumerate_unphased(ploidy, vec.size(), write_unphased_probability);
+      }
     }
   }
 }
@@ -1040,12 +1168,13 @@ void GenomicsDBPlinkProcessor::process(const interval_t& interval) {
 }
 
 void GenomicsDBPlinkProcessor::advance_state() {
+  std::cout << "\t\t\t\tdebugging Advance state " << state << std::endl;
   if(!state) {
     // associate samples with sorted position
     int i = -1;
     for(auto& a : sample_map) {
       ++i;
-      a.second = (uint64_t)i;
+      a.second.first = (uint64_t)i;
     }
     // associate variants with sorted position
     i = -1;
@@ -1057,9 +1186,10 @@ void GenomicsDBPlinkProcessor::advance_state() {
     last_variant = 0;
     last_coord = -1;
   
-    // Find samples coincident with entries in fam files (if specified) and associate informatoin with sample name
+    // Find samples coincident with entries in fam files (if specified) and associate information with sample name
     std::map<std::string, std::string> fam_entries;
     
+    // TODO maybe do some kind of buffering in case there is a huge number of fam entries
     std::cout << "fam_list " << fam_list << std::endl;
     if(fam_list.length()) {
       std::ifstream fam_list_file(fam_list);
@@ -1074,18 +1204,16 @@ void GenomicsDBPlinkProcessor::advance_state() {
           std::string fid, wfid, fthid, mthid;
           char sex, pt;
           std::stringstream(entry) >> fid >> wfid >> fthid >> mthid >> sex >> pt;
-          if(sample_map.count(wfid)) {
-            fam_entries.insert(std::make_pair(wfid, entry));
-          }
+          fam_entries.insert(std::make_pair(wfid, entry));
         }
       }
     }
     for(auto& s : sample_map) {
-      if(fam_entries.count(s.first)) {
-        fam_file << fam_entries[s.first] << std::endl;
+      if(fam_entries.count(s.second.second)) {
+        fam_file << fam_entries[s.second.second] << std::endl;
       }
       else {
-        fam_file << s.first << " " << s.first << " 0 0 0 0" << std::endl;
+        fam_file << s.second.second << " " << s.second.second << " 0 0 0 0" << std::endl;
       }
     }
 
@@ -1113,7 +1241,7 @@ void GenomicsDBPlinkProcessor::advance_state() {
 
     int16_t len;
     for(auto& s : sample_map) { // BGEN: write each sample id, can potentially be combined with above foreach loop
-      len = s.first.length();
+      len = s.second.second.length();
       lsi += len + 2; // total length increased by length of identifier and 2 byte length field
       
       bw();
@@ -1121,13 +1249,19 @@ void GenomicsDBPlinkProcessor::advance_state() {
       bgen_file.write((char*)&len, 2);
       bw();
       std::cout << "\twriting sample id " << s.first << std::endl;
-      bgen_file.write(s.first.c_str(), len);
+      bgen_file.write(s.second.second.c_str(), len);
     }
 
     bgen_file.seekp(24);
     bw();
     std::cout << "\twriting size of sample identifier block " << lsi << std::endl;
     bgen_file.write((char*)&lsi, 4); // BGEN: 4 byte total length of sample identifier block, now with correct value
+    bgen_file.seekp(0);
+    bw();
+    int32_t offset = lsi + 20;
+    std::cout << "\tupdating initial offset with size of sample block, now " << offset << std::endl;
+    bgen_file.write((char*)&offset, 4);
+    // BGEN: update initial offset to include size of sample block
     bgen_file.seekp(24 + lsi); // seek to end of sample identifier block
   }
 
@@ -1141,8 +1275,9 @@ void GenomicsDBPlinkProcessor::advance_state() {
       tped_file << " 0 0";
       std::cout << "last sample write 1 to bed (backfill 3)" << std::endl;
       write_to_bed(1);
-      // FIXME should not need to, missingness
-      //bgen_empty_cell();
+      // BGEN: backfill last variant
+      std::cout << "bgen backfill 3 alleles " << last_alleles << std::endl;
+      bgen_empty_cell(2, last_alleles, variant_map[last_coord].second);
     }
     std::cout << "flush to bed" << std::endl;
     flush_to_bed();

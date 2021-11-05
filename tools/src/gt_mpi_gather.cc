@@ -31,6 +31,8 @@
 #include "broad_combined_gvcf.h"
 #include "vid_mapper_pb.h"
 #include "genomicsdb.h"
+#include "tiledb.h"
+#include "tiledb_utils.h"
 
 #ifdef USE_BIGMPI
 #include "bigmpi.h"
@@ -48,7 +50,7 @@ enum ArgsEnum {
   ARGS_IDX_PRODUCE_HISTOGRAM,
   ARGS_IDX_PRINT_CALLS,
   ARGS_IDX_PRINT_CSV,
-  ARGS_IDX_PED_MAP,
+  ARGS_IDX_PLINK,
   ARGS_IDX_FAM_LIST,
   ARGS_IDX_PROG,
   ARGS_IDX_VERSION,
@@ -64,7 +66,7 @@ enum CommandsEnum {
   COMMAND_PRODUCE_HISTOGRAM,
   COMMAND_PRINT_CALLS,
   COMMAND_PRINT_CSV,
-  COMMAND_PED_MAP,
+  COMMAND_PLINK,
   COMMAND_PRINT_ALT_ALLELE_COUNTS,
   COMMAND_COLUMNAR_GVCF
 };
@@ -415,8 +417,22 @@ void produce_column_histogram(const VariantQueryProcessor& qp, const VariantQuer
   for (auto val : num_equi_load_bins)
     histogram_op.equi_partition_and_print_bins(val);
 }
-
+  
 void print_usage() {
+  std::cout << "FIXME remove" << std::endl;
+  char message[] = "aaaaaasdfsdfkmmmmmmeeeeeaaaaaasdfasdfasdfasdfasdfasdfbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbnml\0";
+  std::string str(message);
+  std::cout << "Original size: " << str.length() << std::endl;
+  char* data;
+  size_t data_size;
+
+  void *codec;
+  TileDBUtils::create_codec(&codec, TILEDB_ZSTD, Z_DEFAULT_COMPRESSION);
+  TileDBUtils::compress(codec, (unsigned char*)message, str.length(), (void**)&data, data_size);
+  TileDBUtils::finalize_codec(codec);
+
+  std::cout << "Compressed size " << data_size << std::endl;
+
   std::cout << "Usage: gt_mpi_gather [options]\n"
             << "where options include:\n"
             << "\t \e[1m--help\e[0m, \e[1m-h\e[0m Print a usage message summarizing options available and exit\n"
@@ -440,13 +456,13 @@ void print_usage() {
             << "\t\t Optional, prints VariantCalls in a JSON format\n"
             << "\t \e[1m--print-csv\e[0m\n"
             << "\t\t Optional, outputs CSV with the fields and the order of CSV lines determined by the query attributes\n"
-            << "\t \e[1m--produce-ped-map[=output_prefix]\e[0m\n"
+            << "\t \e[1m--produce-plink[=output_prefix]\e[0m\n"
             << "\t\t Optional, outputs .ped and .map files for use with plink, named <output_prefix>.ped and <output_prefix>.map if output_prefix is specified, output.ped and output.map otherwise\n"
             << "\t\t \e[1m--fam-list<=filename>\e[0m\n"
-            << "\t\t\t used with \e[1m--produce-ped-map\e[0m\n"
+            << "\t\t\t used with \e[1m--produce-plink\e[0m\n"
             << "\t\t\t Takes a file containing the names of .fam files to include this information in the output ped file\n"
             << "\t\t\t The within-family id (second column) values of the .fam files should match the sample names in GenomicsDB to be correctly associated\n"
-            << "\t\t \e[1m--progress[=interval] Show query progress (currently implemented for: --produce-ped-map\e[0m\n"
+            << "\t\t \e[1m--progress[=interval] Show query progress (currently implemented for: --produce-plink\e[0m\n"
             << "\t\t\t specify minimum amount of time between progress messages\n"
             << "\t\t\t where <interval> is a floating point number. Default units are seconds, explicitly specify seconds, minutes, or hours by appending s, m, or h to the end of the number\n"
             << "\t \e[1m--produce-Broad-GVCF\e[0m\n"
@@ -506,7 +522,7 @@ int main(int argc, char *argv[]) {
     {"produce-histogram",0,0,ARGS_IDX_PRODUCE_HISTOGRAM},
     {"print-calls",0,0,ARGS_IDX_PRINT_CALLS},
     {"print-csv",0,0,ARGS_IDX_PRINT_CSV},
-    {"produce-ped-map", 2, 0, ARGS_IDX_PED_MAP},
+    {"produce-plink", 2, 0, ARGS_IDX_PLINK},
     {"progress",2,0, ARGS_IDX_PROG},
     {"fam-list", 1, 0, ARGS_IDX_FAM_LIST},
     {"print-AC",0,0,ARGS_IDX_PRINT_ALT_ALLELE_COUNTS},
@@ -586,8 +602,8 @@ int main(int argc, char *argv[]) {
     case ARGS_IDX_PRINT_CSV:
       command_idx = COMMAND_PRINT_CSV;
       break;
-    case ARGS_IDX_PED_MAP:
-      command_idx = COMMAND_PED_MAP;
+    case ARGS_IDX_PLINK:
+      command_idx = COMMAND_PLINK;
       if(optarg) {
         ped_map_prefix = std::string(optarg);
       }
@@ -718,7 +734,7 @@ int main(int argc, char *argv[]) {
       case COMMAND_PRINT_ALT_ALLELE_COUNTS:
         print_calls(qp, query_config, command_idx, query_config.get_vid_mapper());
         break;
-      case COMMAND_PED_MAP:
+      case COMMAND_PLINK:
         std::cerr << "Command ped map" << std::endl;
         std::cerr << query_config.get_workspace(my_world_mpi_rank) << std::endl;
         std::cerr << query_config.get_vid_mapping_file() << std::endl;

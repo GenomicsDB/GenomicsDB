@@ -35,6 +35,8 @@
 
 #include "genomicsdb_exception.h"
 #include "variant_query_config.h"
+#include "tiledb.h"
+#include "tiledb_utils.h"
 
 #include <map>
 #include <set>
@@ -244,17 +246,25 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
 class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallProcessor {
   public:
     GenomicsDBPlinkProcessor(VariantQueryConfig* qc, double progress_interval = -1, std::string fam_list = "") : query_config(qc), progress_interval(progress_interval), fam_list(fam_list) {
+      // For use with BGEN compression
+      if(compression == 1) {
+        TileDBUtils::create_codec(&codec, TILEDB_GZIP, Z_DEFAULT_COMPRESSION);
+      }
+      else {
+        TileDBUtils::create_codec(&codec, TILEDB_ZSTD, 9);
+      }
+
+      // open various files
       tped_file.open(prefix + ".tped", std::ios::out); // create / clear
       tped_file.close();
       tped_file.open(prefix + ".tped", std::ios::out | std::ios::in);
       fam_file.open(prefix + ".fam", std::ios::out);
       bim_file.open(prefix + ".bim", std::ios::out);
       bed_file.open(prefix + ".bed", std::ios::out | std::ios::binary);
+      bgen_file.open(prefix + ".bgen", std::ios::out | std::ios::binary);
 
       char magic_numbers[] = {0x6c, 0x1b, 0x01};
       bed_file.write(magic_numbers, 3); // BED: magic numbers
-
-      bgen_file.open(prefix + ".bgen", std::ios::out | std::ios::binary);
 
       int32_t zero = 0;
       int32_t offset = 20; // BGEN: offset of first variant data block relative to 5th byte. Always 20 here because free data area left empty
@@ -276,19 +286,30 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
       std::cout << "\twriting magic numbers" << std::endl;
       bgen_file.write(bgen_magic_numbers, 4); // BGEN: 4 bytes bgen magic number
 
-      int32_t flags = 0b00001000000000000000000000000001;
+      int32_t flags = 0b10000000000000000000000000001000;
+      flags = flags | compression;
       bw();
       std::cout << "\twriting flags " << flags << std::endl;
+
+      for(int i = 0; i < 4; i++) {
+        std::cout << "\t\tbyte " << i << " " << (int)((char*)&flags)[i] << std::endl;
+      }
+
       bgen_file.write((char*)&flags, 4); // BGEN: 4 bytes flags flags, end of header
 
       MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+      // for use with progress bar
       for(auto& a : query_config->get_query_row_ranges(rank)) {
         total_rows += a.second - a.first + 1;
       }
       for(auto& b : query_config->get_query_column_ranges(rank)) {
         total_cols += b.second - b.first + 1;
       }
+    }
+
+    ~GenomicsDBPlinkProcessor() {
+      TileDBUtils::finalize_codec(codec);
     }
 
     virtual void process(const interval_t& interval);
@@ -298,14 +319,15 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
                          const std::vector<genomic_field_t>& genomic_fields);
     void advance_state();
   //private:
-    // flattened coordinate to place in sorted map, phased status of column for bgen purposes (unphased if any are)
+    int compression = 0; // 0 for none, 1 for zlib, 2 for zstd
+    // flattened coordinate to place in sorted map, phased status of column for bgen purposes (entire column considered unphased if any are unphased)
     std::map<uint64_t, std::pair<int, bool>> variant_map;
     double progress_interval;
     std::string fam_list;
     std::string prefix = "output";
     VariantQueryConfig* query_config;
-    // sample name to place in sorted map
-    std::map<std::string, int> sample_map;
+    // row to place in sorted map and sample name
+    std::map<uint64_t, std::pair<int, std::string>> sample_map;
     // fam is identical to tfam, used with bed, tped respectively
     std::fstream tped_file, fam_file, bim_file, bed_file, bgen_file;
     int temp_file_line = 0;
@@ -313,6 +335,7 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
     int last_sample = -1;
     int last_variant = 0;
     int last_coord = -1;
+    int last_alleles = -1;
     int rank;
     int total_rows = 0;
     int total_cols = 0;
@@ -340,78 +363,126 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
     // BGEN variables
     char min_ploidy, max_ploidy;
     int32_t bgen_gt_size;
-    // fixme: hard coded for B = 8
-    // get probability expects GT vector if phased, allele counts otherwise
-    int bgen_enumerate_probabilities(int ploidy, int alleles, bool phased, std::function<char(const std::vector<int>&)> get_probability) {
-      bw();
-      std::cout << "\tin bgen enumerate probabilities, phased " << phased << std::endl;
+    int samples_in_column = 0;
+    void *codec;
+    std::string codec_buf;
+
+    // FIXME: hard coded for B = 8
+    // callback expects GT vector
+    void bgen_enumerate_phased(int ploidy, int alleles, std::function<void(const std::vector<int>&, int)> callback, bool drop_last = true) {
       int size = 0;
-      if(phased) {
-        for(int i = 0; i < ploidy; i++) {
-          for(int j = 0; j < alleles; j++) {
-            char prob = get_probability({i, j});
-            bw();
-            std::cout << "\tin phased iter " << i << ", " << j << ", prob is " << (int)prob << std::endl;
-            bgen_file.write(&prob, 1);
-            size++;
-          }
+      int ind = -1;
+      int limit = alleles - drop_last;
+      for(int i = 0; i < ploidy; i++) {
+        for(int j = 0; j < limit; j++) {
+          //char prob = get_probability({i, j}, ++ind);
+          //bw();
+          //std::cout << "\tin phased iter " << i << ", " << j << ", prob is " << (int)prob << std::endl;
+          //bgen_file.write(&prob, 1);
+          //size++;
+          callback({i, j}, ++ind);
         }
       }
-      else {
-        std::vector<int> allele_counts(alleles);
-        std::function<void(int, int)> enumerate_unphased;
-        enumerate_unphased = [&] (int used, int depth) {
-          for(int i = 0; i <= alleles - used; i++) {
-            allele_counts[depth] = i;
-            if(depth) {
-              enumerate_unphased(used + i, depth - 1);
-            }
-            else if(i < alleles) {
-              char prob = get_probability(allele_counts);
-              bw();
-              std::cout << "\tin unphased, counts are ";
-              for(auto& a : allele_counts) {
-                std::cout << a << " "; 
-              }
-              std::cout << "prob is " << (int)prob << std::endl;
-              bgen_file.write(&prob, 1);
-              size++;
-            }
-          }
-        };
-      }
-      return size;
+      //return size;
     }
 
-    void bgen_empty_cell(int ploidy, int alleles, bool phased) {
-      bgen_gt_size += bgen_enumerate_probabilities(ploidy, alleles, phased, [] (const std::vector<int>& v) { return 0; });
+    // get_probabilitiles expects allele counts
+    void bgen_enumerate_unphased(int ploidy, int alleles, std::function<void(const std::vector<int>&, int)> callback, bool drop_last = true) {
+      int size = 0;
+      int ind = -1;
+      std::vector<int> allele_counts(alleles);
+
+      std::function<void(int, int)> enumerate_unphased;
+      enumerate_unphased = [&] (int used, int depth) {
+        int limit = ploidy - used - ((depth == alleles - 1) && drop_last); // if the highest depth (rightmost) do not iterate to highest possible count in order to drop last ((0, 0, ..., X) is the last)
+        if(depth) {
+          for(int i = 0; i <= limit; i++) { 
+            allele_counts[depth] = i;
+            enumerate_unphased(used + i, depth - 1);
+          }
+        }
+        else {
+          allele_counts[depth] = ploidy - used;
+          //char prob = get_probability(allele_counts, ++ind);
+          //bw();
+          std::cout << "\tin unphased, counts are ";
+          for(auto& a : allele_counts) {
+            std::cout << a << " ";
+          }
+          //std::cout << "prob is " << (int)prob << std::endl;
+          //bgen_file.write(&prob, 1);
+          //size++;
+          callback(allele_counts, ind);
+        }
+      };
+
+      enumerate_unphased(0, alleles - 1);    
+
+      //return size;
     }
 
     void bw() {
       std::cout << "bgen fp: " << bgen_file.tellp() << ", bgen_gt_size: " << bgen_gt_size << std::endl;
     }
 
+    void bgen_empty_cell(int ploidy, int alleles, bool phased) {
+      std::cout << "\tbgen empty cell ploidy " << ploidy << ", alleles " << alleles << ", phased " << phased << std::endl;
+      std::cout << "buf size " << codec_buf.size() << std::endl;
+      auto write_zero = [&] (const std::vector<int>& v, int) {
+        //bw();
+        std::cout << "\tempty cell writing 0" << std::endl;
+        char z = 0;
+        //bgen_file.write(&z, 1);
+        //bgen_gt_size++;
+        codec_buf.push_back(0);
+      };
+      if(phased) {
+        bgen_enumerate_phased(ploidy, alleles, write_zero);
+      }
+      else {
+        bgen_enumerate_unphased(ploidy, alleles, write_zero);
+      }
+      std::cout << "buf size " << codec_buf.size() << std::endl;
+    }
+
     // fill in size, min/max ploidy of last column
     void bgen_finish_gt() {
-      bw();
+      // write min ploidy
+      codec_buf[7] = min_ploidy;      
+      std::cout << "Updating min ploidy to " << (int)min_ploidy << std::endl;
+
+      // write max ploidy
+      codec_buf[8] = max_ploidy;
+      std::cout << "Updating max ploidy to " << (int)max_ploidy << std::endl;
+
+      size_t uncompressed_size = codec_buf.size(), data_size = codec_buf.size();
+
       std::cout << "In bgen finish gt" << std::endl;
-      int offset = bgen_file.tellp();
-      bgen_file.seekp(bgen_gt_size_offset);
-      bw();
-      std::cout << "\twriting gt size " << bgen_gt_size << std::endl;
-      bgen_file.write((char*)&bgen_gt_size, 4); // BGEN: size of previous gt probability data
-      bgen_file.seekp(bgen_min_ploidy_offset);
-      bw();
-      std::cout << "\twriting min ploidy " << (int)min_ploidy << std::endl;
-      bgen_file.write(&min_ploidy, 1); // BGEN: min ploidy of previous gt probability data
-      bgen_file.seekp(bgen_max_ploidy_offset);
-      bw();
-      std::cout << "\twriting max ploidy " << (int)max_ploidy << std::endl;
-      bgen_file.write(&max_ploidy, 1); // BGEN: max ploidy of previous gt probability data
+      std::cout << "buf size " << codec_buf.size() << std::endl;
+
+      if(compression) {
+        char* data;
+        TileDBUtils::compress(codec, (unsigned char*)codec_buf.c_str(), codec_buf.length(), (void**)&data, data_size);
+        bw();
+        size_t total_size = data_size + 4;
+        std::cout << "\twriting total size " << total_size << std::endl;
+        bgen_file.write((char*)&total_size, 4); // BGEN: size of previous gt probability data plus D field
+        bw();
+        std::cout << "\twriting D" << uncompressed_size << std::endl;
+        bgen_file.write((char*)&uncompressed_size, 4);
+        bgen_file.write(data, data_size);
+      }
+      else {
+        bw();
+        std::cout << "\twriting gt size " << uncompressed_size << std::endl;
+        bgen_file.write((char*)&uncompressed_size, 4); // BGEN: size of previous gt probability data plus D field
+        bgen_file.write(codec_buf.c_str(), codec_buf.length());
+      }
+
+      codec_buf.clear();
       bgen_gt_size = 0;
       min_ploidy = 64;
       max_ploidy = -1;
-      bgen_file.seekp(offset);
       bw();
       std::cout << "Done with bgen finish gt" << std::endl;
     }
