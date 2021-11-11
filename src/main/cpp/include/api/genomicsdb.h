@@ -245,7 +245,12 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
 
 class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallProcessor {
   public:
-    GenomicsDBPlinkProcessor(VariantQueryConfig* qc, double progress_interval = -1, std::string fam_list = "") : query_config(qc), progress_interval(progress_interval), fam_list(fam_list) {
+    // the formats variable encodes which formats to produce by the values of specific bits: 0 - bgen, 1 - bed, 2 - tped, e.g. formats == 0b110 encodes bed and tped
+    GenomicsDBPlinkProcessor(VariantQueryConfig* qc, unsigned char formats = 7, int compression = 1, double progress_interval = -1, std::string prefix = "output", std::string fam_list = "") : query_config(qc), compression(compression), progress_interval(progress_interval), prefix(prefix), fam_list(fam_list) {
+      make_bgen = (bool)(formats & 1);
+      make_bed = (bool)(formats & 2);
+      make_tped = (bool)(formats & 4);
+
       // For use with BGEN compression
       if(compression == 1) {
         TileDBUtils::create_codec(&codec, TILEDB_GZIP, Z_DEFAULT_COMPRESSION);
@@ -255,47 +260,40 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
       }
 
       // open various files
-      tped_file.open(prefix + ".tped", std::ios::out); // create / clear
-      tped_file.close();
-      tped_file.open(prefix + ".tped", std::ios::out | std::ios::in);
-      fam_file.open(prefix + ".fam", std::ios::out);
-      bim_file.open(prefix + ".bim", std::ios::out);
-      bed_file.open(prefix + ".bed", std::ios::out | std::ios::binary);
-      bgen_file.open(prefix + ".bgen", std::ios::out | std::ios::binary);
-
-      char magic_numbers[] = {0x6c, 0x1b, 0x01};
-      bed_file.write(magic_numbers, 3); // BED: magic numbers
-
-      int32_t zero = 0;
-      int32_t offset = 20; // BGEN: offset of first variant data block relative to 5th byte. Always 20 here because free data area left empty
-      bw();
-      std::cout << "\twriting offset " << offset << " to first 4 bytes" << std::endl;
-      bgen_file.write((char*)&offset, 4); // BGEN: first 4 bytes has offset
-      bw();
-      std::cout << "\twriting offset " << offset << " to header" << std::endl;
-      bgen_file.write((char*)&offset, 4); // BGEN: beginning of header, next 4 bytes same in this case
-      bw();
-      std::cout << "\twriting 0 for M" << std::endl;
-      bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of variants (M), filled in later
-      bw();
-      std::cout << "\twriting 0 for N" << std::endl;
-      bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of samples (N), filled in later
-
-      char bgen_magic_numbers[] = {'b', 'g', 'e', 'n'};
-      bw();
-      std::cout << "\twriting magic numbers" << std::endl;
-      bgen_file.write(bgen_magic_numbers, 4); // BGEN: 4 bytes bgen magic number
-
-      int32_t flags = 0b10000000000000000000000000001000;
-      flags = flags | compression;
-      bw();
-      std::cout << "\twriting flags " << flags << std::endl;
-
-      for(int i = 0; i < 4; i++) {
-        std::cout << "\t\tbyte " << i << " " << (int)((char*)&flags)[i] << std::endl;
+      if(make_tped) {
+        tped_file.open(prefix + ".tped", std::ios::out);
+      }
+      if(make_bed) {
+        bed_file.open(prefix + ".bed", std::ios::out | std::ios::binary);
+        bim_file.open(prefix + ".bim", std::ios::out);
+      }
+      if(make_tped || make_bed) {
+        fam_file.open(prefix + ".fam", std::ios::out);
+      }
+      if(make_bgen) {
+        bgen_file.open(prefix + ".bgen", std::ios::out | std::ios::binary);
       }
 
-      bgen_file.write((char*)&flags, 4); // BGEN: 4 bytes flags flags, end of header
+      if(make_bed) {
+        char magic_numbers[] = {0x6c, 0x1b, 0x01};
+        bed_file.write(magic_numbers, 3); // BED: magic numbers
+      }
+
+      if(make_bgen) {
+        int32_t zero = 0;
+        int32_t offset = 20; // BGEN: offset of first variant data block relative to 5th byte. Always 20 here because free data area left empty
+        bgen_file.write((char*)&offset, 4); // BGEN: first 4 bytes has offset
+        bgen_file.write((char*)&offset, 4); // BGEN: beginning of header, next 4 bytes same in this case
+        bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of variants (M), filled in later
+        bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of samples (N), filled in later
+
+        char bgen_magic_numbers[] = {'b', 'g', 'e', 'n'};
+        bgen_file.write(bgen_magic_numbers, 4); // BGEN: 4 bytes bgen magic number
+
+        int32_t flags = 0b10000000000000000000000000001000; // BGEN: layout 2, sample identifier block present
+        flags = flags | compression;
+        bgen_file.write((char*)&flags, 4); // BGEN: 4 bytes flags, end of header
+      }
 
       MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
@@ -319,12 +317,13 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
                          const std::vector<genomic_field_t>& genomic_fields);
     void advance_state();
   //private:
+    bool make_bgen, make_tped, make_bed;
     int compression = 0; // 0 for none, 1 for zlib, 2 for zstd
     // flattened coordinate to place in sorted map, phased status of column for bgen purposes (entire column considered unphased if any are unphased)
     std::map<uint64_t, std::pair<int, bool>> variant_map;
     double progress_interval;
     std::string fam_list;
-    std::string prefix = "output";
+    std::string prefix;
     VariantQueryConfig* query_config;
     // row to place in sorted map and sample name
     std::map<uint64_t, std::pair<int, std::string>> sample_map;
@@ -345,7 +344,6 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
     void flush_to_bed() {
       if(bed_buf_state) {
         bed_file.write(&bed_buf, 1);
-        std::cout << "\tWRITE " << bed_buf << " to file (flush)" << std::endl;
         bed_buf = 0;
         bed_buf_state = 0;
       }
@@ -356,7 +354,6 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
       ++bed_buf_state %= 4;    
       if(!bed_buf_state){
         bed_file.write(&bed_buf, 1);
-        std::cout << "\tWRITE " << bed_buf << " to file (write)" << std::endl;
         bed_buf = 0;
       }
     }
@@ -375,15 +372,9 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
       int limit = alleles - drop_last;
       for(int i = 0; i < ploidy; i++) {
         for(int j = 0; j < limit; j++) {
-          //char prob = get_probability({i, j}, ++ind);
-          //bw();
-          //std::cout << "\tin phased iter " << i << ", " << j << ", prob is " << (int)prob << std::endl;
-          //bgen_file.write(&prob, 1);
-          //size++;
           callback({i, j}, ++ind);
         }
       }
-      //return size;
     }
 
     // get_probabilitiles expects allele counts
@@ -403,15 +394,9 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
         }
         else {
           allele_counts[depth] = ploidy - used;
-          //char prob = get_probability(allele_counts, ++ind);
-          //bw();
-          std::cout << "\tin unphased, counts are ";
           for(auto& a : allele_counts) {
             std::cout << a << " ";
           }
-          //std::cout << "prob is " << (int)prob << std::endl;
-          //bgen_file.write(&prob, 1);
-          //size++;
           callback(allele_counts, ind);
         }
       };
@@ -426,14 +411,8 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
     }
 
     void bgen_empty_cell(int ploidy, int alleles, bool phased) {
-      std::cout << "\tbgen empty cell ploidy " << ploidy << ", alleles " << alleles << ", phased " << phased << std::endl;
-      std::cout << "buf size " << codec_buf.size() << std::endl;
       auto write_zero = [&] (const std::vector<int>& v, int) {
-        //bw();
-        std::cout << "\tempty cell writing 0" << std::endl;
         char z = 0;
-        //bgen_file.write(&z, 1);
-        //bgen_gt_size++;
         codec_buf.push_back(0);
       };
       if(phased) {
@@ -442,39 +421,27 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
       else {
         bgen_enumerate_unphased(ploidy, alleles, write_zero);
       }
-      std::cout << "buf size " << codec_buf.size() << std::endl;
     }
 
     // fill in size, min/max ploidy of last column
     void bgen_finish_gt() {
       // write min ploidy
       codec_buf[7] = min_ploidy;      
-      std::cout << "Updating min ploidy to " << (int)min_ploidy << std::endl;
 
       // write max ploidy
       codec_buf[8] = max_ploidy;
-      std::cout << "Updating max ploidy to " << (int)max_ploidy << std::endl;
 
       size_t uncompressed_size = codec_buf.size(), data_size = codec_buf.size();
-
-      std::cout << "In bgen finish gt" << std::endl;
-      std::cout << "buf size " << codec_buf.size() << std::endl;
 
       if(compression) {
         char* data;
         TileDBUtils::compress(codec, (unsigned char*)codec_buf.c_str(), codec_buf.length(), (void**)&data, data_size);
-        bw();
         size_t total_size = data_size + 4;
-        std::cout << "\twriting total size " << total_size << std::endl;
         bgen_file.write((char*)&total_size, 4); // BGEN: size of previous gt probability data plus D field
-        bw();
-        std::cout << "\twriting D" << uncompressed_size << std::endl;
         bgen_file.write((char*)&uncompressed_size, 4);
         bgen_file.write(data, data_size);
       }
       else {
-        bw();
-        std::cout << "\twriting gt size " << uncompressed_size << std::endl;
         bgen_file.write((char*)&uncompressed_size, 4); // BGEN: size of previous gt probability data plus D field
         bgen_file.write(codec_buf.c_str(), codec_buf.length());
       }
@@ -483,8 +450,6 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
       bgen_gt_size = 0;
       min_ploidy = 64;
       max_ploidy = -1;
-      bw();
-      std::cout << "Done with bgen finish gt" << std::endl;
     }
 
     // locations in file
@@ -615,10 +580,12 @@ class GenomicsDB {
    * Query by column and row ranges, use results to generate plink .ped and .map files
    * The two files will be named <output_prefix>.ped and <output_prefix>.map
    */
-  GENOMICSDB_EXPORT void generate_ped_map(const std::string& array,
+  GENOMICSDB_EXPORT void generate_plink(const std::string& array,
                                           VariantQueryConfig* query_config,
-                                          const std::string& output_prefix,
+                                          unsigned char format = 7,
+                                          int compression = 1,
                                           double progress_interval = -1,
+                                          const std::string& output_prefix = "output",
                                           const std::string& fam_list = "");
 
   /**
