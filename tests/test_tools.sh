@@ -332,17 +332,17 @@ run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Br
 create_sample_list t0_1_2_combined.vcf.gz
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 3 85 18 85 "#31"
 #run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-bgen"
-cat $QUERY_JSON
-echo ===========================
-ls $WORKSPACE
-echo ===========================
-cat $WORKSPACE/vidmap.json
-echo ===========================
-cat $WORKSPACE/callset.json
-echo ===========================
-cat $WORKSPACE/loader.json
-echo ===========================
-run_command "gt_mpi_gather -j $QUERY_JSON --produce-bgen"
+#cat $QUERY_JSON
+#echo ===========================
+#ls $WORKSPACE
+#echo ===========================
+#cat $WORKSPACE/vidmap.json
+#echo ===========================
+#cat $WORKSPACE/callset.json
+#echo ===========================
+#cat $WORKSPACE/loader.json
+#echo ===========================
+#run_command "gt_mpi_gather -j $QUERY_JSON --produce-bgen"
 
 cleanup
 exit $STATUS
