@@ -30,8 +30,7 @@ jobs:
       matrix:
         os: [ubuntu-18.04,macos-10.15]
         type: [basic]
-        # java: [8,11]
-        java: [8]
+        java: [8,11]
         include:
           - os: ubuntu-18.04
             type: hdfs
