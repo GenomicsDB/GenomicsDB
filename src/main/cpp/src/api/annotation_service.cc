@@ -106,7 +106,6 @@ AnnotationService::AnnotationService(const std::string& export_configuration) {
     }
     m_annotation_sources.emplace_back(filename, export_config.annotation_source(i).data_source(), fields);
   }
-  m_annotation_buffer.reserve(64);
 }
 
 std::vector<annotation_source_t>& AnnotationService::get_annotation_sources() {
@@ -130,8 +129,9 @@ genomic_field_t AnnotationService::get_genomic_field(const std::string &data_sou
                                                      const int32_t value_length,
                                                      const int bcf_ht_type) {
   std::string genomic_field_name = data_source + "_" + info_attribute;
-  m_annotation_buffer.push_back(std::move(std::string(value, bcf_ht_type_to_nbytes.at(bcf_ht_type)*value_length)));
-  return genomic_field_t(genomic_field_name, m_annotation_buffer.back().data(), value_length);
+
+  m_annotation_buffer.push_back(std::make_shared<std::string>(value, bcf_ht_type_to_nbytes.at(bcf_ht_type)*value_length));
+  return genomic_field_t(genomic_field_name, m_annotation_buffer.back().get()->data(), value_length);
 }
 
 /**

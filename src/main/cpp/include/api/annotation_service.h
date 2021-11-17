@@ -125,7 +125,7 @@ typedef struct annotation_source_t {
 } annotation_source_t;
 
 /**
-  Use this service to add annotations from VCF datasources to variant's genomic ields
+  Use this service to add annotations from VCF datasources to variant's genomic fields
 */
 class AnnotationService {
  public:
@@ -146,5 +146,5 @@ class AnnotationService {
 
   // Buffer for annotation values
   // TODO: This could be per attribute/field
-  std::vector<std::string> m_annotation_buffer;
+  std::vector<std::shared_ptr<std::string>> m_annotation_buffer;
 };
