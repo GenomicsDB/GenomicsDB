@@ -23,7 +23,7 @@
 #ifndef GENOMICSDB_TOOLS_COMMON_H
 #define GENOMICSDB_TOOLS_COMMON_H
 
-#include "logger.h"
+#include "genomicsdb_logger.h"
 #include "tiledb_utils.h"
 
 #define OK   0

@@ -104,6 +104,16 @@ static int add_filter_fields(VidMappingPB* vidmap_pb, const std::set<std::string
 static int add_fields(GenomicsDBFieldInfo* field_info, bcf_hrec_t* hrec) {
   int index = bcf_hrec_find_key(hrec, "Type");
   std::string field_type = hrec->vals[index];
+  if (field_info->type_size() > 0) {
+    // Type already exists, check for consistency
+    if (!field_type.compare(*field_info->mutable_type(0))) {
+      return OK;
+    } else {
+      g_logger.error("Field Info for {} already exists with type {} compared to type {}", 
+		     field_info->name(), *field_info->mutable_type(0), field_type);
+      return ERR;
+    }
+  }
   field_info->add_type()->assign(field_type);
   if (!field_type.compare("String")) {
     field_info->add_length()->set_variable_length_descriptor("var");
@@ -122,6 +132,7 @@ static int add_fields(GenomicsDBFieldInfo* field_info, bcf_hrec_t* hrec) {
 }
 
 static int add_fmt_fields(VidMappingPB* vidmap_pb, const std::set<std::string>& include_fields, bcf_hrec_t* hrec) {
+  int rc = OK;
   int index = bcf_hrec_find_key(hrec, "ID");
   if (index >= 0  && contains(include_fields, hrec->vals[index])) {
     GenomicsDBFieldInfo* field_info = get_field_info(vidmap_pb, hrec->vals[index]);
@@ -130,24 +141,25 @@ static int add_fmt_fields(VidMappingPB* vidmap_pb, const std::set<std::string>& 
       field_info->add_type()->assign("Integer");
       field_info->add_length()->set_variable_length_descriptor("PP");
     } else {
-      add_fields(field_info, hrec);
+      rc = add_fields(field_info, hrec);
     }
   }
-  return OK;
+  return rc;
 }
 
 static int add_info_fields(VidMappingPB* vidmap_pb, const std::set<std::string>& include_fields, bcf_hrec_t* hrec) {
+  int rc = OK;
   int index = bcf_hrec_find_key(hrec, "ID");
   if (index >= 0  && contains(include_fields, hrec->vals[index])) {
     GenomicsDBFieldInfo* field_info = get_field_info(vidmap_pb, hrec->vals[index]);
     field_info->add_vcf_field_class()->assign("INFO");
-    add_fields(field_info, hrec);
+    rc = add_fields(field_info, hrec);
     // Specify custom combinations - hardcoded for now
-    if (field_info->name() == "END" || field_info->name() == "DP") {
+    if (!rc && (field_info->name() == "END" || field_info->name() == "DP")) {
       field_info->set_vcf_field_combine_operation("sum");
     }
   }
-  return OK;
+  return rc;
 }
 
 static void create_partition(const std::string& contig, int64_t start, int64_t end, int64_t tiledb_column_offset,
@@ -446,7 +458,8 @@ static int generate_json(import_config_t import_config) {
   std::vector<std::pair<std::string, int64_t>> regions;
   int64_t total_length = 0;
   
-  for (int i=0; i<hdr->nhrec; i++) {
+  int rc = OK;
+  for (int i=0; i<hdr->nhrec && !rc; i++) {
     bcf_hrec_t* hrec = hdr->hrec[i];
     if (!hrec) {
       g_logger.error("Could not get header records from {}", merged_header.c_str());
@@ -454,13 +467,13 @@ static int generate_json(import_config_t import_config) {
     }
     switch (hrec->type) {
       case BCF_HL_FLT:
-        add_filter_fields(vidmap_pb, import_config.include_fields, hrec);
+        rc = add_filter_fields(vidmap_pb, import_config.include_fields, hrec);
         break;
       case BCF_HL_FMT:
-        add_fmt_fields(vidmap_pb, import_config.include_fields, hrec);
+        rc = add_fmt_fields(vidmap_pb, import_config.include_fields, hrec);
         break;
       case BCF_HL_INFO:
-        add_info_fields(vidmap_pb, import_config.include_fields, hrec);
+        rc = add_info_fields(vidmap_pb, import_config.include_fields, hrec);
         break;
       case BCF_HL_CTG: {
         int index = bcf_hrec_find_key(hrec, "ID");
@@ -478,35 +491,37 @@ static int generate_json(import_config_t import_config) {
     }
   }
 
-  add_contigs(regions, import_config, vidmap_pb, import_config_protobuf);
+  !rc && (rc = add_contigs(regions, import_config, vidmap_pb, import_config_protobuf));
   g_logger.info("Total number of partitions in loader.json={}", import_config_protobuf->column_partitions_size());
   
   bcf_hdr_destroy(hdr);
   hts_close(fptr);
 
-  std::string json;
-  google::protobuf::util::JsonPrintOptions json_options;
-  json_options.add_whitespace = true;
-  json_options.always_print_primitive_fields = false;
-  json_options.preserve_proto_field_names = true;
+  if (!rc) {
+    std::string json;
+    google::protobuf::util::JsonPrintOptions json_options;
+    json_options.add_whitespace = true;
+    json_options.always_print_primitive_fields = false;
+    json_options.preserve_proto_field_names = true;
 
-  // Write out vidmap.json  
-  google::protobuf::util::MessageToJsonString(*vidmap_pb, &json, json_options);
-  g_logger.debug("Writing out vidmap json file to {}", vidmap_output);
-  fix_protobuf_generated_json_for_int64(json, {"tiledb_column_offset", "length"});
-  TileDBUtils::write_file(vidmap_output, json.data(), json.length());
-  delete vidmap_pb;
+    // Write out vidmap.json
+    google::protobuf::util::MessageToJsonString(*vidmap_pb, &json, json_options);
+    g_logger.debug("Writing out vidmap json file to {}", vidmap_output);
+    fix_protobuf_generated_json_for_int64(json, {"tiledb_column_offset", "length"});
+    TileDBUtils::write_file(vidmap_output, json.data(), json.length());
+    delete vidmap_pb;
 
-  // Write out loader.json
-  json.clear();
-  google::protobuf::util::MessageToJsonString(*import_config_protobuf, &json, json_options);
-  g_logger.debug("Writing out loader json file to {}", loader_output);
-  fix_protobuf_generated_json_for_int64(json, {"tiledb_column", "size_per_column_partition", "segment_size",
-                                               "num_cells_per_tile"});
-  TileDBUtils::write_file(loader_output, json.data(), json.length());
-  delete import_config_protobuf;
+    // Write out loader.json
+    json.clear();
+    google::protobuf::util::MessageToJsonString(*import_config_protobuf, &json, json_options);
+    g_logger.debug("Writing out loader json file to {}", loader_output);
+    fix_protobuf_generated_json_for_int64(json, {"tiledb_column", "size_per_column_partition", "segment_size",
+	  "num_cells_per_tile"});
+    rc = TileDBUtils::write_file(loader_output, json.data(), json.length());
+    delete import_config_protobuf;
+  }
 
-  return 0;
+  return rc;
 }
 
 static int rename_file(const std::string& src, const std::string& dest) {
@@ -556,7 +571,6 @@ static int update_json(import_config_t import_config) {
 
   bool found_new_samples = false;
   for (auto sample_uri: import_config.samples) {
-    genomicsdb_htslib_plugin_initialize(sample_uri.c_str());
     htsFile* fptr = hts_open(sample_uri.c_str(), "r");
     if (!fptr) {
       g_logger.error("Could not open sample {} with hts_open {}", sample_uri, strerror(errno));
@@ -665,7 +679,7 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
   }
 
   // TileDB returns only the path for cloud URIs, so get container/bucket prefix
-  std::regex uri_pattern("(.*//)(.*/)(.*$)");
+  std::regex uri_pattern("(.*//)(.*?/)(.*$)");
   std::string prefix;
   if (std::regex_search(samples_dir, uri_pattern)) {
     prefix = std::regex_replace(samples_dir, uri_pattern, "$1$2");
@@ -677,8 +691,8 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
     if (std::regex_search(sample_file, pattern)) {
       samples.insert(TileDBUtils::real_dir(prefix+sample_file));
     }
-
   }
+
   return samples;
 }
 
@@ -687,7 +701,6 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
   auto merged_header = import_config.merged_header;
   auto callset_output = import_config.callset_output;
 
-  genomicsdb_htslib_plugin_initialize(merged_header.c_str());
   htsFile* merged_header_fptr = hts_open(merged_header.c_str(), "w");
   if (!merged_header_fptr) {
     g_logger.error("Could not hts_open {} file in write mode {}", merged_header, strerror(errno));
@@ -702,8 +715,23 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
 
   int64_t row_index = 0;
   CallsetMappingPB* callset_protobuf = new CallsetMappingPB();
+  size_t samples_size = samples.size();
+  size_t processed_samples = 0;
+  g_logger.info("Merging headers for {} samples...", samples_size);
+  // VCF2GENOMICSDB_INIT_PROGRESS_UPDATE_SAMPLE_SIZE env is meant for testing
+  char *progress_update_sample_size = getenv("VCF2GENOMICSDB_INIT_PROGRESS_UPDATE_SAMPLE_SIZE");
+  long progress_update_size = 1024;
+  if (progress_update_sample_size) {
+    progress_update_size = std::atol(progress_update_sample_size);
+  }
   for (auto sample_uri: samples) {
-    genomicsdb_htslib_plugin_initialize(sample_uri.c_str());
+    if (samples_size > progress_update_size) {
+      if ((processed_samples%progress_update_size) == 0) {
+        g_logger.info("  Processing {}/{}", processed_samples, samples_size);
+      }
+      processed_samples++;
+    }
+
     htsFile* fptr = hts_open(sample_uri.c_str(), "r");
     if (!fptr) {
       g_logger.error("Could not open sample {} with hts_open {}", sample_uri, strerror(errno));
@@ -735,6 +763,7 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
     bcf_hdr_destroy(hdr);
     hts_close(fptr);
   }
+  g_logger.info("Merging headers to create template header DONE");
 
   g_logger.debug("Writing out template header file to {}", merged_header);
   if (bcf_hdr_write(merged_header_fptr, merged_hdr)) {
@@ -949,6 +978,8 @@ int main(int argc, char** argv) {
     g_logger.error("Samples dir {} specified with --samples-dir/-S option cannot be accessed", samples_dir);
     return ERR;
   }
+
+  genomicsdb_htslib_plugin_initialize();
 
   try {
     bool generate = !import_config.append_samples;

@@ -595,6 +595,10 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
               }
             }
             break;
+          case "callset_mapping_file":
+            exportConfigurationBuilder.setCallsetMappingFile(val.toString()); break;
+          case "vid_mapping_file":
+            exportConfigurationBuilder.setVidMappingFile(val.toString()); break;
           default:
             System.err.println("Ignoring attribute:"+key.toString()+
                     " with val:"+val.toString());

@@ -32,7 +32,7 @@
 
 #include <catch2/catch.hpp>
 
-#include "logger.h"
+#include "genomicsdb_logger.h"
 #include "genomicsdb_exception.h"
 
 #include <iostream>
