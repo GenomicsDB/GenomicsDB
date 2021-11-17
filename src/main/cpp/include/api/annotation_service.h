@@ -31,7 +31,7 @@
  **/
 
 #include "genomicsdb.h"
-#include "logger.h"
+#include "genomicsdb_logger.h"
 
 #include "htslib/hts.h"
 #include "htslib/vcf.h"
