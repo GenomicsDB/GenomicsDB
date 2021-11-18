@@ -319,14 +319,14 @@ public class GenomicsDBQueryTest {
   @Test
   void testGenomicsDBGenerateVCFWithPBExportConfig() throws IOException {
     GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder()
-            .setWorkspace(workspace)
-            .setVidMappingFile(vidMapping)
-            .setCallsetMappingFile(callsetMapping)
-            .setReferenceGenome(referenceGenome)
-            .setArrayName(arrayName)
-            .setSegmentSize(40)
-            .setScanFull(true)
-            .build();
+        .setWorkspace(workspace)
+        .setVidMappingFile(vidMapping)
+        .setCallsetMappingFile(callsetMapping)
+        .setReferenceGenome(referenceGenome)
+        .setArrayName(arrayName)
+        .setSegmentSize(40)
+        .setScanFull(true)
+        .build();
 
     GenomicsDBQuery query = new GenomicsDBQuery();
     long genomicsDBHandle = query.connectExportConfiguration(exportConfiguration);
@@ -400,10 +400,7 @@ public class GenomicsDBQueryTest {
     int variantsAnnotated = 0;
 
     for (Interval interval : intervals) {
-      System.out.println("jDebug: interval[" + interval.getInterval().getStart() + ", "
-          + interval.getInterval().getEnd() + "]");
       for (VariantCall call : interval.getCalls()) {
-
         if (call.getSampleName().equals("HG00141")
             && call.getContigName().equals("1")
             && call.getGenomic_interval().getStart() == 17385
@@ -435,8 +432,6 @@ public class GenomicsDBQueryTest {
       }
     }
 
-    // jDebug: seems like this should be 3 not 6, but there are 2 identical
-    // intervals
     Assert.assertEquals(variantsAnnotated, 6, "Expected six variants to have annotations");
 
     query.disconnect(genomicsDBHandle);

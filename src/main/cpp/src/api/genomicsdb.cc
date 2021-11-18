@@ -141,8 +141,21 @@ GenomicsDB::GenomicsDB(const std::string& query_configuration,
       query_config->read_from_JSON_string(query_configuration, concurrency_rank); break;
     case PROTOBUF_BINARY_STRING: {
       query_config->read_from_PB_binary_string(query_configuration, concurrency_rank);
+
+      // Determine which chromosomes are included in the query and pass the list to the annotation service 
+      // so it knows not to bother opening chromosome-specific vcfs that aren't relevant. 
+      // ColumnRange is std::pair<int64_t, int64_t> see genomicsdb.h:71
+      ColumnRange column_partition = query_config->get_column_partition(concurrency_rank);
+      // ContigIntervalTuple is std::tuple<std::string, int64_t, int64_t> see vid_mapper.cc:33
+      std::vector<ContigIntervalTuple> contig_intervals = query_config->get_vid_mapper().get_contig_intervals_for_column_partition(column_partition.first, column_partition.second, true);
+      std::set<std::string> contigs;
+      for (auto interval : contig_intervals) {
+        // std::cerr << "Interval=" << std::get<0>(interval) << ":" << std::get<1>(interval) << std::get<2>(interval) << std::endl;
+        contigs.insert(std::get<0>(interval));
+      }
+
       // Create an annotationService class.
-      m_annotation_service = new AnnotationService(query_configuration);
+      m_annotation_service = new AnnotationService(query_configuration, contigs);
       AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
       break;
     }

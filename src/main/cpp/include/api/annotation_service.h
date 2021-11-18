@@ -52,14 +52,16 @@ typedef struct annotation_source_t {
   std::string datasource;
   std::set<std::string> fields;
 
-  bool field_types_processed = false;
+  // Indicate spcific chromosomes that are in the datasource, or leave blank when all chromosomes are present.
+  std::set<std::string> file_chromosomes;
 
   // Constructor
   annotation_source_t(const std::string& filename, const std::string& datasource,
-                      const std::set<std::string>& fields) {
+                      const std::set<std::string>& fields, const std::set<std::string>& file_chromosomes) {
     this->filename = std::move(filename);
     this->datasource = std::move(datasource);
     this->fields = std::move(fields);
+    this->file_chromosomes = std::move(file_chromosomes);
   }
 
   std::map<std::string, genomic_field_type_t> field_types() {
@@ -68,7 +70,7 @@ typedef struct annotation_source_t {
 
     // Only supporting vcf files now
     enum htsExactFormat format = hts_get_format(htsfile_ptr)->format;
-    VERIFY2(format==vcf, logger.format("File {} is not VCF", filename));
+    VERIFY2(format==vcf, logger.format("File {} is not VCF (c)", filename));
 
     bcf_hdr_t *hdr = bcf_hdr_read(htsfile_ptr);
     VERIFY2(hdr!=NULL, logger.format("Could not read header in file {}", filename));
@@ -104,6 +106,9 @@ typedef struct annotation_source_t {
   }
 
  private:
+  /**
+
+  */
   void construct_field_type(bcf_hrec_t* hrec, std::map<std::string, genomic_field_type_t>& types,
                    std::set<std::string>& processed_fields) {
     int index;
@@ -132,7 +137,7 @@ class AnnotationService {
   /**
    * Read in annotation sources from ExportConfiguration.
    **/
-  AnnotationService(const std::string& export_configuration);
+  AnnotationService(const std::string& export_configuration, std::set<std::string> contigs);
 
   std::vector<annotation_source_t>& get_annotation_sources();
 
