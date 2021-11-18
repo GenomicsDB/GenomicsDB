@@ -25,6 +25,7 @@
 #include "vcf2binary.h"
 #include "tiledb_loader_text_file.h"
 #include "vid_mapper_pb.h"
+#include <string>
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCF2TileDBException(#X);
 bool g_show_import_progress = false;
@@ -937,5 +938,3 @@ void VCF2TileDBLoader::consolidate_tiledb_array(const char* workspace, const cha
                               + "\nTileDB error message : "+tiledb_errmsg);
   sm.close_array(ad, true);
 }
-
-

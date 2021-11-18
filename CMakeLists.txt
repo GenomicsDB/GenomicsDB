@@ -334,6 +334,7 @@ endif()
 include_directories (
     src/main/cpp/include/genomicsdb
     src/main/cpp/include/loader
+    src/main/cpp/include/loader_rc
     src/main/cpp/include/query_operations
     src/main/cpp/include/utils
     src/main/cpp/include/vcf

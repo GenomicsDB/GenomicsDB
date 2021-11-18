@@ -67,6 +67,7 @@ set(GenomicsDB_library_sources
     cpp/src/config/pb_config.cc
     cpp/src/api/genomicsdb.cc
     cpp/src/api/genomicsdb_field.cc
+    cpp/src/loader_rc/tiledb_loader_rc.cc
     )
 
 include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})

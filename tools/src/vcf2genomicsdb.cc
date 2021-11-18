@@ -22,6 +22,7 @@
 
 #include "vcf2binary.h"
 #include "tiledb_loader.h"
+#include "tiledb_loader_rc.h"
 #include <mpi.h>
 #include <getopt.h>
 
@@ -52,6 +53,7 @@ void print_usage(){
               << "\t\twhere <interval> is a floating point number. Default units are seconds, explicitly specify seconds, minutes, or hours by appending s, m, or h to the end of the number\n"
               << "\t--tmp-directory, -T Specify temporary directory (stores some temporary files during the import process, default is " << g_tmp_scratch_dir << ")\n"
               << "\t--rank, -r Manually assign MPI rank of process, determines on which partition the process will operate\n"
+              << "\t--transcriptomics, -t Specify that this workspace is to be used for transcriptomics data, requires that all files in callset.json are .bed files\n"
               << "\t--split-files Split the files specified by the callset mapping JSON file according to the column partitions in the loader JSON\n"
               << "\t\tresulting files will be placed in the same directory as the originals\n"
               << "\t\tdefault behavior is to generate split files only for the partition corresponding to the rank\n"
@@ -84,6 +86,7 @@ int main(int argc, char** argv) {
     {"rank",1,0,'r'},
     {"help",0,0,'h'},
     {"progress",2,0,'p'},
+    {"transcriptomics",0,0,'t'},
     {"split-files",0,0,VCF2TILEDB_ARG_SPLIT_FILES_IDX},
     {"split-all-partitions",0,0,VCF2TILEDB_ARG_SPLIT_FILES_PRODUCE_ALL_PARTITIONS_IDX},
     {"split-files-results-directory",1,0,VCF2TILEDB_ARG_SPLIT_FILES_RESULTS_DIRECTORY_IDX},
@@ -99,10 +102,14 @@ int main(int argc, char** argv) {
   std::string split_output_filename;
   auto split_callset_mapping_file = false;
   auto print_version_only = false;
-  while ((c=getopt_long(argc, argv, "T:r:hp::", long_options, NULL)) >= 0) {
+  bool transcriptomics = false;
+  while ((c=getopt_long(argc, argv, "T:r:hp::t", long_options, NULL)) >= 0) {
     switch (c) {
     case 'T':
       g_tmp_scratch_dir = optarg;
+      break;
+    case 't':
+      transcriptomics = true;
       break;
     case 'r':
       my_world_mpi_rank = strtol(optarg, 0, 10);
@@ -199,9 +206,15 @@ int main(int argc, char** argv) {
         id_mapper.write_partition_loader_json_file(loader_json_config_file, loader_config.get_callset_mapping_file(),
             results_directory, (produce_all_partitions ? column_partitions.size() : 1u), my_world_mpi_rank);
     } else {
-      //Loader object
-      VCF2TileDBLoader loader(loader_json_config_file, my_world_mpi_rank);
-      loader.read_all();
+      if(!transcriptomics) {
+        //Loader object
+        VCF2TileDBLoader loader(loader_json_config_file, my_world_mpi_rank);
+        loader.read_all();
+      }
+      else {
+        SinglePosition2TileDBLoader loader(loader_json_config_file, my_world_mpi_rank);
+        loader.read_all();
+      }
     }
 #ifdef USE_GPERFTOOLS
     ProfilerStop();
