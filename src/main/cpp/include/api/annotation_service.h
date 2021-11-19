@@ -35,7 +35,6 @@
 
 #include "htslib/hts.h"
 #include "htslib/vcf.h"
-
 #include "htslib/regidx.h"
 #include "htslib/tbx.h"
 
@@ -150,6 +149,7 @@ class AnnotationService {
   std::vector<annotation_source_t> m_annotation_sources;
 
   // Buffer for annotation values
-  // TODO: This could be per attribute/field
-  std::vector<std::string> m_annotation_buffer;
+  std::vector<uint8_t> m_annotation_buffer;
+  size_t m_annotation_buffer_size = 0;
+  size_t m_annotation_buffer_remaining = 0;
 };
