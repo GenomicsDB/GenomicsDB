@@ -35,7 +35,6 @@
 
 #include "htslib/hts.h"
 #include "htslib/vcf.h"
-
 #include "htslib/regidx.h"
 #include "htslib/tbx.h"
 
@@ -130,7 +129,7 @@ typedef struct annotation_source_t {
 } annotation_source_t;
 
 /**
-  Use this service to add annotations from VCF datasources to variant's genomic ields
+  Use this service to add annotations from VCF datasources to variant's genomic fields
 */
 class AnnotationService {
  public:
@@ -149,7 +148,8 @@ class AnnotationService {
   // List of configured annotation data sources
   std::vector<annotation_source_t> m_annotation_sources;
 
-  // Buffer for annotation values
-  // TODO: This could be per attribute/field
-  std::vector<std::string> m_annotation_buffer;
+  // Buffer to store annotated field values
+  std::vector<uint8_t> m_annotation_buffer;
+  size_t m_annotation_buffer_size = 0;
+  size_t m_annotation_buffer_remaining = 0;
 };

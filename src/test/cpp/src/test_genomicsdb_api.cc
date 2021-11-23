@@ -756,10 +756,16 @@ TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_
   gdb->query_variant_calls(variant_annotation_processor);
   delete gdb;
 
-  // Add an info field that doesn't exist to the configuration; expect custom exception
-  annotation_source0->add_attributes()->assign("no_exist_field0");
+  // Check if exception thrown when annotation buffer size is too small to hold the annotated field values
+  config->set_annotation_buffer_size(4);
   CHECK(config->SerializeToString(&config_string));
-  config->set_array_name(array);
+  gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
+  CHECK_THROWS_AS(gdb->query_variant_calls(variant_annotation_processor), GenomicsDBException);
+  delete gdb;
+
+  // Add an info field that doesn't exist to the configuration; expect custom exception
+  config->set_annotation_buffer_size(10240);
+  annotation_source0->add_attributes()->assign("no_exist_field0");
   CHECK(config->SerializeToString(&config_string));
   gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
   CHECK_THROWS_AS(gdb->query_variant_calls(variant_annotation_processor), GenomicsDBException);

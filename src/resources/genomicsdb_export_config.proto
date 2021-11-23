@@ -103,4 +103,5 @@ message ExportConfiguration {
   optional bool enable_shared_posixfs_optimizations = 28;
   optional SparkConfig spark_config = 29;
   repeated AnnotationSource annotation_source = 30;
+  optional uint32 annotation_buffer_size = 31 [default = 10240];
 }

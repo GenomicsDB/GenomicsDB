@@ -139,7 +139,9 @@ AnnotationService::AnnotationService(const std::string& export_configuration, st
                                       fields,
                                       file_chromosomes);
   }
-  m_annotation_buffer.reserve(64);
+
+  m_annotation_buffer_size = export_config.annotation_buffer_size();
+  m_annotation_buffer.resize(m_annotation_buffer_size);
 }
 
 std::vector<annotation_source_t>& AnnotationService::get_annotation_sources() {
@@ -163,8 +165,15 @@ genomic_field_t AnnotationService::get_genomic_field(const std::string &data_sou
                                                      const int32_t value_length,
                                                      const int bcf_ht_type) {
   std::string genomic_field_name = data_source + "_" + info_attribute;
-  m_annotation_buffer.push_back(std::move(std::string(value, bcf_ht_type_to_nbytes.at(bcf_ht_type)*value_length)));
-  return genomic_field_t(genomic_field_name, m_annotation_buffer.back().data(), value_length);
+  size_t bytes = bcf_ht_type_to_nbytes.at(bcf_ht_type)*value_length;
+  if (m_annotation_buffer_remaining >=  bytes) {
+    size_t start = m_annotation_buffer_size - m_annotation_buffer_remaining;
+    memcpy(&m_annotation_buffer[start], value, bytes);
+    m_annotation_buffer_remaining -= bytes;
+    return genomic_field_t(genomic_field_name, &m_annotation_buffer[start], value_length);
+  } else {
+    throw GenomicsDBException(logger.format("Annotation Buffer size={} specified to store genomic field info is too small", m_annotation_buffer_size));
+  }
 }
 
 /**
@@ -174,8 +183,10 @@ genomic_field_t AnnotationService::get_genomic_field(const std::string &data_sou
   and the INFO field label.
  */
 void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) {
-  for(auto annotation_source: m_annotation_sources) {
+  assert(m_annotation_buffer_size); // Should have been initialized in constructor
+  m_annotation_buffer_remaining = m_annotation_buffer_size;
 
+  for(auto annotation_source: m_annotation_sources) {
     htsFile *htsfile_ptr = hts_open(annotation_source.filename.c_str(), "r");
     VERIFY2(htsfile_ptr!=NULL, logger.format("Could not hts_open {} file in read mode", annotation_source.filename));
 
