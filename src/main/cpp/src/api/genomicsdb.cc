@@ -489,12 +489,12 @@ void GenomicsDB::generate_vcf(const std::string& array, VariantQueryConfig* quer
 }
 
 void GenomicsDB::generate_plink(const std::string& array,
-                                  VariantQueryConfig* query_config,
-                                  unsigned char format,
-                                  int compression,
-                                  double progress_interval,
-                                  const std::string& output_prefix,
-                                  const std::string& fam_list) {
+                                VariantQueryConfig* query_config,
+                                unsigned char format,
+                                int compression,
+                                double progress_interval,
+                                const std::string& output_prefix,
+                                const std::string& fam_list) {
 
   GenomicsDBPlinkProcessor proc(query_config, format, compression, progress_interval, output_prefix, fam_list); 
 
@@ -805,8 +805,6 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     return;
   }
 
-  sample_phased = true;
-
   if(!state) {
     sample_map.insert(std::make_pair(coords[0], std::make_pair(-1, sample_name)));
     if(!variant_map.count(coords[1])) {
@@ -984,11 +982,14 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     last_variant = vind;
     last_coord = coords[1];
 
-
     // convert PL to BGEN format
     std::vector<double> pl_vec;
     try {
       if(pl_string.length()) {
+        if(pl_string[0] == '[') {
+          pl_string = pl_string.substr(1, pl_string.length() - 2);
+        }
+
         while((index = pl_string.find(",")) != std::string::npos) {
           pl_vec.push_back(std::stoi(pl_string.substr(0, index)));
           pl_string.erase(0, index + 1);
@@ -1009,7 +1010,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     }
 
     for(auto& a : pl_vec) {
-      char prob = (char)((double)std::numeric_limits<char>::max() * a / total);
+      char prob = (char)((double)std::numeric_limits<unsigned char>::max() * a / total);
       pl_probs.push_back(prob);
     }
 
@@ -1017,6 +1018,10 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     std::vector<double> gl_vec;
     try {
       if(gl_string.length()) {
+        if(gl_string[0] == '[') {
+          gl_string = gl_string.substr(1, gl_string.length() - 2);
+        }
+
         while((index = gl_string.find(",")) != std::string::npos) {
           pl_vec.push_back(std::stod(gl_string.substr(0, index)));
           gl_string.erase(0, index + 1);
@@ -1031,7 +1036,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     std::vector<char> gl_probs;
 
     for(auto& a : gl_vec) {
-      gl_probs.push_back((char)((double)std::numeric_limits<char>::max() * std::pow(10, a)));
+      gl_probs.push_back((char)((double)std::numeric_limits<unsigned char>::max() * std::pow(10, a)));
     }
 
     std::vector<char> probs;
@@ -1060,6 +1065,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
 
     auto write_unphased_probability = [&] (const std::vector<int>& v, int ind) {
       char p;
+
       if(!probs.size()) {
         std::vector<int> counts(vec.size(), 0);
         for(auto& g : gt_vec) {
@@ -1099,7 +1105,8 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
 }
 
 void GenomicsDBPlinkProcessor::process(const interval_t& interval) {
-  GenomicsDBVariantCallProcessor::process(interval);
+  //GenomicsDBVariantCallProcessor::process(interval);
+  return;
 }
 
 void GenomicsDBPlinkProcessor::advance_state() {

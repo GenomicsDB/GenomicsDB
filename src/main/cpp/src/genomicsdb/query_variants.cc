@@ -263,9 +263,10 @@ void VariantQueryProcessor::obtain_TileDB_attribute_idxs(const VariantArraySchem
     if (queryConfig.get_query_idx_for_name(name, query_idx))
       queryConfig.set_schema_idx_for_query_idx(query_idx, i);
   }
-  for (auto i=0u; i<queryConfig.get_num_queried_attributes(); ++i)
+  for (auto i=0u; i<queryConfig.get_num_queried_attributes(); ++i) {
     if (!queryConfig.is_schema_idx_defined_for_query_idx(i))
       throw UnknownQueryAttributeException("Invalid query attribute : "+queryConfig.get_query_attribute_name(i));
+  }
 }
 
 void VariantQueryProcessor::handle_gvcf_ranges(VariantCallEndPQ& end_pq,

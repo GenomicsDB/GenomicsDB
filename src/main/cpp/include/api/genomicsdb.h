@@ -394,9 +394,7 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
         }
         else {
           allele_counts[depth] = ploidy - used;
-          for(auto& a : allele_counts) {
-            std::cout << a << " ";
-          }
+          ++ind;
           callback(allele_counts, ind);
         }
       };
@@ -581,12 +579,12 @@ class GenomicsDB {
    * The two files will be named <output_prefix>.ped and <output_prefix>.map
    */
   GENOMICSDB_EXPORT void generate_plink(const std::string& array,
-                                          VariantQueryConfig* query_config,
-                                          unsigned char format = 7,
-                                          int compression = 1,
-                                          double progress_interval = -1,
-                                          const std::string& output_prefix = "output",
-                                          const std::string& fam_list = "");
+                                        VariantQueryConfig* query_config,
+                                        unsigned char format = 7,
+                                        int compression = 1,
+                                        double progress_interval = -1,
+                                        const std::string& output_prefix = "output",
+                                        const std::string& fam_list = "");
 
   /**
    * Utility template functions to extract information from Variant and VariantCall classes

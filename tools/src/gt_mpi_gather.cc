@@ -786,11 +786,6 @@ int main(int argc, char *argv[]) {
         print_calls(qp, query_config, command_idx, query_config.get_vid_mapper());
         break;
       case COMMAND_PLINK:
-        std::cerr << "Command ped map" << std::endl;
-        std::cerr << query_config.get_workspace(my_world_mpi_rank) << std::endl;
-        std::cerr << query_config.get_vid_mapping_file() << std::endl;
-        std::cerr << query_config.get_callset_mapping_file() << std::endl;
-        std::cerr << query_config.get_reference_genome() << std::endl;
         GenomicsDB gdb(query_config.get_workspace(my_world_mpi_rank),
                        query_config.get_callset_mapping_file(),
                        query_config.get_vid_mapping_file(),

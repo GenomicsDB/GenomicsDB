@@ -39,6 +39,7 @@ set(CPP_TEST_SOURCES
   src/test_htslib_plugin.cc
   src/test_alleles_combiner.cc
   src/test_gt_remapper.cc
+  src/test_bgen.cc
   )
 
 if(LIBDBI_FOUND)
