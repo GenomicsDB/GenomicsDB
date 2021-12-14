@@ -28,7 +28,7 @@ set -e
 #    $PREREQS_ENV will set up file that can be sourced to set up the ENV for building GenomicsDB
 if [[ `uname` == "Darwin" || `id -u` -ne 0 ]]; then
   INSTALL_PREFIX=${INSTALL_PREFIX:-$HOME/genomicsdb_prereqs}
-  MAVEN_INSTALL_PREFIX=INSTALL_PREFIX
+  MAVEN_INSTALL_PREFIX=$INSTALL_PREFIX
   PREREQS_ENV=${PREREQS_ENV:-$HOME/genomicsdb_prereqs.sh}
   echo "GenomicsDB dependencies(e.g. maven, protobuf, etc. that are built from source will be installed to \$INSTALL_PREFIX=$INSTALL_PREFIX"
   echo "GenomicsDB environment will be persisted to \$PREREQS_ENV=$PREREQS_ENV"

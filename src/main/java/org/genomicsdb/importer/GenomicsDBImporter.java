@@ -32,6 +32,9 @@ import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFHeader;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import org.genomicsdb.Constants;
 import org.genomicsdb.GenomicsDBLibLoader;
 import org.genomicsdb.exception.GenomicsDBException;
@@ -85,6 +88,8 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
             throw new GenomicsDBException("Could not load genomicsdb native library", ule);
         }
     }
+
+    private static Logger logger = LogManager.getLogger(GenomicsDBImporter.class);
 
     private ImportConfig config;
     private String mLoaderJSONFile = null;
@@ -248,8 +253,8 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
             }
             // write out fragment names to file to help with backup/recovery
             String[] fragments = listGenomicsDBFragments(workspace);
-            if(writeToFile(outputCallsetmapJsonFilePath+".fragmentlist", String.join("\n",fragments))!=0) {
-                System.err.println("Warning: Could not write original fragment list for backup");
+            if (writeToFile(outputCallsetmapJsonFilePath+".fragmentlist", String.join("\n",fragments)) != 0) {
+                logger.warn("Warning: Could not write original fragment list for backup");
             }
             callsetMappingPB = this.mergeCallsetsForIncrementalImport(outputCallsetmapJsonFilePath,
                                        this.config.getSampleNameToVcfPath(),
@@ -618,7 +623,7 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
      * Import multiple chromosome interval
      * @param numThreads number of threads used to import partitions
      */
-    public void executeImport(final int numThreads) {
+    public void executeImport(final int numThreads) throws InterruptedException {
         final int batchSize = this.config.getBatchSize();
         final int sampleCount = this.config.getSampleNameToVcfPath().size();
         final int updatedBatchSize = (batchSize <= 0) ? sampleCount : Math.min(batchSize, sampleCount);

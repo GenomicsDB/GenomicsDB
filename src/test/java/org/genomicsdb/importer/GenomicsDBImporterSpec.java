@@ -22,6 +22,7 @@
 
 package org.genomicsdb.importer;
 
+import com.googlecode.protobuf.format.JsonFormat;
 import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.tribble.FeatureReader;
 import htsjdk.variant.bcf2.BCF2Codec;
@@ -52,6 +53,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
+import org.junit.Rule;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -94,6 +96,50 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
         Assert.assertEquals(importer.isDone(), true);
         File callsetFile = new File(tempCallsetJsonFile.getAbsolutePath());
         Assert.assertTrue(callsetFile.exists());
+    }
+
+    @Test(expectedExceptions = GenomicsDBException.class)
+    public void testWriteVidMapJSONToNonexistentFolders() throws FileNotFoundException, JsonFormat.ParseException, InterruptedException {
+        GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A  =
+                GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder().build();
+        Set<VCFHeaderLine> mergedHeader = new LinkedHashSet();
+        String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
+        File nonExistentFolder = new File(WORKSPACE, "non-existent-folder");
+        importer.writeVidMapJSONFile(new File(nonExistentFolder, "vidmap.json").getAbsolutePath(),
+                importer.generateVidMapFromMergedHeader(mergedHeader));
+        importer.writeVcfHeaderFile(tempVcfHeaderFile.getAbsolutePath(), mergedHeader);
+        importer.writeCallsetMapJSONFile(tempCallsetJsonFile.getAbsolutePath(), callsetMappingPB_A);
+        importer.executeImport();
+    }
+
+    @Test(expectedExceptions = GenomicsDBException.class)
+    public void testWriteCallsetJSONToNonexistentFolders() throws FileNotFoundException, JsonFormat.ParseException, InterruptedException {
+        GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A  =
+                GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder().build();
+        Set<VCFHeaderLine> mergedHeader = new LinkedHashSet();
+        String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
+        File nonExistentFolder = new File(WORKSPACE, "non-existent-folder");
+        importer.writeVidMapJSONFile(tempVidJsonFile.getAbsolutePath(), importer.generateVidMapFromMergedHeader(mergedHeader));
+        importer.writeVcfHeaderFile(tempVcfHeaderFile.getAbsolutePath(), mergedHeader);
+        importer.writeCallsetMapJSONFile(new File(nonExistentFolder, "callset.json").getAbsolutePath(), callsetMappingPB_A);
+        importer.executeImport();
+    }
+
+    @Test(expectedExceptions = GenomicsDBException.class)
+    public void testVCFHeaderToNonexistentFolders() throws FileNotFoundException, JsonFormat.ParseException, InterruptedException {
+        GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A  =
+                GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder().build();
+        Set<VCFHeaderLine> mergedHeader = new LinkedHashSet();
+        String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
+        GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
+        File nonExistentFolder = new File(WORKSPACE, "non-existent-folder");
+        importer.writeVidMapJSONFile(tempVidJsonFile.getAbsolutePath(),
+                importer.generateVidMapFromMergedHeader(mergedHeader));
+        importer.writeVcfHeaderFile(new File(nonExistentFolder, "header.vcf").getAbsolutePath(), mergedHeader);
+        importer.writeCallsetMapJSONFile(tempCallsetJsonFile.getAbsolutePath(), callsetMappingPB_A);
+        importer.executeImport();
     }
 
     @Test(testName = "genomicsdb importer outputs merged headers as a JSON file",
