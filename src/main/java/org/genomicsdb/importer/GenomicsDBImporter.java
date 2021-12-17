@@ -612,10 +612,8 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
 
     /**
      * Import multiple chromosome interval
-     *
-     * @throws InterruptedException when there is an exception in any of the threads in the stream
      */
-    public void executeImport() throws InterruptedException {
+    public void executeImport()  {
         executeImport(0);
     }
 
@@ -623,7 +621,7 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
      * Import multiple chromosome interval
      * @param numThreads number of threads used to import partitions
      */
-    public void executeImport(final int numThreads) throws InterruptedException {
+    public void executeImport(final int numThreads) {
         final int batchSize = this.config.getBatchSize();
         final int sampleCount = this.config.getSampleNameToVcfPath().size();
         final int updatedBatchSize = (batchSize <= 0) ? sampleCount : Math.min(batchSize, sampleCount);
