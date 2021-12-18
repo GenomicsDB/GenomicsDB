@@ -11,8 +11,6 @@ import java.net.URI;
 import java.util.*;
 
 import static com.googlecode.protobuf.format.JsonFormat.*;
-import static org.genomicsdb.GenomicsDBUtils.readEntireFile;
-import static org.genomicsdb.GenomicsDBUtils.writeToFile;
 
 public interface CallSetMapExtensions {
     /**
