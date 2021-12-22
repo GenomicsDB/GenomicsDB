@@ -12,13 +12,23 @@
 name: "CodeQL"
 
 on:
-  push:
-    branches: [ master, develop ]
-  pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ master, develop ]
-  schedule:
-    - cron: '23 12 * * 0'
+  workflow_run:
+    workflows: ["build"]
+    branches: ["ng_sec"]
+    types:
+      - completed
+
+env:
+  PREREQS_ENV: ${{github.workspace}}/prereqs.sh
+  SPARK_ENV: ${{github.workspace}}/spark_env.sh
+  HADOOP_ENV: ${{github.workspace}}/hadoop_env.sh
+  PREREQS_INSTALL_DIR: ${{github.workspace}}/prereqs
+  CMAKE_INSTALL_PREFIX: ${{github.workspace}}/install
+  GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
+  GENOMICSDB_RELEASE_VERSION: x.y.z.test
+  HADOOP_VER: 3.2.2
+  SPARK_VER: 3.0.1
+  SPARK_HADOOP_VER: 2.7
 
 jobs:
   analyze:
@@ -32,13 +42,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'cpp', 'java' ]
+        language: [ 'cpp' ]
         # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby' ]
         # Learn more about CodeQL language support at https://git.io/codeql-language-support
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+    - uses: actions/checkout@v2
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -50,21 +59,24 @@ jobs:
         # Prefix the list here with "+" to use these queries and those in the config file.
         # queries: ./path/to/local/query, your-org/your-repo/queries@main
 
-    # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
-    # If this step fails, then you should remove it and run the build manually (see below)
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v1
+    - name: Install Prerequisites
+      shell: bash
+      working-directory: ${{github.workspace}}/scripts/prereqs
+      run: |
+        $GITHUB_WORKSPACE/.github/scripts/cleanup_hosts.sh
+        echo "Install Prerequisites for Linux.."
+        sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
+        echo "Install prerequisites for Linux DONE"
 
-    # ℹ️ Command-line programs to run using the OS shell.
-    # 📚 https://git.io/JvXDl
-
-    # ✏️ If the Autobuild fails above, remove it and uncomment the following three lines
-    #    and modify them (or add more) to build your code if your project
-    #    uses a compiled language
-
-    #- run: |
-    #   make bootstrap
-    #   make release
+    - name: Configure and Build
+      shell: bash
+      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
+      run: |
+        source $PREREQS_ENV
+        cmake $GITHUB_WORKSPACE -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
+        -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR
+        make -j4
+        make install
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
