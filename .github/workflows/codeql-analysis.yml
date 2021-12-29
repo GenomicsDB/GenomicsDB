@@ -59,24 +59,21 @@ jobs:
         # Prefix the list here with "+" to use these queries and those in the config file.
         # queries: ./path/to/local/query, your-org/your-repo/queries@main
 
-    - name: Install Prerequisites
-      shell: bash
-      working-directory: ${{github.workspace}}/scripts/prereqs
-      run: |
+    - run: |
+        cd $GITHUB_WORKSPACE
         $GITHUB_WORKSPACE/.github/scripts/cleanup_hosts.sh
         echo "Install Prerequisites for Linux.."
         sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
         echo "Install prerequisites for Linux DONE"
-
-    - name: Configure and Build
-      shell: bash
-      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
-      run: |
         source $PREREQS_ENV
-        cmake $GITHUB_WORKSPACE -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
-        -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR
+        cmake $GITHUB_WORKSPACE -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR
         make -j4
         make install
+
+    # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
+    # If this step fails, then you should remove it and run the build manually (see below)
+    #- name: Autobuild
+    #  uses: github/codeql-action/autobuild@v1
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v1
