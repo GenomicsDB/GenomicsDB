@@ -14,9 +14,16 @@ name: "CodeQL"
 on:
   push:
     branches: [ master, develop ]
+    paths:
+      - '**/CMakeLists.txt'
+      - 'pom.xml'
+      - 'src/main/**'
+      - 'src/resources/**'
+      - '.github/resources/codeql-config.yml'
+      - '.github/workflows/codeql.yml'
   pull_request:
     branches: [ master, develop ]
-  paths:
+    paths:
       - '**/CMakeLists.txt'
       - 'pom.xml'
       - 'src/main/**'
