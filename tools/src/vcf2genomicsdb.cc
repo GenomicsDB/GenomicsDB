@@ -40,7 +40,9 @@ enum VCF2TileDBArgsEnum {
   VCF2TILEDB_ARG_SPLIT_FILES_RESULTS_DIRECTORY_IDX,
   VCF2TILEDB_ARG_SPLIT_FILES_SPLIT_OUTPUT_FILENAME_IDX,
   VCF2TILEDB_ARG_SPLIT_FILES_SPLIT_CALLSET_MAPPING_IDX,
-  VCF2TILEDB_ARG_VERSION
+  VCF2TILEDB_ARG_VERSION,
+  VCF2TILEDB_ARG_GTF,
+  VCF2TILEDB_ARG_GI
 };
 
 void print_usage(){
@@ -54,6 +56,8 @@ void print_usage(){
               << "\t--tmp-directory, -T Specify temporary directory (stores some temporary files during the import process, default is " << g_tmp_scratch_dir << ")\n"
               << "\t--rank, -r Manually assign MPI rank of process, determines on which partition the process will operate\n"
               << "\t--transcriptomics, -t Specify that this workspace is to be used for transcriptomics data, requires that all files in callset.json are .bed files\n"
+              << "\t\t--gtf, For use with --transcriptomics, specify optinally gzip compressed gtf/gff file to provide mappings from transcript ids in provided matrix files\n"
+              << "\t\t--gi, For use with --transcriptomics, first party gene information mapping file, more compact than gtf and can be used in liu. If the gi file does not exist, attempt to create one where specified\n"
               << "\t--split-files Split the files specified by the callset mapping JSON file according to the column partitions in the loader JSON\n"
               << "\t\tresulting files will be placed in the same directory as the originals\n"
               << "\t\tdefault behavior is to generate split files only for the partition corresponding to the rank\n"
@@ -87,6 +91,8 @@ int main(int argc, char** argv) {
     {"help",0,0,'h'},
     {"progress",2,0,'p'},
     {"transcriptomics",0,0,'t'},
+    {"gtf",1,0,VCF2TILEDB_ARG_GTF},
+    {"gi",1,0,VCF2TILEDB_ARG_GI},
     {"split-files",0,0,VCF2TILEDB_ARG_SPLIT_FILES_IDX},
     {"split-all-partitions",0,0,VCF2TILEDB_ARG_SPLIT_FILES_PRODUCE_ALL_PARTITIONS_IDX},
     {"split-files-results-directory",1,0,VCF2TILEDB_ARG_SPLIT_FILES_RESULTS_DIRECTORY_IDX},
@@ -103,6 +109,7 @@ int main(int argc, char** argv) {
   auto split_callset_mapping_file = false;
   auto print_version_only = false;
   bool transcriptomics = false;
+  std::string gtf_file, gi_file;
   while ((c=getopt_long(argc, argv, "T:r:hp::t", long_options, NULL)) >= 0) {
     switch (c) {
     case 'T':
@@ -110,6 +117,16 @@ int main(int argc, char** argv) {
       break;
     case 't':
       transcriptomics = true;
+      break;
+    case VCF2TILEDB_ARG_GTF:
+      if (optarg) {
+        gtf_file = std::string(optarg);
+      }
+      break;
+    case VCF2TILEDB_ARG_GI:
+      if (optarg) {
+        gi_file = std::string(optarg);
+      }
       break;
     case 'r':
       my_world_mpi_rank = strtol(optarg, 0, 10);
@@ -212,7 +229,7 @@ int main(int argc, char** argv) {
         loader.read_all();
       }
       else {
-        SinglePosition2TileDBLoader loader(loader_json_config_file, my_world_mpi_rank);
+        SinglePosition2TileDBLoader loader(loader_json_config_file, my_world_mpi_rank, gtf_file, gi_file);
         loader.read_all();
       }
     }

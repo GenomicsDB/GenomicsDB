@@ -1,7 +1,23 @@
 #include "tiledb_loader_rc.h"
+#include "tiledb_utils.h"
+#include <queue>
+#include <functional>
+#include <memory>
+#include <regex>
 
-SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& config_filename, const int idx)
+SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& config_filename, const int idx, std::string gtf_name, std::string gi_name)
   : GenomicsDBImportConfig(), m_idx(idx) {
+
+  std::cout << "TOP OF CTOR ============================================================" << std::endl;
+  //std::string test_fname = "/nfs/home/andrei/benchmarking_requirements/test_file";
+  std::string test_fname = "az://benchmark@oda.blob.core.windows.net/workspace_0_0/callset.json";
+  const int size = 30;
+  char buffer[size];
+
+  TileDBUtils::read_file(test_fname, 0, buffer, size);
+  std::string str(buffer, buffer + size);
+
+  std::cout << "READ " << std::endl << str << std::endl << "===========================================================" << std::endl;
 
   std::cout << "before constructing GenomicsDBConfigBase" << std::endl;
 
@@ -19,7 +35,7 @@ SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& conf
   std::vector<std::type_index> types;
   std::vector<int> num_vals;
   
-  for(int i = 0; i < m_vid_mapper.get_num_fields(); i++) {
+  /*for(int i = 0; i < m_vid_mapper.get_num_fields(); i++) {
     auto& inf = m_vid_mapper.get_field_info(i);
     std::cout << inf.m_name << std::endl;
 
@@ -28,18 +44,48 @@ SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& conf
     num_vals.push_back(inf.m_length_descriptor.is_fixed_length_field()
                        ? inf.m_length_descriptor.get_num_elements()
                        : TILEDB_VAR_NUM);
-  }
+  }*/
 
-  std::vector<int> compression_types(types.size(), TILEDB_NO_COMPRESSION);
-  std::vector<int> compression_levels(types.size(), 0);
+  attribute_names.push_back("START");
+  types.push_back(typeid(int64_t));
+  num_vals.push_back(1);
+
+  attribute_names.push_back("END");
+  types.push_back(typeid(int64_t));
+  num_vals.push_back(1);
+
+  attribute_names.push_back("SCORE");
+  types.push_back(typeid(float));
+  num_vals.push_back(1);
+
+  attribute_names.push_back("NAME");
+  types.push_back(typeid(char));
+  num_vals.push_back(TILEDB_VAR_NUM);
+
+  attribute_names.push_back("GENE");
+  types.push_back(typeid(char));
+  num_vals.push_back(TILEDB_VAR_NUM);
+
+  // Add type for coords
+  types.push_back(std::type_index(typeid(int64_t)));
+
+  //std::vector<int> compression_types(types.size(), TILEDB_NO_COMPRESSION);
+  //std::vector<int> compression_levels(types.size(), 0);
+  
+  std::vector<int> compression_types(types.size(), TILEDB_GZIP);
+  std::vector<int> compression_levels(types.size(), 1);
 
   std::cout << "attributes and types " << std::endl;
   std::cout << attribute_names.size() << std::endl;
   std::cout << types.size() << std::endl;
 
+  // m_import_config_ptr->get_tiledb_compression_type()
+  std::cout << "compression info " << compress_tiledb_array() << ", " << get_tiledb_compression_type() << ", " << get_tiledb_compression_level() << std::endl;
+
   //m_array_schema = VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression_types, compression_levels);
-  auto m_array_schema_ptr = &m_array_schema;
-  m_vid_mapper.build_tiledb_array_schema(m_array_schema_ptr, array_name, false, TILEDB_NO_COMPRESSION, 0, true);
+  //auto m_array_schema_ptr = &m_array_schema;
+  //m_vid_mapper.build_tiledb_array_schema(m_array_schema_ptr, array_name, false, TILEDB_NO_COMPRESSION, 0, true);
+  m_array_schema = VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression_types, compression_levels);
 
 //=================================================================
   std::cout << "Line " << __LINE__ << std::endl;
@@ -51,6 +97,8 @@ SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& conf
 
   std::cout << "Line " << __LINE__ << std::endl;
 
+  std::cout << "\t\t\t\tARRAY NAME " << array_name << std::endl;
+
   //Open array in write mode
   m_array_descriptor = m_storage_manager->open_array(array_name, &m_vid_mapper, "w");
 
@@ -59,6 +107,11 @@ SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& conf
   std::cout << "array descriptor " << m_array_descriptor << std::endl;
 
   std::cout << "attributes " << m_array_schema.attribute_num() << std::endl;
+
+  std::cout << "ALL ATTRIBUTES" << std::endl;
+  for(auto& a : attribute_names) {
+    std::cout << a << std::endl;
+  }
 
   //Check if array already exists
   //Array does not exist - define it first
@@ -82,14 +135,448 @@ SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& conf
     throw LoadOperatorException(std::string("Could not open TileDB array for loading") + "\nTileDB error message : " + tiledb_errmsg);
   }
   std::cout << "Line " << __LINE__ << std::endl;
+  //m_storage_manager->update_row_bounds_in_array(m_array_descriptor, get_row_bounds().first, std::min(get_row_bounds().second, m_vid_mapper.get_max_callset_row_idx()));
   m_storage_manager->update_row_bounds_in_array(m_array_descriptor, get_row_bounds().first, std::min(get_row_bounds().second, m_vid_mapper.get_max_callset_row_idx()));
   std::cout << "Line " << __LINE__ << std::endl;
   m_storage_manager->write_column_bounds_to_array(m_array_descriptor, get_column_partition(m_idx).first, get_column_partition(m_idx).second);
 
+
+  std::cout << "row bounds " << get_row_bounds().first << ", " << std::min(get_row_bounds().second, m_vid_mapper.get_max_callset_row_idx()) << std::endl;
+  std::cout << "column bounds " <<  get_column_partition(m_idx).first << ", " <<  get_column_partition(m_idx).second << std::endl;
 //=================================================================
+
+  // use gi file if exists, otherwise gtf/gff
+  std::ifstream gi_file(gi_name);
+  std::ifstream gtf_file(gtf_name);
+  std::string type;
+
+  if(gi_file.good()) {
+    deserialize_transcript_map(gi_file);
+  }
+  else if(gtf_file.good()){
+    std::regex reg_gtf("(.*)(gtf)($)");
+    if(std::regex_match(gtf_name, reg_gtf)) {
+      std::cout << "\t\t\t\tREGEX MATCHES" << std::endl;
+      type = "gtf";
+
+      read_uncompressed_gtf(gtf_file, type);
+      gi_file.close();
+      std::ofstream gi_out(gi_name);
+      serialize_transcript_map(gi_out);
+    }
+    else {
+      std::cout << "\t\t\t\tREGEX DOES NOT MATCH" << std::endl;
+      logger.error("No valid GTF/GFF or GI file specified, cannot import transcriptomics style data");
+    }
+  }
+  else {
+    logger.error("No valid GTF/GFF or GI file specified, cannot import transcriptomics style data");
+  }
+
+  /*size_t then = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+  read_uncompressed_gtf(gtf_file, type);
+  size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
+  double time = double(now - then) / 1000;
+  std::cout << "Read uncompressed gtf took " << time << " s" << std::endl;
+
+  then = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+  std::ofstream serial_file;
+  serial_file.open("/nfs/home/andrei/benchmarking_requirements/serialized", std::ios::out | std::ios::binary);
+  serialize_transcript_map(serial_file);
+  now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
+  time = double(now - then) / 1000;
+  std::cout << "serialize took " << time << " s" << std::endl;
+
+  serial_file.close();
+  transcript_map.clear();
+
+  then = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+  std::ifstream deserial_file;
+  deserial_file.open("/nfs/home/andrei/benchmarking_requirements/serialized", std::ios::in | std::ios::binary);
+  deserialize_transcript_map(deserial_file);
+  now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
+  time = double(now - then) / 1000;
+  std::cout << "deserialize took " << time << " s" << std::endl;*/
 }
 
+// TODO: maybe also create end cell, add ability to specify here
+// assume valid input
+bool SinglePosition2TileDBLoader::info_to_cell(int64_t start, int64_t end, std::string name, std::string gene, float score, uint64_t row) {
+  std::cout << "start " << start << std::endl;
+  std::cout << "end " << end << std::endl;
+  std::cout << "name " << name << std::endl;
+  std::cout << "score " << score << std::endl;
+  std::cout << "gene " << gene << std::endl << std::endl;
+
+  //construct cell
+  std::vector<uint8_t> cell(16);
+  std::cout << "row " << row << std::endl;
+  *(reinterpret_cast<uint64_t*>(cell.data())) = row; // write row in cell
+  std::cout << "FIXME column " << start << std::endl;
+
+  int64_t pos = start;
+
+  if(start > end) { // indicates end cell
+    start = end;
+    end = pos;
+  }
+
+  *(reinterpret_cast<uint64_t*>(cell.data()) + 1) = pos; // write position in cell
+
+  // reserve space for cell size
+  for(int j = 0; j < sizeof(size_t); j++) {
+    cell.push_back(0);
+  }
+
+  std::cout << "cell initial size " << cell.size() << std::endl;
+
+  // attributes
+  for(int j = 0; j < m_array_schema.attribute_num(); j++) {
+    std::string attribute_name = m_array_schema.attribute_name(j);
+    std::cout << "constructing cell, attribute " << attribute_name << std::endl;
+    if(attribute_name == "START") {
+      cell.insert(cell.end(), {0, 0, 0, 0, 0, 0, 0, 0});
+      *(reinterpret_cast<int64_t*>(cell.data() + cell.size() - 8)) = start;
+    }
+    if(attribute_name == "END") {
+      cell.insert(cell.end(), {0, 0, 0, 0, 0, 0, 0, 0});
+      *(reinterpret_cast<int64_t*>(cell.data() + cell.size() - 8)) = end;
+    }
+    if(attribute_name == "SCORE") {
+      int s;
+      memcpy(&s, &score, 4);
+      std::cout << "score " << score << " as int: " << s << std::endl;
+
+      cell.insert(cell.end(), {0, 0, 0, 0});
+      *(reinterpret_cast<float*>(cell.data() + cell.size() - 4)) = score;
+    }
+    if(attribute_name == "NAME") {
+      cell.insert(cell.end(), {0, 0, 0, 0});
+      *(reinterpret_cast<uint32_t*>(cell.data() + cell.size() - 4)) = name.length();
+      std::cout << "\t\t\tname length " << name.length();
+      std::cout << "name length " << name.length() << std::endl;
+      for(auto c : name) {
+        cell.push_back(c);
+        std::cout << "\t\t\tname pushing back " << c << " = " << (int)c << std::endl;
+      }
+    }
+    if(attribute_name == "GENE") {
+      cell.insert(cell.end(), {0, 0, 0, 0});
+      *(reinterpret_cast<uint32_t*>(cell.data() + cell.size() - 4)) = gene.length();
+      std::cout << "\t\t\tgene length " << gene.length() << std::endl;
+      for(auto c : gene) {
+        cell.push_back(c);
+        std::cout << "\t\t\tgene pushing back " << c << " = " << (int)c << std::endl;
+      }
+    }
+    std::cout << "after " << attribute_name << ", cell size is " << cell.size() << std::endl;
+  }
+  // fill in cell size
+  *(reinterpret_cast<size_t*>(cell.data() + 2*sizeof(int64_t))) = cell.size();
+  //write
+  std::cout << "Writing cell: " << std::endl;
+  for(auto a : cell) {
+    std::cout << (int)a << " ";
+  }
+  std::cout << std::endl;
+  m_storage_manager->write_cell_sorted(m_array_descriptor, reinterpret_cast<const void*>(cell.data()));
+  return true;
+}
+
+// chrom is empty string if invalid
+std::tuple<std::string, int64_t, int64_t, std::string, float> SinglePosition2TileDBLoader::parse_and_check(std::string str, VidMapper& vid_mapper) {
+  std::string chrom, name;
+  int64_t start, end;
+  float score;
+
+  std::vector<std::string> vec;
+  size_t index;
+  while((index = str.find("\t")) != std::string::npos) {
+    vec.push_back(str.substr(0, index));
+    str.erase(0, index + 1);
+  }
+  vec.push_back(str);
+
+  std::cout << "vec size is " << vec.size() << std::endl;
+
+  if(vec.size() >= 5) {
+    chrom = vec[0];
+    name = vec[3];
+    try {
+      bool valid = vid_mapper.get_tiledb_position(start, chrom, std::stol(vec[1]));
+      valid = valid && vid_mapper.get_tiledb_position(end, chrom, std::stol(vec[2]));
+      score = std::stof(vec[4]);
+      if(!valid) {
+        return {"", 0, 0, "", 0.};
+      }
+    }
+    catch(...) {
+      return {"", 0, 0, "", 0.};
+    }
+  }
+  else {
+    return {"", 0, 0, "", 0.};
+  }
+
+  return {chrom, start, end, name, score};
+}
+
+/*cell_info SinglePosition2TileDBLoader::next_cell_info(std::ifstream& file, int type, int ind) {
+  if(!type) {
+    std::string str;
+    while(std::getline(file, str)) {
+      std::cout << "============================================= " << str << std::endl;
+
+      auto[chrom, start, end, name, score] = parse_and_check(str, m_vid_mapper);
+
+      if(chrom == "") {
+        continue;
+      }
+      else {
+        return {start, end, name, "", score, ind};
+      }
+    }
+    return {-1, -1, "", "", 0, -1};
+  }
+  else {
+    int mat_fields = 6;
+    int start_ind = 0, end_ind = 1, name_ind = 2, sample_ind = 4, score_ind = 6;
+
+    std::vector<std::string> fields;
+    std::string temp;
+
+    for(int i = 0; i < mat_fields; i++) {
+      if(file >> temp) {
+        fields.push_back(temp);
+      }
+      else {
+        return {-1, -1, "", "", 0, -1};
+      }
+    }
+    try {
+      cell_info inf = {std::stol(fields[start_ind]), std::stol(fields[end_ind]), fields[name_ind], "placeholder", std::stof(fields[score_ind]), std::stoi(fields[sample_ind])};
+      return inf;
+    }
+    catch (...) {
+      return {-1, -1, "", "", 0, -1};
+    }
+  }
+}*/
+
+cell_info BedReader::next_cell_info() {
+  std::string str;
+  while(std::getline(m_file, str)) {
+    std::cout << "============================================= " << str << std::endl;
+
+    auto[chrom, start, end, name, score] = SinglePosition2TileDBLoader::parse_and_check(str, m_vid_mapper);
+
+    if(chrom == "") {
+      continue;
+    }
+    else {
+      return {start, end, name, "NA", score, m_sample_idx, m_file_idx};
+    }
+  }
+  return {-1, -1, "", "", 0, -1, m_file_idx}; 
+}
+
+// assuming format is gene, name, scores
+cell_info MatrixReader::next_cell_info() {
+  int mat_fields = 6;
+  int start_ind = 0, end_ind = 1, name_ind = 2, sample_ind = 4, score_ind = 6;
+
+  while(m_current_sample >= m_current_line.size()) { // read until next valid line or eof
+    std::string line;
+
+    // eof
+    if(!std::getline(m_file, line)) {
+      return {-1, -1, "", "", 0, -1, m_file_idx};
+    }
+
+    std::stringstream ss(line);
+
+    ss >> m_current_gene >> m_current_name;
+
+    if(m_transcript_map.count(m_current_gene)) {
+      auto[s, e] = m_transcript_map[m_current_gene];
+      m_current_start = s;
+      m_current_end = e;
+    }
+    else {
+      continue; // gene not in map, skip row
+    }
+
+    std::string str;
+    while(ss >> str) {
+      m_current_line.push_back(str);
+    }
+    m_current_sample = 0;
+    idx_to_row_pos = 0;
+
+    // done setting up current row in matrix
+    
+    // check if done with row in matrix
+    if(idx_to_row_pos >= idx_to_row.size()) {
+      continue;
+    }
+
+    // otherwise go to next relevent column
+    try {
+      auto p = idx_to_row[idx_to_row_pos++];
+      if(p.first >= samples.size()) {
+        logger.error("Error index in file {} is outside of matrix file's {} columns", p.first, samples.size());
+        exit(1);
+      }
+
+      std::string str = m_current_line[p.first];
+
+      float score = std::stof(str);
+      cell_info inf = {m_current_start, m_current_end, m_current_name, m_current_gene, score, p.second, m_file_idx};
+      return inf;
+    }
+    catch (...) {
+      return {-1, -1, "", "", 0, -1, m_file_idx};
+    }
+  }
+  return {-1, -1, "", "", 0, -1, m_file_idx};
+}
+
+void SinglePosition2TileDBLoader::read_compressed_gtf(std::string fname) {
+  size_t filesize, buffer_size, allocated_buffer_size, chunk_size;
+  void* buffer;
+  TileDBUtils::gzip_read_buffer(fname, filesize, buffer, buffer_size, allocated_buffer_size, chunk_size);
+}
+
+void SinglePosition2TileDBLoader::read_uncompressed_gtf(std::istream& input, std::string format) {
+  if(format != "gff" and format != "gtf") {
+    std::cout << "unrecognized file type" << std::endl;
+    return;
+  }
+  
+  std::cout << "In read uncompressed gtf" << std::endl;
+
+  std::string str;
+
+  int ind = -1;
+  while(std::getline(input, str)) {
+    if(str[0] == '#') {
+      continue;
+    }
+
+    ++ind;
+    if(!(ind % 5000)) {
+      std::cout << ind << " size is " << transcript_map.size() << std::endl;
+    }
+
+    std::stringstream ss(str);
+    std::string field;
+    std::vector<std::string> fields;
+
+    // read the 8 fields before attribute
+    for(int i = 0; i < 8; i++) {
+      ss >> field;
+      fields.push_back(field);
+    }
+
+    long start, end;
+
+    if(fields[2] != "transcript") {
+      continue;
+    }
+
+    try {
+      start = std::stol(fields[3]);
+      end = std::stol(fields[4]);
+    }
+    catch (...) {
+      continue;
+    }
+
+    std::string attributes;
+    std::getline(ss, attributes);
+
+    int lo = attributes.find("transcript_id ") + 14; // character after end of pattern
+    int hi = attributes.find(";", lo);
+
+    std::string tid = attributes.substr(lo, hi - lo);
+    tid.erase(std::remove(tid.begin(), tid.end(), '\"'), tid.end()); // remove quotes
+
+    auto sz = transcript_map.size();
+    transcript_map[tid] = {start, end};
+ 
+    if(sz == transcript_map.size()) {
+      std::cout << tid << " is duplicate, start/end: " << start << ", " << end << std::endl;
+    }
+  }
+  std::cout << "OUT OF LINES" << std::endl;
+}
+
+void SinglePosition2TileDBLoader::serialize_transcript_map(std::ostream& output) {
+  char version = 0;
+  output.write(&version, 1);
+
+  // write 5B number of entries
+  int64_t size = transcript_map.size();
+  output.write((char*)&size, 5);
+
+  std::cout << "serialize size is " << size << std::endl;
+
+  // write 2B string length, string, 5B start, 5B end
+  for(auto& a : transcript_map) {
+    std::string name = a.first;
+    int16_t len = name.length();
+    int64_t start = a.second.first;
+    int64_t end = a.second.second;
+
+    output.write((char*)&len, 2);
+    output.write(name.c_str(), len);
+    output.write((char*)&start, 5);
+    output.write((char*)&end, 5);
+  }
+}
+
+void SinglePosition2TileDBLoader::deserialize_transcript_map(std::istream& input) {
+  char version;
+  input.read(&version, 1);
+  if(version) {
+    std::cout << "version " << (int)version << " not supported" << std::endl;
+  }
+
+  int64_t size = 0;
+  input.read(((char*)&size), 5);
+
+  std::cout << "size is " << size << std::endl;
+
+  for(int i = 0; i < size; i++) {
+    //std::cout << i + 1 << " / " << size << std::endl;
+
+    int16_t len;
+    input.read((char*)&len, 2);
+    char name[len];
+    input.read(name, len);
+    int64_t start = 0;
+    int64_t end = 0;
+    input.read((char*)&start, 5);
+    input.read((char*)&end, 5);
+    transcript_map[std::string(name, len)] = {start, end};
+  }
+}
+
+// TODO sample name
 void SinglePosition2TileDBLoader::read_all() {
+  // construct transcript map
+
+  auto remove_file = [](cell_info c) { std::get<6>(c) = -1; return c; };
+  auto reverse_info = [](cell_info c) {
+    int64_t start = std::get<0>(c);
+    std::get<0>(c) = std::get<1>(c);
+    std::get<1>(c) = start;
+    return c;
+  };
+
   std::cout << "Hello" << std::endl;
 
   auto workspace = get_workspace(m_idx);
@@ -98,31 +585,321 @@ void SinglePosition2TileDBLoader::read_all() {
   std::cout << "workspace " << workspace << std::endl;
   std::cout << "array " << array_name << std::endl;
 
+
+  auto comp = [](cell_info l, cell_info r) { return (std::get<0>(l) > std::get<0>(r)) || (std::get<0>(l) == std::get<0>(r) && std::get<5>(l) > std::get<5>(r)); };
+  std::priority_queue<cell_info, std::vector<cell_info>, decltype(comp)> pq(comp);
+
+  //std::vector<std::unique_ptr<std::ifstream>> files;
+  std::vector<std::shared_ptr<TranscriptomicsFileReader>> files;
+  // 0 for bed, 1 for matrix
+  std::vector<int> file_types;
+
   for(int i = 0; i < m_vid_mapper.get_num_callsets(); i++) {
-    auto fi = m_vid_mapper.get_file_info(i);
-    std::cout << fi.m_name << std::endl;
-    std::ifstream file(fi.m_name);
-    std::string str;
+    auto ci = m_vid_mapper.get_callset_info(i);
+    int f_ind = ci.m_file_idx;
+    std::string fname = m_vid_mapper.get_file_info(f_ind).m_name;
+    int64_t idx_in_file = ci.m_idx_in_file;
+    int64_t row_idx = ci.m_row_idx;
 
-    while(std::getline(file, str)) {
-      std::cout << str << std::endl;
+    // keep track of which files have already appeared
+    std::map<std::string, std::shared_ptr<TranscriptomicsFileReader>> previous_files;
+    
+    //auto fi = m_vid_mapper.get_file_info(i);
+    std::cout << "File name is " << fname << std::endl;
 
-      std::vector<std::string> vec;
-      size_t index;
-      while((index = str.find("\t")) != std::string::npos) {
-        vec.push_back(str.substr(0, index));
-        str.erase(0, index + 1);
+    int type;
+
+    if(std::regex_match(fname, std::regex("(.*)(bed)($)"))) { // bed file
+      if(previous_files.count(fname)) {
+        logger.error("File {} appears twice in callset mapping file", fname);
+        continue;
       }
-      vec.push_back(str);
 
-      if(vec.size() >= 5) {
-        std::cout << "chrom " << vec[0] << std::endl;
-        std::cout << "start " << vec[1] << std::endl;
-        std::cout << "end " << vec[2] << std::endl;
-        std::cout << "name " << vec[3] << std::endl;
-        std::cout << "score " << vec[4] << std::endl << std::endl;
-      } 
+      type = 0;
+      file_types.push_back(0);
+      files.push_back(std::make_shared<BedReader>(fname, files.size(), m_vid_mapper, row_idx));
+      
+      previous_files.insert({fname, files.back()});
+    }
+    else if(std::regex_match(fname, std::regex("(.*)(resort)($)"))) { // matrix
+      if(!previous_files.count(fname)) { // create reader object for file
+        type = 1;
+        file_types.push_back(1);
+        files.push_back(std::make_shared<MatrixReader>(fname, files.size(), m_vid_mapper, transcript_map));
+        previous_files.insert({fname, files.back()});
+      }
+
+      MatrixReader& file = dynamic_cast<MatrixReader&>(*(previous_files[fname]));
+      std::pair<int, int64_t> p = {idx_in_file, row_idx};
+
+      if(file.idx_to_row.size()) { // check that callset is sorted
+        auto[bi, br] = file.idx_to_row.back();
+
+        if(bi >= idx_in_file) {
+          logger.error("callsets for {} are not sorted by index in file or have duplicates", fname);
+          exit(1);
+        }
+
+        if(br >= row_idx) {
+          logger.error("callsets for {} are not sorted by row index or have duplicates", fname);
+          exit(1);
+        }
+      }
+
+      file.idx_to_row.push_back(p); // insert last read callset into index to row map in applicable matrix file reader
+    }
+    else {
+      std::cout << "Unknown file type" << std::endl;
+      file_types.push_back(2);
+      logger.error("Transcriptomics: Unknown file type for file {}", fname);
+      exit(1);
+    }
+
+
+    // put first cell from each file in pq
+    for(auto& file_ptr : files) {
+      auto inf = file_ptr->next_cell_info();
+      if(std::get<0>(inf) >= 0) {
+        pq.push(remove_file(inf)); // set file index to -1 to indicate this is a start (and not to read the file for another cell yet)
+        pq.push(reverse_info(inf)); // reverse start and end to indicate this is an end
+      }
     }
   }
+
+  while(pq.size()) {
+    auto[start, end, name, gene, score, ind, file_ind] = pq.top();
+    pq.pop();
+
+    std::cout << "Writing " << start << ", " << ind << std::endl;
+    info_to_cell(start, end, name, gene, score, ind);
+
+    if(file_ind >= 0) { // if cell is an end
+      auto tup = files[ind]->next_cell_info(); // read next cell from originiating file
+      if(std::get<0>(tup) >= 0 && std::get<6>(tup) != -1) { // check cell info is valid
+        pq.push(tup);
+      }
+    }
+  }
+
+  if (m_storage_manager && m_array_descriptor >= 0) {
+    m_storage_manager->close_array(m_array_descriptor, consolidate_tiledb_array_after_load());
+  }
+
+  std::cout << "\t\t\tEND OF READ ALL, call read_array" << std::endl;
+  //std::cout << "commented" << std::endl;
+  read_array();
 }
 
+void check_rc(int rc) {
+  if (rc) {
+    printf("%s", &tiledb_errmsg[0]);
+    printf("[Examples::%s] Runtime Error.\n", __FILE__);
+    return;
+  }
+  std::cout << "rc is 0" << std::endl;
+}
+
+void SinglePosition2TileDBLoader::read_array() {
+  auto array_name = get_array_name(m_idx);
+  auto workspace = get_workspace(m_idx);
+
+  // Initialize context with the default configuration parameters
+  TileDB_CTX* tiledb_ctx;
+  tiledb_ctx_init(&tiledb_ctx, NULL);
+
+  char a1[200], a2[200], a3[200], a4[200], a5[200], a6[200], a7[200], a8[200], a9[200];
+  void* buffers[] = {a1, a2, a3, a4, a5, a6, a7, a8, a9};
+  size_t sizes[] = {sizeof(a1), sizeof(a2), sizeof(a3), sizeof(a4), sizeof(a5), sizeof(a6), sizeof(a7), sizeof(a8), sizeof(a9)};
+
+  std::cout << "before initialize itor " << std::endl; 
+
+  int64_t subarray[] = { 0, 0, 100, 349251121 };
+
+  // Initialize array
+  TileDB_ArrayIterator* tiledb_it;
+  check_rc(tiledb_array_iterator_init(
+      tiledb_ctx,                                       // Context
+      &tiledb_it,                                       // Array object
+      (workspace + "/" + array_name).c_str(),           // Array name
+      TILEDB_ARRAY_READ,                                // Mode
+      NULL,                                             // Whole domain
+      NULL,                                             // All attributes
+      0,                                                // Number of attributes
+      buffers,                                          // buffers used internally
+      sizes));                                          // buffer sizes
+
+  std::cout << "after initialize itor" << std::endl;
+
+  int* val;
+  size_t size;
+  while(!tiledb_array_iterator_end(tiledb_it)) {
+    /*for(int i = 0; i < 5; i++) {
+      // Get value
+      std::cout << "before get value " << i << std::endl;
+      tiledb_array_iterator_get_value(
+          tiledb_it,           // Array iterator
+          i,                   // Attribute id
+          (const void**) &val, // Value
+          &size);              // Value size (useful in variable-sized attributes)
+
+      std::cout << "after get value " << i << std::endl;
+
+      // Print value (if not a deletion)
+      if(*val != TILEDB_EMPTY_INT32) {
+        printf("attribute %d / %d is %3d\n", i, 5, *val);
+      }
+    }*/
+
+    // START
+    int64_t* start = 0;
+    size_t start_size;
+    tiledb_array_iterator_get_value(
+          tiledb_it,             // Array iterator
+          0,                     // Attribute id
+          (const void**) &start, // Value
+          &start_size);          // Value size (useful in variable-sized attributes)
+    std::cout << "read start as " << *start << std::endl;
+    std::cout << "start size is " << start_size << std::endl;
+    // END
+    int64_t* end = 0;
+    size_t end_size;
+    tiledb_array_iterator_get_value(
+          tiledb_it,             // Array iterator
+          1,                     // Attribute id
+          (const void**) &end,   // Value
+          &end_size);            // Value size (useful in variable-sized attributes)
+    std::cout << "read end as " << *end << std::endl;
+    std::cout << "end size is " << end_size << std::endl;
+    // SCORE
+    float* score = 0;
+    size_t score_size;
+    tiledb_array_iterator_get_value(
+          tiledb_it,             // Array iterator
+          2,                     // Attribute id
+          (const void**) &score, // Value
+          &score_size);          // Value size (useful in variable-sized attributes)
+    std::cout << "read score as " << *score << std::endl;
+    std::cout << "score size is " << score_size << std::endl;
+    // NAME
+    char* name = 0;
+    size_t name_size;
+    tiledb_array_iterator_get_value(
+          tiledb_it,             // Array iterator
+          3,                     // Attribute id
+          (const void**) &name,  // Value
+          &name_size);           // Value size (useful in variable-sized attributes)
+    std::cout << "read name as " << std::endl;
+    for(int j = 0; j < name_size; j++) {
+      std::cout << name[j];
+    }
+    std::cout << std::endl << "name size is " << name_size << std::endl;
+    // GENE
+    char* gene = 0;
+    size_t gene_size;
+    tiledb_array_iterator_get_value(
+          tiledb_it,             // Array iterator
+          4,                     // Attribute id
+          (const void**) &gene,  // Value
+          &gene_size);           // Value size (useful in variable-sized attributes)
+    std::cout << "read gene as " << std::endl;
+    for(int j = 0; j < gene_size; j++) {
+      std::cout << gene[j];
+    }
+    std::cout << std::endl << "gene size is " << gene_size << std::endl;
+
+    // COORDS
+    int64_t* coords = 0;
+    size_t coords_size;
+    tiledb_array_iterator_get_value(
+          tiledb_it,              // Array iterator
+          5,                      // Attribute id
+          (const void**) &coords, // Value
+          &coords_size);          // Value size (useful in variable-sized attributes)
+    std::cout << "read coords as " << coords[0] << ", " << coords[1] << std::endl;
+    std::cout << "coords size is " << coords_size << std::endl;
+
+    std::cout << std::endl << std::endl;
+
+    // Advance iterator
+    tiledb_array_iterator_next(tiledb_it);
+  }
+ 
+  // Finalize array 
+  tiledb_array_iterator_finalize(tiledb_it);
+
+  // Finalize context
+  tiledb_ctx_finalize(tiledb_ctx);
+
+  /*
+  // Prepare cell buffers
+  int64_t buffer_start[4];
+  int64_t buffer_end[4];
+  float buffer_score[4];
+  size_t buffer_name[4];
+  char buffer_var_name[20];
+  int64_t buffer_coords[8];
+  void* buffers[] =
+      { buffer_start, buffer_end, buffer_score, buffer_name, buffer_var_name, buffer_coords };
+  size_t buffer_sizes[] =
+  {
+      sizeof(buffer_start),
+      sizeof(buffer_end),
+      sizeof(buffer_score),
+      sizeof(buffer_name),
+      sizeof(buffer_var_name),
+      sizeof(buffer_coords)
+  };
+
+  std::cout << "read array buffer sizes" << std::endl;
+  for(auto o : buffer_sizes) {
+    std::cout << o << std::endl;
+  }
+
+  // Read from array
+  check_rc(tiledb_array_read(tiledb_array, buffers, buffer_sizes));
+
+  std::cout << "after read " << std::endl; */
+
+  // Print cell values
+  /*int64_t result_num = buffer_sizes[0] / sizeof(int);
+  printf("coords\t a1\t   a2\t     (a3.first, a3.second)\n");
+  printf("--------------------------------------------------\n");
+  for(int i=0; i<result_num; ++i) {
+    printf("(%" PRId64 ", %" PRId64 ")", buffer_coords[2*i], buffer_coords[2*i+1]);
+    printf("\t %3d", buffer_a1[i]);
+    size_t var_size = (i != result_num-1) ? buffer_a2[i+1] - buffer_a2[i]
+                                          : buffer_sizes[2] - buffer_a2[i];
+    printf("\t %4.*s", int(var_size), &buffer_var_a2[buffer_a2[i]]);
+    printf("\t\t (%5.1f, %5.1f)\n", buffer_a3[2*i], buffer_a3[2*i+1]);
+  }*/
+
+  //int results = buffer_sizes[0] / sizeof(size_t);
+
+  //for(int i = 0; i < results; i++) {
+  //  std::cout << buffer_coords[2*i] << ", " << buffer_coords[2*i + 1] << std::endl;
+  //}
+
+
+  /*for(int i = 0; i < 4; i++) {
+    std::cout << i << std::endl;
+    std::cout << "start " << buffer_start[i] << std::endl;
+    std::cout << "end " << buffer_end[i] << std::endl;
+    int s;
+    memcpy(&s, buffer_score + i, 4);
+    std::cout << "score " << buffer_score[i] << " as int again: " << s << std::endl;
+    std::cout << "name " << buffer_name << std::endl;
+    std::cout << "coords " << buffer_coords[2*i] << ", " << buffer_coords[2*i + 1] << std::endl;
+  }
+
+  for(int i = 0; i < sizeof(buffer_var_name); i++) {
+    std::cout << buffer_var_name[i] << std::endl;
+  }
+
+  // Finalize the array
+  check_rc(tiledb_array_finalize(tiledb_array));
+
+  // Finalize context
+  check_rc(tiledb_ctx_finalize(tiledb_ctx));
+
+  return;*/
+}
