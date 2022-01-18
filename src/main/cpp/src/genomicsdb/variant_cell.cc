@@ -28,6 +28,7 @@ BufferVariantCell::BufferVariantCell(const VariantArraySchema& array_schema) {
   clear();
   m_array_schema = &array_schema;
   resize(array_schema.attribute_num());
+  std::cout << "REMOVE BufferVariantCell ctor attributes: " << array_schema.attribute_num() << std::endl;
   for (auto i=0u; i<array_schema.attribute_num(); ++i)
     update_field_info(i, i);
 }
@@ -66,6 +67,7 @@ void BufferVariantCell::resize(const size_t num_fields) {
 void BufferVariantCell::update_field_info(const int query_idx, const int schema_idx) {
   assert(static_cast<const size_t>(query_idx) < m_field_ptrs.size() && m_field_ptrs.size() == m_schema_idxs.size()
          && m_field_lengths.size() == m_schema_idxs.size());
+  std::cout << "REMOVE updating attribute " << m_array_schema->attribute_name(schema_idx) << std::endl;
   m_schema_idxs[query_idx] = schema_idx;
   m_field_lengths[query_idx] = m_array_schema->val_num(schema_idx);
 }
@@ -77,12 +79,17 @@ void BufferVariantCell::set_cell(const void* ptr) {
   m_begin_column_idx = *(reinterpret_cast<const int64_t*>(cell_ptr+sizeof(int64_t)));
   //Go past co-ordinates and cell size
   uint64_t offset = 2*sizeof(int64_t)+sizeof(size_t);
+  std::cout << "REMOVE initial offset " << offset << std::endl;
+  std::cout << "REMOVE m_field_ptrs.size(): " << m_field_ptrs.size() << std::endl;
 #ifdef DEBUG
   auto cell_size = *(reinterpret_cast<const size_t*>(cell_ptr+2*sizeof(int64_t)));
+  std::cout << "REMOVE cell size is " << cell_size << std::endl;
 #endif
   for (auto i=0u; i<m_field_ptrs.size(); ++i) {
     auto schema_idx = m_schema_idxs[i];
     auto length = m_field_lengths[i];
+    std::cout << "REMOVE reading attribute " << m_array_schema->attribute_name(schema_idx) << ",  " << i << std::endl;
+    std::cout << "REMOVE offset " << offset << std::endl;
     //#define DEBUG_VARIANT_CELL_OFFSETS
 #ifdef DEBUG_VARIANT_CELL_OFFSETS
     //For variable length fields, data_offset == length_offset+sizeof(int)
@@ -92,15 +99,20 @@ void BufferVariantCell::set_cell(const void* ptr) {
 #endif
     //check if variable length field - read length from buffer
     if (m_array_schema->is_variable_length_field(schema_idx)) {
+      std::cout << "REMOVE variable length" << std::endl;
       length = *(reinterpret_cast<const int*>(cell_ptr+offset));
+      std::cout << "REMOVE length is " << length << std::endl;
       m_field_lengths[i] = length;
       offset += sizeof(int);
+      std::cout << "REMOVE offset increased to " << offset << std::endl;
     }
 #ifdef DEBUG_VARIANT_CELL_OFFSETS
     std::cerr << " data_offset "<<offset<<" #elements "<< length << "\n";
 #endif
     m_field_ptrs[i] = cell_ptr + offset;      //field pointer points to region in buffer AFTER the length
     offset += (length*(m_array_schema->element_size(schema_idx)));
+    std::cout << "REMOVE element size is " << m_array_schema->element_size(schema_idx) << std::endl;
+    std::cout << "REMOVE offset now " << offset << std::endl;
   }
 #ifdef DEBUG
   assert(offset == cell_size);

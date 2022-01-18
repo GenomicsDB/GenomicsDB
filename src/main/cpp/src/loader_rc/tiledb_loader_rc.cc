@@ -366,6 +366,35 @@ std::tuple<std::string, int64_t, int64_t, std::string, float> SinglePosition2Til
   }
 }*/
 
+// get line using TileDBUtils api to work with cloud storage as well
+// return value indicates if line was read
+bool TranscriptomicsFileReader::generalized_getline(std::string& retval) {
+  retval = "";
+
+  while(m_chars_read < m_file_size || m_str_buffer.size()) {
+    int idx = m_str_buffer.find('\n');
+    if(idx != std::string::npos) {
+      retval = retval + m_str_buffer.substr(0, idx); // exclude newline
+      m_str_buffer.erase(0, idx + 1); // erase newline
+      return true;
+    }
+
+    retval = retval + m_str_buffer;
+    m_str_buffer.clear();
+
+    int chars_to_read = std::min<ssize_t>(m_buffer_size, m_file_size - m_chars_read);
+
+    if(chars_to_read) {
+      TileDBUtils::read_file(m_fname, m_chars_read, m_buffer, chars_to_read);
+       m_chars_read += chars_to_read;
+    }
+
+    m_str_buffer.insert(m_str_buffer.end(), m_buffer, m_buffer + chars_to_read);
+  }
+
+  return false;
+}
+
 cell_info BedReader::next_cell_info() {
   std::string str;
   while(std::getline(m_file, str)) {
@@ -444,11 +473,11 @@ cell_info MatrixReader::next_cell_info() {
   return {-1, -1, "", "", 0, -1, m_file_idx};
 }
 
-void SinglePosition2TileDBLoader::read_compressed_gtf(std::string fname) {
+/*void SinglePosition2TileDBLoader::read_compressed_gtf(std::string fname) {
   size_t filesize, buffer_size, allocated_buffer_size, chunk_size;
   void* buffer;
   TileDBUtils::gzip_read_buffer(fname, filesize, buffer, buffer_size, allocated_buffer_size, chunk_size);
-}
+}*/
 
 void SinglePosition2TileDBLoader::read_uncompressed_gtf(std::istream& input, std::string format) {
   if(format != "gff" and format != "gtf") {

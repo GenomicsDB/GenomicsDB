@@ -119,14 +119,21 @@ LoaderArrayWriter::LoaderArrayWriter(
   //Schema
   id_mapper.build_tiledb_array_schema(m_schema, array_name,
                                       m_import_config_ptr->compress_tiledb_array(), m_import_config_ptr->get_tiledb_compression_type(), m_import_config_ptr->get_tiledb_compression_level(), m_import_config_ptr->no_mandatory_VCF_fields());
+
   //Storage manager
   size_t segment_size = m_import_config_ptr->get_segment_size();
   m_storage_manager = new VariantStorageManager(workspace, segment_size,
        m_import_config_ptr->enable_shared_posixfs_optimizations());
   if (m_import_config_ptr->delete_and_create_tiledb_array())
     m_storage_manager->delete_array(array_name);
+
+
+  std::cout << "REMOVE Finish here" << std::endl;
+  exit(1);
+
   //Open array in write mode
   m_array_descriptor = m_storage_manager->open_array(array_name, &id_mapper, "w");
+
   //Check if array already exists
   //Array does not exist - define it first
   if (m_array_descriptor < 0) {
@@ -146,11 +153,14 @@ LoaderArrayWriter::LoaderArrayWriter(
   if (m_array_descriptor < 0)
     throw LoadOperatorException(std::string("Could not open TileDB array for loading")
                                 + "\nTileDB error message : "+tiledb_errmsg);
+
   m_storage_manager->update_row_bounds_in_array(m_array_descriptor, m_import_config_ptr->get_row_bounds().first,
       std::min(m_import_config_ptr->get_row_bounds().second, id_mapper.get_max_callset_row_idx()));
   m_storage_manager->write_column_bounds_to_array(m_array_descriptor,
       m_import_config_ptr->get_column_partition(m_partition_idx).first,
       m_import_config_ptr->get_column_partition(m_partition_idx).second);
+  std::cout << "REMOVE reference col bounds " << m_import_config_ptr->get_column_partition(m_partition_idx).first << ", " << m_import_config_ptr->get_column_partition(m_partition_idx).second << std::endl;
+  std::cout << "REMOVE reference row bounds " << m_import_config_ptr->get_row_bounds().first << ", " << m_import_config_ptr->get_row_bounds().second << std::endl;
 }
 
 void LoaderArrayWriter::write_top_element_to_disk() {
@@ -158,6 +168,7 @@ void LoaderArrayWriter::write_top_element_to_disk() {
   CellWrapper top_element = m_cell_wrapper_pq.top();
   m_cell_wrapper_pq.pop();
   auto idx_in_vector = top_element.m_idx_in_cell_copies_vector;
+
   m_storage_manager->write_cell_sorted(m_array_descriptor,
                                        reinterpret_cast<const void*>(m_cell_copies[idx_in_vector]));
   //If this is a begin cell and spans multiple columns, retain this copy for the END in the PQ
@@ -274,6 +285,8 @@ void LoaderArrayWriter::operate(const void* cell_ptr) {
 }
 
 void LoaderArrayWriter::finish(const int64_t column_interval_end) {
+  std::cout << "REMOVE finish here" << std::endl;
+  exit(1);
   LoaderOperatorBase::finish(column_interval_end);
   //some cells may be left in the PQ, write them to disk
   while (!m_cell_wrapper_pq.empty())

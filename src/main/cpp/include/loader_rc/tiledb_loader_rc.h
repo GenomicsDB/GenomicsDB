@@ -2,6 +2,7 @@
 #include "genomicsdb_config_base.h"
 #include "variant_storage_manager.h"
 #include "load_operators.h"
+#include "tiledb_utils.h"
 
 // flattened start, flattened end, name, gene, score, sample index, file index
 typedef std::tuple<int64_t, int64_t, std::string, std::string, float, int, int> cell_info;
@@ -15,17 +16,37 @@ typedef std::tuple<int64_t, int64_t, std::string, std::string, float, int, int> 
 
 class TranscriptomicsFileReader {
   public:
-    TranscriptomicsFileReader(std::string fname, int file_idx, VidMapper& vid_mapper) : m_file(fname), m_file_idx(file_idx), m_vid_mapper(vid_mapper) {}
+    TranscriptomicsFileReader(std::string fname, int file_idx, VidMapper& vid_mapper) : /*m_file(fname),*/ m_fname(fname), m_file_idx(file_idx), m_vid_mapper(vid_mapper) {
+      m_buffer = new char[m_buffer_size];
+      m_file_size = TileDBUtils::file_size(fname);
+    }
+    ~TranscriptomicsFileReader() {
+      delete[] m_buffer;
+    }
     virtual cell_info next_cell_info() = 0;
   protected:
+    std::string m_fname;
     std::ifstream m_file;
     int m_file_idx;
+    ssize_t m_file_size = 0;
+    ssize_t m_chars_read = 0;
     VidMapper& m_vid_mapper;
+    bool generalized_getline(std::string& retval);
+
+    const int m_buffer_size = 20;
+    char* m_buffer;
+    std::string m_str_buffer;
 };
 
 class BedReader : public TranscriptomicsFileReader {
   public:
-    BedReader(std::string fname, int ind, VidMapper& vid_mapper, int sample_idx) : TranscriptomicsFileReader(fname, ind, vid_mapper), m_sample_idx(sample_idx) {}
+    BedReader(std::string fname, int ind, VidMapper& vid_mapper, int sample_idx) : TranscriptomicsFileReader(fname, ind, vid_mapper), m_sample_idx(sample_idx) {
+      std::cout << "BED READER reading file" << std::endl;
+      std::string str;
+      while(generalized_getline(str)) {
+        std::cout << str << std::endl;
+      }
+    }
     cell_info next_cell_info() override;
   protected:
     int64_t m_sample_idx;

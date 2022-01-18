@@ -394,6 +394,48 @@ class GenomicsDB {
   std::map<std::string, VariantQueryConfig> m_query_configs_map; 
 };
 
+
+// enables querrying of transcriptomics workspaces
+//class GenomicsDBTranscriptomics {
+    /**
+   * Constructor to the GenomicsDBTranscriptomics Query API
+   *   workspace
+   *   callset_mapping_file
+   *   vid_mapping_file
+   *   reference_genome
+   *   segment_size, optional
+   * Throws GenomicsDBException
+   */
+//  GENOMICSDB_EXPORT GenomicsDBTranscriptomics(const std::string& workspace,
+//             const std::string& callset_mapping_file,
+//             const std::string& vid_mapping_file,
+//             const std::string& reference_genome,
+//             const uint64_t segment_size = DEFAULT_SEGMENT_SIZE);
+
+  /**
+   * Query the array for variant calls constrained by the column and row ranges.
+   * Variant Calls are similar to GACall in GA4GH API.
+   *   array
+   *   column_ranges, optional
+   *   row_ranges, optional
+   */
+//  GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls(const std::string& array,
+//                                                               genomicsdb_ranges_t column_ranges=SCAN_FULL,
+//                                                               genomicsdb_ranges_t row_ranges={});
+
+  /**
+   * Query the array for variant calls constrained by the column and row ranges.
+   * Variant Calls are similar to GACall in GA4GH API.
+   *   array
+   *   column_ranges, optional
+   *   row_ranges, optional
+   */
+//  GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls(GenomicsDBVariantCallProcessor& processor,
+//                                                               const std::string& array,
+//                                                               genomicsdb_ranges_t column_ranges=SCAN_FULL,
+//                                                               genomicsdb_ranges_t row_ranges={});
+//}
+
 // genomicsdb_variant_t specialization of GenomicsDBResults template
 template<>
 GENOMICSDB_EXPORT std::size_t GenomicsDBResults<genomicsdb_variant_t>::size() const noexcept;

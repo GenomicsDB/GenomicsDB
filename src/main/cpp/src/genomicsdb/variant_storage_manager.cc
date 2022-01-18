@@ -225,6 +225,7 @@ VariantArrayInfo::VariantArrayInfo(VariantArrayInfo&& other)
 }
 
 void VariantArrayInfo::write_cell(const void* ptr) {
+  std::cout << "REMOVE in write cell" << std::endl;
   m_cell.set_cell(ptr);
 #ifdef DEBUG
   assert((m_cell.get_begin_column() > m_last_column) || (m_cell.get_begin_column() == m_last_column && m_cell.get_row() > m_last_row));
@@ -256,6 +257,7 @@ void VariantArrayInfo::write_cell(const void* ptr) {
   overflow = overflow || (m_buffer_offsets[coords_buffer_idx]+coords_size > m_buffers[coords_buffer_idx].size());
   //write to array and reset sizes
   if (overflow) {
+    std::cout << "REMOVE hello there" << std::endl;
     auto status = tiledb_array_write(m_tiledb_array, const_cast<const void**>(&(m_buffer_pointers[0])), &(m_buffer_offsets[0]));
     if (status != TILEDB_OK)
       logger.fatal(VariantStorageManagerException(
@@ -471,7 +473,13 @@ void VariantArrayInfo::close_array(const bool consolidate_tiledb_array) {
   if ((m_mode == TILEDB_ARRAY_WRITE || m_mode == TILEDB_ARRAY_WRITE_UNSORTED)) {
     //Flush cells in buffer
     if (m_buffer_offsets[coords_buffer_idx] > 0ull) {
+      std::cout << "REMOVE hello there 2" << std::endl;
+      std::cout << "REMOVE buffer offsets" << std::endl;
+      for(auto o : m_buffer_offsets) {
+        std::cout << "REMOVE " << o << std::endl;
+      }
       auto status = tiledb_array_write(m_tiledb_array, const_cast<const void**>(&(m_buffer_pointers[0])), &(m_buffer_offsets[0]));
+      std::cout << "REMOVE return code " << status << std::endl;
       if (status != TILEDB_OK)
         logger.fatal(VariantStorageManagerException(
             logger.format("Error while writing to array {}\nTileDB error message : {}",
