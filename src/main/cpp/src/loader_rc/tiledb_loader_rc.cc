@@ -624,7 +624,7 @@ void SinglePosition2TileDBLoader::read_all() {
     m_storage_manager->close_array(m_array_descriptor, consolidate_tiledb_array_after_load());
   }
 
-  read_array();
+  //read_array();
 }
 
 void check_rc(int rc) {
