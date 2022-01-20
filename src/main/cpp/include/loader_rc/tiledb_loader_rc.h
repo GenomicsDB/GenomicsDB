@@ -33,20 +33,14 @@ class TranscriptomicsFileReader {
     VidMapper& m_vid_mapper;
     bool generalized_getline(std::string& retval);
 
-    const int m_buffer_size = 20;
+    const int m_buffer_size = 512;
     char* m_buffer;
     std::string m_str_buffer;
 };
 
 class BedReader : public TranscriptomicsFileReader {
   public:
-    BedReader(std::string fname, int ind, VidMapper& vid_mapper, int sample_idx) : TranscriptomicsFileReader(fname, ind, vid_mapper), m_sample_idx(sample_idx) {
-      std::cout << "BED READER reading file" << std::endl;
-      std::string str;
-      while(generalized_getline(str)) {
-        std::cout << str << std::endl;
-      }
-    }
+    BedReader(std::string fname, int ind, VidMapper& vid_mapper, int sample_idx) : TranscriptomicsFileReader(fname, ind, vid_mapper), m_sample_idx(sample_idx) { }
     cell_info next_cell_info() override;
   protected:
     int64_t m_sample_idx;
@@ -56,7 +50,7 @@ class MatrixReader : public TranscriptomicsFileReader {
   public:
     MatrixReader(std::string fname, int ind, VidMapper& vid_mapper, std::map<std::string, std::pair<long, long>>& transcript_map) : TranscriptomicsFileReader(fname, ind, vid_mapper), m_transcript_map(transcript_map) {
       std::string str;
-      std::getline(m_file, str);
+      generalized_getline(str);
       std::string tok;
       std::stringstream ss(str);
 

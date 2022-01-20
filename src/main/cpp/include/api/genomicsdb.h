@@ -43,6 +43,7 @@
 #include <typeindex>
 #include <typeinfo>
 #include <vector>
+#include <tuple>
 
 // Override project visibility set to hidden for api
 #if (defined __GNUC__ && __GNUC__ >= 4) || defined __INTEL_COMPILER
@@ -394,47 +395,60 @@ class GenomicsDB {
   std::map<std::string, VariantQueryConfig> m_query_configs_map; 
 };
 
+//                 start    end      score  name         gene         row      col
+typedef std::tuple<int64_t, int64_t, float, std::string, std::string, int64_t, int64_t> transcriptomics_cell;
 
 // enables querrying of transcriptomics workspaces
-//class GenomicsDBTranscriptomics {
+class GenomicsDBTranscriptomics {
+  public:
     /**
-   * Constructor to the GenomicsDBTranscriptomics Query API
-   *   workspace
-   *   callset_mapping_file
-   *   vid_mapping_file
-   *   reference_genome
-   *   segment_size, optional
-   * Throws GenomicsDBException
-   */
-//  GENOMICSDB_EXPORT GenomicsDBTranscriptomics(const std::string& workspace,
-//             const std::string& callset_mapping_file,
-//             const std::string& vid_mapping_file,
-//             const std::string& reference_genome,
-//             const uint64_t segment_size = DEFAULT_SEGMENT_SIZE);
+    * Constructor to the GenomicsDBTranscriptomics Query API
+    *   workspace
+    *   callset_mapping_file
+    *   vid_mapping_file
+    *   reference_genome
+    *   segment_size, optional
+    * Throws GenomicsDBException
+    */
+    GENOMICSDB_EXPORT GenomicsDBTranscriptomics(const std::string& workspace,
+                                                const std::string& callset_mapping_file = "",
+                                                const std::string& vid_mapping_file = "",
+                                                const std::string& gtf_name = "", // will be used later for matrix export
+                                                const std::string& gi_name = "",
+                                                const uint64_t segment_size = DEFAULT_SEGMENT_SIZE);
 
-  /**
-   * Query the array for variant calls constrained by the column and row ranges.
-   * Variant Calls are similar to GACall in GA4GH API.
-   *   array
-   *   column_ranges, optional
-   *   row_ranges, optional
-   */
-//  GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls(const std::string& array,
-//                                                               genomicsdb_ranges_t column_ranges=SCAN_FULL,
-//                                                               genomicsdb_ranges_t row_ranges={});
+    /**
+    * Query the array for variant calls constrained by the column and row ranges.
+    * Variant Calls are similar to GACall in GA4GH API.
+    *   array
+    *   column_ranges, optional
+    *   row_ranges, optional
+    */
+    GENOMICSDB_EXPORT std::vector<transcriptomics_cell> query_variant_calls(const std::string& array,
+                                                                            genomicsdb_ranges_t column_ranges=SCAN_FULL,
+                                                                            genomicsdb_ranges_t row_ranges=SCAN_FULL); // set default to {} ?
 
-  /**
-   * Query the array for variant calls constrained by the column and row ranges.
-   * Variant Calls are similar to GACall in GA4GH API.
-   *   array
-   *   column_ranges, optional
-   *   row_ranges, optional
-   */
-//  GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls(GenomicsDBVariantCallProcessor& processor,
-//                                                               const std::string& array,
-//                                                               genomicsdb_ranges_t column_ranges=SCAN_FULL,
-//                                                               genomicsdb_ranges_t row_ranges={});
-//}
+    /**
+    * Query the array for variant calls constrained by the column and row ranges.
+    * Variant Calls are similar to GACall in GA4GH API.
+    *   array
+    *   column_ranges, optional
+    *   row_ranges, optional
+    */
+    GENOMICSDB_EXPORT std::vector<transcriptomics_cell> query_variant_calls(GenomicsDBVariantCallProcessor& processor,
+                                                                            const std::string& array,
+                                                                            genomicsdb_ranges_t column_ranges=SCAN_FULL,
+                                                                            genomicsdb_ranges_t row_ranges=SCAN_FULL); // set default to {} ?
+  private:
+    std::string m_workspace;
+
+    // calls processor.process if pointer is non null
+    std::vector<transcriptomics_cell> generic_query_variant_calls(const std::string& array,                                                                  
+                                                                  genomicsdb_ranges_t column_ranges=SCAN_FULL,
+                                                                  genomicsdb_ranges_t row_ranges={},
+                                                                  GenomicsDBVariantCallProcessor* processor = 0);
+  
+};
 
 // genomicsdb_variant_t specialization of GenomicsDBResults template
 template<>

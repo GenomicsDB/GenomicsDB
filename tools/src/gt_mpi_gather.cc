@@ -25,6 +25,7 @@
 #include <string>
 #include <getopt.h>
 #include <mpi.h>
+#include "genomicsdb.h"
 #include "json_config.h"
 #include "timer.h"
 #include "query_variants.h"
@@ -51,7 +52,8 @@ enum ArgsEnum {
   ARGS_IDX_PRODUCE_INTERESTING_POSITIONS,
   ARGS_IDX_PRINT_ALT_ALLELE_COUNTS,
   ARGS_IDX_COLUMNAR_GVCF,
-  ARGS_IDX_GVCF_PROFILE
+  ARGS_IDX_GVCF_PROFILE,
+  ARGS_IDX_TRANSCRIPTOMICS_QUERY
 };
 
 enum CommandsEnum {
@@ -61,7 +63,8 @@ enum CommandsEnum {
   COMMAND_PRINT_CALLS,
   COMMAND_PRINT_CSV,
   COMMAND_PRINT_ALT_ALLELE_COUNTS,
-  COMMAND_COLUMNAR_GVCF
+  COMMAND_COLUMNAR_GVCF,
+  COMMAND_TRANSCRIPTOMICS_QUERY
 };
 
 enum ProduceBroadGVCFSubOperation {
@@ -431,6 +434,8 @@ void print_usage() {
             << "\t\t Optional, if workspace is specified in any of the json config files\n"
             << "\t \e[1m--array\e[0m=<array dir>, \e[1m-A\e[0m <GenomicsDB array dir>\n"
             << "\t\t Optional, if array is specified in any of the json config files\n"
+            << "\t \e[1m--transcriptomics-query\e[0m\n"
+            << "\t\t Optional, runs a query on specified workspace and array, treating them as transcriptomics style data\n"
             << "\t \e[1m--print-calls\e[0m\n"
             << "\t\t Optional, prints VariantCalls in a JSON format\n"
             << "\t \e[1m--print-csv\e[0m\n"
@@ -494,6 +499,7 @@ int main(int argc, char *argv[]) {
     {"print-csv",0,0,ARGS_IDX_PRINT_CSV},
     {"print-AC",0,0,ARGS_IDX_PRINT_ALT_ALLELE_COUNTS},
     {"array",1,0,'A'},
+    {"transcriptomics-query",0,0,ARGS_IDX_TRANSCRIPTOMICS_QUERY},
     {"version",0,0,ARGS_IDX_VERSION},
     {"columnar-gvcf",0,0,ARGS_IDX_COLUMNAR_GVCF},
     {"gvcf-profile",0,0,ARGS_IDX_GVCF_PROFILE},
@@ -531,6 +537,9 @@ int main(int argc, char *argv[]) {
       break;
     case 'A':
       array_name = std::move(std::string(optarg));
+      break;
+    case ARGS_IDX_TRANSCRIPTOMICS_QUERY:
+      command_idx = COMMAND_TRANSCRIPTOMICS_QUERY;
       break;
     case 's':
       segment_size = strtoull(optarg, 0, 10);
@@ -638,14 +647,18 @@ int main(int argc, char *argv[]) {
     std::cerr << "Segment size: "<<segment_size<<" bytes\n";
 #endif
 
+
     /*Create storage manager*/
     VariantStorageManager sm(workspace, segment_size);
     /*Create query processor*/
     VariantQueryProcessor qp(&sm, array_name, query_config.get_vid_mapper());
     auto require_alleles = ((command_idx == COMMAND_RANGE_QUERY)
                             || (command_idx == COMMAND_PRODUCE_BROAD_GVCF)
-			    || (command_idx == COMMAND_COLUMNAR_GVCF));
-    qp.do_query_bookkeeping(qp.get_array_schema(), query_config, query_config.get_vid_mapper(), require_alleles);
+                            || (command_idx == COMMAND_COLUMNAR_GVCF));
+
+    if(command_idx != COMMAND_TRANSCRIPTOMICS_QUERY) { // not applicable for transcriptomics
+      qp.do_query_bookkeeping(qp.get_array_schema(), query_config, query_config.get_vid_mapper(), require_alleles);
+    }
     switch (command_idx) {
       case COMMAND_RANGE_QUERY:
         run_range_query(qp, query_config, query_config.get_vid_mapper(), output_format,
@@ -666,6 +679,24 @@ int main(int argc, char *argv[]) {
       case COMMAND_PRINT_CSV:
       case COMMAND_PRINT_ALT_ALLELE_COUNTS:
         print_calls(qp, query_config, command_idx, query_config.get_vid_mapper());
+        break;
+      case COMMAND_TRANSCRIPTOMICS_QUERY:
+        GenomicsDBTranscriptomics gdb(workspace); // TODO pass callset/vid mapper etc
+        //std::vector<std::pair<int64_t, int64_t>> rows = {{query_config.get_smallest_row_idx_in_array(), query_config.get_smallest_row_idx_in_array() + query_config.get_num_rows_in_array() - 1}};
+        //std::cout << "row span " << rows[0].first << ", " << rows[0].second << std::endl;
+        auto retval = gdb.query_variant_calls(array_name);
+        //auto retval = gdb.query_variant_calls(array_name, {{0, 1000}}, {{0, 1}});
+        std::cout << "[" << std::endl;
+        for(int i = 0; i < retval.size(); i++) {
+          auto& t = retval[i];
+          // start, end, score, name, gene, row, col
+          std::cout << "[" << std::get<0>(t) << ", " << std::get<1>(t) << ", " << std::get<2>(t) << ", \"" << std::get<3>(t) << "\", \"" << std::get<4>(t) << "\", " << std::get<5>(t) << ", " << std::get<6>(t) << "]";
+          if(i != retval.size() - 1) {
+            std::cout << ",";
+          }
+          std::cout << std::endl;
+        }
+        std::cout << "]" << std::endl;
         break;
     }
 #ifdef USE_GPERFTOOLS

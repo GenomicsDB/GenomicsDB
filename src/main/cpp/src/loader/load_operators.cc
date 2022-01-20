@@ -128,9 +128,6 @@ LoaderArrayWriter::LoaderArrayWriter(
     m_storage_manager->delete_array(array_name);
 
 
-  std::cout << "REMOVE Finish here" << std::endl;
-  exit(1);
-
   //Open array in write mode
   m_array_descriptor = m_storage_manager->open_array(array_name, &id_mapper, "w");
 
@@ -159,8 +156,6 @@ LoaderArrayWriter::LoaderArrayWriter(
   m_storage_manager->write_column_bounds_to_array(m_array_descriptor,
       m_import_config_ptr->get_column_partition(m_partition_idx).first,
       m_import_config_ptr->get_column_partition(m_partition_idx).second);
-  std::cout << "REMOVE reference col bounds " << m_import_config_ptr->get_column_partition(m_partition_idx).first << ", " << m_import_config_ptr->get_column_partition(m_partition_idx).second << std::endl;
-  std::cout << "REMOVE reference row bounds " << m_import_config_ptr->get_row_bounds().first << ", " << m_import_config_ptr->get_row_bounds().second << std::endl;
 }
 
 void LoaderArrayWriter::write_top_element_to_disk() {
@@ -285,8 +280,6 @@ void LoaderArrayWriter::operate(const void* cell_ptr) {
 }
 
 void LoaderArrayWriter::finish(const int64_t column_interval_end) {
-  std::cout << "REMOVE finish here" << std::endl;
-  exit(1);
   LoaderOperatorBase::finish(column_interval_end);
   //some cells may be left in the PQ, write them to disk
   while (!m_cell_wrapper_pq.empty())

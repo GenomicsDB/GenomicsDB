@@ -675,3 +675,162 @@ void GenomicsDBVariantCallProcessor::process(const std::string& sample_name,
 void GenomicsDBVariantCallProcessor::process(const interval_t& interval) {
   std::cout << "----------------\nInterval:[" << interval.first << "," << interval.second << "]\n\n";
 }
+
+GENOMICSDB_EXPORT GenomicsDBTranscriptomics::GenomicsDBTranscriptomics(const std::string& workspace,
+                                                                       const std::string& callset_mapping_file,
+                                                                       const std::string& vid_mapping_file,
+                                                                       const std::string& gtf_name,
+                                                                       const std::string& gi_name,
+                                                                       const uint64_t segment_size) : m_workspace(workspace) {}
+
+std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_variant_calls(const std::string& array,
+                                                                                         genomicsdb_ranges_t column_ranges,
+                                                                                         genomicsdb_ranges_t row_ranges,
+                                                                                         GenomicsDBVariantCallProcessor* processor) {
+
+  auto check_rc = [](int rc) -> void {
+    if (rc) {
+      logger.error("__LINE__ tiledb error: {}", &tiledb_errmsg[0]);
+      return;
+    }
+  };
+
+  std::vector<transcriptomics_cell> retval;
+
+  TileDB_CTX* tiledb_ctx;
+  tiledb_ctx_init(&tiledb_ctx, NULL);
+
+  const int buff_size = 200;
+
+  char a1[buff_size], a2[buff_size], a3[buff_size], a4[buff_size], a5[buff_size], a6[buff_size], a7[buff_size], a8[buff_size], a9[buff_size];
+  void* buffers[] = {a1, a2, a3, a4, a5, a6, a7, a8, a9};
+  size_t sizes[] = {sizeof(a1), sizeof(a2), sizeof(a3), sizeof(a4), sizeof(a5), sizeof(a6), sizeof(a7), sizeof(a8), sizeof(a9)};
+
+  int64_t subarray[4];
+
+  for(auto& rr : row_ranges) {
+    for(auto& cr : column_ranges) {
+      subarray[0] = rr.first;
+      subarray[1] = rr.second;
+      subarray[2] = cr.first;
+      subarray[3] = cr.second;
+
+
+      // Initialize array
+      TileDB_ArrayIterator* tiledb_it;
+      check_rc(tiledb_array_iterator_init(
+        tiledb_ctx,                                       // Context
+        &tiledb_it,                                       // Array object
+        (m_workspace + "/" + array).c_str(),              // Array name
+        TILEDB_ARRAY_READ,                                // Mode
+        subarray,                                         // Domain
+        NULL,                                             // All attributes
+        0,                                                // Number of attributes
+        buffers,                                          // buffers used internally
+        sizes));                                          // buffer sizes
+
+
+      while(!tiledb_array_iterator_end(tiledb_it)) {
+        //std::cout << "while top" << std::endl;
+
+        // START
+        int64_t* start = 0;
+        size_t start_size;
+        tiledb_array_iterator_get_value(
+              tiledb_it,             // Array iterator
+              0,                     // Attribute id
+              (const void**) &start, // Value
+              &start_size);          // Value size (useful in variable-sized attributes)
+        //std::cout << "read start as " << *start << std::endl;
+        //std::cout << "start size is " << start_size << std::endl;
+        // END
+        int64_t* end = 0;
+        size_t end_size;
+        tiledb_array_iterator_get_value(
+              tiledb_it,             // Array iterator
+              1,                     // Attribute id
+              (const void**) &end,   // Value
+              &end_size);            // Value size (useful in variable-sized attributes)
+        //std::cout << "read end as " << *end << std::endl;
+        //std::cout << "end size is " << end_size << std::endl;
+        // SCORE
+        float* score = 0;
+        size_t score_size;
+        tiledb_array_iterator_get_value(
+              tiledb_it,             // Array iterator
+              2,                     // Attribute id
+              (const void**) &score, // Value
+              &score_size);          // Value size (useful in variable-sized attributes)
+        //std::cout << "read score as " << *score << std::endl;
+        //std::cout << "score size is " << score_size << std::endl;
+        // NAME
+        char* name = 0;
+        size_t name_size;
+        tiledb_array_iterator_get_value(
+              tiledb_it,             // Array iterator
+              3,                     // Attribute id
+              (const void**) &name,  // Value
+              &name_size);           // Value size (useful in variable-sized attributes)
+        //std::cout << "read name as " << std::endl;
+        //for(int j = 0; j < name_size; j++) {
+        //  std::cout << name[j];
+        //}
+        //std::cout << std::endl << "name size is " << name_size << std::endl;
+        // GENE
+        char* gene = 0;
+        size_t gene_size;
+        tiledb_array_iterator_get_value(
+              tiledb_it,             // Array iterator
+              4,                     // Attribute id
+              (const void**) &gene,  // Value
+              &gene_size);           // Value size (useful in variable-sized attributes)
+        //std::cout << "read gene as " << std::endl;
+        //for(int j = 0; j < gene_size; j++) {
+        //  std::cout << gene[j];
+        //}
+        //std::cout << std::endl << "gene size is " << gene_size << std::endl;
+
+        // COORDS
+        int64_t* coords = 0;
+        size_t coords_size;
+        tiledb_array_iterator_get_value(
+              tiledb_it,              // Array iterator
+              5,                      // Attribute id
+              (const void**) &coords, // Value
+              &coords_size);          // Value size (useful in variable-sized attributes)
+        //std::cout << "read coords as " << coords[0] << ", " << coords[1] << std::endl;
+        //std::cout << "coords size is " << coords_size << std::endl;
+
+        //std::cout << std::endl << std::endl;
+
+        // insert cell into vector
+        retval.push_back({*start, *end, *score, std::string(name, name + name_size), std::string(gene, gene + gene_size), coords[0], coords[1]});
+
+        // Advance iterator
+        tiledb_array_iterator_next(tiledb_it);
+      }
+
+      // Finalize array
+      tiledb_array_iterator_finalize(tiledb_it);
+    }
+  }
+
+  // Finalize context
+  tiledb_ctx_finalize(tiledb_ctx);
+
+  return retval;
+}
+
+GENOMICSDB_EXPORT std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::query_variant_calls(GenomicsDBVariantCallProcessor& processor,
+                                                                                                   const std::string& array,
+                                                                                                   genomicsdb_ranges_t column_ranges,
+                                                                                                   genomicsdb_ranges_t row_ranges) {
+  return generic_query_variant_calls(array, column_ranges, row_ranges, &processor);
+}
+
+
+GENOMICSDB_EXPORT std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::query_variant_calls(const std::string& array,
+                                                                                                   genomicsdb_ranges_t column_ranges,
+                                                                                                   genomicsdb_ranges_t row_ranges) {
+  return generic_query_variant_calls(array, column_ranges, row_ranges);
+}
