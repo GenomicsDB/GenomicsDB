@@ -8,6 +8,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import org.genomicsdb.GenomicsDBUtils;
+import org.genomicsdb.exception.GenomicsDBException;
 import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBImportConfiguration;
 import org.genomicsdb.model.GenomicsDBCallsetsMapProto;
@@ -19,11 +20,9 @@ import java.util.Base64;
 import java.util.List;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.Message;
 
 import static java.util.stream.Collectors.toList;
 import static com.googlecode.protobuf.format.JsonFormat.*;
-import static org.genomicsdb.GenomicsDBUtils.*;
 
 public interface JsonFileExtensions {
     /**
@@ -63,7 +62,9 @@ public interface JsonFileExtensions {
                                          final GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB)
     {
         String callsetMapJSONString = printToString(callsetMappingPB);
-	GenomicsDBUtils.writeToFile(outputCallsetMapJSONFilePath, callsetMapJSONString);
+        if (GenomicsDBUtils.writeToFile(outputCallsetMapJSONFilePath, callsetMapJSONString) != 0) {
+            throw new GenomicsDBException(String.format("Could not write callset map json file : %s", outputCallsetMapJSONFilePath));
+        }
     }
 
     /**
@@ -79,7 +80,9 @@ public interface JsonFileExtensions {
                                      final GenomicsDBVidMapProto.VidMappingPB vidMappingPB)
     {
         String vidMapJSONString = printToString(vidMappingPB);
-	GenomicsDBUtils.writeToFile(outputVidMapJSONFilePath, vidMapJSONString);
+	      if (GenomicsDBUtils.writeToFile(outputVidMapJSONFilePath, vidMapJSONString) != 0) {
+            throw new GenomicsDBException(String.format("Could not write vid map json file : %s", outputVidMapJSONFilePath));
+        }
     }
 
     /**
@@ -94,15 +97,17 @@ public interface JsonFileExtensions {
     default void writeVcfHeaderFile(final String outputVcfHeaderFilePath, final Set<VCFHeaderLine> headerLines)
     {
         final OutputStream stream = new ByteArrayOutputStream();
-	final VCFHeader vcfHeader = new VCFHeader(headerLines);
-	VariantContextWriter vcfWriter = new VariantContextWriterBuilder()
-	    .clearOptions()
-	    .setOutputStream(stream)
-	    .build();
-	vcfWriter.writeHeader(vcfHeader);
-	vcfWriter.close();
-	String buffer = stream.toString();
-        GenomicsDBUtils.writeToFile(outputVcfHeaderFilePath, buffer);
+        final VCFHeader vcfHeader = new VCFHeader(headerLines);
+        VariantContextWriter vcfWriter = new VariantContextWriterBuilder()
+                .clearOptions()
+                .setOutputStream(stream)
+                .build();
+        vcfWriter.writeHeader(vcfHeader);
+        vcfWriter.close();
+        String buffer = stream.toString();
+        if (GenomicsDBUtils.writeToFile(outputVcfHeaderFilePath, buffer) != 0) {
+            throw new GenomicsDBException(String.format("Could not write output header file : %s", outputVcfHeaderFilePath));
+        }
     }
 
     /**
