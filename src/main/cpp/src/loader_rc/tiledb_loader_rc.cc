@@ -123,11 +123,14 @@ SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& conf
     }
     else {
       std::cout << "\t\t\t\tREGEX DOES NOT MATCH" << std::endl;
-      logger.error("No valid GTF/GFF or GI file specified, cannot import transcriptomics style data");
+      //logger.error("No valid GTF/GFF or GI file specified, cannot import transcriptomics style data");
+      logger.error("File {} does does not have a gtf or gff suffix, cannot import transcriptomics style data", gtf_name);
+      exit(1);
     }
   }
   else {
     logger.error("No valid GTF/GFF or GI file specified, cannot import transcriptomics style data");
+    exit(1);  
   }
 
   /*size_t then = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -416,6 +419,9 @@ void SinglePosition2TileDBLoader::read_uncompressed_gtf(std::istream& input, std
     return;
   }
   
+  // stores number before, after at each position
+  std::map<int64_t, std::pair<int, int>> collision_map;
+
   std::string str;
 
   int ind = -1;
@@ -459,11 +465,21 @@ void SinglePosition2TileDBLoader::read_uncompressed_gtf(std::istream& input, std
     std::string tid = attributes.substr(lo, hi - lo);
     tid.erase(std::remove(tid.begin(), tid.end(), '\"'), tid.end()); // remove quotes
 
+    int64_t start_location, end_location;  
+
+    auto[before_start, after_start] = collision_map[start];
+    start_location = start + after_start;
+    collision_map[start] = {before_start, after_start + 1};
+
+    auto[before_end, after_end] = collision_map[end];
+    end_location = end - before_end;
+    collision_map[end] = {before_end + 1, after_end};
+
     auto sz = transcript_map.size();
-    transcript_map[tid] = {start, end};
+    transcript_map[tid] = {start_location, end_location};
  
     if(sz == transcript_map.size()) {
-      std::cout << tid << " is duplicate, start/end: " << start << ", " << end << std::endl;
+      std::cout << tid << " is duplicate, start/end: " << start_location << ", " << end_location << std::endl;
     }
   }
 }
