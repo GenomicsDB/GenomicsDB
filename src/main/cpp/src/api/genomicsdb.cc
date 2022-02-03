@@ -676,6 +676,7 @@ void GenomicsDBVariantCallProcessor::process(const interval_t& interval) {
   std::cout << "----------------\nInterval:[" << interval.first << "," << interval.second << "]\n\n";
 }
 
+// this api currently only supports queries, only workspace is needed
 GENOMICSDB_EXPORT GenomicsDBTranscriptomics::GenomicsDBTranscriptomics(const std::string& workspace,
                                                                        const std::string& callset_mapping_file,
                                                                        const std::string& vid_mapping_file,

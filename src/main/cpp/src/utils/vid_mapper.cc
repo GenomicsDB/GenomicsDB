@@ -388,9 +388,7 @@ const {
         || (field_info.get_genomicsdb_type().get_num_elements_in_tuple() > 1u) //tuple has multiple elements
        )
       continue;
-    std::cout << "field " << field_info.m_name << std::endl;
     if (field_info.m_is_vcf_INFO_field) {
-      std::cout << "is vcf info" << std::endl;
       attribute_names.push_back(field_info.m_name);
       types.push_back(field_info.get_tiledb_type().get_tuple_element_type_index(0u));
       num_vals.push_back(field_info.m_length_descriptor.is_fixed_length_field()
