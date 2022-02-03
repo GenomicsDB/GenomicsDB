@@ -207,8 +207,6 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
 
     VERIFY2(itr, "Could not obtain tbx query iterator. Possibly caused by the vcf not having any variants on the requested chromosome.");
 
-    // I'm not sure what this does. Whatever it is, it takes a really long time.
-    // Need to look in to how to remove this variable.
     regidx_t *reg_idx = NULL;
     // reg_idx = regidx_init(annotation_source.filename().c_str(), NULL, NULL, 0, NULL);
     // VERIFY2(reg_idx, "Unable to read file");
