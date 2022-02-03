@@ -404,9 +404,7 @@ const {
         || (field_info.get_genomicsdb_type().get_num_elements_in_tuple() > 1u) //tuple has multiple elements
        )
       continue;
-    std::cout << "REMOVE field " << field_info.m_name << std::endl;
     if (field_info.m_is_vcf_FORMAT_field) {
-      std::cout << "REMOVE is vcf format" << std::endl;
       if (field_info.m_is_vcf_INFO_field)       //Also an INFO field of the same name - add suffix
         attribute_names.push_back(field_info.m_name+"_FORMAT");
       else
@@ -431,8 +429,6 @@ const {
     compression_types = std::vector<int>(types.size(), TILEDB_NO_COMPRESSION);
     compression_levels = std::vector<int>(types.size(), 0);
   }
-
-  std::cout << "REMOVE build tiledb array schema attributes: " << attribute_names.size() << std::endl;
 
   array_schema = new VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression_types, compression_levels);
 }
