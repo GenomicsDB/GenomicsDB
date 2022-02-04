@@ -640,7 +640,6 @@ void SinglePosition2TileDBLoader::read_all() {
     auto top = pq.top();
     pq.pop();
 
-    std::cout << "About to write cell: " << std::endl;
     info_to_cell(top.start, top.end, top.name, top.gene, top.score, top.sample_idx);
 
     if(top.file_idx >= 0) { // if cell is an end

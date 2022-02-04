@@ -684,7 +684,7 @@ GENOMICSDB_EXPORT GenomicsDBTranscriptomics::GenomicsDBTranscriptomics(const std
                                                                        const std::string& gi_name,
                                                                        const uint64_t segment_size) : m_workspace(workspace) {}
 
-std::vector<std::vector<std::string>> GenomicsDBTranscriptomics::generic_query_variant_calls(const std::string& array,
+std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_variant_calls(const std::string& array,
                                                                                              genomicsdb_ranges_t column_ranges,
                                                                                              genomicsdb_ranges_t row_ranges) {
 
@@ -695,8 +695,8 @@ std::vector<std::vector<std::string>> GenomicsDBTranscriptomics::generic_query_v
     }
   };
 
-  //std::vector<transcriptomics_cell> retval;
-  std::vector<std::vector<std::string>> retval;
+  std::vector<transcriptomics_cell> retval;
+  //std::vector<std::vector<std::string>> retval;
 
   TileDB_CTX* tiledb_ctx;
   tiledb_ctx_init(&tiledb_ctx, NULL);
@@ -806,7 +806,17 @@ std::vector<std::vector<std::string>> GenomicsDBTranscriptomics::generic_query_v
 
         // insert cell into vector
         //retval.push_back({*start, *end, *score, std::string(name, name + name_size), std::string(gene, gene + gene_size), coords[0], coords[1]});
-        retval.push_back({ std::to_string(*start), std::to_string(*end), std::to_string(*score), std::string(name, name + name_size), std::string(gene, gene + gene_size), std::to_string(coords[0]), std::to_string(coords[1]) });
+        transcriptomics_cell cell;
+        cell.start = *start;
+        cell.end = *end;
+        cell.score = *score;
+        cell.name = std::string(name, name + name_size);
+        cell.gene = std::string(gene, gene + gene_size);
+        cell.sample_idx = coords[0];
+        cell.position = coords[1];        
+
+        //retval.push_back({ std::to_string(*start), std::to_string(*end), std::to_string(*score), std::string(name, name + name_size), std::string(gene, gene + gene_size), std::to_string(coords[0]), std::to_string(coords[1]) });
+        retval.push_back(cell);
 
         // Advance iterator
         tiledb_array_iterator_next(tiledb_it);
@@ -831,8 +841,8 @@ std::vector<std::vector<std::string>> GenomicsDBTranscriptomics::generic_query_v
 }*/
 
 
-GENOMICSDB_EXPORT std::vector<std::vector<std::string>> GenomicsDBTranscriptomics::query_variant_calls(const std::string& array,
-                                                                                                       genomicsdb_ranges_t column_ranges,
-                                                                                                       genomicsdb_ranges_t row_ranges) {
+GENOMICSDB_EXPORT std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::query_variant_calls(const std::string& array,
+                                                                                                   genomicsdb_ranges_t column_ranges,
+                                                                                                   genomicsdb_ranges_t row_ranges) {
   return generic_query_variant_calls(array, column_ranges, row_ranges);
 }
