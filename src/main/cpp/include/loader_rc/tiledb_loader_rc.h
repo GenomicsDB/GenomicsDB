@@ -3,16 +3,10 @@
 #include "variant_storage_manager.h"
 #include "load_operators.h"
 #include "tiledb_utils.h"
+#include "genomicsdb.h"
 
 // flattened start, flattened end, name, gene, score, sample index, file index
-typedef std::tuple<int64_t, int64_t, std::string, std::string, float, int, int> cell_info;
-
-/*cell_info reverse_cell_info(cell_info inf) {
-  int64_t start = std::get<0>(inf);
-  std::get<0>(inf) = std::get<1>(inf);
-  std::get<1>(inf) = start;
-  return inf;
-}*/
+//typedef std::tuple<int64_t, int64_t, std::string, std::string, float, int, int> cell_info;
 
 class TranscriptomicsFileReader {
   public:
@@ -23,7 +17,7 @@ class TranscriptomicsFileReader {
     ~TranscriptomicsFileReader() {
       delete[] m_buffer;
     }
-    virtual cell_info next_cell_info() = 0;
+    virtual transcriptomics_cell next_cell_info() = 0;
   protected:
     std::string m_filename;
     std::ifstream m_file;
@@ -41,7 +35,7 @@ class TranscriptomicsFileReader {
 class BedReader : public TranscriptomicsFileReader {
   public:
     BedReader(std::string filename, int ind, VidMapper& vid_mapper, int sample_idx) : TranscriptomicsFileReader(filename, ind, vid_mapper), m_sample_idx(sample_idx) { }
-    cell_info next_cell_info() override;
+    transcriptomics_cell next_cell_info() override;
   protected:
     int64_t m_sample_idx;
 };
@@ -61,7 +55,7 @@ class MatrixReader : public TranscriptomicsFileReader {
         samples.push_back(tok);
       }
     }
-    cell_info next_cell_info() override;
+    transcriptomics_cell next_cell_info() override;
     std::vector<std::pair<int, int64_t>> idx_to_row; // maps from column in matrix (sample) to row in GenomicsDB
     int idx_to_row_pos = 0; // keeps position in above vector
   protected:
@@ -94,7 +88,7 @@ class SinglePosition2TileDBLoader : public GenomicsDBImportConfig {
     int m_array_descriptor;
     std::shared_ptr<VariantStorageManager> m_storage_manager;
     bool info_to_cell(int64_t start, int64_t end, std::string name, std::string gene, float score, uint64_t row);
-    cell_info next_cell_info(std::ifstream& file, int type, int ind);
+    //cell_info next_cell_info(std::ifstream& file, int type, int ind);
     std::map<std::string, std::pair<long, long>> transcript_map;
     void read_uncompressed_gtf(std::istream& input, std::string format);
     void read_compressed_gtf(std::string filename);

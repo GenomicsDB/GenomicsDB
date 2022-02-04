@@ -44,6 +44,7 @@
 #include <typeinfo>
 #include <vector>
 #include <tuple>
+#include <iostream>
 
 // Override project visibility set to hidden for api
 #if (defined __GNUC__ && __GNUC__ >= 4) || defined __INTEL_COMPILER
@@ -396,7 +397,33 @@ class GenomicsDB {
 };
 
 //                 start    end      score  name         gene         row      col
-typedef std::tuple<int64_t, int64_t, float, std::string, std::string, int64_t, int64_t> transcriptomics_cell;
+//typedef std::tuple<int64_t, int64_t, float, std::string, std::string, int64_t, int64_t> transcriptomics_cell;
+
+struct transcriptomics_cell {
+  int64_t start, end, sample_idx, col, head, tail; // not all of these will be used at once
+  int file_idx;
+  float score;
+  std::string name, gene;
+
+  transcriptomics_cell(int64_t start = 0, int64_t end = 0, float score = 0, std::string name = "",
+                       std::string gene = "", int64_t col = 0, int sample_idx = 0,
+                       int file_idx = 0, int64_t head = 0, int64_t tail = 0)
+                       : start(start), end(end), score(score), name(name), gene(gene), col(col), head(head), tail(tail) {}
+
+  void print() {
+    std::cout << "start: " << start << std::endl;
+    std::cout << "end: " << end << std::endl;
+    std::cout << "sample_idx: " << sample_idx << std::endl;
+    std::cout << "col: " << col << std::endl;
+    std::cout << "head: " << head << std::endl;
+    std::cout << "tail:  " << tail << std::endl;
+    std::cout << "file_idx: " << file_idx << std::endl;
+    std::cout << "score: " << score << std::endl;
+    std::cout << "name: " << name << std::endl;
+    std::cout << "gene: " << gene << std::endl;
+  }
+};
+
 
 // enables querrying of transcriptomics workspaces
 class GenomicsDBTranscriptomics {
