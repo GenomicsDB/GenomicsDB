@@ -18,20 +18,27 @@
  */
 package org.genomicsdb.reader;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.lang3.math.NumberUtils;
 import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.model.Coordinates.GenomicsDBColumnInterval;
+import org.genomicsdb.model.Coordinates.GenomicsDBColumnOrInterval;
+import org.genomicsdb.model.Coordinates.TileDBColumnInterval;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.model.GenomicsDBExportConfiguration.AnnotationSource;
+import org.genomicsdb.model.GenomicsDBExportConfiguration.GenomicsDBColumnOrIntervalList;
 import org.genomicsdb.reader.GenomicsDBQuery.Interval;
 import org.genomicsdb.reader.GenomicsDBQuery.Pair;
 import org.genomicsdb.reader.GenomicsDBQuery.VariantCall;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 
 public class GenomicsDBQueryTest {
 
@@ -201,9 +208,9 @@ public class GenomicsDBQueryTest {
     List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName);
     Assert.assertEquals(intervals.size(), 0);
 
-    List<Pair>columnRanges = new ArrayList<>();
+    List<Pair> columnRanges = new ArrayList<>();
     columnRanges.add(new Pair(0L, 1000000000L));
-    List<Pair>rowRanges = new ArrayList<>();
+    List<Pair> rowRanges = new ArrayList<>();
     rowRanges.add(new Pair(0L, 3L));
 
     intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
@@ -220,7 +227,8 @@ public class GenomicsDBQueryTest {
 
     boolean foundVariantCall = false;
     for (VariantCall call : calls) {
-      if (call.sampleName.equals("HG00141") && call.contigName.equals("1") && call.genomic_interval.getStart() == 12141 && call.genomic_interval.getEnd() == 12295) {
+      if (call.sampleName.equals("HG00141") && call.contigName.equals("1") && call.genomic_interval.getStart() == 12141
+          && call.genomic_interval.getEnd() == 12295) {
         foundVariantCall = true;
         Assert.assertEquals(call.genomicFields.size(), 3);
         Assert.assertEquals(call.genomicFields.get("REF"), "C");
@@ -230,20 +238,19 @@ public class GenomicsDBQueryTest {
     }
     Assert.assertTrue(foundVariantCall, "One Variant Call should have been found");
   }
-  /* GenomicsDBColumnarField::print_data_in_buffer_at_index  genomicsdb_columnar_field.cc:101*/
 
   @Test
   void testGenomicsDBVariantCallQueryWithSegmentSize() {
     GenomicsDBQuery query = new GenomicsDBQuery();
     long genomicsDBHandle = connectWithSegmentSize();
 
-    List<Pair>columnRanges = new ArrayList<>();
+    List<Pair> columnRanges = new ArrayList<>();
     columnRanges.add(new Pair(0L, 1000000000L));
-    List<Pair>rowRanges = new ArrayList<>();
+    List<Pair> rowRanges = new ArrayList<>();
     rowRanges.add(new Pair(0L, 3L));
 
     List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
-    assert(intervals.size() == 1);
+    assert (intervals.size() == 1);
     checkVariantCall(intervals.get(0).getCalls().get(0));
 
     query.disconnect(genomicsDBHandle);
@@ -254,12 +261,12 @@ public class GenomicsDBQueryTest {
     GenomicsDBQuery query = new GenomicsDBQuery();
     long genomicsDBHandle = connectWithSegmentSize();
 
-    List<Pair>columnRanges = new ArrayList<>();
+    List<Pair> columnRanges = new ArrayList<>();
     columnRanges.add(new Pair(0L, 50000L));
     columnRanges.add(new Pair(50000L, 1000000000L));
-    List<Pair>rowRanges = new ArrayList<>();
+    List<Pair> rowRanges = new ArrayList<>();
     rowRanges.add(new Pair(0L, 3L));
-    
+
     query.disconnect(genomicsDBHandle);
   }
 
@@ -268,13 +275,13 @@ public class GenomicsDBQueryTest {
     GenomicsDBQuery query = new GenomicsDBQuery();
     long genomicsDBHandle = connectWithSegmentSize();
 
-    List<Pair>columnRanges = new ArrayList<>();
+    List<Pair> columnRanges = new ArrayList<>();
     columnRanges.add(new Pair(0L, 50000L));
     columnRanges.add(new Pair(50000L, 1000000000L));
-    List<Pair>rowRanges = new ArrayList<>();
+    List<Pair> rowRanges = new ArrayList<>();
 
     File vcfFile = File.createTempFile("GenomicsDBQueryTest", "");
-    File vcfIndexFile = new File(vcfFile+".tbi");
+    File vcfIndexFile = new File(vcfFile + ".tbi");
 
     query.generateVCF(genomicsDBHandle, arrayName, columnRanges, new ArrayList<>(), vcfFile.toString(), "z", true);
 
@@ -299,7 +306,7 @@ public class GenomicsDBQueryTest {
     long genomicsDBHandle = connectWithJson();
 
     File vcfFile = File.createTempFile("GenomicsDBQueryTest", "");
-    File vcfIndexFile = new File(vcfFile+".tbi");
+    File vcfIndexFile = new File(vcfFile + ".tbi");
 
     query.generateVCF(genomicsDBHandle, vcfFile.toString(), "z", true);
 
@@ -312,21 +319,21 @@ public class GenomicsDBQueryTest {
   @Test
   void testGenomicsDBGenerateVCFWithPBExportConfig() throws IOException {
     GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder()
-            .setWorkspace(workspace)
-            .setVidMappingFile(vidMapping)
-            .setCallsetMappingFile(callsetMapping)
-            .setReferenceGenome(referenceGenome)
-            .setArrayName(arrayName)
-            .setSegmentSize(40)
-            .setScanFull(true)
-            .build();
+        .setWorkspace(workspace)
+        .setVidMappingFile(vidMapping)
+        .setCallsetMappingFile(callsetMapping)
+        .setReferenceGenome(referenceGenome)
+        .setArrayName(arrayName)
+        .setSegmentSize(40)
+        .setScanFull(true)
+        .build();
 
     GenomicsDBQuery query = new GenomicsDBQuery();
     long genomicsDBHandle = query.connectExportConfiguration(exportConfiguration);
     Assert.assertTrue(genomicsDBHandle > 0);
 
     File vcfFile = File.createTempFile("GenomicsDBQueryTest", "");
-    File vcfIndexFile = new File(vcfFile+".tbi");
+    File vcfIndexFile = new File(vcfFile + ".tbi");
 
     query.generateVCF(genomicsDBHandle, vcfFile.toString(), "z", true);
 
@@ -334,5 +341,205 @@ public class GenomicsDBQueryTest {
     Assert.assertTrue(vcfFile.length() > 0);
     Assert.assertTrue(vcfIndexFile.exists());
     Assert.assertTrue(vcfIndexFile.length() > 0);
+  }
+
+  /**
+   * Test the VCF annotation service. This function is based on the java
+   * testGenomicsDBGenerateVCFWithPBExportConfig test and the
+   * annotate_variant_calls_with_tds0 in test_genomicsdb_api.cc.
+   */
+  @Test
+  void testGenomicsDbVcfAnnotationService() {
+    String dataSourceName = "dataSourceZero";
+
+    GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration = GenomicsDBExportConfiguration.ExportConfiguration
+        .newBuilder()
+        .setWorkspace(workspace)
+        .setVidMappingFile(vidMapping)
+        .setCallsetMappingFile(callsetMapping)
+        .setReferenceGenome(referenceGenome)
+        .setArrayName(arrayName)
+        .setSegmentSize(40)
+        .addQueryColumnRanges(GenomicsDBColumnOrIntervalList.newBuilder()
+            .addColumnOrIntervalList(GenomicsDBColumnOrInterval.newBuilder()
+                .setColumnInterval(GenomicsDBColumnInterval.newBuilder()
+                    .setTiledbColumnInterval(TileDBColumnInterval.newBuilder()
+                        .setBegin(0)
+                        .setEnd(1000000000)))))
+        .addAnnotationSource(AnnotationSource.newBuilder()
+            .setDataSource(dataSourceName)
+            .setFilename(inputsDir + "/test_datasource0.vcf.bgz")
+            .addAttributes("ID")
+            .addAttributes("field0")
+            .addAttributes("field1")
+            .addAttributes("field2")
+            .addAttributes("field3")
+            .addAttributes("field4")
+            .addAttributes("field5")
+            .addAttributes("field6")
+            .addAttributes("field7")
+            .setIsVcf(true))
+        .build();
+
+    GenomicsDBQuery query = new GenomicsDBQuery();
+    long genomicsDBHandle = query.connectExportConfiguration(exportConfiguration);
+    Assert.assertTrue(genomicsDBHandle > 0);
+
+    List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName);
+    assert (intervals.size() == 0);
+
+    List<Pair> columnRanges = new ArrayList<>();
+    columnRanges.add(new Pair(0L, 1000000000L));
+
+    List<Pair> rowRanges = new ArrayList<>();
+    rowRanges.add(new Pair(0L, 3L));
+
+    intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
+    assert (intervals.size() == 2);
+
+    int variantsAnnotated = 0;
+
+    for (Interval interval : intervals) {
+      for (VariantCall call : interval.getCalls()) {
+        if (call.getSampleName().equals("HG00141")
+            && call.getContigName().equals("1")
+            && call.getGenomic_interval().getStart() == 17385
+            && String.valueOf(call.getGenomicFields().get("REF")).equals("G")
+            && getVariantAlts((String) call.getGenomicFields().get("ALT"))[0].equals("A")) {
+          verifyAnnotations(call.getGenomicFields(), dataSourceName, "id001",
+              2345, 5678, 3.141500, "noot", null, null, null, true);
+          ++variantsAnnotated;
+        } else if (call.getSampleName().equals("HG01958")
+            && call.getContigName().equals("1")
+            && call.getGenomic_interval().getStart() == 17385
+            && String.valueOf(call.getGenomicFields().get("REF")).equals("G")
+            && getVariantAlts((String) call.getGenomicFields().get("ALT"))[0].equals("T")) {
+
+          verifyAnnotations(call.getGenomicFields(), dataSourceName, "id002", null, null, null, "waldo", 5679,
+              6.660000, null, false);
+          ++variantsAnnotated;
+        } else if (call.getSampleName().equals("HG01530")
+            && call.getContigName().equals("1")
+            && call.getGenomic_interval().getStart() == 17385
+            && String.valueOf(call.getGenomicFields().get("REF")).equals("G")
+            && getVariantAlts((String) call.getGenomicFields().get("ALT"))[0].equals("A")) {
+
+          verifyAnnotations(call.getGenomicFields(), dataSourceName, "id001",
+              2345, 5678, 3.141500, "noot", null, null, null, true);
+          ++variantsAnnotated;
+        }
+
+      }
+    }
+
+    Assert.assertEquals(variantsAnnotated, 6, "Expected six variants to have annotations");
+
+    query.disconnect(genomicsDBHandle);
+  }
+
+  /**
+   * Compare the annotations in the genomicFields map to the expected values
+   * 
+   * @param genomicFields
+   * @param field0
+   * @param field1
+   * @param field2
+   * @param field3
+   * @param field4
+   * @param field5
+   * @param field6
+   * @param field7
+   */
+  private void verifyAnnotations(Map<String, Object> genomicFields, String dataSourceName, String fieldId,
+      Integer field0, Integer field1, Double field2,
+      String field3, Integer field4, Double field5, String field6, boolean field7) {
+
+    if (fieldId != null) {
+      Assert.assertEquals(String.valueOf(genomicFields.get(dataSourceName + "_ID")), fieldId);
+    }
+
+    if (field0 != null) {
+      Assert.assertEquals(NumberUtils.toInt((String) genomicFields.get(dataSourceName + "_field0")), field0.intValue());
+    }
+
+    if (field1 != null) {
+      Assert.assertEquals(NumberUtils.toInt((String) genomicFields.get(dataSourceName + "_field1")), field1.intValue());
+    }
+
+    if (field2 != null) {
+      Assert.assertEquals(NumberUtils.toDouble((String) genomicFields.get(dataSourceName + "_field2")),
+          field2.doubleValue());
+    }
+
+    if (field3 != null) {
+      Assert.assertEquals(String.valueOf(genomicFields.get(dataSourceName + "_field3")), field3);
+    }
+
+    if (field4 != null) {
+      Assert.assertEquals(NumberUtils.toInt((String) genomicFields.get(dataSourceName + "_field4")), field4.intValue());
+    }
+
+    if (field5 != null) {
+      Assert.assertEquals(NumberUtils.toDouble((String) genomicFields.get(dataSourceName + "_field5")),
+          field5.doubleValue());
+    }
+
+    if (field6 != null) {
+      Assert.assertEquals(String.valueOf(genomicFields.get(dataSourceName + "_field6")), field6);
+    }
+
+    Assert.assertEquals(genomicFields.containsKey(dataSourceName + "_field7"), field7);
+
+  }
+
+  /**
+   * Convert the comma separated GenomicFields["ALT"] value to an array of strings
+   * 
+   * @param alt
+   * @return
+   */
+  private String[] getVariantAlts(String alt) {
+    if (alt == null) {
+      return null;
+    } else {
+      return alt.substring(1, alt.length() - 1).split(",");
+    }
+  }
+
+  /**
+   * Expect GenomicsDBException to be thrown when
+   */
+  @Test
+  void testGenomicsDbVcfAnnotationServiceMissingVcfException() {
+    String dataSourceName = "dataSource123";
+
+    GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration = GenomicsDBExportConfiguration.ExportConfiguration
+        .newBuilder()
+        .setWorkspace(workspace)
+        .setVidMappingFile(vidMapping)
+        .setCallsetMappingFile(callsetMapping)
+        .setReferenceGenome(referenceGenome)
+        .setArrayName(arrayName)
+        .setSegmentSize(40)
+        .addQueryColumnRanges(GenomicsDBColumnOrIntervalList.newBuilder()
+            .addColumnOrIntervalList(GenomicsDBColumnOrInterval.newBuilder()
+                .setColumnInterval(GenomicsDBColumnInterval.newBuilder()
+                    .setTiledbColumnInterval(TileDBColumnInterval.newBuilder()
+                        .setBegin(0)
+                        .setEnd(1000000000)))))
+        .addAnnotationSource(AnnotationSource.newBuilder()
+            .setDataSource(dataSourceName)
+            .setFilename(inputsDir + "/file_does_not_exist.vcf.bgz")
+            .setIsVcf(true))
+        .build();
+
+    GenomicsDBQuery query = new GenomicsDBQuery();
+
+    try {
+      query.connectExportConfiguration(exportConfiguration);
+      Assert.fail("Expected GenomicsDBException due to missing VCF");
+    } catch (GenomicsDBException e) {
+      // Expected Exception
+    }
   }
 }

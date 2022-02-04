@@ -65,6 +65,7 @@ set(GenomicsDB_library_sources
     cpp/src/config/genomicsdb_config_base.cc
     cpp/src/config/json_config.cc
     cpp/src/config/pb_config.cc
+    cpp/src/api/annotation_service.cc
     cpp/src/api/genomicsdb.cc
     cpp/src/api/genomicsdb_field.cc
     )
