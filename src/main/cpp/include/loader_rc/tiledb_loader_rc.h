@@ -16,16 +16,16 @@ typedef std::tuple<int64_t, int64_t, std::string, std::string, float, int, int> 
 
 class TranscriptomicsFileReader {
   public:
-    TranscriptomicsFileReader(std::string fname, int file_idx, VidMapper& vid_mapper) : /*m_file(fname),*/ m_fname(fname), m_file_idx(file_idx), m_vid_mapper(vid_mapper) {
+    TranscriptomicsFileReader(std::string filename, int file_idx, VidMapper& vid_mapper) : /*m_file(filename),*/ m_filename(filename), m_file_idx(file_idx), m_vid_mapper(vid_mapper) {
       m_buffer = new char[m_buffer_size];
-      m_file_size = TileDBUtils::file_size(fname);
+      m_file_size = TileDBUtils::file_size(filename);
     }
     ~TranscriptomicsFileReader() {
       delete[] m_buffer;
     }
     virtual cell_info next_cell_info() = 0;
   protected:
-    std::string m_fname;
+    std::string m_filename;
     std::ifstream m_file;
     int m_file_idx;
     ssize_t m_file_size = 0;
@@ -40,7 +40,7 @@ class TranscriptomicsFileReader {
 
 class BedReader : public TranscriptomicsFileReader {
   public:
-    BedReader(std::string fname, int ind, VidMapper& vid_mapper, int sample_idx) : TranscriptomicsFileReader(fname, ind, vid_mapper), m_sample_idx(sample_idx) { }
+    BedReader(std::string filename, int ind, VidMapper& vid_mapper, int sample_idx) : TranscriptomicsFileReader(filename, ind, vid_mapper), m_sample_idx(sample_idx) { }
     cell_info next_cell_info() override;
   protected:
     int64_t m_sample_idx;
@@ -48,7 +48,7 @@ class BedReader : public TranscriptomicsFileReader {
 
 class MatrixReader : public TranscriptomicsFileReader {
   public:
-    MatrixReader(std::string fname, int ind, VidMapper& vid_mapper, std::map<std::string, std::pair<long, long>>& transcript_map) : TranscriptomicsFileReader(fname, ind, vid_mapper), m_transcript_map(transcript_map) {
+    MatrixReader(std::string filename, int ind, VidMapper& vid_mapper, std::map<std::string, std::pair<long, long>>& transcript_map) : TranscriptomicsFileReader(filename, ind, vid_mapper), m_transcript_map(transcript_map) {
       std::string str;
       generalized_getline(str);
       std::string tok;
@@ -97,7 +97,7 @@ class SinglePosition2TileDBLoader : public GenomicsDBImportConfig {
     cell_info next_cell_info(std::ifstream& file, int type, int ind);
     std::map<std::string, std::pair<long, long>> transcript_map;
     void read_uncompressed_gtf(std::istream& input, std::string format);
-    void read_compressed_gtf(std::string fname);
+    void read_compressed_gtf(std::string filename);
     void serialize_transcript_map(std::ostream& output);
     void deserialize_transcript_map(std::istream&);
 };

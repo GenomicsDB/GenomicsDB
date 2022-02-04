@@ -343,7 +343,7 @@ bool TranscriptomicsFileReader::generalized_getline(std::string& retval) {
     int chars_to_read = std::min<ssize_t>(m_buffer_size, m_file_size - m_chars_read);
 
     if(chars_to_read) {
-      TileDBUtils::read_file(m_fname, m_chars_read, m_buffer, chars_to_read);
+      TileDBUtils::read_file(m_filename, m_chars_read, m_buffer, chars_to_read);
        m_chars_read += chars_to_read;
     }
 
@@ -430,10 +430,10 @@ cell_info MatrixReader::next_cell_info() {
   return {-1, -1, "", "", 0, -1, m_file_idx};
 }
 
-/*void SinglePosition2TileDBLoader::read_compressed_gtf(std::string fname) {
+/*void SinglePosition2TileDBLoader::read_compressed_gtf(std::string filename) {
   size_t filesize, buffer_size, allocated_buffer_size, chunk_size;
   void* buffer;
-  TileDBUtils::gzip_read_buffer(fname, filesize, buffer, buffer_size, allocated_buffer_size, chunk_size);
+  TileDBUtils::gzip_read_buffer(filename, filesize, buffer, buffer_size, allocated_buffer_size, chunk_size);
 }*/
 
 void SinglePosition2TileDBLoader::read_uncompressed_gtf(std::istream& input, std::string format) {
@@ -578,7 +578,7 @@ void SinglePosition2TileDBLoader::read_all() {
   for(int i = 0; i < m_vid_mapper.get_num_callsets(); i++) {
     auto ci = m_vid_mapper.get_callset_info(i);
     int f_ind = ci.m_file_idx;
-    std::string fname = m_vid_mapper.get_file_info(f_ind).m_name;
+    std::string filename = m_vid_mapper.get_file_info(f_ind).m_name;
     int64_t idx_in_file = ci.m_idx_in_file;
     int64_t row_idx = ci.m_row_idx;
 
@@ -589,39 +589,39 @@ void SinglePosition2TileDBLoader::read_all() {
 
     int type;
 
-    if(std::regex_match(fname, std::regex("(.*)(bed)($)"))) { // bed file
-      if(previous_files.count(fname)) {
-        logger.error("File {} appears twice in callset mapping file", fname);
+    if(std::regex_match(filename, std::regex("(.*)(bed)($)"))) { // bed file
+      if(previous_files.count(filename)) {
+        logger.error("File {} appears twice in callset mapping file", filename);
         continue;
       }
 
       type = 0;
       file_types.push_back(0);
-      files.push_back(std::make_shared<BedReader>(fname, files.size(), m_vid_mapper, row_idx));
+      files.push_back(std::make_shared<BedReader>(filename, files.size(), m_vid_mapper, row_idx));
       
-      previous_files.insert({fname, files.back()});
+      previous_files.insert({filename, files.back()});
     }
-    else if(std::regex_match(fname, std::regex("(.*)(resort)($)"))) { // matrix
-      if(!previous_files.count(fname)) { // create reader object for file
+    else if(std::regex_match(filename, std::regex("(.*)(resort)($)"))) { // matrix
+      if(!previous_files.count(filename)) { // create reader object for file
         type = 1;
         file_types.push_back(1);
-        files.push_back(std::make_shared<MatrixReader>(fname, files.size(), m_vid_mapper, transcript_map));
-        previous_files.insert({fname, files.back()});
+        files.push_back(std::make_shared<MatrixReader>(filename, files.size(), m_vid_mapper, transcript_map));
+        previous_files.insert({filename, files.back()});
       }
 
-      MatrixReader& file = dynamic_cast<MatrixReader&>(*(previous_files[fname]));
+      MatrixReader& file = dynamic_cast<MatrixReader&>(*(previous_files[filename]));
       std::pair<int, int64_t> p = {idx_in_file, row_idx};
 
       if(file.idx_to_row.size()) { // check that callset is sorted
         auto[bi, br] = file.idx_to_row.back();
 
         if(bi >= idx_in_file) {
-          logger.error("callsets for {} are not sorted by index in file or have duplicates", fname);
+          logger.error("callsets for {} are not sorted by index in file or have duplicates", filename);
           exit(1);
         }
 
         if(br >= row_idx) {
-          logger.error("callsets for {} are not sorted by row index or have duplicates", fname);
+          logger.error("callsets for {} are not sorted by row index or have duplicates", filename);
           exit(1);
         }
       }
@@ -630,7 +630,7 @@ void SinglePosition2TileDBLoader::read_all() {
     }
     else {
       file_types.push_back(2);
-      logger.error("Transcriptomics: Unknown file type for file {}", fname);
+      logger.error("Transcriptomics: Unknown file type for file {}", filename);
       exit(1);
     }
 
