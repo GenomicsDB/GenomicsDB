@@ -1,11 +1,9 @@
 #include <catch2/catch.hpp>
 #include <iostream>
-#include <mpi.h>
 #include "tiledb_loader_rc.h"
 
 TEST_CASE("rc constructor", "[rc_constr]") {
   std::cout << "test loader_rc" << std::endl;
-  logger.error("++++++++ test loader_rc");
 
   std::string ctests_input_dir(GENOMICSDB_CTESTS_DIR);
 
@@ -13,16 +11,17 @@ TEST_CASE("rc constructor", "[rc_constr]") {
   //MPI_Comm_rank(MPI_COMM_WORLD, &my_world_mpi_rank);
   int idx = 0;
 
-  auto loader_json_config_file = std::string(GENOMICSDB_CTESTS_DIR) + "rc/bed_workspace/loader.json";
+  auto workspace = std::string(GENOMICSDB_CTESTS_DIR) + "rc/bed_workspace";
+
+  //auto loader_json_config_file = std::string(GENOMICSDB_CTESTS_DIR) + "rc/bed_workspace/loader.json";
+  auto loader_json = workspace + "/loader.json";
   auto gtf_file = std::string(GENOMICSDB_CTESTS_DIR) + "rc/small.gtf";
 
-  logger.error("+++++++++++++++++++++++ gtf file is {}", gtf_file);
-
-  SinglePosition2TileDBLoader loader(loader_json_config_file, idx, gtf_file);
-
-  logger.error("++++++ after ctor");
-
+  SinglePosition2TileDBLoader loader(loader_json, idx, gtf_file);
   loader.read_all();
 
-  logger.error("++++++ after read all");
+  std::string array_name = "1$1$249250621";
+
+  GenomicsDBTranscriptomics gdb(workspace); // TODO pass callset/vid mapper etc
+  gdb.query_variant_calls(array_name);
 }

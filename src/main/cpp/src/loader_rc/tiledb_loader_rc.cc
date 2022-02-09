@@ -566,6 +566,9 @@ void SinglePosition2TileDBLoader::read_all() {
   // 0 for bed, 1 for matrix
   std::vector<int> file_types;
 
+  // keep track of which files have already appeared
+  std::map<std::string, std::shared_ptr<TranscriptomicsFileReader>> previous_files;
+
   for(int i = 0; i < m_vid_mapper.get_num_callsets(); i++) {
     auto ci = m_vid_mapper.get_callset_info(i);
     int f_ind = ci.m_file_idx;
@@ -573,9 +576,6 @@ void SinglePosition2TileDBLoader::read_all() {
     int64_t idx_in_file = ci.m_idx_in_file;
     int64_t row_idx = ci.m_row_idx;
 
-    // keep track of which files have already appeared
-    std::map<std::string, std::shared_ptr<TranscriptomicsFileReader>> previous_files;
-    
     //auto fi = m_vid_mapper.get_file_info(i);
 
     int type;
@@ -593,6 +593,7 @@ void SinglePosition2TileDBLoader::read_all() {
       previous_files.insert({filename, files.back()});
     }
     else if(std::regex_match(filename, std::regex("(.*)(resort)($)"))) { // matrix
+
       if(!previous_files.count(filename)) { // create reader object for file
         type = 1;
         file_types.push_back(1);
@@ -629,6 +630,7 @@ void SinglePosition2TileDBLoader::read_all() {
     // put first cell from each file in pq
     for(auto& file_ptr : files) {
       auto inf = file_ptr->next_cell_info();
+
       if(inf.start >= 0) {
         pq.push(remove_file(inf)); // set file index to -1 to indicate this is a start (and not to read the file for another cell yet)
         pq.push(reverse_info(inf)); // reverse start and end to indicate this is an end

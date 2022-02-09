@@ -401,13 +401,13 @@ class GenomicsDB {
 
 struct transcriptomics_cell {
   int64_t start, end, sample_idx, position; // not all of these will be used at once
-  int file_idx;
+  int32_t file_idx;
   float score;
   std::string name, gene;
 
   transcriptomics_cell(int64_t start = 0, int64_t end = 0, float score = 0, std::string name = "",
-                       std::string gene = "", int sample_idx = 0,
-                       int file_idx = 0)
+                       std::string gene = "", int64_t sample_idx = 0,
+                       int32_t file_idx = 0)
                        : start(start), end(end), score(score), name(name), gene(gene) {}
 
   void print() {
