@@ -451,7 +451,7 @@ class GenomicsDBTranscriptomics {
     */
     GENOMICSDB_EXPORT std::vector<transcriptomics_cell> query_variant_calls(const std::string& array,
                                                                             genomicsdb_ranges_t column_ranges=SCAN_FULL,
-                                                                            genomicsdb_ranges_t row_ranges=SCAN_FULL); // set default to {} ?
+                                                                            genomicsdb_ranges_t row_ranges=SCAN_FULL);
 
     /**
     * Query the array for variant calls constrained by the column and row ranges.
@@ -460,10 +460,10 @@ class GenomicsDBTranscriptomics {
     *   column_ranges, optional
     *   row_ranges, optional
     */
-    /*GENOMICSDB_EXPORT std::vector<transcriptomics_cell> query_variant_calls(GenomicsDBVariantCallProcessor& processor,
-                                                                                const std::string& array,
-                                                                                genomicsdb_ranges_t column_ranges=SCAN_FULL,
-                                                                                genomicsdb_ranges_t row_ranges=SCAN_FULL); // set default to {} ?*/
+    GENOMICSDB_EXPORT std::vector<transcriptomics_cell> query_variant_calls(GenomicsDBVariantCallProcessor& processor,
+                                                                            const std::string& array,
+                                                                            genomicsdb_ranges_t column_ranges=SCAN_FULL,
+                                                                            genomicsdb_ranges_t row_ranges=SCAN_FULL);
 
     std::tuple<int64_t, std::string> return_tuple() { return {3, "14"}; }
   private:
@@ -472,7 +472,8 @@ class GenomicsDBTranscriptomics {
     // calls processor.process if pointer is non null
     std::vector<transcriptomics_cell> generic_query_variant_calls(const std::string& array,                                                                  
                                                                   genomicsdb_ranges_t column_ranges=SCAN_FULL,
-                                                                  genomicsdb_ranges_t row_ranges={});
+                                                                  genomicsdb_ranges_t row_ranges={},
+                                                                  GenomicsDBVariantCallProcessor* processor = 0);
   
 };
 

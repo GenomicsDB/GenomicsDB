@@ -685,8 +685,9 @@ GENOMICSDB_EXPORT GenomicsDBTranscriptomics::GenomicsDBTranscriptomics(const std
                                                                        const uint64_t segment_size) : m_workspace(workspace) {}
 
 std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_variant_calls(const std::string& array,
-                                                                                             genomicsdb_ranges_t column_ranges,
-                                                                                             genomicsdb_ranges_t row_ranges) {
+                                                                                         genomicsdb_ranges_t column_ranges,
+                                                                                         genomicsdb_ranges_t row_ranges,
+                                                                                         GenomicsDBVariantCallProcessor* processor) {
 
   auto check_rc = [](int rc) -> void {
     if (rc) {
@@ -734,6 +735,8 @@ std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_varia
       while(!tiledb_array_iterator_end(tiledb_it)) {
         //std::cout << "while top" << std::endl;
 
+        std::vector<genomic_field_t> fields;
+
         // START
         int64_t* start = 0;
         size_t start_size;
@@ -742,6 +745,7 @@ std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_varia
               0,                     // Attribute id
               (const void**) &start, // Value
               &start_size);          // Value size (useful in variable-sized attributes)
+        fields.push_back(genomic_field_t("start", start, 1));
         //std::cout << "read start as " << *start << std::endl;
         //std::cout << "start size is " << start_size << std::endl;
         // END
@@ -752,6 +756,7 @@ std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_varia
               1,                     // Attribute id
               (const void**) &end,   // Value
               &end_size);            // Value size (useful in variable-sized attributes)
+        fields.push_back(genomic_field_t("end", end, 1));
         //std::cout << "read end as " << *end << std::endl;
         //std::cout << "end size is " << end_size << std::endl;
         // SCORE
@@ -762,6 +767,7 @@ std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_varia
               2,                     // Attribute id
               (const void**) &score, // Value
               &score_size);          // Value size (useful in variable-sized attributes)
+        fields.push_back(genomic_field_t("score", score, 1));
         //std::cout << "read score as " << *score << std::endl;
         //std::cout << "score size is " << score_size << std::endl;
         // NAME
@@ -772,6 +778,7 @@ std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_varia
               3,                     // Attribute id
               (const void**) &name,  // Value
               &name_size);           // Value size (useful in variable-sized attributes)
+        fields.push_back(genomic_field_t("name", name, name_size));
         //std::cout << "read name as " << std::endl;
         //for(int j = 0; j < name_size; j++) {
         //  std::cout << name[j];
@@ -785,6 +792,7 @@ std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_varia
               4,                     // Attribute id
               (const void**) &gene,  // Value
               &gene_size);           // Value size (useful in variable-sized attributes)
+        fields.push_back(genomic_field_t("gene", gene, gene_size));
         //std::cout << "read gene as " << std::endl;
         //for(int j = 0; j < gene_size; j++) {
         //  std::cout << gene[j];
@@ -818,6 +826,13 @@ std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_varia
         //retval.push_back({ std::to_string(*start), std::to_string(*end), std::to_string(*score), std::string(name, name + name_size), std::string(gene, gene + gene_size), std::to_string(coords[0]), std::to_string(coords[1]) });
         retval.push_back(cell);
 
+        if(processor) {
+          int64_t coordinates[] = {cell.sample_idx, cell.position};
+          genomic_interval_t interval(cell.gene, {cell.start, cell.end});
+
+          processor->process("placeholder", coordinates, interval, fields);
+        }
+
         // Advance iterator
         tiledb_array_iterator_next(tiledb_it);
       }
@@ -833,12 +848,12 @@ std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_varia
   return retval;
 }
 
-/*GENOMICSDB_EXPORT std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::query_variant_calls(GenomicsDBVariantCallProcessor& processor,
+GENOMICSDB_EXPORT std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::query_variant_calls(GenomicsDBVariantCallProcessor& processor,
                                                                                                    const std::string& array,
                                                                                                    genomicsdb_ranges_t column_ranges,
                                                                                                    genomicsdb_ranges_t row_ranges) {
   return generic_query_variant_calls(array, column_ranges, row_ranges, &processor);
-}*/
+}
 
 
 GENOMICSDB_EXPORT std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::query_variant_calls(const std::string& array,
