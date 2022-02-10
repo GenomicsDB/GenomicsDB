@@ -24,4 +24,9 @@ TEST_CASE("rc constructor", "[rc_constr]") {
 
   GenomicsDBTranscriptomics gdb(workspace); // TODO pass callset/vid mapper etc
   gdb.query_variant_calls(array_name);
+
+  GenomicsDBVariantCallProcessor processor;
+  processor.initialize(gdb.get_genomic_field_types());
+
+  gdb.query_variant_calls(processor, array_name);
 }

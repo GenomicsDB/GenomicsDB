@@ -684,6 +684,33 @@ GENOMICSDB_EXPORT GenomicsDBTranscriptomics::GenomicsDBTranscriptomics(const std
                                                                        const std::string& gi_name,
                                                                        const uint64_t segment_size) : m_workspace(workspace) {}
 
+// constructs map to give to VariantCallProcessor (needs to recompute each time because VariantCallProcessor::initialize moves value)
+std::map<std::string, genomic_field_type_t> GenomicsDBTranscriptomics::get_genomic_field_types() {
+  std::map<std::string, genomic_field_type_t> genomic_field_types;
+
+  genomic_field_types.emplace(std::piecewise_construct,
+                              std::forward_as_tuple("start"),
+                              std::forward_as_tuple(genomic_field_type_t(std::type_index(typeid(int64_t)), true,  1, 1, false)));
+
+  genomic_field_types.emplace(std::piecewise_construct,
+                              std::forward_as_tuple("end"),
+                              std::forward_as_tuple(genomic_field_type_t(std::type_index(typeid(int64_t)), true,  1, 1, false)));
+
+  genomic_field_types.emplace(std::piecewise_construct,
+                              std::forward_as_tuple("score"),
+                              std::forward_as_tuple(genomic_field_type_t(std::type_index(typeid(float)), true,  1, 1, false)));
+
+  genomic_field_types.emplace(std::piecewise_construct,
+                              std::forward_as_tuple("name"),
+                              std::forward_as_tuple(genomic_field_type_t(std::type_index(typeid(char)), false,  1, 1, false)));
+
+  genomic_field_types.emplace(std::piecewise_construct,
+                              std::forward_as_tuple("gene"),
+                              std::forward_as_tuple(genomic_field_type_t(std::type_index(typeid(char)), false,  1, 1, false)));
+
+  return genomic_field_types;
+}
+
 std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_variant_calls(const std::string& array,
                                                                                          genomicsdb_ranges_t column_ranges,
                                                                                          genomicsdb_ranges_t row_ranges,

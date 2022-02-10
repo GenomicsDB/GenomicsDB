@@ -465,10 +465,11 @@ class GenomicsDBTranscriptomics {
                                                                             genomicsdb_ranges_t column_ranges=SCAN_FULL,
                                                                             genomicsdb_ranges_t row_ranges=SCAN_FULL);
 
-    std::tuple<int64_t, std::string> return_tuple() { return {3, "14"}; }
+    // for use with VariantCallProcessor
+    std::map<std::string, genomic_field_type_t> get_genomic_field_types();
+
   private:
     std::string m_workspace;
-
     // calls processor.process if pointer is non null
     std::vector<transcriptomics_cell> generic_query_variant_calls(const std::string& array,                                                                  
                                                                   genomicsdb_ranges_t column_ranges=SCAN_FULL,
