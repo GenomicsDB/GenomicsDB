@@ -66,6 +66,8 @@ typedef struct import_config_t {
   std::set<std::string> include_fields;
   std::string template_loader_json;
   partition_config_t partition_config;
+  bool transcriptomics = false;
+  std::string fai = "";
 } import_config_t;
 
 static bool contains(const std::set<std::string>& names, const std::string& name) {
@@ -647,7 +649,7 @@ static int update_json(import_config_t import_config) {
   return OK;
 }
 
-std::set<std::string> process_samples(const std::string& sample_list, const std::string& samples_dir) {
+std::set<std::string> process_samples(const std::string& sample_list, const std::string& samples_dir, bool transcriptomics = false) {
   // Create a unified samples list
   std::set<std::string> samples;
 
@@ -687,7 +689,14 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
 
   std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir); 
   for (auto sample_file: sample_files) {
-    std::regex pattern(".*(.vcf.gz$|.bcf.gz$)");
+    std::regex pattern;
+    if (!transcriptomics) {
+      pattern = std::regex(".*(.vcf.gz$|.bcf.gz$)");
+    }
+    else {
+      pattern = std::regex(".*(.bed$|.resort$)");
+    }
+
     if (std::regex_search(sample_file, pattern)) {
       samples.insert(TileDBUtils::real_dir(prefix+sample_file));
     }
@@ -789,6 +798,240 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
   return rc;
 }
 
+
+bool generalized_getline(std::string filename, std::string& retval, bool flush = false, size_t buffer_size = 512) {
+  retval = "";
+
+  static std::string str_buffer;
+  static size_t chars_read;
+  static size_t file_size;
+  static bool reset = true;
+
+  reset = reset | flush;
+
+  if(reset) {
+    str_buffer = "";
+    chars_read = 0;
+    file_size = TileDBUtils::file_size(filename);
+    reset = false;
+  }
+
+  char* buffer = new char[buffer_size];
+
+  while(chars_read < file_size || str_buffer.size()) {
+    int idx = str_buffer.find('\n');
+    if(idx != std::string::npos) {
+      retval = retval + str_buffer.substr(0, idx); // exclude newline
+      str_buffer.erase(0, idx + 1); // erase newline
+
+      delete[] buffer;
+      return true;
+    }
+
+    retval = retval + str_buffer;
+    str_buffer.clear();
+
+    int chars_to_read = std::min<ssize_t>(buffer_size, file_size - chars_read);
+
+    if(chars_to_read) {
+      TileDBUtils::read_file(filename, chars_read, buffer, chars_to_read);
+       chars_read += chars_to_read;
+    }
+
+    str_buffer.insert(str_buffer.end(), buffer, buffer + chars_to_read);
+  }
+
+  delete[] buffer;
+
+  reset = true;
+  return false;
+}
+
+static int generate_transcriptomics_callset(import_config_t import_config) {
+  auto samples = import_config.samples;
+  auto merged_header = import_config.merged_header;
+  auto callset_output = import_config.callset_output;
+
+  int64_t row_index = 0;
+  CallsetMappingPB* callset_protobuf = new CallsetMappingPB();
+  size_t samples_size = samples.size();
+  size_t processed_samples = 0;
+  g_logger.info("Generating transcriptomics callset for {} files...", samples_size);
+  // VCF2GENOMICSDB_INIT_PROGRESS_UPDATE_SAMPLE_SIZE env is meant for testing
+  char *progress_update_sample_size = getenv("VCF2GENOMICSDB_INIT_PROGRESS_UPDATE_SAMPLE_SIZE");
+  long progress_update_size = 1024;
+  if (progress_update_sample_size) {
+    progress_update_size = std::atol(progress_update_sample_size);
+  }
+  for (auto sample_uri: samples) {
+    if (samples_size > progress_update_size) {
+      if ((processed_samples%progress_update_size) == 0) {
+        g_logger.info("  Processing {}/{}", processed_samples, samples_size);
+      }
+      processed_samples++;
+    }
+
+    std::string line;
+    std::regex bed(".*(.bed$)");
+    std::regex resort(".*(.resort$)");
+
+    if (std::regex_search(sample_uri, bed)) { // add bed file to callset
+      bool more_lines = generalized_getline(sample_uri, line, true); // header
+      int pos = line.find("description") + 11;
+      int lo = line.find('"', pos) + 1;
+      int hi = line.find('"', lo) - 1;
+
+      auto* callset = callset_protobuf->add_callsets();
+      callset->set_sample_name(line.substr(lo, hi - lo + 1));
+      callset->set_row_idx(row_index++);
+      callset->set_idx_in_file(0);
+      callset->set_filename(sample_uri);
+    }
+    else if(std::regex_search(sample_uri, resort)) { // add resort file to callset
+      bool more_lines = generalized_getline(sample_uri, line, true); // header
+
+      std::stringstream ss(line);
+      std::string str;
+
+      ss >> str >> str; // consume GENE and NAME from resort header
+      int idx = 0;
+      while(ss >> str) {
+        auto* callset = callset_protobuf->add_callsets();
+        callset->set_sample_name(str);
+        callset->set_row_idx(row_index++);
+        callset->set_idx_in_file(idx++);
+        callset->set_filename(sample_uri);
+      }
+    }
+    else {
+      logger.info("File {} is not a bed or resort, skipping", sample_uri);
+    }
+  }
+
+  // Write out callset.json
+  std::string json;
+  google::protobuf::util::JsonPrintOptions json_options;
+  json_options.add_whitespace = true;
+  json_options.always_print_primitive_fields = false;
+  json_options.preserve_proto_field_names = true;
+  google::protobuf::util::MessageToJsonString(*callset_protobuf, &json, json_options);
+  fix_protobuf_generated_json_for_int64(json, {"row_idx", "idx_in_file"});
+
+  g_logger.debug("Writing out callset json file to {}", callset_output);
+  int rc = TileDBUtils::write_file(callset_output, json.data(), json.length());
+  delete callset_protobuf;
+
+  return rc;
+}
+
+static int generate_transcriptomics_json(import_config_t import_config) {
+  auto workspace = import_config.workspace;
+  auto vidmap_output = import_config.vidmap_output;
+  auto loader_output = import_config.loader_json;
+  auto callset_output = import_config.callset_output;
+
+  ImportConfiguration* import_config_protobuf = new ImportConfiguration();
+  // Apply template if found
+  if (!import_config.template_loader_json.empty()) {
+    char *template_json_contents;
+    size_t template_json_length;
+    if (TileDBUtils::read_entire_file(import_config.template_loader_json, (void **)&template_json_contents, &template_json_length)) {
+      g_logger.error("Could not read template loader json file {}", import_config.template_loader_json);
+      return ERR;
+    }
+    google::protobuf::StringPiece template_json_string(template_json_contents, template_json_length);
+    google::protobuf::util::JsonParseOptions json_options;
+    json_options.ignore_unknown_fields = true;
+    auto status = google::protobuf::util::JsonStringToMessage(template_json_string, import_config_protobuf, json_options);
+    if (!status.ok()) {
+      g_logger.error("Protobuf could not apply {} to ImportConfiguration {}", import_config.template_loader_json, status.message().as_string());
+      return ERR;
+    }
+    free(template_json_contents);
+  }
+
+  import_config_protobuf->set_vid_mapping_file(vidmap_output);
+  import_config_protobuf->set_callset_mapping_file(callset_output);
+
+  // Use defaults for the following fields if it is not available from template
+  if (!import_config_protobuf->has_size_per_column_partition()) {
+    import_config_protobuf->set_size_per_column_partition(43581440);
+  }
+  if (!import_config_protobuf->has_segment_size()) {
+    import_config_protobuf->set_segment_size(1048576);
+  }
+  if (!import_config_protobuf->has_num_cells_per_tile()) {
+    import_config_protobuf->set_num_cells_per_tile(1000);
+  }
+  if (!import_config_protobuf->has_consolidate_tiledb_array_after_load()) {
+    import_config_protobuf->set_consolidate_tiledb_array_after_load(false);
+  }
+  if (!import_config_protobuf->has_enable_shared_posixfs_optimizations()) {
+    import_config_protobuf->set_enable_shared_posixfs_optimizations(false);
+  }
+
+  VidMappingPB* vidmap_pb = new VidMappingPB();
+  // Using vector instead of map here because map does not keep track of order of insertion as it uses some
+  // form of binary tree for fast retrieval
+  std::vector<std::pair<std::string, int64_t>> regions;
+  int64_t total_length = 0;
+
+  int rc = OK;
+
+  // get regions from fai
+  std::string line;
+  bool flush = true;
+  while(generalized_getline(import_config.fai, line, flush)) {
+    flush = false;
+    
+    std::stringstream ss(line);
+    std::string contig_name, str_size;
+    ss >> contig_name >> str_size;
+
+    regions.push_back({contig_name, std::stol(str_size)});
+  }
+
+  // add fields
+  std::vector<std::string> names = {"START", "END", "SCORE", "NAME", "GENE"};
+  std::vector<std::string> types = {"Integer64", "Integer64", "Float", "Char", "Char"};
+  std::vector<std::string> lengths = {"1", "1", "1", "var", "var"};
+
+  for(int i = 0; i < names.size(); i++) {
+    GenomicsDBFieldInfo* field_info = get_field_info(vidmap_pb, names[i]);
+    field_info->add_type()->assign(types[i]);
+    field_info->add_length()->set_variable_length_descriptor(lengths[i]);
+  }
+
+  !rc && (rc = add_contigs(regions, import_config, vidmap_pb, import_config_protobuf));
+  g_logger.info("Total number of partitions in loader.json={}", import_config_protobuf->column_partitions_size());
+
+  if (!rc) {
+    std::string json;
+    google::protobuf::util::JsonPrintOptions json_options;
+    json_options.add_whitespace = true;
+    json_options.always_print_primitive_fields = false;
+    json_options.preserve_proto_field_names = true;
+
+    // Write out vidmap.json
+    google::protobuf::util::MessageToJsonString(*vidmap_pb, &json, json_options);
+    g_logger.debug("Writing out vidmap json file to {}", vidmap_output);
+    fix_protobuf_generated_json_for_int64(json, {"tiledb_column_offset", "length"});
+    TileDBUtils::write_file(vidmap_output, json.data(), json.length());
+    delete vidmap_pb;
+
+    // Write out loader.json
+    json.clear();
+    google::protobuf::util::MessageToJsonString(*import_config_protobuf, &json, json_options);
+    g_logger.debug("Writing out loader json file to {}", loader_output);
+    fix_protobuf_generated_json_for_int64(json, {"tiledb_column", "size_per_column_partition", "segment_size",
+          "num_cells_per_tile"});
+    rc = TileDBUtils::write_file(loader_output, json.data(), json.length());
+    delete import_config_protobuf;
+  }
+
+  return rc;
+}
+
 static void process_include_fields(std::set<std::string>& fields, const std::string& include_fields) {
   std::regex delimiter("[\\s,]+");
   std::sregex_token_iterator it(include_fields.begin(), include_fields.end(), delimiter, -1);
@@ -800,6 +1043,8 @@ static void process_include_fields(std::set<std::string>& fields, const std::str
 
 enum GenomicsDBArgsEnum {
   VERSION=1000,
+  TRANSCRIPTOMICS,
+  FAI
 };
 
 void print_usage() {
@@ -830,6 +1075,10 @@ void print_usage() {
             << "\t \e[1m--include-fields\e[0m=<fields>, \e[1m-f\e[0m <fields>\n"
             << "\t\t Optional, Include only fields(comma-separated) listed in this argument while generating the vidmap\n"
             << "\t\t default is to include all fields found in the vcf headers\n"
+            << "\t \e[1m--transcriptomics\e[0m\n"
+            << "\t\t Optional, indicates that \e[1m--sample-list\e[0m / \e[1m--samples-dir\e[0m point exclusively to bed/resort files\n"
+            << "\t\t does not currently support \e[1m--append-samples\e[0m\n"
+            << "\t\t \e[1m--fai\e[0m, fasta index file, must be used with \e[1m--transcriptomics\e[0m to specify contigs\n"
             << "\t \e[1m--template-loader-json\e[0m=<template file>, \e[1m-t\e[0m <template file>\n"
             << "\t\t Optional, specify a template loader json file to use as a basis with loader json files\n"
             << "\t \e[1m--append-samples\e[0m, \e[1m-a\e[0m\n"
@@ -862,6 +1111,8 @@ int main(int argc, char** argv) {
     {"size-of-array-partitions",   1, 0, 'z'},
     {"merge-small-contigs",        0, 0, 'm'},
     {"include-fields",             1, 0, 'f'},
+    {"transcriptomics",            0, 0, TRANSCRIPTOMICS},
+    {"fai",                        1, 0, FAI},
     {"template-loader-json",       1, 0, 't'},
     {"append-samples",             0, 0, 'a'},
     {"verbose",                    0, 0, 'v'},
@@ -875,6 +1126,7 @@ int main(int argc, char** argv) {
   std::string sample_list;
   std::string samples_dir;
   std::string template_loader_json;
+  std::string fai;
 
   // Set global log level to info as default
   spdlog::set_level(spdlog::level::info);
@@ -931,6 +1183,12 @@ int main(int argc, char** argv) {
       case VERSION:
         std::cout << GENOMICSDB_VERSION << "\n";
         return OK;
+      case TRANSCRIPTOMICS:
+        import_config.transcriptomics = true;
+        break;
+      case FAI:
+        import_config.fai = std::move(std::string(optarg));
+        break;
       default:
         std::cerr << "Unknown command line argument\n";
         print_usage();
@@ -979,12 +1237,16 @@ int main(int argc, char** argv) {
     return ERR;
   }
 
+  if (import_config.transcriptomics && !TileDBUtils::is_file(import_config.fai)) {
+    g_logger.error("fai file {} specified with --fai option cannot be accessed", import_config.fai);
+  }
+
   genomicsdb_htslib_plugin_initialize();
 
   try {
     bool generate = !import_config.append_samples;
 
-    auto samples = process_samples(sample_list, samples_dir);
+    auto samples = process_samples(sample_list, samples_dir, import_config.transcriptomics);
     if (samples.size() == 0) {
       g_logger.info("No samples found in the input sample list/directory. Nothing to process!");
       return ERR;
@@ -1004,15 +1266,25 @@ int main(int argc, char** argv) {
     import_config.merged_header = std::move(merged_header);
     import_config.loader_json = std::move(loader_json);
 
-    if (generate) {
-      if (merge_headers_and_generate_callset(import_config)) {
+    if (!import_config.transcriptomics) {
+      if (generate) {
+        if (merge_headers_and_generate_callset(import_config)) {
+          return ERR;
+        }
+        if (generate_json(import_config)) {
+          return ERR;
+        }
+      } else {
+          if (update_json(import_config)) {
+          return ERR;
+        }
+      }
+    }
+    else {
+      if(generate_transcriptomics_callset(import_config)) {
         return ERR;
       }
-      if (generate_json(import_config)) {
-        return ERR;
-      }
-    } else {
-      if (update_json(import_config)) {
+      if(generate_transcriptomics_json(import_config)) {
         return ERR;
       }
     }
