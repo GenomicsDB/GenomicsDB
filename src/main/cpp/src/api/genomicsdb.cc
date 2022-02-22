@@ -731,9 +731,9 @@ std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_varia
 
   const int buff_size = 200;
 
-  char a1[buff_size], a2[buff_size], a3[buff_size], a4[buff_size], a5[buff_size], a6[buff_size], a7[buff_size], a8[buff_size], a9[buff_size];
-  void* buffers[] = {a1, a2, a3, a4, a5, a6, a7, a8, a9};
-  size_t sizes[] = {sizeof(a1), sizeof(a2), sizeof(a3), sizeof(a4), sizeof(a5), sizeof(a6), sizeof(a7), sizeof(a8), sizeof(a9)};
+  char a1[buff_size], a2[buff_size], a3[buff_size], a4[buff_size], a5[buff_size], a6[buff_size], a7[buff_size], a8[buff_size], a9[buff_size], a10[buff_size], a11[buff_size];
+  void* buffers[] = {a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11};
+  size_t sizes[] = {sizeof(a1), sizeof(a2), sizeof(a3), sizeof(a4), sizeof(a5), sizeof(a6), sizeof(a7), sizeof(a8), sizeof(a9), sizeof(a10), sizeof(a11)};
 
   int64_t subarray[4];
 
@@ -825,13 +825,22 @@ std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_varia
         //  std::cout << gene[j];
         //}
         //std::cout << std::endl << "gene size is " << gene_size << std::endl;
+        // SAMPLE_NAME
+        char* sample_name = 0;
+        size_t sample_name_size;
+        tiledb_array_iterator_get_value(
+              tiledb_it,                           // Array iterator
+              5,                                   // Attribute id
+              (const void**) &sample_name,         // Value
+              &sample_name_size);                  // Value size (useful in variable-sized attributes)
+        fields.push_back(genomic_field_t("sample_name", sample_name, sample_name_size));
 
         // COORDS
         int64_t* coords = 0;
         size_t coords_size;
         tiledb_array_iterator_get_value(
               tiledb_it,              // Array iterator
-              5,                      // Attribute id
+              6,                      // Attribute id
               (const void**) &coords, // Value
               &coords_size);          // Value size (useful in variable-sized attributes)
         //std::cout << "read coords as " << coords[0] << ", " << coords[1] << std::endl;
@@ -847,6 +856,7 @@ std::vector<transcriptomics_cell> GenomicsDBTranscriptomics::generic_query_varia
         cell.score = *score;
         cell.name = std::string(name, name + name_size);
         cell.gene = std::string(gene, gene + gene_size);
+        cell.sample_name = std::string(sample_name, sample_name + sample_name_size);
         cell.sample_idx = coords[0];
         cell.position = coords[1];        
 

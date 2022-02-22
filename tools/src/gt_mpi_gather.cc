@@ -692,7 +692,7 @@ int main(int argc, char *argv[]) {
           // start, end, score, name, gene, row, col
           //std::cout << "[" << std::get<0>(t) << ", " << std::get<1>(t) << ", " << std::get<2>(t) << ", \"" << std::get<3>(t) << "\", \"" << std::get<4>(t) << "\", " << std::get<5>(t) << ", " << std::get<6>(t) << "]";
           //std::cout << "[" << t[0] << ", " << t[1] << ", " << t[2] << ", \"" << t[3] << "\", \"" << t[4] << "\", " << t[5] << ", " << t[6] << "]";
-          std::cout << "[" << t.start << ", " << t.end << ", " << t.score << ", " << t.name << ", " << t.gene << ", " << t.sample_idx << ", " << t.position << "]";
+          std::cout << "[" << t.start << ", " << t.end << ", " << t.score << ", " << t.name << ", " << t.gene << ", " << t.sample_name << ", " << t.sample_idx << ", " << t.position << "]";
           if(i != retval.size() - 1) {
             std::cout << ",";
           }

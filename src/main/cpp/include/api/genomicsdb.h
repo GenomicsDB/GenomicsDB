@@ -403,12 +403,12 @@ struct transcriptomics_cell {
   int64_t start, end, sample_idx, position; // not all of these will be used at once
   int32_t file_idx;
   float score;
-  std::string name, gene;
+  std::string name, gene, sample_name;
 
   transcriptomics_cell(int64_t start = 0, int64_t end = 0, float score = 0, std::string name = "",
-                       std::string gene = "", int64_t sample_idx = 0,
+                       std::string gene = "", std::string sample_name = "", int64_t sample_idx = 0,
                        int32_t file_idx = 0)
-                       : start(start), end(end), score(score), name(name), gene(gene) {}
+                       : start(start), end(end), score(score), name(name), gene(gene), sample_name(sample_name) {}
 
   void print() {
     std::cout << "start: " << start << std::endl;
@@ -419,6 +419,7 @@ struct transcriptomics_cell {
     std::cout << "score: " << score << std::endl;
     std::cout << "name: " << name << std::endl;
     std::cout << "gene: " << gene << std::endl;
+    std::cout << "sample_name: " << sample_name << std::endl;
   }
 };
 

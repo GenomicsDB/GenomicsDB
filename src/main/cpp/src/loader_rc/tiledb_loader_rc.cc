@@ -74,6 +74,10 @@ SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& conf
   types.push_back(typeid(char));
   num_vals.push_back(TILEDB_VAR_NUM);
 
+  attribute_names.push_back("SAMPLE_NAME");
+  types.push_back(typeid(char));
+  num_vals.push_back(TILEDB_VAR_NUM);
+
   // Add type for coords
   types.push_back(std::type_index(typeid(int64_t)));
 
@@ -187,7 +191,11 @@ SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& conf
 
 // TODO: maybe also create end cell, add ability to specify here
 // assume valid input
-bool SinglePosition2TileDBLoader::info_to_cell(int64_t start, int64_t end, std::string name, std::string gene, float score, uint64_t row) {
+bool SinglePosition2TileDBLoader::info_to_cell(const transcriptomics_cell& tc) {
+  int64_t start = tc.start, end = tc.end, row = tc.sample_idx;
+  float score = tc.score;
+  std::string name = tc.name, gene = tc.gene, sample_name = tc.sample_name;
+
   //construct cell
   std::vector<uint8_t> cell(16);
   *(reinterpret_cast<uint64_t*>(cell.data())) = row; // write row in cell
@@ -209,6 +217,7 @@ bool SinglePosition2TileDBLoader::info_to_cell(int64_t start, int64_t end, std::
   // attributes
   for(int j = 0; j < m_array_schema.attribute_num(); j++) {
     std::string attribute_name = m_array_schema.attribute_name(j);
+
     if(attribute_name == "START") {
       cell.insert(cell.end(), {0, 0, 0, 0, 0, 0, 0, 0});
       *(reinterpret_cast<int64_t*>(cell.data() + cell.size() - 8)) = start;
@@ -235,6 +244,14 @@ bool SinglePosition2TileDBLoader::info_to_cell(int64_t start, int64_t end, std::
       cell.insert(cell.end(), {0, 0, 0, 0});
       *(reinterpret_cast<uint32_t*>(cell.data() + cell.size() - 4)) = gene.length();
       for(auto c : gene) {
+        cell.push_back(c);
+      }
+    }
+    if(attribute_name == "SAMPLE_NAME") {
+
+      cell.insert(cell.end(), {0, 0, 0, 0});
+      *(reinterpret_cast<uint32_t*>(cell.data() + cell.size() - 4)) = sample_name.length();
+      for(auto c : sample_name) {
         cell.push_back(c);
       }
     }
@@ -319,7 +336,6 @@ transcriptomics_cell BedReader::next_cell_info() {
 
   std::string str;
   while(generalized_getline(str)) {
-
     auto[chrom, start, end, name, score] = SinglePosition2TileDBLoader::parse_and_check(str, m_vid_mapper);
 
     if(chrom == "") {
@@ -330,6 +346,7 @@ transcriptomics_cell BedReader::next_cell_info() {
       retval.end = end;
       retval.name = name;
       retval.gene = "NA";
+      retval.sample_name = m_sample_name;
       retval.score = score;
       retval.sample_idx = m_sample_idx;
       return retval;
@@ -339,6 +356,7 @@ transcriptomics_cell BedReader::next_cell_info() {
   retval.end = -1;
   retval.name = "";
   retval.gene = "";
+  retval.sample_name = "";
   retval.score = 0;
   retval.sample_idx = 0;
   return retval;
@@ -679,7 +697,7 @@ void SinglePosition2TileDBLoader::read_all() {
     top.print();
     std::cout << std::endl << std::endl;
 
-    info_to_cell(top.start, top.end, top.name, top.gene, top.score, top.sample_idx);
+    info_to_cell(top);
 
     if(top.file_idx >= 0) { // if cell is an end
       auto inf = files[top.file_idx]->next_cell_info(); // read next cell from originiating file
@@ -800,6 +818,20 @@ void SinglePosition2TileDBLoader::read_array() {
       std::cout << gene[j];
     }
     std::cout << std::endl << "gene size is " << gene_size << std::endl;
+
+    // SAMPLE_NAME
+    char* sample_name = 0;
+    size_t sample_name_size;
+    tiledb_array_iterator_get_value(
+          tiledb_it,                    // Array iterator
+          4,                            // Attribute id
+          (const void**) &sample_name,  // Value
+          &sample_name_size);           // Value size (useful in variable-sized attributes)
+    std::cout << "read sample_name as " << std::endl;
+    for(int j = 0; j < sample_name_size; j++) {
+      std::cout << sample_name[j];
+    }
+    std::cout << std::endl << "sample_name size is " << sample_name_size << std::endl;
 
     // COORDS
     int64_t* coords = 0;

@@ -876,7 +876,7 @@ static int generate_transcriptomics_callset(import_config_t import_config) {
     std::regex resort(".*(.resort$)");
 
     if (std::regex_search(sample_uri, bed)) { // add bed file to callset
-      bool more_lines = generalized_getline(sample_uri, line, true); // header
+      generalized_getline(sample_uri, line, true); // header
       int pos = line.find("description") + 11;
       int lo = line.find('"', pos) + 1;
       int hi = line.find('"', lo) - 1;
@@ -888,7 +888,7 @@ static int generate_transcriptomics_callset(import_config_t import_config) {
       callset->set_filename(sample_uri);
     }
     else if(std::regex_search(sample_uri, resort)) { // add resort file to callset
-      bool more_lines = generalized_getline(sample_uri, line, true); // header
+      generalized_getline(sample_uri, line, true); // header
 
       std::stringstream ss(line);
       std::string str;
@@ -992,9 +992,9 @@ static int generate_transcriptomics_json(import_config_t import_config) {
   }
 
   // add fields
-  std::vector<std::string> names = {"START", "END", "SCORE", "NAME", "GENE"};
-  std::vector<std::string> types = {"Integer64", "Integer64", "Float", "Char", "Char"};
-  std::vector<std::string> lengths = {"1", "1", "1", "var", "var"};
+  std::vector<std::string> names = {"START", "END", "SCORE", "NAME", "GENE", "SAMPLE_NAME"};
+  std::vector<std::string> types = {"Integer64", "Integer64", "Float", "Char", "Char", "Char"};
+  std::vector<std::string> lengths = {"1", "1", "1", "var", "var", "var"};
 
   for(int i = 0; i < names.size(); i++) {
     GenomicsDBFieldInfo* field_info = get_field_info(vidmap_pb, names[i]);
