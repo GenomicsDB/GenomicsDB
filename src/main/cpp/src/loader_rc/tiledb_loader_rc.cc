@@ -427,11 +427,15 @@ transcriptomics_cell MatrixReader::next_cell_info() {
 
     // otherwise go to next relevent column
     try {
-      auto p = idx_to_row[idx_to_row_pos++];
+      auto p = idx_to_row[idx_to_row_pos];
       if(p.first >= samples.size()) {
         logger.error("Error index in file {} is outside of matrix file's {} columns", p.first, samples.size());
         exit(1);
       }
+      std::string sample_name = idx_to_sample_name[idx_to_row_pos].second;
+      ++idx_to_row_pos;
+
+      std::cout << "REMOVE read stored sample name as " << sample_name << std::endl;
 
       std::string str = m_current_line[p.first];
 
@@ -445,6 +449,7 @@ transcriptomics_cell MatrixReader::next_cell_info() {
       retval.score = score;
       retval.sample_idx = p.second;
       retval.file_idx = m_file_idx;
+      retval.sample_name = sample_name;
 
       return retval;
     }
@@ -622,6 +627,7 @@ void SinglePosition2TileDBLoader::read_all() {
     std::string filename = m_vid_mapper.get_file_info(f_ind).m_name;
     int64_t idx_in_file = ci.m_idx_in_file;
     int64_t row_idx = ci.m_row_idx;
+    std::string sample_name = ci.m_name;
 
     //auto fi = m_vid_mapper.get_file_info(i);
 
@@ -635,12 +641,11 @@ void SinglePosition2TileDBLoader::read_all() {
 
       type = 0;
       file_types.push_back(0);
-      files.push_back(std::make_shared<BedReader>(filename, files.size(), m_vid_mapper, row_idx));
+      files.push_back(std::make_shared<BedReader>(filename, files.size(), m_vid_mapper, row_idx, sample_name));
       
       previous_files.insert({filename, files.back()});
     }
     else if(std::regex_match(filename, std::regex("(.*)(resort)($)"))) { // matrix
-
       if(!previous_files.count(filename)) { // create reader object for file
         type = 1;
         file_types.push_back(1);
@@ -665,7 +670,9 @@ void SinglePosition2TileDBLoader::read_all() {
         }
       }
 
+      std::cout << "REMOVE sample name is " << sample_name << std::endl;
       file.idx_to_row.push_back(p); // insert last read callset into index to row map in applicable matrix file reader
+      file.idx_to_sample_name.push_back({idx_in_file, sample_name});
     }
     else {
       file_types.push_back(2);
