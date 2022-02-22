@@ -227,9 +227,6 @@ VariantArrayInfo::VariantArrayInfo(VariantArrayInfo&& other)
 void VariantArrayInfo::write_cell(const void* ptr) {
   m_cell.set_cell(ptr);
 #ifdef DEBUG
-  std::cout  << "\t\tREMOVE last row, col " << m_last_row << ", " << m_last_column << std::endl;
-  std::cout << "\t\tREMOVE current row, col " << m_cell.get_row() << ", " << m_cell.get_begin_column() << std::endl;
-
   assert((m_cell.get_begin_column() > m_last_column) || (m_cell.get_begin_column() == m_last_column && m_cell.get_row() > m_last_row));
   m_last_row = m_cell.get_row();
   m_last_column = m_cell.get_begin_column();

@@ -329,8 +329,6 @@ bool TranscriptomicsFileReader::generalized_getline(std::string& retval) {
 }
 
 transcriptomics_cell BedReader::next_cell_info() {
-  std::cout << "REMOVE entered bed next_cell_info" << std::endl;
-
   transcriptomics_cell retval;
   retval.file_idx = m_file_idx;
 
@@ -364,8 +362,6 @@ transcriptomics_cell BedReader::next_cell_info() {
 
 // assuming format is gene, name, scores
 transcriptomics_cell MatrixReader::next_cell_info() {
-  std::cout << "REMOVE entered matrix next_cell_info" << std::endl;
-
   int mat_fields = 6;
   int start_ind = 0, end_ind = 1, name_ind = 2, sample_ind = 4, score_ind = 6;
 
@@ -378,29 +374,13 @@ transcriptomics_cell MatrixReader::next_cell_info() {
   invalid_cell.sample_idx = 0;
   invalid_cell.file_idx = m_file_idx;
 
-  std::cout << "REMOVE current sample, current line size: " << m_current_sample << ", " << m_current_line.size() << std::endl;
-
   std::string line;
 
   //while(m_current_sample >= m_current_line.size()) { // read until next valid line or eof
   while(generalized_getline(line)) {
-    std::cout << "REMOVE current sample, current line size: " << m_current_sample << ", " << m_current_line.size() << std::endl;
-
-    //std::string line;
-
-    // eof
-    //if(!generalized_getline(line)) {
-    //  std::cout << "REMOVE return eof" << std::endl;
-    //
-    //  return invalid_cell;
-    //}
-
     std::stringstream ss(line);
 
     ss >> m_current_gene >> m_current_name;
-
-    std::cout << "REMOVE line is " << line << std::endl;
-    std::cout << "REMOVE gene is " << m_current_gene << std::endl;
 
     if(m_transcript_map.count(m_current_gene)) {
       auto[s, e] = m_transcript_map[m_current_gene];
@@ -435,8 +415,6 @@ transcriptomics_cell MatrixReader::next_cell_info() {
       std::string sample_name = idx_to_sample_name[idx_to_row_pos].second;
       ++idx_to_row_pos;
 
-      std::cout << "REMOVE read stored sample name as " << sample_name << std::endl;
-
       std::string str = m_current_line[p.first];
 
       float score = std::stof(str);
@@ -454,13 +432,9 @@ transcriptomics_cell MatrixReader::next_cell_info() {
       return retval;
     }
     catch (...) {
-      std::cout << "REMOVE return exception" << std::endl;
-
       return invalid_cell;
     }
   }
-
-  std::cout << "REMOVE return default" << std::endl;
   return invalid_cell;
 }
 
@@ -506,9 +480,7 @@ void SinglePosition2TileDBLoader::read_uncompressed_gtf(std::istream& input, std
     }
 
     try {
-      //start = std::stol(fields[3]); // REMOVE
       m_vid_mapper.get_tiledb_position(start, fields[0], std::stol(fields[3]));
-      //end = std::stol(fields[4]); // REMOVE
       m_vid_mapper.get_tiledb_position(end, fields[0], std::stol(fields[4]));
     }
     catch (...) {
@@ -537,13 +509,6 @@ void SinglePosition2TileDBLoader::read_uncompressed_gtf(std::istream& input, std
     auto sz = transcript_map.size();
     transcript_map[tid] = {start_location, end_location};
  
-
-    if(tid == "ENST00000530572" || tid == "ENST00000532071") { // REMOVE
-      std::cout << "REMOVE tid is " << tid << std::endl;
-      std::cout << "chrom, start, end: " << fields[0] << ", " << fields[3] << ", " << fields[4] << std::endl;
-      std::cout << "after mapping: " << start << ", " << end << std::endl;
-    }
-
     if(sz == transcript_map.size()) {
       std::cout << tid << " is duplicate, start/end: " << start_location << ", " << end_location << std::endl;
     }
@@ -670,7 +635,6 @@ void SinglePosition2TileDBLoader::read_all() {
         }
       }
 
-      std::cout << "REMOVE sample name is " << sample_name << std::endl;
       file.idx_to_row.push_back(p); // insert last read callset into index to row map in applicable matrix file reader
       file.idx_to_sample_name.push_back({idx_in_file, sample_name});
     }
@@ -686,10 +650,6 @@ void SinglePosition2TileDBLoader::read_all() {
       auto inf = file_ptr->next_cell_info();
 
       if(inf.start >= 0) {
-        std::cout << "REMOVE pushing " << std::endl;
-        inf.print();
-        std::cout << std::endl << std::endl;
-
         pq.push(remove_file(inf)); // set file index to -1 to indicate this is a start (and not to read the file for another cell yet)
         pq.push(reverse_info(inf)); // reverse start and end to indicate this is an end
       }
@@ -700,21 +660,12 @@ void SinglePosition2TileDBLoader::read_all() {
     auto top = pq.top();
     pq.pop();
 
-    std::cout << "REMOVE popped ====================================================== will write" << std::endl;
-    top.print();
-    std::cout << std::endl << std::endl;
-
     info_to_cell(top);
 
     if(top.file_idx >= 0) { // if cell is an end
       auto inf = files[top.file_idx]->next_cell_info(); // read next cell from originiating file
-      std::cout << "REMOVE read from file" << std::endl;
-      inf.print();
-      std::cout << std::endl << std::endl;        
 
       if(inf.start >= 0 && inf.file_idx != -1) { // check cell info is valida
-        std::cout << "REMOVE pushing 2" << std::endl;
-
         pq.push(inf);
       }
     }
