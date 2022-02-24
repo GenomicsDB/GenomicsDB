@@ -17,7 +17,12 @@ class TranscriptomicsFileReader {
     ~TranscriptomicsFileReader() {
       delete[] m_buffer;
     }
-    virtual transcriptomics_cell next_cell_info() = 0;
+    virtual std::pair<transcriptomics_cell, transcriptomics_cell> next_cell_info() = 0;
+    static transcriptomics_cell remove_file(transcriptomics_cell c) { c.file_idx = -1; return c; }
+    static transcriptomics_cell reverse_info(transcriptomics_cell c) {
+      c.position = (c.position == c.start) ? c.end : c.start;
+      return c;
+    }
   protected:
     std::string m_filename;
     std::ifstream m_file;
@@ -37,12 +42,8 @@ class BedReader : public TranscriptomicsFileReader {
     BedReader(std::string filename, int ind, VidMapper& vid_mapper, int sample_idx, std::string sample_name) : TranscriptomicsFileReader(filename, ind, vid_mapper), m_sample_idx(sample_idx), m_sample_name(sample_name) { // FIXME validate header
       std::string str;
       generalized_getline(str); // consume header (sample name comes from callset instead)
-      //int pos = str.find("description") + 11;
-      //int lo = str.find('"', pos) + 1;
-      //int hi = str.find('"', lo) - 1;
-      //m_sample_name = str.substr(lo, hi - lo + 1);
     }
-    transcriptomics_cell next_cell_info() override;
+    std::pair<transcriptomics_cell, transcriptomics_cell> next_cell_info() override;
   protected:
     int64_t m_sample_idx;
     std::string m_sample_name;
@@ -63,7 +64,7 @@ class MatrixReader : public TranscriptomicsFileReader {
         samples.push_back(tok);
       }
     }
-    transcriptomics_cell next_cell_info() override;
+    std::pair<transcriptomics_cell, transcriptomics_cell> next_cell_info() override;
     std::vector<std::pair<int, int64_t>> idx_to_row; // maps from column in matrix (sample) to row in GenomicsDB
     int idx_to_row_pos = 0; // keeps position in above vector
     std::vector<std::pair<int, std::string>> idx_to_sample_name;

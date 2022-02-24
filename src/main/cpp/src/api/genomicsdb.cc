@@ -708,6 +708,10 @@ std::map<std::string, genomic_field_type_t> GenomicsDBTranscriptomics::get_genom
                               std::forward_as_tuple("gene"),
                               std::forward_as_tuple(genomic_field_type_t(std::type_index(typeid(char)), false,  1, 1, false)));
 
+  genomic_field_types.emplace(std::piecewise_construct,
+                              std::forward_as_tuple("sample_name"),
+                              std::forward_as_tuple(genomic_field_type_t(std::type_index(typeid(char)), false,  1, 1, false)));
+
   return genomic_field_types;
 }
 

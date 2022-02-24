@@ -28,5 +28,13 @@ TEST_CASE("rc constructor", "[rc_constr]") {
   GenomicsDBVariantCallProcessor processor;
   processor.initialize(gdb.get_genomic_field_types());
 
-  gdb.query_variant_calls(processor, array_name);
+  auto retval = gdb.query_variant_calls(processor, array_name);
+  std::string test_output = GenomicsDBTranscriptomics::print_transcriptomics_cells(retval);
+
+  std::ifstream gold_file(std::string(GENOMICSDB_CTESTS_DIR) + "rc/gold_output");
+  std::stringstream ss;
+  ss << gold_file.rdbuf();
+  std::string gold_output = ss.str();
+
+  CHECK(test_output == gold_output);
 }

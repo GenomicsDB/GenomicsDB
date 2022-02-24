@@ -682,23 +682,8 @@ int main(int argc, char *argv[]) {
         break;
       case COMMAND_TRANSCRIPTOMICS_QUERY:
         GenomicsDBTranscriptomics gdb(workspace); // TODO pass callset/vid mapper etc
-        //std::vector<std::pair<int64_t, int64_t>> rows = {{query_config.get_smallest_row_idx_in_array(), query_config.get_smallest_row_idx_in_array() + query_config.get_num_rows_in_array() - 1}};
-        //std::cout << "row span " << rows[0].first << ", " << rows[0].second << std::endl;
-        auto retval = gdb.query_variant_calls(array_name);
-        //auto retval = gdb.query_variant_calls(array_name, {{0, 1000}}, {{0, 1}});
-        std::cout << "[" << std::endl;
-        for(int i = 0; i < retval.size(); i++) {
-          auto& t = retval[i];
-          // start, end, score, name, gene, row, col
-          //std::cout << "[" << std::get<0>(t) << ", " << std::get<1>(t) << ", " << std::get<2>(t) << ", \"" << std::get<3>(t) << "\", \"" << std::get<4>(t) << "\", " << std::get<5>(t) << ", " << std::get<6>(t) << "]";
-          //std::cout << "[" << t[0] << ", " << t[1] << ", " << t[2] << ", \"" << t[3] << "\", \"" << t[4] << "\", " << t[5] << ", " << t[6] << "]";
-          std::cout << "[" << t.start << ", " << t.end << ", " << t.score << ", " << t.name << ", " << t.gene << ", " << t.sample_name << ", " << t.sample_idx << ", " << t.position << "]";
-          if(i != retval.size() - 1) {
-            std::cout << ",";
-          }
-          std::cout << std::endl;
-        }
-        std::cout << "]" << std::endl;
+        auto retval = gdb.query_variant_calls(array_name, query_config.get_query_column_ranges(my_world_mpi_rank), query_config.get_query_row_ranges(my_world_mpi_rank));
+        std::cout << GenomicsDBTranscriptomics::print_transcriptomics_cells(retval);
         break;
     }
 #ifdef USE_GPERFTOOLS

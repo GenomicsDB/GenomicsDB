@@ -469,6 +469,22 @@ class GenomicsDBTranscriptomics {
     // for use with VariantCallProcessor
     std::map<std::string, genomic_field_type_t> get_genomic_field_types();
 
+    static std::string print_transcriptomics_cells(const std::vector<transcriptomics_cell>& vec) {
+      std::stringstream ss;
+      ss << "[" << std::endl;
+      for(int i = 0; i < vec.size(); i++) {
+        auto& t = vec[i];
+        ss << "[" << t.start << ", " << t.end << ", " << t.score << ", " << t.name << ", " << t.gene << ", " << t.sample_name << ", " << t.sample_idx << ", " << t.position << "]";
+        if(i != vec.size() - 1) {
+          ss << ",";
+        }
+        ss << std::endl;
+      }
+      ss << "]" << std::endl;
+
+      return ss.str();
+    }
+
   private:
     std::string m_workspace;
     // calls processor.process if pointer is non null

@@ -192,7 +192,7 @@ SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& conf
 // TODO: maybe also create end cell, add ability to specify here
 // assume valid input
 bool SinglePosition2TileDBLoader::info_to_cell(const transcriptomics_cell& tc) {
-  int64_t start = tc.start, end = tc.end, row = tc.sample_idx;
+  int64_t start = tc.start, end = tc.end, row = tc.sample_idx, pos = tc.position;
   float score = tc.score;
   std::string name = tc.name, gene = tc.gene, sample_name = tc.sample_name;
 
@@ -200,11 +200,10 @@ bool SinglePosition2TileDBLoader::info_to_cell(const transcriptomics_cell& tc) {
   std::vector<uint8_t> cell(16);
   *(reinterpret_cast<uint64_t*>(cell.data())) = row; // write row in cell
 
-  int64_t pos = start;
-
-  if(start > end) { // indicates end cell
+  int64_t temp = start;
+  if(start > end) {
     start = end;
-    end = pos;
+    end = temp;
   }
 
   *(reinterpret_cast<uint64_t*>(cell.data()) + 1) = pos; // write position in cell
@@ -328,7 +327,7 @@ bool TranscriptomicsFileReader::generalized_getline(std::string& retval) {
   return false;
 }
 
-transcriptomics_cell BedReader::next_cell_info() {
+std::pair<transcriptomics_cell, transcriptomics_cell> BedReader::next_cell_info() {
   transcriptomics_cell retval;
   retval.file_idx = m_file_idx;
 
@@ -342,32 +341,35 @@ transcriptomics_cell BedReader::next_cell_info() {
     else {
       retval.start = start;
       retval.end = end;
+      retval.position = start;
       retval.name = name;
       retval.gene = "NA";
       retval.sample_name = m_sample_name;
       retval.score = score;
       retval.sample_idx = m_sample_idx;
-      return retval;
+      return { remove_file(retval), reverse_info(retval) };
     }
   }
   retval.start = -1;
   retval.end = -1;
+  retval.position = -1;
   retval.name = "";
   retval.gene = "";
   retval.sample_name = "";
   retval.score = 0;
   retval.sample_idx = 0;
-  return retval;
+  return { retval, retval };
 }
 
 // assuming format is gene, name, scores
-transcriptomics_cell MatrixReader::next_cell_info() {
+std::pair<transcriptomics_cell, transcriptomics_cell> MatrixReader::next_cell_info() {
   int mat_fields = 6;
   int start_ind = 0, end_ind = 1, name_ind = 2, sample_ind = 4, score_ind = 6;
 
   transcriptomics_cell invalid_cell;
   invalid_cell.start = -1;
   invalid_cell.end = -1;
+  invalid_cell.position = -1;
   invalid_cell.name = "";
   invalid_cell.gene = "";
   invalid_cell.score = 0;
@@ -376,66 +378,79 @@ transcriptomics_cell MatrixReader::next_cell_info() {
 
   std::string line;
 
-  //while(m_current_sample >= m_current_line.size()) { // read until next valid line or eof
-  while(generalized_getline(line)) {
-    std::stringstream ss(line);
+  auto read_next_line = [&] () -> bool {
+    std::string line;
+    while(generalized_getline(line)) {
+      std::stringstream ss(line);
+      ss >> m_current_gene >> m_current_name;
+      
+      if(m_transcript_map.count(m_current_gene)) {
+        auto[s, e] = m_transcript_map[m_current_gene];
+        m_current_start = s;
+        m_current_end = e;
+      }
+      else {
+        continue; // gene not in map, skip row
+      }
 
-    ss >> m_current_gene >> m_current_name;
+      std::string str; // push all scores into m_current_line
+      m_current_line.clear();
+      while(ss >> str) {
+        m_current_line.push_back(str);
+      }
 
-    if(m_transcript_map.count(m_current_gene)) {
-      auto[s, e] = m_transcript_map[m_current_gene];
-      m_current_start = s;
-      m_current_end = e;
+      return true; // line was read correctly
     }
-    else {
-      continue; // gene not in map, skip row
+    return false; // no more lines
+  };
+
+  bool done = false;
+
+  while(!done) {
+    // iterate through line
+    if(m_current_line.size() == samples.size()) {
+      while(idx_to_row_pos < idx_to_row.size()) {
+        int64_t old_pos = idx_to_row_pos;
+        ++idx_to_row_pos;
+
+        try {
+          auto p = idx_to_row[old_pos];
+          if(p.first >= samples.size()) {
+            logger.error("Error index in file {} is outside of matrix file's {} columns", p.first, samples.size());
+            exit(1);
+          }
+          std::string sample_name = idx_to_sample_name[old_pos].second;
+
+          std::string str = m_current_line[p.first];
+
+          float score = std::stof(str);
+
+          transcriptomics_cell retval;
+          retval.start = m_current_start;
+          retval.end = m_current_end;
+          retval.position = m_current_start;
+          retval.name = m_current_name;
+          retval.gene = m_current_gene;
+          retval.score = score;
+          retval.sample_idx = p.second;
+          retval.file_idx = m_file_idx;
+          retval.sample_name = sample_name;
+
+          return { retval, remove_file(reverse_info(retval)) };
+        }
+        catch (...) {
+          continue;
+        }      
+      }
     }
 
-    std::string str;
-    while(ss >> str) {
-      m_current_line.push_back(str);
-    }
-    m_current_sample = 0;
     idx_to_row_pos = 0;
 
-    // done setting up current row in matrix
-    
-    // check if done with row in matrix
-    if(idx_to_row_pos >= idx_to_row.size()) {
-      continue;
-    }
-
-    // otherwise go to next relevent column
-    try {
-      auto p = idx_to_row[idx_to_row_pos];
-      if(p.first >= samples.size()) {
-        logger.error("Error index in file {} is outside of matrix file's {} columns", p.first, samples.size());
-        exit(1);
-      }
-      std::string sample_name = idx_to_sample_name[idx_to_row_pos].second;
-      ++idx_to_row_pos;
-
-      std::string str = m_current_line[p.first];
-
-      float score = std::stof(str);
-
-      transcriptomics_cell retval;
-      retval.start = m_current_start;
-      retval.end = m_current_end;
-      retval.name = m_current_name;
-      retval.gene = m_current_gene;
-      retval.score = score;
-      retval.sample_idx = p.second;
-      retval.file_idx = m_file_idx;
-      retval.sample_name = sample_name;
-
-      return retval;
-    }
-    catch (...) {
-      return invalid_cell;
-    }
+    // read next line
+    done = !read_next_line();
   }
-  return invalid_cell;
+
+  return { invalid_cell, invalid_cell };
 }
 
 /*void SinglePosition2TileDBLoader::read_compressed_gtf(std::string filename) {
@@ -566,16 +581,19 @@ void SinglePosition2TileDBLoader::read_all() {
 
   auto remove_file = [](transcriptomics_cell c) { c.file_idx = -1; return c; };
   auto reverse_info = [](transcriptomics_cell c) {
-    int64_t start = c.start;;
-    c.start = c.end;
-    c.end = start;
+    if(c.position == c.start) {
+      c.position = c.end;
+    }
+    else {
+      c.position = c.start;
+    }
     return c;
   };
 
   auto workspace = get_workspace(m_idx);
   auto array_name = get_array_name(m_idx);
 
-  auto comp = [](transcriptomics_cell l, transcriptomics_cell r) { return (l.start > r.start || (l.start == r.start && l.sample_idx > r.sample_idx)); };
+  auto comp = [](transcriptomics_cell l, transcriptomics_cell r) { return (l.position > r.position || (l.position == r.position && l.sample_idx > r.sample_idx)); };
   std::priority_queue<transcriptomics_cell, std::vector<transcriptomics_cell>, decltype(comp)> pq(comp);
 
   //std::vector<std::unique_ptr<std::ifstream>> files;
@@ -643,16 +661,15 @@ void SinglePosition2TileDBLoader::read_all() {
       logger.error("Transcriptomics: Unknown file type for file {}", filename);
       exit(1);
     }
+  }
 
+  // put first cell from each file in pq
+  for(auto& file_ptr : files) {
+    auto p = file_ptr->next_cell_info();
 
-    // put first cell from each file in pq
-    for(auto& file_ptr : files) {
-      auto inf = file_ptr->next_cell_info();
-
-      if(inf.start >= 0) {
-        pq.push(remove_file(inf)); // set file index to -1 to indicate this is a start (and not to read the file for another cell yet)
-        pq.push(reverse_info(inf)); // reverse start and end to indicate this is an end
-      }
+    if(p.first.start >= 0) {
+      pq.push(p.first);
+      pq.push(p.second);
     }
   }
 
@@ -663,10 +680,11 @@ void SinglePosition2TileDBLoader::read_all() {
     info_to_cell(top);
 
     if(top.file_idx >= 0) { // if cell is an end
-      auto inf = files[top.file_idx]->next_cell_info(); // read next cell from originiating file
+      auto p = files[top.file_idx]->next_cell_info(); // read next cell from originiating file
 
-      if(inf.start >= 0 && inf.file_idx != -1) { // check cell info is valida
-        pq.push(inf);
+      if(p.first.start >= 0) { // check cell info is valid
+        pq.push(p.first);
+        pq.push(p.second);
       }
     }
   }
