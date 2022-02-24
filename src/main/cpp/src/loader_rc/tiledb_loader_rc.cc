@@ -347,7 +347,7 @@ std::pair<transcriptomics_cell, transcriptomics_cell> BedReader::next_cell_info(
       retval.sample_name = m_sample_name;
       retval.score = score;
       retval.sample_idx = m_sample_idx;
-      return { remove_file(retval), reverse_info(retval) };
+      return { retval, create_end_cell(retval) };
     }
   }
   retval.start = -1;
@@ -436,7 +436,7 @@ std::pair<transcriptomics_cell, transcriptomics_cell> MatrixReader::next_cell_in
           retval.file_idx = m_file_idx;
           retval.sample_name = sample_name;
 
-          return { retval, remove_file(reverse_info(retval)) };
+          return { retval, create_end_cell(retval) };
         }
         catch (...) {
           continue;
@@ -488,7 +488,7 @@ void SinglePosition2TileDBLoader::read_uncompressed_gtf(std::istream& input, std
       fields.push_back(field);
     }
 
-    long start, end;
+    int64_t start, end;
 
     if(fields[2] != "transcript") {
       continue;
@@ -578,17 +578,6 @@ void SinglePosition2TileDBLoader::deserialize_transcript_map(std::istream& input
 // TODO sample name
 void SinglePosition2TileDBLoader::read_all() {
   // construct transcript map
-
-  auto remove_file = [](transcriptomics_cell c) { c.file_idx = -1; return c; };
-  auto reverse_info = [](transcriptomics_cell c) {
-    if(c.position == c.start) {
-      c.position = c.end;
-    }
-    else {
-      c.position = c.start;
-    }
-    return c;
-  };
 
   auto workspace = get_workspace(m_idx);
   auto array_name = get_array_name(m_idx);

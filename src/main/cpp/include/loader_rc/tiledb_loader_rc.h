@@ -18,8 +18,8 @@ class TranscriptomicsFileReader {
       delete[] m_buffer;
     }
     virtual std::pair<transcriptomics_cell, transcriptomics_cell> next_cell_info() = 0;
-    static transcriptomics_cell remove_file(transcriptomics_cell c) { c.file_idx = -1; return c; }
-    static transcriptomics_cell reverse_info(transcriptomics_cell c) {
+    static transcriptomics_cell create_end_cell(transcriptomics_cell c) {
+      c.file_idx = -1;
       c.position = (c.position == c.start) ? c.end : c.start;
       return c;
     }
