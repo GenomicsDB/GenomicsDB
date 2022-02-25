@@ -303,8 +303,8 @@ if(USE_GPERFTOOLS OR USE_GPERFTOOLS_HEAP)
 endif()
 
 #Collect memory consumption stats while producing combined VCF records
-if(DO_MEMORY_message)
-    PROFILING(STATUS "Enabling memory consumption profiling while producing combined VCF records")
+if(DO_MEMORY_PROFILING)
+    message(STATUS "Enabling memory consumption profiling while producing combined VCF records")
     add_definitions(-DDO_MEMORY_PROFILING=1)
 endif()
 
