@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2019-2021 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -19,7 +19,7 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+ **/
 
 #include <iostream>
 #include <string>
@@ -37,6 +37,10 @@
 
 #ifdef USE_GPERFTOOLS
 #include "gperftools/profiler.h"
+#endif
+
+#ifdef USE_GPERFTOOLS_HEAP
+#include "gperftools/heap-profiler.h"
 #endif
 
 //#define VERBOSE 1
@@ -629,9 +633,14 @@ int main(int argc, char *argv[]) {
     workspace = query_config.get_workspace(my_world_mpi_rank);
     array_name = query_config.get_array_name(my_world_mpi_rank);
     assert(!workspace.empty() && !array_name.empty());
+
 #ifdef USE_GPERFTOOLS
-    ProfilerStart("gprofile.log");
+    ProfilerStart("gt_mpi_gather.gperf.prof");
 #endif
+#ifdef USE_GPERFTOOLS_HEAP
+    HeapProfilerStart("gt_mpi_gather.gperf.heap");
+#endif
+
     segment_size = segment_size_set_in_command_line ? segment_size
         : query_config.get_segment_size();
 #if VERBOSE>0
@@ -668,10 +677,12 @@ int main(int argc, char *argv[]) {
         print_calls(qp, query_config, command_idx, query_config.get_vid_mapper());
         break;
     }
+#ifdef USE_GPERFTOOLS_HEAP
+    HeapProfilerStop();
+#endif
 #ifdef USE_GPERFTOOLS
     ProfilerStop();
 #endif
-
     sm.close_array(qp.get_array_descriptor());
     GenomicsDBProtoBufInitAndCleanup::shutdown_protobuf_library();
   } catch(const GenomicsDBConfigException& genomicsdb_ex) {

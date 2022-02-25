@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2021-2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -27,6 +28,10 @@
 
 #ifdef USE_GPERFTOOLS
 #include "gperftools/profiler.h"
+#endif
+
+#ifdef USE_GPERFTOOLS_HEAP
+#include "gperftools/heap-profiler.h"
 #endif
 
 extern bool g_show_import_progress;
@@ -164,7 +169,10 @@ int main(int argc, char** argv) {
     }
     auto loader_json_config_file = std::move(std::string(argv[optind]));
 #ifdef USE_GPERFTOOLS
-    ProfilerStart("gprofile.log");
+    ProfilerStart("vcf2genomicsdb.gperf.prof");
+#endif
+#ifdef USE_GPERFTOOLS_HEAP
+    HeapProfilerStart("vcf2genomicsdb.gperf.heap");
 #endif
     //Split files as per the partitions defined - don't load data
     if (split_files) {
@@ -203,6 +211,9 @@ int main(int argc, char** argv) {
       VCF2TileDBLoader loader(loader_json_config_file, my_world_mpi_rank);
       loader.read_all();
     }
+#ifdef USE_GPERFTOOLS_HEAP
+    HeapProfilerStop();
+#endif
 #ifdef USE_GPERFTOOLS
     ProfilerStop();
 #endif
