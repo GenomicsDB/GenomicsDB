@@ -24,6 +24,8 @@
 #include "variant_query_config.h"
 #include "query_variants.h"
 #include "json_config.h"
+#include "genomicsdb.h"
+#include "genomicsdb_logger.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X);
 
@@ -245,7 +247,7 @@ void VariantQueryConfig::validate(const int rank) {
       m_vid_mapper.parse_callsets_json(m_callset_mapping_file, true);
     }
   }
-  
+
   //Query columns
   if (!m_scan_whole_array && m_column_ranges.size()) {
     VERIFY_OR_THROW((m_single_query_column_ranges_vector || static_cast<size_t>(rank) < m_column_ranges.size())
@@ -254,15 +256,35 @@ void VariantQueryConfig::validate(const int rank) {
       add_column_interval_to_query(range.first, range.second);
   }
 
+  VariantStorageManager* storage_manager = new VariantStorageManager(workspace, DEFAULT_SEGMENT_SIZE);
+  int ad = storage_manager->open_array(array_name, &m_vid_mapper, "r");
+  auto array_rows = storage_manager->get_num_valid_rows_in_array(ad);
+  auto array_lb = storage_manager->get_lb_row_idx(ad);
+  auto array_ub = array_lb + array_rows - 1;
+  storage_manager->close_array(ad);
+  delete storage_manager;
+
   //Query rows
   if (!m_scan_whole_array && m_row_ranges.size()) {
     VERIFY_OR_THROW((m_single_query_row_ranges_vector || static_cast<size_t>(rank) < m_row_ranges.size())
                     && "Rank >= query row ranges vector size");
     std::vector<int64_t> row_idxs;
     for (const auto& range : get_query_row_ranges(rank)) {
+      VERIFY_OR_THROW(range.first <= range.second && "Range interval upper and lower bounds are reversed");
+
+      if(range.second < array_lb || range.first > array_ub) { // range is entirely outside of array bounds
+        continue;
+      }
+
+      int64_t lb, ub;
+      lb = range.first >= array_lb ? range.first : array_lb;
+      ub = range.second <= array_ub ? range.second : array_ub;
+
       auto j = row_idxs.size();
-      row_idxs.resize(row_idxs.size() + (range.second - range.first + 1ll));
-      for (auto i=range.first; i<=range.second; ++i,++j)
+      //row_idxs.resize(row_idxs.size() + (range.second - range.first + 1ll));
+      row_idxs.resize(row_idxs.size() + (ub - lb + 1ll));
+      //for (auto i=range.first; i<=range.second; ++i,++j)
+      for (auto i=lb; i<=ub; ++i,++j)
         row_idxs[j] = i;
     }
     set_rows_to_query(row_idxs);
