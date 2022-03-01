@@ -36,6 +36,7 @@ bool ColumnRangeCompare(const ColumnRange& x, const ColumnRange& y) {
 }
 
 void VariantQueryConfig::add_attribute_to_query(const string& name, unsigned schema_idx) {
+  logger.error("REMOVE add_attribute_to_query {}", name);
   if (m_query_attribute_name_to_query_idx.find(name) == m_query_attribute_name_to_query_idx.end()) {
     auto idx = m_query_attributes_info_vec.size();
     m_query_attributes_info_vec.emplace_back(name, schema_idx);
@@ -205,25 +206,31 @@ void VariantQueryConfig::flatten_composite_fields(const VidMapper& vid_mapper) {
 
 void VariantQueryConfig::read_from_file(const std::string& filename, const int rank) {
   GenomicsDBConfigBase::read_from_file(filename, rank);
-  validate(rank);
+  //validate(rank); // REMOVE old
 }
 
 void VariantQueryConfig::read_from_JSON_string(const std::string& str, const int rank) {
   GenomicsDBConfigBase::read_from_JSON_string(str, rank);
-  validate(rank);
+  //validate(rank); // REMOVE old
 }
 
 void VariantQueryConfig::read_from_PB(const genomicsdb_pb::ExportConfiguration* export_config, const int rank) {
   GenomicsDBConfigBase::read_from_PB(export_config, rank);
-  validate(rank);
+  //validate(rank); // REMOVE old
 }
 
 void VariantQueryConfig::read_from_PB_binary_string(const std::string& str, const int rank) {
   GenomicsDBConfigBase::read_from_PB_binary_string(str, rank);
-  validate(rank);
+  //validate(rank); // REMOVE old
 }
 
 void VariantQueryConfig::validate(const int rank) {
+  logger.error("REMOVE +++++++++++++++++++ validate rows {} lb {}", get_num_rows_in_array(), get_smallest_row_idx_in_array());
+  logger.error("REMOVE info vec size {}", m_query_attributes_info_vec.size());
+  for(auto& a : m_query_attributes_info_vec) {
+    std::cerr << a.m_name << std::endl;
+  }
+
   //Workspace
   VERIFY_OR_THROW(m_workspaces.size() && "No workspace specified");
   VERIFY_OR_THROW((m_single_workspace_path || static_cast<size_t>(rank) < m_workspaces.size())
@@ -256,13 +263,16 @@ void VariantQueryConfig::validate(const int rank) {
       add_column_interval_to_query(range.first, range.second);
   }
 
-  VariantStorageManager* storage_manager = new VariantStorageManager(workspace, DEFAULT_SEGMENT_SIZE);
-  int ad = storage_manager->open_array(array_name, &m_vid_mapper, "r");
-  auto array_rows = storage_manager->get_num_valid_rows_in_array(ad);
-  auto array_lb = storage_manager->get_lb_row_idx(ad);
+  // REMOVE clean up
+  //VariantStorageManager* storage_manager = new VariantStorageManager(workspace, DEFAULT_SEGMENT_SIZE);
+  //int ad = storage_manager->open_array(array_name, &m_vid_mapper, "r");
+  //auto array_rows = storage_manager->get_num_valid_rows_in_array(ad);
+  auto array_rows = get_num_rows_in_array();
+  //auto array_lb = storage_manager->get_lb_row_idx(ad);
+  auto array_lb = get_smallest_row_idx_in_array();
   auto array_ub = array_lb + array_rows - 1;
-  storage_manager->close_array(ad);
-  delete storage_manager;
+  //storage_manager->close_array(ad);
+  //delete storage_manager;
 
   //Query rows
   if (!m_scan_whole_array && m_row_ranges.size()) {
@@ -279,6 +289,8 @@ void VariantQueryConfig::validate(const int rank) {
       int64_t lb, ub;
       lb = range.first >= array_lb ? range.first : array_lb;
       ub = range.second <= array_ub ? range.second : array_ub;
+
+      logger.error("REMOVE interval {} -> {}", lb, ub);
 
       auto j = row_idxs.size();
       //row_idxs.resize(row_idxs.size() + (range.second - range.first + 1ll));

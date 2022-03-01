@@ -233,7 +233,7 @@ class VariantQueryProcessor {
    * When querying, setup bookkeeping structures first
    */
   void do_query_bookkeeping(const VariantArraySchema& array_schema,
-                            VariantQueryConfig& query_config, const VidMapper& vid_mapper, const bool require_alleles) const;
+                            VariantQueryConfig& query_config, const VidMapper& vid_mapper, const bool require_alleles, int rank = 0) const;
   /*
    * Equivalent of gt_get_column, but for interval
    */

@@ -23,6 +23,7 @@
 #include "gt_common.h"
 #include "query_variants.h"
 #include "timer.h"
+#include "genomicsdb_logger.h"
 
 using namespace std;
 
@@ -543,7 +544,8 @@ void VariantQueryProcessor::iterate_over_gvcf_entries(
 }
 
 void VariantQueryProcessor::do_query_bookkeeping(const VariantArraySchema& array_schema,
-    VariantQueryConfig& query_config, const VidMapper& vid_mapper, const bool alleles_required) const {
+    VariantQueryConfig& query_config, const VidMapper& vid_mapper, const bool alleles_required, int rank) const {
+  logger.error("REMOVE +++++++++++++++++++ do_query_bookkeeping");
   //Flatten composite fields - fields whose elements are tuples
   //Must do this before call to finalize_queried_attributes obtain_TileDB_attribute_idxs
   query_config.flatten_composite_fields(vid_mapper);
@@ -622,6 +624,7 @@ void VariantQueryProcessor::do_query_bookkeeping(const VariantArraySchema& array
   else  //Must be invoked during load process
     query_config.set_num_rows_in_array(query_config.get_num_rows_within_bounds(),
                                        query_config.get_row_bounds().first);
+  query_config.validate(rank);
   query_config.setup_array_row_idx_to_query_row_idx_map();
   //Bounds checking for query
   for (auto i=0u; i<query_config.get_num_column_intervals(); ++i) {

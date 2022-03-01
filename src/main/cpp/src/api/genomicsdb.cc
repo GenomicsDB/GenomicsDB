@@ -163,6 +163,8 @@ GenomicsDB::GenomicsDB(const std::string& query_configuration,
       throw GenomicsDBException("Unsupported query configuration type specified to the GenomicsDB constructor");
   }
 
+  query_config->validate(concurrency_rank); // moved from read_from_* functions
+
   check(query_config->get_workspace(concurrency_rank),
         query_config->get_segment_size(),
         query_config->get_reference_genome());
@@ -236,7 +238,7 @@ GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
     query_config.set_query_row_ranges(row_ranges);
   }
 
-  query_config.validate();
+  //query_config.validate(); // REMOVE old
 
   return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_VECTOR(query_variants(array, &query_config)),
                             create_genomic_field_types(query_config, m_annotation_service));
@@ -307,7 +309,7 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProc
   query_config.set_query_column_ranges(column_ranges);
   query_config.set_query_row_ranges(row_ranges);
 
-  query_config.validate();
+  //query_config.validate(); // REMOVE old
 
   return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, &query_config, processor)),
                                 create_genomic_field_types(query_config, m_annotation_service));
@@ -496,7 +498,7 @@ void GenomicsDB::generate_vcf(const std::string& array,
     query_config.set_query_row_ranges(row_ranges);
   }
 
-  query_config.validate();
+  //query_config.validate(); // REMOVE old
 
   generate_vcf(array, &query_config, output, output_format, overwrite);
 }
