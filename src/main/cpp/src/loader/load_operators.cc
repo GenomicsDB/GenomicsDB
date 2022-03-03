@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2020 Omics Data Automation, Inc.
+ * Copyright (c) 2020, 2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -27,6 +27,7 @@
 #define ONE_GB (1024ull*1024ull*1024ull)
 
 #ifdef DO_MEMORY_PROFILING
+#include "genomicsdb_logger.h"
 #include "memory_measure.h"
 #endif
 

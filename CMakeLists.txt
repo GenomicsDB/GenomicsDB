@@ -3,7 +3,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2019-2021 Omics Data Automation, Inc.
+# Copyright (c) 2019-2022 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -74,8 +74,12 @@ set(LIBCSV_DIR "" CACHE PATH "Path to libcsv header and library")
 set(DO_PROFILING False CACHE BOOL "Collect some stats during execution - doesn't add much overhead")
 set(COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW False CACHE BOOL "Counting #cells traversed in columnar iterator")
 set(PROFILE_NUM_CELLS_TO_TRAVERSE_AT_EVERY_QUERY_INTERVAL False CACHE BOOL "Counting #cells traversed in columnar iterator in sliding window")
-set(USE_GPERFTOOLS False CACHE BOOL "Collect profiling information using gperftools")
 set(DO_MEMORY_PROFILING False CACHE BOOL "Collect memory consumption in parts of the combine gVCF program - high overhead")
+
+#See https://gperftools.github.io/gperftools/cpuprofile.html
+set(USE_GPERFTOOLS False CACHE BOOL "Collect profiling information using gperftools/profiler for analysis with pprof")
+#See https://gperftools.github.io/gperftools/heapprofile.html
+set(USE_GPERFTOOLS_HEAP False CACHE BOOL "Collect heap profiling information using gperftools/tcmalloc for analysis with pprof")
 
 set(GENOMICSDB_MAVEN_BUILD_DIR ${CMAKE_BINARY_DIR}/target CACHE PATH "Path to maven build directory")
 set(MAVEN_QUIET False CACHE BOOL "Do not print mvn messages")
@@ -279,12 +283,20 @@ if(DO_PROFILING)
     endif()
 endif()
 
-if(USE_GPERFTOOLS)
+#Collect stats to use with gperf/pprof
+#See https://gperftools.github.io/gperftools/cpuprofile.html
+#See https://gperftools.github.io/gperftools/heapprofile.html
+if(USE_GPERFTOOLS OR USE_GPERFTOOLS_HEAP)
     find_package(GPerftools)
-    if(GPERFTOOLS_FOUND)
+    if(GPERFTOOLS_FOUND OR GPERFTOOLS_HEAP_FOUND)
         message(STATUS "Enabling profiling using GPerftools")
-    add_definitions(-DUSE_GPERFTOOLS)
         include_directories(${GPERFTOOLS_INCLUDE_DIR})
+        if(USE_GPERFTOOLS)
+            add_definitions(-DUSE_GPERFTOOLS)
+        endif()
+        if(USE_GPERFTOOLS_HEAP)
+            add_definitions(-DUSE_GPERFTOOLS_HEAP)
+        endif()
     else()
         message(WARNING "GPerftools headers/library not found")
     endif()
@@ -396,6 +408,9 @@ function(build_GenomicsDB_links target)
     endif()
     if(USE_GPERFTOOLS AND GPERFTOOLS_FOUND)
         target_link_libraries(${target} ${GPERFTOOLS_PROFILER_LIBRARY})
+    endif()
+    if(USE_GPERFTOOLS_HEAP AND GPERFTOOLS_FOUND)
+        target_link_libraries(${target} ${GPERFTOOLS_HEAP_PROFILER_LIBRARY})
     endif()
     target_link_libraries(${target} ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES})
 endfunction()
