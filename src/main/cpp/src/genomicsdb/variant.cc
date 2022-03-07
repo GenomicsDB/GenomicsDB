@@ -40,16 +40,13 @@ bool GA4GHCallInfoToVariantIdx::find_or_insert(uint64_t begin, uint64_t end, con
   auto& ALT_map = (*REF_iter).second;
   std::set<std::string> ALT_set;
   for (auto& ALT:ALT_vec) {
-    logger.error("REMOVE GA4GHCallInfoToVariantIdx::find_or_insert inserting to ALT_set: {}", ALT);
     ALT_set.insert(ALT);
   }
   auto ALT_iter = ALT_map.find(ALT_set);
   if (ALT_iter == ALT_map.end()) {
-    logger.error("REMOVE GA4GHCallInfoToVariantIdx::find_or_insert first case");
     ALT_iter = ALT_map.insert(std::pair<std::set<std::string>, uint64_t>(ALT_set, variant_idx)).first;
   }
   else {
-    logger.error("REMOVE GA4GHCallInfoToVariantIdx::find_or_insert second case");
     newly_inserted = false;
     variant_idx = (*ALT_iter).second;
   }
@@ -62,13 +59,6 @@ bool GA4GHCallInfoToVariantIdx::find_or_insert(const VariantQueryConfig& query_c
     get_known_field_if_queried<VariantFieldString, true>(to_move_call, query_config, GVCF_REF_IDX);
   const auto* ALT_field_ptr =
     get_known_field_if_queried<VariantFieldALTData, true>(to_move_call, query_config, GVCF_ALT_IDX);
-  logger.error("REMOVE GA4GHCallInfoToVariantIdx::find_or_insert ALT_field_ptr size is ");
-  if(!ALT_field_ptr) {
-    std::cerr << "null" << std::endl;
-  }
-  else {
-    std::cerr << ALT_field_ptr->get().size() << std::endl;
-  }
 
   bool newly_inserted = true;
   //Checking for identical REF, ALT etc
@@ -869,27 +859,6 @@ bool move_call_to_variant_vector(const VariantQueryConfig& query_config, Variant
     curr_variant.set_column_interval(to_move_call.get_column_begin(), to_move_call.get_column_end());
     curr_variant.add_call(std::move(to_move_call));
   }
-
-  // REMOVE =====================================
-  auto& v = variants.back();
-  auto& cs = v.get_calls();
-
-  logger.error("REMOVE move_call_to_variant_vector back calls");
-
-  for(auto& c : cs) {
-    logger.error("REMOVE move_call_to_variant_vector back next call");    
-
-    auto& fs = c.get_all_fields();
-    for(auto& f : fs) {
-      if(f) {
-        f->print(std::cerr);
-        std::cerr << std::endl;
-       }
-       else {
-         std::cerr << "field pointer is null" << std::endl;
-       }
-    } // REMOVE
-  } // REMOVE ================================
 
   return newly_inserted;
 }

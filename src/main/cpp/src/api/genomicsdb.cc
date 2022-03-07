@@ -192,9 +192,6 @@ std::map<std::string, genomic_field_type_t> create_genomic_field_types(const Var
 GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
                                                genomicsdb_ranges_t column_ranges,
                                                genomicsdb_ranges_t row_ranges) {
-
-  logger.error("REMOVE query_variants 1");
-  
   // Create Variant Config for given concurrency_rank
   VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   VariantQueryConfig query_config(*base_query_config);
@@ -211,13 +208,8 @@ GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
   // ALT pointer will be to the first std::string in a std::vector owned by an instance of VariantFieldALTData
   auto field_types = create_genomic_field_types(query_config);
 
-  for(auto& a : field_types) { // REMOVE ========================
-    logger.error("REMOVE key in field_types {}", a.first);
-  } // REMOVE ========================
-
   auto it = field_types.find("ALT");
   if(it != field_types.end()) {
-    logger.error("REMOVE ALT found");
     it->second.type_idx = genomic_field_type_t::genomicsdb_basic_type::STRING;
   }
 
@@ -225,22 +217,14 @@ GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
 }
 
 GenomicsDBVariants GenomicsDB::query_variants() {
-
-  logger.error("REMOVE query_variants 2");
-
   VariantQueryConfig* query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   const std::string& array = query_config->get_array_name(m_concurrency_rank);
 
   // ALT pointer will be to the first std::string in a std::vector owned by an instance of VariantFieldALTData
   auto field_types = create_genomic_field_types(*query_config);
 
-  for(auto& a : field_types) { // REMOVE ========================
-    logger.error("REMOVE key in field_types {}", a.first);
-  } // REMOVE ========================
-
   auto it = field_types.find("ALT");
   if(it != field_types.end()) {
-    logger.error("REMOVE ALT found");
     it->second.type_idx = genomic_field_type_t::genomicsdb_basic_type::STRING;
   }
 
@@ -249,9 +233,6 @@ GenomicsDBVariants GenomicsDB::query_variants() {
 
 
 std::vector<Variant>* GenomicsDB::query_variants(const std::string& array, VariantQueryConfig* query_config) {
-
-  logger.error("REMOVE real query_variants");
-
 #if(0)
   auto query_timer = Timer();
   query_timer.start();
@@ -536,7 +517,6 @@ void GenomicsDB::generate_plink(const std::string& array,
   auto types = create_genomic_field_types(*query_config);
   auto it = types.find("ALT");
   if(it != types.end()) {
-    logger.error("REMOVE ALT found");
     it->second.type_idx = genomic_field_type_t::genomicsdb_basic_type::STRING;
   }
 
@@ -549,50 +529,14 @@ void GenomicsDB::generate_plink(const std::string& array,
   }
 
   auto& variants = *query_variants(array, query_config);
-  logger.error("REMOVE generate_plink returned {} variants", variants.size());
   for(int8_t i = 0; i < 2; i++) {
     for(auto& v : variants) {
       auto& cs = v.get_calls();
 
-      logger.error("REMOVE generate_plink next set of calls");    
-
       for(auto& c : cs) {
-        logger.error("REMOVE generate_plink first print of attributes");
-
-        auto& fs = c.get_all_fields();
-        for(auto& f : fs) {
-          if(f) {
-            f->print(std::cerr);
-            std::cerr << std::endl;
-            logger.error("REMOVE num_elements for this field {}", f->length());
-            logger.error("REMOVE Manually print field");
-            for(int idx = 0; idx < 12; idx++) {
-              std::cerr << ((char*)(f->get_raw_pointer()))[idx];
-            }
-            std::cerr << std::endl;
-          }
-          else {
-           std::cerr << "field pointer is null" << std::endl;
-          }
-        } // REMOVE
-
-        logger.error("REMOVE generate_plink row {}", c.get_row_idx());
         auto fields = get_genomic_fields_for(array, &c, query_config);
-        for(auto& f : fields) { // ================== REMOVE
-          logger.error("field {} elements {}", f.name, f.num_elements);
-          if(f.name == "ALT") {
-            char* ptr = (char*)f.ptr;
-            //logger.error("ALT value for call {}{}{}", ptr[0], ptr[1], ptr[2]);
-            logger.error("ALT value for call");
-            for(int idx = 0; idx < 12; idx++) {
-              std::cerr << ptr[idx];
-            }
-            std::cerr << std::endl;
-          }
-        } // ================== REMOVE
         
         int64_t coords[] = {c.get_row_idx(), c.get_column_begin()};
-
         int64_t end_position = c.get_column_end();
 
         std::string contig_name;
@@ -812,30 +756,6 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
                                        const int64_t* coords,
                                        const genomic_interval_t& genomic_interval,
                                        const std::vector<genomic_field_t>& genomic_fields) {
-
-  logger.info("REMOVE process sample_name {}", sample_name);
-  logger.info("REMOVE process coords {} {}", coords[0], coords[1]);
-  logger.info("REMOVE process interval {} {} {}", genomic_interval.contig_name, genomic_interval.interval.first, genomic_interval.interval.second);
-  logger.info("REMOVE process fields");
-  for(auto& f : genomic_fields) {
-    std::cerr << f.name << " ";
-  }
-  std::cerr << std::endl;
-  logger.info("REMOVE process genomic field types size {}", get_genomic_field_types()->size());
-  for(auto& f : genomic_fields) {
-    if(f.name == "ALT") {
-      logger.info("REMOVE process ALT size {}", f.num_elements);
-      logger.info("REMOVE process ALT string {}", f.to_string(get_genomic_field_type(f.name)));
-      std::string combined_alt = f.recombine_ALT_value(get_genomic_field_type(f.name));
-      logger.info("REMOVE process ALT {}", combined_alt);
-    }
-    else {
-      logger.info("REMOVE process {} {}", f.name, f.to_string(get_genomic_field_type(f.name)));
-    }
-  }
-  std::cerr << std::endl << std::endl << std::endl;
-
-
   static size_t tm = 0;
   auto progress_bar = [&] () {
     size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();

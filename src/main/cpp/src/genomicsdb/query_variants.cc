@@ -305,20 +305,6 @@ void VariantQueryProcessor::handle_gvcf_ranges(VariantCallEndPQ& end_pq,
   }
 }
 
-// REMOVE
-auto print_cell = [](BufferVariantCell c) {
-  int i = -1;
-  for(auto it = c.begin(); it != c.end(); ++it) {
-    ++i;
-    std::cerr << "field " << i << " size " << it.get_field_length() << std::endl;
-    for(int j = 0; j < it.get_field_length(); j++) {
-      std::cerr << ((char*)(*it))[j] << " ";
-    }
-    std::cerr << std::endl;
-  }
-};
-// REMOVE
-
 void VariantQueryProcessor::scan_and_operate(
   const int ad,
   const VariantQueryConfig& query_config,
@@ -386,8 +372,6 @@ void VariantQueryProcessor::scan_and_operate(
   //If uninitialized, store first column idx of forward scan in current_start_position
   if (current_start_position < 0 && !(forward_iter->end())) {
     auto& cell = **forward_iter;
-    std::cerr << "REMOVE |||||||||||| After reading" << std::endl;
-    print_cell(cell); // REMOVE
 
     //Coordinates are at the start of the cell
     current_start_position = cell.get_begin_column();
@@ -399,8 +383,6 @@ void VariantQueryProcessor::scan_and_operate(
   auto end_loop = false;
   for (; !(forward_iter->end()) && !end_loop && (scan_state == 0 || !(variant_operator.overflow())); ++(*forward_iter)) {
     auto& cell = **forward_iter;
-    std::cerr << "REMOVE |||||||||||| After reading 2" << std::endl;
-    print_cell(cell); // REMOVE
 
 #ifdef DO_PROFILING
     stats_ptr->update_stat(GTProfileStats::GT_NUM_CELLS, 1u);
@@ -746,9 +728,6 @@ void VariantQueryProcessor::gt_get_column_interval(
       stats_ptr->update_stat(GTProfileStats::GT_NUM_ATTR_CELLS_ACCESSED, query_config.get_num_queried_attributes());
 #endif
       auto& cell = **forward_iter;
-      // REMOVE
-
-      // REMOVE
       curr_row_idx = cell.get_row();
       curr_column_idx = cell.get_begin_column();
       if (curr_column_idx > query_config.get_column_end(column_interval_idx))   //Genomic interval begins after end of query interval
@@ -771,33 +750,9 @@ void VariantQueryProcessor::gt_get_column_interval(
         //When cells are duplicated at the END, then the VariantCall object need not be valid
         if (tmp_variant.get_call(0).is_valid()) {
           //Move call to variants vector, creating new Variant if necessary
-          logger.error("REMOVE gt_get_column_interval about to call move_call_to_variant on call with fields: ");
-          auto& v = tmp_variant.get_call(0).get_all_fields();
-          for(auto& f : v) {
-            if(f) {
-              f->print(std::cerr);
-              std::cerr << std::endl;
-            }
-            else {
-              std::cerr << "field pointer is null" << std::endl;
-            }
-          } // REMOVE
 
           auto newly_inserted = move_call_to_variant_vector(subset_query_config, tmp_variant.get_call(0), variants, call_info_2_variant,
                                 stop_inserting_new_variants);
-
-          logger.error("REMOVE gt_get_column_interval AFTER call to move_call_to_variant, call has fields: ");
-          auto& v2 = tmp_variant.get_call(0).get_all_fields();
-          for(auto& f : v2) {
-            if(f) {
-              f->print(std::cerr);
-              std::cerr << std::endl;
-            }
-            else {
-              std::cerr << "field pointer is null" << std::endl;
-            }
-          } // REMOVE
-
           //Check if page limit hit
           PAGE_END_CHECK_LOGIC
         }
@@ -822,7 +777,6 @@ void VariantQueryProcessor::gt_get_column_interval(
   GA4GHOperator variant_operator(query_config, *m_vid_mapper, false);
   for (auto i=start_variant_idx; i<variants.size(); ++i)
     if (variants[i].get_num_calls() > 1u) { //possible re-arrangement of PL/AD/GT fields needed
-      logger.error("REMOVE gt_get_column_interval if triggered");
 #ifdef DO_PROFILING
       stats_ptr->m_operator_timer.start();
 #endif
@@ -878,8 +832,6 @@ void VariantQueryProcessor::gt_get_column(
     stats_ptr->update_stat(GTProfileStats::GT_NUM_ATTR_CELLS_ACCESSED, query_config.get_num_queried_attributes());
 #endif
     auto& cell = **cell_iter;
-    std::cerr << "REMOVE gt_get_column After 3 reading" << std::endl;
-    print_cell(cell); // REMOVE
 
     // If next cell is not on the left of col, and
     // The rowIdx is being queried and
@@ -892,8 +844,6 @@ void VariantQueryProcessor::gt_get_column(
         gt_fill_row(variant, cell.get_row(), cell.get_begin_column(), query_config, cell, stats_ptr
                     , true
                    );
-        std::cerr << "REMOVE gt_get_column After 4 reading" << std::endl;
-        print_cell(cell); // REMOVE
         ++filled_rows;
       }
     }
@@ -932,8 +882,6 @@ void VariantQueryProcessor::fill_field(std::unique_ptr<VariantFieldBase>& field_
 
 void VariantQueryProcessor::binary_deserialize(Variant& variant, const VariantQueryConfig& query_config,
     const vector<uint8_t>& buffer, uint64_t& offset) const {
-  logger.error("REMOVE VariantQueryProcessor::binary_deserialize");
-
   assert(offset < buffer.size());
   //deserialize header
   variant.binary_deserialize_header(buffer, offset, query_config.get_num_queried_attributes());
@@ -1039,7 +987,6 @@ void VariantQueryProcessor::gt_fill_row(
   ++attr_iter;  //skip the END field
   //First, load special fields up to and including ALT
   for (auto i=1u; i<query_config.get_first_normal_field_query_idx(); ++i,++attr_iter) {
-    logger.error("REMOVE gt_fill_row fill_field for attribute {}", i);
     assert(attr_iter != cell.end());
     //Read from Tile
     fill_field(curr_call.get_field(i), attr_iter,
@@ -1050,7 +997,6 @@ void VariantQueryProcessor::gt_fill_row(
   const auto* ALT_field_ptr = get_known_field_if_queried<VariantFieldALTData, true>(curr_call, query_config, GVCF_ALT_IDX);
   if (ALT_field_ptr && ALT_field_ptr->is_valid()) {
     num_ALT_alleles = ALT_field_ptr->get().size();   //ALT field data is vector<string>
-    logger.error("REMOVE gt_fill_row if triggered, num_ALT_alleles is {}", num_ALT_alleles);
   }
   //Go over all normal query fields and fetch data
   for (auto i=query_config.get_first_normal_field_query_idx(); i<query_config.get_num_queried_attributes(); ++i, ++attr_iter) {

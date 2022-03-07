@@ -32,7 +32,6 @@
 
 #include "genomicsdb.h"
 #include "gt_common.h"
-#include "genomicsdb_logger.h" // REMOVE
 
 #include <iostream>
 #include <sstream>
@@ -44,8 +43,6 @@ std::string genomic_field_t::recombine_ALT_value(const genomic_field_type_t& fie
   std::string output;
   std::string item;
   if(field_type.is_cppstring()) {
-    logger.info("REMOVE recombine_ALT_value cppstring");
-
     for(int i = 0; i < num_elements; i++) {
       item = cpp_str_value_at(i);
       if (IS_NON_REF_ALLELE(item)) {
@@ -57,8 +54,6 @@ std::string genomic_field_t::recombine_ALT_value(const genomic_field_type_t& fie
   }
   // otherwise treat as char*
   else {
-    logger.info("REMOVE recombine_ALT_value char*");
-
     std::stringstream ss(str_value());
     while (std::getline(ss, item, PHASED_ALLELE_SEPARATOR)){
       if (IS_NON_REF_ALLELE(item)) {
