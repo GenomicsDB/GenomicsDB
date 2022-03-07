@@ -27,6 +27,7 @@
 #include "headers.h"
 #include "gt_common.h"
 #include "variant_cell.h"
+#include "genomicsdb_logger.h" // REMOVE
 
 class UnknownAttributeTypeException : public std::exception {
  public:
@@ -92,6 +93,8 @@ class VariantFieldBase {
   }
   virtual ~VariantFieldBase() = default;
   void copy_data_from_tile(const BufferVariantCell::FieldsIter& attr_iter) {
+    logger.error("REMOVE copy_data_from_tile field length {}", attr_iter.get_field_length());
+
     auto base_ptr = attr_iter.operator*<char>(); //const char*
     uint64_t offset = 0ull;
     //buffer does not have length serialized
@@ -165,6 +168,8 @@ class VariantFieldData : public VariantFieldBase {
   virtual ~VariantFieldData() = default;
   virtual void binary_deserialize(const char* buffer, uint64_t& offset,
                                   const bool is_length_in_buffer, unsigned num_elements) {
+    logger.error("REMOVE VariantFieldData::binary_deserialize");
+
     auto base_ptr = buffer + offset; //const char*
     auto ptr = reinterpret_cast<const DataType*>(base_ptr); //const DataType* ptr
     if (is_length_in_buffer) {  //length specified in buffer
@@ -236,6 +241,8 @@ class VariantFieldData<std::string> : public VariantFieldBase {
   virtual ~VariantFieldData() = default;
   virtual void binary_deserialize(const char* buffer, uint64_t& offset,
                                   const bool is_length_in_buffer, unsigned num_elements) {
+    logger.error("REMOVE VariantFieldData<std::string>::binary_deserialize");
+
     auto base_ptr = buffer + offset; //const char* pointer
     auto ptr = base_ptr;      //const char* pointer
     if (is_length_in_buffer) {  //length specified in buffer
@@ -334,6 +341,8 @@ class VariantFieldPrimitiveVectorDataBase : public VariantFieldBase {
   }
   virtual void binary_deserialize(const char* buffer, uint64_t& offset,
                                   const bool is_length_in_buffer, unsigned num_elements) {
+    logger.error("REMOVE VariantFieldPrimitiveVectorDataBase::binary_deserialize");
+
     auto base_ptr = buffer + offset; //const char*
     auto ptr = base_ptr;
     if (is_length_in_buffer) {  //length specified in buffer
@@ -508,6 +517,8 @@ class VariantFieldALTData : public VariantFieldBase {
   virtual ~VariantFieldALTData() = default;
   virtual void binary_deserialize(const char* buffer, uint64_t& offset,
                                   const bool is_length_in_buffer, unsigned num_elements) {
+    logger.error("REMOVE VariantFieldALTData::binary_deserialize offset {} is_length_in_buffer {} num_elements {}", offset, is_length_in_buffer, num_elements);
+
     auto base_ptr = buffer + offset; //const char*
     auto ptr = base_ptr; //const char* pointer
     if (is_length_in_buffer) {  //length specified in buffer
@@ -518,12 +529,15 @@ class VariantFieldALTData : public VariantFieldBase {
     }
     //Create copy for use in strtok
     char* tmp = strndup(ptr, num_elements);
+    logger.error("REMOVE duped ALT is {}", tmp);
+
     assert(strnlen(tmp, num_elements+1) == num_elements); //last element should be 0
     //Tokenize
     char* saveptr = 0;
     char* argptr = tmp;
     m_data.clear();
     while (auto curr_token = strtok_r(argptr, TILEDB_ALT_ALLELE_SEPARATOR, &saveptr)) {
+      logger.error("REMOVE pushing token {}", curr_token);
       m_data.push_back(curr_token);
       argptr = 0;
     }

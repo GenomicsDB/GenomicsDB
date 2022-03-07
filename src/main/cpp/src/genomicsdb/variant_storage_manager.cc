@@ -133,6 +133,12 @@ const BufferVariantCell& VariantArrayCellIterator::operator*() {
   for (auto i=0u; i<m_num_queried_attributes; ++i) {
     auto status = tiledb_array_iterator_get_value(m_tiledb_array_iterator, i,
                   reinterpret_cast<const void**>(&field_ptr), &field_size);
+    logger.error("REMOVE iterator field {} size {} and value", i, field_size);
+    for(int idx = 0; idx < field_size; idx++) {
+      std::cerr << field_ptr[idx] << " ";
+    }
+    std::cerr << std::endl; // REMOVE
+
     if (status != TILEDB_OK)
       logger.fatal(VariantStorageManagerException(
           logger.format("Error while getting value from TileDB iterator for field with query index {}\nTileDB error message : {}",

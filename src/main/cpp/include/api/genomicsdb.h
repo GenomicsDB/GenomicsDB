@@ -72,12 +72,22 @@ typedef struct genomic_interval_t {
 } genomic_interval_t;
 
 typedef struct genomic_field_type_t {
-  std::type_index type_idx = std::type_index(typeid(char));
+  enum genomicsdb_basic_type {INT32, FLOAT, CHAR, STRING, UNKNOWN};
+  genomicsdb_basic_type type_idx = CHAR;
+
+  //std::type_index type_idx = std::type_index(typeid(char));
   bool is_fixed_num_elements = true;
   size_t num_elements;
   size_t num_dimensions;
   bool contains_phase_info;
   genomic_field_type_t(std::type_index type_idx, bool is_fixed_num_elements, size_t num_elements, size_t num_dimensions, bool contains_phase_info) {
+    this->type_idx = type_index_to_basic_type(type_idx);
+    this->is_fixed_num_elements = is_fixed_num_elements;
+    this->num_elements = num_elements;
+    this->num_dimensions = num_dimensions;
+    this->contains_phase_info = contains_phase_info;
+  }
+  genomic_field_type_t(genomicsdb_basic_type type_idx, bool is_fixed_num_elements, size_t num_elements, size_t num_dimensions, bool contains_phase_info) {
     this->type_idx = type_idx;
     this->is_fixed_num_elements = is_fixed_num_elements;
     this->num_elements = num_elements;
@@ -85,19 +95,31 @@ typedef struct genomic_field_type_t {
     this->contains_phase_info = contains_phase_info;
   }
   inline bool is_int() const {
-    return type_idx == std::type_index(typeid(int));
+    return type_idx == INT32;
   }
   inline bool is_float() const {
-    return type_idx == std::type_index(typeid(float));
+    return type_idx == FLOAT;
   }
   inline bool is_char() const {
-    return (type_idx == std::type_index(typeid(char))) && is_fixed_num_elements;
+    return type_idx == CHAR && is_fixed_num_elements;
   }
   inline bool is_string() const {
-    return (type_idx == std::type_index(typeid(char))) && !is_fixed_num_elements;
+    return type_idx == CHAR && !is_fixed_num_elements;
+  }
+  inline bool is_cppstring() const {
+    return type_idx == STRING;
   }
   inline bool contains_phase_information() const {
     return contains_phase_info;
+  }
+  inline genomicsdb_basic_type type_index_to_basic_type(std::type_index ti) {
+    if(ti == std::type_index(typeid(int)))
+      return INT32;
+    if(ti == std::type_index(typeid(float)))
+      return FLOAT;
+    if(ti == std::type_index(typeid(char)))
+      return CHAR;
+    return UNKNOWN;
   }
 } genomic_field_type_t;
 
@@ -133,7 +155,11 @@ typedef struct genomic_field_t {
   inline std::string str_value() const {
     return std::string(reinterpret_cast<const char *>(ptr)).substr(0, num_elements);
   }
-  GENOMICSDB_EXPORT std::string recombine_ALT_value(std::string separator=", ") const;
+  inline std::string cpp_str_value_at(uint64_t offset) const {
+    check_offset(offset);
+    return *(reinterpret_cast<std::string *>(const_cast<void *>(ptr)) + offset);
+  }
+  GENOMICSDB_EXPORT std::string recombine_ALT_value(const genomic_field_type_t& field_type, std::string separator=", ") const;
   GENOMICSDB_EXPORT std::string combine_GT_vector(const genomic_field_type_t& field_type) const;
   std::string to_string(uint64_t offset, const genomic_field_type_t& field_type) const {
     if (field_type.is_int()) {
@@ -142,6 +168,8 @@ typedef struct genomic_field_t {
       return std::to_string(float_value_at(offset));
     } else if (field_type.is_char()) {
       return std::to_string(char_value_at(offset));
+    } else if(field_type.is_cppstring()) {
+      return cpp_str_value_at(offset);
     } else {
       return "";
     }
@@ -149,7 +177,7 @@ typedef struct genomic_field_t {
   std::string to_string(const genomic_field_type_t& field_type, std::string separator=", ") const {
     if (field_type.is_string()) {
       if (name.compare("ALT") == 0) {
-        return recombine_ALT_value();
+        return recombine_ALT_value(field_type);
       }
       return str_value();
     } else if (num_elements == 1) {

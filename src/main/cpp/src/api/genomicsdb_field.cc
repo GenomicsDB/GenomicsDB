@@ -32,6 +32,7 @@
 
 #include "genomicsdb.h"
 #include "gt_common.h"
+#include "genomicsdb_logger.h" // REMOVE
 
 #include <iostream>
 #include <sstream>
@@ -39,15 +40,32 @@
 
 #define NON_REF "<NON_REF>"
 
-std::string genomic_field_t::recombine_ALT_value(std::string separator) const {
-  std::stringstream ss(str_value());
+std::string genomic_field_t::recombine_ALT_value(const genomic_field_type_t& field_type, std::string separator) const {
   std::string output;
   std::string item;
-  while (std::getline(ss, item, PHASED_ALLELE_SEPARATOR)){
-    if (IS_NON_REF_ALLELE(item)) {
-      output.empty()?output=NON_REF:output=output+separator+NON_REF;
-    } else {
-      output.empty()?output=item:output=output+separator+item;
+  if(field_type.is_cppstring()) {
+    logger.info("REMOVE recombine_ALT_value cppstring");
+
+    for(int i = 0; i < num_elements; i++) {
+      item = cpp_str_value_at(i);
+      if (IS_NON_REF_ALLELE(item)) {
+        output.empty()?output=NON_REF:output=output+separator+NON_REF;
+      } else {
+        output.empty()?output=item:output=output+separator+item;
+      }
+    }
+  }
+  // otherwise treat as char*
+  else {
+    logger.info("REMOVE recombine_ALT_value char*");
+
+    std::stringstream ss(str_value());
+    while (std::getline(ss, item, PHASED_ALLELE_SEPARATOR)){
+      if (IS_NON_REF_ALLELE(item)) {
+        output.empty()?output=NON_REF:output=output+separator+NON_REF;
+      } else {
+        output.empty()?output=item:output=output+separator+item;
+      }
     }
   }
   return "[" + output + "]";
