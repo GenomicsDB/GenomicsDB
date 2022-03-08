@@ -680,8 +680,17 @@ std::vector<genomic_field_t> GenomicsDB::get_genomic_fields(const std::string& a
 
 GenomicsDBVariantCalls GenomicsDB::get_variant_calls(const std::string& array, const genomicsdb_variant_t* variant) {
   std::vector<VariantCall>* variant_calls = const_cast<std::vector<VariantCall>*>(&(TO_VARIANT(variant)->get_calls()));
-  return GenomicsDBResults<genomicsdb_variant_call_t>(TO_GENOMICSDB_VARIANT_CALL_VECTOR(variant_calls),
-                                                      create_genomic_field_types(*get_query_config_for(array)));
+
+
+  auto types = create_genomic_field_types(*get_query_config_for(array));
+  auto it = types.find("ALT"); // REMOVE?
+  if(it != types.end()) {
+    it->second.type_idx = genomic_field_type_t::genomicsdb_basic_type::STRING;
+  }
+
+  //return GenomicsDBResults<genomicsdb_variant_call_t>(TO_GENOMICSDB_VARIANT_CALL_VECTOR(variant_calls),
+  //                                                    create_genomic_field_types(*get_query_config_for(array)));
+  return GenomicsDBResults<genomicsdb_variant_call_t>(TO_GENOMICSDB_VARIANT_CALL_VECTOR(variant_calls), types);
 }
 
 int64_t GenomicsDB::get_row(const genomicsdb_variant_call_t* variant_call) {

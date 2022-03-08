@@ -536,6 +536,8 @@ void VariantQueryProcessor::iterate_over_gvcf_entries(
       use_common_array_object);
   for (; !(columnar_gvcf_iter->end()); ++(*columnar_gvcf_iter)) {
     auto& cell = **columnar_gvcf_iter;
+    auto coords = columnar_gvcf_iter->get_coordinates();
+
     //auto coords = cell.get_coordinates();
     variant_operator.operate_on_columnar_cell(cell);
     //if (query_config.is_queried_array_row_idx(coords[0]))      //If row is part of query, process cell

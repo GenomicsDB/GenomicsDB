@@ -63,6 +63,7 @@ std::string genomic_field_t::recombine_ALT_value(const genomic_field_type_t& fie
       }
     }
   }
+
   return "[" + output + "]";
 }
 
