@@ -2,23 +2,23 @@
  * src/test/cpp/src/test_genomicsdb_api.cc
  *
  * The MIT License (MIT)
- * Copyright (c) 2019-2020 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2021 Omics Data Automation, Inc.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy of 
- * this software and associated documentation files (the "Software"), to deal in 
- * the Software without restriction, including without limitation the rights to 
- * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of 
- * the Software, and to permit persons to whom the Software is furnished to do so, 
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
  * subject to the following conditions:
  *
- * The above copyright notice and this permission notice shall be included in all 
+ * The above copyright notice and this permission notice shall be included in all
  * copies or substantial portions of the Software.
  *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS 
- * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR 
- * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER 
- * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  * Test the GenomicsDB query api
@@ -121,7 +121,7 @@ void check_query_variants_results(GenomicsDB* gdb, const std::string& array, Gen
    auto call_genomic_interval = gdb->get_genomic_interval(variant_call);
    CHECK(call_genomic_interval.contig_name == "1");
    CHECK(call_genomic_interval.interval.first == 12141);
-   CHECK(call_genomic_interval.interval.second == 12295);   
+   CHECK(call_genomic_interval.interval.second == 12295);
    auto call_genomic_fields = gdb->get_genomic_fields(array, variant_call);
    CHECK(call_genomic_fields.size() >= 2);
    CHECK(call_genomic_fields[0].name == "REF");
@@ -185,7 +185,7 @@ TEST_CASE("api query variants with json string", "[query_variants_json_string]")
   gdb = new GenomicsDB(query_json_buffer, GenomicsDB::JSON_STRING, loader_json, 0);
   check_query_variants_results(gdb, array, gdb->query_variants());
   delete gdb;
-  
+
   CHECK_THROWS_AS(new GenomicsDB(query_json_buffer, GenomicsDB::JSON_STRING, loader_json, 1), GenomicsDBConfigException);
 
   free(query_json_buffer);
@@ -560,4 +560,215 @@ TEST_CASE("api generate_vcf with json multiple threads", "[query_generate_with_j
   for (auto i=0; i<num_threads; i++) {
     threads[i].join();
   }
+}
+
+/**
+  Call processor used for testing genomic field annotations
+ */
+class VariantAnnotationCallProcessor : public GenomicsDBVariantCallProcessor {
+  void process(const std::string& sample_name,
+               const int64_t* coordinates,
+               const genomic_interval_t& genomic_interval,
+               const std::vector<genomic_field_t>& genomic_fields) {
+
+     if(sample_name == "HG00141" && coordinates[1] == 12140) {
+       CHECK(genomic_fields.size() == 3);
+     } else if (sample_name == "HG01958" && coordinates[1] == 12144) {
+       CHECK(genomic_fields.size() == 3);
+     } else if (sample_name == "HG00141" && coordinates[1] == 17384) {
+       CHECK(genomic_interval.contig_name == "1");
+       CHECK(genomic_interval.interval.first == 17385);
+       CHECK(genomic_interval.interval.second == 17385);
+       CHECK(genomic_fields.size() == 9);
+
+       int countExpectedGenomicFields=0;
+       CHECK(genomic_fields.size() == 9);
+       for (auto i=0u; i<genomic_fields.size(); i++) {
+         if (genomic_fields[i].name == "REF") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "G");
+         } else if(genomic_fields[i].name == "ALT") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "A|&");
+         } else if(genomic_fields[i].name == "GT") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "");
+         } else if(genomic_fields[i].name == "dataSourceZero_field0") {
+           ++countExpectedGenomicFields;
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_int());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "2345");
+         } else if(genomic_fields[i].name == "dataSourceZero_field1") {
+           ++countExpectedGenomicFields;
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_int());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "5678");
+         } else if(genomic_fields[i].name == "dataSourceZero_field2") {
+           ++countExpectedGenomicFields;
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_float());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "3.141500");
+         } else if(genomic_fields[i].name == "dataSourceZero_field3") {
+           ++countExpectedGenomicFields;
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
+           CHECK(genomic_fields[i].str_value() == "noot");
+         } else if(genomic_fields[i].name == "dataSourceZero_field7") {
+           ++countExpectedGenomicFields;
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "");
+         } else if(genomic_fields[i].name == "dataSourceZero_ID") {
+           ++countExpectedGenomicFields;
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
+           CHECK(genomic_fields[i].str_value() == "id001");
+         } else {
+           countExpectedGenomicFields = -1;
+         }
+       }
+       // Check not just the genomic_fields but that the expected fields were found.
+       CHECK(countExpectedGenomicFields == 9);
+     } else if (sample_name == "HG01958") {
+       CHECK(genomic_interval.contig_name == "1");
+       CHECK(genomic_interval.interval.first == 17385);
+       CHECK(genomic_interval.interval.second == 17385);
+       CHECK(genomic_fields.size() == 9);
+
+       int countExpectedGenomicFields=0;
+       for (auto i=0u; i<genomic_fields.size(); i++) {
+         if (genomic_fields[i].name == "REF") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "G");
+         } else if(genomic_fields[i].name == "ALT") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "T|&");
+         } else if(genomic_fields[i].name == "GT") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value().length() == 1);
+         } else if(genomic_fields[i].name == "DP") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "x");
+         } else if(genomic_fields[i].name == "dataSourceZero_field3") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "waldo");
+         } else if(genomic_fields[i].name == "dataSourceZero_field4") {
+           ++countExpectedGenomicFields;
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_int());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "5679");
+         } else if(genomic_fields[i].name == "dataSourceZero_field5") {
+           ++countExpectedGenomicFields;
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_float());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "6.660000");
+         } else if(genomic_fields[i].name == "dataSourceZero_field6") {
+           ++countExpectedGenomicFields;
+           CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "biz");
+         } else if(genomic_fields[i].name == "dataSourceZero_ID") {
+           ++countExpectedGenomicFields;
+           CHECK(genomic_fields[i].str_value() == "id002");
+         } else {
+           countExpectedGenomicFields = -1;
+         }
+       }
+
+       // Check not just the genomic_fields but that the expected fields were found.
+       CHECK(countExpectedGenomicFields == 9);
+
+     } else if (sample_name == "HG01530") {
+       CHECK(genomic_interval.contig_name == "1");
+       CHECK(genomic_interval.interval.first == 17385);
+       CHECK(genomic_interval.interval.second == 17385);
+       // For this sample i don't bother with the actual genomic_field values because because they are the same as HG00141 above.
+       CHECK(genomic_fields.size() == 10);
+     }
+  };
+};
+
+TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_variant_calls_with_tds0]") {
+  using namespace genomicsdb_pb;
+
+  ExportConfiguration *config = new ExportConfiguration();
+
+  config->set_workspace(workspace);
+  config->set_callset_mapping_file(callset_mapping);
+  config->set_vid_mapping_file(vid_mapping);
+
+  // query_row_ranges
+  RowRangeList* row_ranges = config->add_query_row_ranges();
+  RowRange* row_range = row_ranges->add_range_list();
+  row_range->set_low(0);
+  row_range->set_high(3);
+
+  // query_column_ranges
+  GenomicsDBColumnOrIntervalList* column_ranges = config->add_query_column_ranges();
+  GenomicsDBColumnOrInterval* column_range = column_ranges->add_column_or_interval_list();
+
+  TileDBColumnInterval* tiledb_column_interval = new TileDBColumnInterval();
+  tiledb_column_interval->set_begin(0);
+  tiledb_column_interval->set_end(1000000000);
+
+  GenomicsDBColumnInterval* column_interval = new GenomicsDBColumnInterval();
+  column_interval->set_allocated_tiledb_column_interval(tiledb_column_interval);
+
+  column_range->set_allocated_column_interval(column_interval);
+
+  // query_attributes
+  config->add_attributes()->assign("GT");
+  config->add_attributes()->assign("DP");
+
+  config->set_reference_genome("inputs/chr1_10MB.fasta.gz");
+  config->set_segment_size(40);
+  config->set_vcf_header_filename("inputs/template_vcf_header.vcf");
+
+  // Add an annotation dataSource
+  AnnotationSource* annotation_source0 = config->add_annotation_source();
+  const std::string vcf_file0(ctests_input_dir+"test_datasource0.vcf.bgz");
+  const std::string data_source0("dataSourceZero");
+  annotation_source0->set_is_vcf(true);
+  annotation_source0->set_filename(vcf_file0);
+  annotation_source0->set_data_source(data_source0);
+  annotation_source0->add_attributes()->assign("field0");
+  annotation_source0->add_attributes()->assign("field1");
+  annotation_source0->add_attributes()->assign("field2");
+  annotation_source0->add_attributes()->assign("field3");
+  annotation_source0->add_attributes()->assign("field4");
+  annotation_source0->add_attributes()->assign("field5");
+  annotation_source0->add_attributes()->assign("field6");
+  annotation_source0->add_attributes()->assign("field7");
+  annotation_source0->add_attributes()->assign("ID");
+
+  // Add a chromosome specific data-source that should not be loaded.
+  // The file is not a valid vcf, so an error will be thrown if the file is loaded,
+  // but it won't be because the annotation service knows that the file doesn't have
+  // any matches since it only has variants on the 99th chromosome.
+  AnnotationSource* annotation_source1 = config->add_annotation_source();
+  const std::string vcf_file1(ctests_input_dir+"test_datasource_invalid.vcf.bgz");
+  const std::string data_source1("dataSource1");
+  annotation_source1->set_is_vcf(true);
+  annotation_source1->set_filename(vcf_file1);
+  annotation_source1->set_data_source(data_source1);
+  annotation_source1->add_attributes()->assign("chrField");
+  annotation_source1->add_file_chromosomes()->assign("99");
+
+  std::string config_string;
+  CHECK(config->SerializeToString(&config_string));
+
+  config->set_array_name(array);
+  CHECK(config->SerializeToString(&config_string));
+
+  GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
+
+  VariantAnnotationCallProcessor variant_annotation_processor;
+  gdb->query_variant_calls(variant_annotation_processor);
+  delete gdb;
+
+  // Check if exception thrown when annotation buffer size is too small to hold the annotated field values
+  config->set_annotation_buffer_size(4);
+  CHECK(config->SerializeToString(&config_string));
+  gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
+  CHECK_THROWS_AS(gdb->query_variant_calls(variant_annotation_processor), GenomicsDBException);
+  delete gdb;
+
+  // Add an info field that doesn't exist to the configuration; expect custom exception
+  config->set_annotation_buffer_size(10240);
+  annotation_source0->add_attributes()->assign("no_exist_field0");
+  CHECK(config->SerializeToString(&config_string));
+  gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
+  CHECK_THROWS_AS(gdb->query_variant_calls(variant_annotation_processor), GenomicsDBException);
+  delete gdb;
 }

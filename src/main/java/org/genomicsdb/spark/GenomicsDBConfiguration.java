@@ -27,19 +27,20 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
 import org.genomicsdb.model.*;
 
-import scala.collection.JavaConverters;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+
 import java.util.Iterator;
-import java.util.Base64;
 import java.lang.RuntimeException;
 import java.io.FileNotFoundException;
+
+import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * The configuration class enables users to use Java/Scala
@@ -47,7 +48,7 @@ import java.io.FileNotFoundException;
  * Input parameters can be passed in as json files or 
  * base64 encoded protobuf byte data
  */
-public class GenomicsDBConfiguration extends Configuration implements Serializable {
+public class GenomicsDBConfiguration extends Configuration implements Serializable, JsonFileExtensions {
 
   public static final String LOADERJSON = "genomicsdb.input.loaderjsonfile";
   @Deprecated
@@ -94,11 +95,14 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   }
 
   public void setOptions(Map<String,String> options){
-    if(options.containsKey(LOADERJSON)) {
+    if(options.containsKey(LOADERPB)) {
+      this.setLoaderPB(options.get(LOADERPB));
+    }
+    else if(options.containsKey(LOADERJSON)) {
       this.setLoaderJsonFile(options.get(LOADERJSON));
     }
     else {
-      throw new RuntimeException("Must specify "+LOADERJSON);
+      throw new RuntimeException("Must specify either "+LOADERJSON+" or "+LOADERPB);
     }
     
     if(options.containsKey(QUERYPB)) {
@@ -125,6 +129,11 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
 
   public GenomicsDBConfiguration setLoaderJsonFile(String path) {
     set(LOADERJSON, path);
+    return this;
+  }
+
+  public GenomicsDBConfiguration setLoaderPB(String path) {
+    set(LOADERPB, path);
     return this;
   }
 
@@ -332,13 +341,12 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     }
   }
 
-  private void readColumnPartitionsPB(String pb) throws
-        com.google.protobuf.InvalidProtocolBufferException {
+  private void readColumnPartitionsPB(String pb) throws InvalidProtocolBufferException {
     GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder = 
              GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
-    byte[] pbDecoded = Base64.getDecoder().decode(pb);
-    importConfigurationBuilder.mergeFrom(pbDecoded);
-    GenomicsDBImportConfiguration.ImportConfiguration loaderPB = importConfigurationBuilder.build();
+    GenomicsDBImportConfiguration.ImportConfiguration loaderPB = 
+        (GenomicsDBImportConfiguration.ImportConfiguration)
+        JsonFileExtensions.getProtobufFromBase64EncodedString(importConfigurationBuilder, pb);
 
     if (partitionInfoList==null) {
       partitionInfoList = new ArrayList<>();
@@ -357,13 +365,12 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     }
   }
 
-  private void readQueryRangesPB(String pb) throws 
-        com.google.protobuf.InvalidProtocolBufferException {
+  private void readQueryRangesPB(String pb) throws InvalidProtocolBufferException {
     GenomicsDBExportConfiguration.ExportConfiguration.Builder exportConfigurationBuilder = 
              GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
-    byte[] pbDecoded = Base64.getDecoder().decode(pb);
-    exportConfigurationBuilder.mergeFrom(pbDecoded);
-    GenomicsDBExportConfiguration.ExportConfiguration queryPB = exportConfigurationBuilder.build();
+    GenomicsDBExportConfiguration.ExportConfiguration queryPB = 
+        (GenomicsDBExportConfiguration.ExportConfiguration)
+        JsonFileExtensions.getProtobufFromBase64EncodedString(exportConfigurationBuilder, pb);
 
     if (queryInfoList==null) {
       queryInfoList = new ArrayList<>();

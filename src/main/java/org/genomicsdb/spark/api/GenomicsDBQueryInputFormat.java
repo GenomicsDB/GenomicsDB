@@ -37,7 +37,10 @@ public class GenomicsDBQueryInputFormat extends InputFormat<Interval, List<Varia
       throw new IOException("Query json or query protobuf has to be specified.");
     }
 
-    if (configuration.get(GenomicsDBConfiguration.LOADERJSON) != null) {
+    if (configuration.get(GenomicsDBConfiguration.LOADERPB) != null) {
+      genomicsDBConfiguration.setLoaderPB(
+              configuration.get(GenomicsDBConfiguration.LOADERPB));
+    } else if (configuration.get(GenomicsDBConfiguration.LOADERJSON) != null) {
       genomicsDBConfiguration.setLoaderJsonFile(
           configuration.get(GenomicsDBConfiguration.LOADERJSON));
     }

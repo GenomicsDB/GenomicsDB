@@ -63,7 +63,7 @@ public class GenomicsDBDataSourceReader implements DataSourceReader {
 
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(options.asMap());
     GenomicsDBSchemaFactory schemaBuilder = 
-      new GenomicsDBSchemaFactory(genomicsDBConfiguration.getLoaderJsonFile());
+      new GenomicsDBSchemaFactory(genomicsDBConfiguration);
     StructType finalSchema = null;
     if (schema != null){ 
       finalSchema = schema;

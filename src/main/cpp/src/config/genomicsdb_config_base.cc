@@ -69,9 +69,10 @@ ColumnRange GenomicsDBConfigBase::verify_contig_position_and_get_tiledb_column_i
                                     +" queried for contig "+contig_info.m_name+" which is of length "
                                     +std::to_string(contig_info.m_length)+"; queried position is past end of contig");
   if (result.second > contig_info.m_length) {
-    std::cerr << "WARNING: position "+std::to_string(result.second)
-              +" queried for contig "+contig_info.m_name+" which is of length "
-              +std::to_string(contig_info.m_length)+"; queried interval is past end of contig, truncating to contig length";
+    logger.warn("WARNING: position {} queried for contig {} which is of length {}; queried interval is past end of contig, truncating to contig length",
+                 result.second,
+                 contig_info.m_name,
+                 contig_info.m_length);
     result.second = contig_info.m_length;
   }
   // Subtract 1 as TileDB is 0-based and genomics (VCF) is 1-based

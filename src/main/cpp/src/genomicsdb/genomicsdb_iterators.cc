@@ -274,8 +274,7 @@ void SingleCellTileDBIterator::begin_new_query_column_interval(TileDB_CTX* tiled
           num_free_list_entries += field.get_free_buffer_list_length();
           num_live_list_entries += field.get_live_buffer_list_length();
         }
-        std::cerr << "Buffer_lists_lengths end_of_intersecting_intervals_mode "<<num_free_list_entries
-                  <<" "<<num_live_list_entries <<"\n";
+        logger.info("Buffer_lists_lengths end_of_intersecting_intervals_mode {} {}", num_free_list_entries, num_live_list_entries);
 #endif
       }
     }

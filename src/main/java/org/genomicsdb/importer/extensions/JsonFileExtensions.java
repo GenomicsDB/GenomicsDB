@@ -1,5 +1,6 @@
 package org.genomicsdb.importer.extensions;
 
+import com.google.protobuf.Message;
 import com.googlecode.protobuf.format.JsonFormat;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
@@ -7,6 +8,7 @@ import htsjdk.variant.vcf.VCFHeader;
 import htsjdk.variant.vcf.VCFHeaderLine;
 
 import org.genomicsdb.GenomicsDBUtils;
+import org.genomicsdb.exception.GenomicsDBException;
 import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBImportConfiguration;
 import org.genomicsdb.model.GenomicsDBCallsetsMapProto;
@@ -14,11 +16,13 @@ import org.genomicsdb.model.GenomicsDBVidMapProto;
 
 import java.io.*;
 import java.util.Set;
+import java.util.Base64;
 import java.util.List;
+
+import com.google.protobuf.InvalidProtocolBufferException;
 
 import static java.util.stream.Collectors.toList;
 import static com.googlecode.protobuf.format.JsonFormat.*;
-import static org.genomicsdb.GenomicsDBUtils.*;
 
 public interface JsonFileExtensions {
     /**
@@ -58,7 +62,9 @@ public interface JsonFileExtensions {
                                          final GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB)
     {
         String callsetMapJSONString = printToString(callsetMappingPB);
-	GenomicsDBUtils.writeToFile(outputCallsetMapJSONFilePath, callsetMapJSONString);
+        if (GenomicsDBUtils.writeToFile(outputCallsetMapJSONFilePath, callsetMapJSONString) != 0) {
+            throw new GenomicsDBException(String.format("Could not write callset map json file : %s", outputCallsetMapJSONFilePath));
+        }
     }
 
     /**
@@ -74,7 +80,9 @@ public interface JsonFileExtensions {
                                      final GenomicsDBVidMapProto.VidMappingPB vidMappingPB)
     {
         String vidMapJSONString = printToString(vidMappingPB);
-	GenomicsDBUtils.writeToFile(outputVidMapJSONFilePath, vidMapJSONString);
+	      if (GenomicsDBUtils.writeToFile(outputVidMapJSONFilePath, vidMapJSONString) != 0) {
+            throw new GenomicsDBException(String.format("Could not write vid map json file : %s", outputVidMapJSONFilePath));
+        }
     }
 
     /**
@@ -89,15 +97,17 @@ public interface JsonFileExtensions {
     default void writeVcfHeaderFile(final String outputVcfHeaderFilePath, final Set<VCFHeaderLine> headerLines)
     {
         final OutputStream stream = new ByteArrayOutputStream();
-	final VCFHeader vcfHeader = new VCFHeader(headerLines);
-	VariantContextWriter vcfWriter = new VariantContextWriterBuilder()
-	    .clearOptions()
-	    .setOutputStream(stream)
-	    .build();
-	vcfWriter.writeHeader(vcfHeader);
-	vcfWriter.close();
-	String buffer = stream.toString();
-        GenomicsDBUtils.writeToFile(outputVcfHeaderFilePath, buffer);
+        final VCFHeader vcfHeader = new VCFHeader(headerLines);
+        VariantContextWriter vcfWriter = new VariantContextWriterBuilder()
+                .clearOptions()
+                .setOutputStream(stream)
+                .build();
+        vcfWriter.writeHeader(vcfHeader);
+        vcfWriter.close();
+        String buffer = stream.toString();
+        if (GenomicsDBUtils.writeToFile(outputVcfHeaderFilePath, buffer) != 0) {
+            throw new GenomicsDBException(String.format("Could not write output header file : %s", outputVcfHeaderFilePath));
+        }
     }
 
     /**
@@ -135,5 +145,34 @@ public interface JsonFileExtensions {
         }
         return contigList.get(0).getTiledbColumnOffset() < bounds[1] &&
             contigList.get(0).getTiledbColumnOffset() >= bounds[0];
+    }
+
+    /**
+     * Serialize Protobuf json file into a base64 encoded string
+     * 
+     * @param builder protobuf message builder
+     * @param file Protobuf jsonfile
+     * @return String base64 encoded protobuf string
+     */
+    static String getProtobufAsBase64StringFromFile(Message.Builder builder,
+            String file) throws com.googlecode.protobuf.format.JsonFormat.ParseException {
+        String jsonString = GenomicsDBUtils.readEntireFile(file);
+        JsonFormat.merge(jsonString, builder);
+        byte[] pb = builder.build().toByteArray();
+        return Base64.getEncoder().encodeToString(pb);
+    }
+
+    /**
+     * Create Protobuf message from base64 encoded string
+     * @param builder protobuf message builder
+     * @param pbString base64 encoded protobug string
+     * @return protobuf message
+     * @throws InvalidProtocolBufferException
+     */
+    static Message getProtobufFromBase64EncodedString(Message.Builder builder, String pbString) 
+            throws InvalidProtocolBufferException {
+        byte[] pbDecoded = Base64.getDecoder().decode(pbString);
+        builder.mergeFrom(pbDecoded);
+        return builder.build();
     }
 }

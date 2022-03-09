@@ -908,12 +908,11 @@ void BroadCombinedGVCFOperator::operate(Variant& variant) {
   statm_t mem_result;
   read_off_memory_status(mem_result);
   if (mem_result.resident >= m_next_memory_limit) {
-    std::cerr << "Crossed "<<m_next_memory_limit
-              << " memory used (bytes) " << mem_result.resident
-              <<" at contig "
-              << bcf_hdr_id2name(m_vcf_hdr, m_curr_contig_hdr_idx)
-              << " position " << m_bcf_out->pos+1
-              << "\n";
+    logger.info("Crossed {} memory used (bytes) {} at contig {} position {}",
+                 m_next_memory_limit,
+                 mem_result.resident,
+                 bcf_hdr_id2name(m_vcf_hdr, m_curr_contig_hdr_idx),
+                 m_bcf_out->pos+1);
     m_next_memory_limit = std::max<uint64_t>(m_next_memory_limit, mem_result.resident)
                           + 100*ONE_MB;
   }

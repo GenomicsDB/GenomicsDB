@@ -29,8 +29,12 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-
+import org.genomicsdb.GenomicsDBUtils;
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.model.GenomicsDBImportConfiguration;
+import org.genomicsdb.model.GenomicsDBVidMapProto;
+import org.genomicsdb.model.GenomicsDBVidMapProto.VidMappingPB;
 import org.genomicsdb.spark.GenomicsDBSchemaFactory;
 import org.genomicsdb.spark.GenomicsDBVidSchema;
 
@@ -45,18 +49,14 @@ import java.util.*;
 import static org.apache.spark.sql.functions.bround;
 import static org.apache.spark.sql.functions.col;
 
+import org.genomicsdb.shaded.com.google.protobuf.Message;
 import com.googlecode.protobuf.format.JsonFormat;
 
-public final class TestGenomicsDBSource {
+public final class TestGenomicsDBSource implements JsonFileExtensions {
 
   public static String[] floatFields = {
     "BaseQRankSum", "ClippingRankSum", "MQRankSum", "ReadPosRankSum", "MQ", "RAW_MQ", "MLEAF"
   };
-
-  private static String readFile(String path, Charset encoding) throws IOException {
-    byte[] encoded = Files.readAllBytes(Paths.get(path));
-    return new String(encoded, encoding);
-  }
 
   public static boolean schemaContainsField(StructType schema, String s) {
     String[] fields = schema.fieldNames();
@@ -68,7 +68,7 @@ public final class TestGenomicsDBSource {
     return false;
   }
 
-  public static StructType getSchemaFromQuery(File query, String vidmapping)
+  public static StructType getSchemaFromQuery(File query, String vidmapping) 
       throws IOException, ParseException {
     try {
       JSONParser qparser = new JSONParser();
@@ -123,9 +123,30 @@ public final class TestGenomicsDBSource {
     }
   }
 
+  public VidMappingPB getVidMapPBFromLoaderPB(String file) 
+      throws com.googlecode.protobuf.format.JsonFormat.ParseException {
+    GenomicsDBImportConfiguration.ImportConfiguration.Builder loader = 
+        GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
+    
+    String jsonString = GenomicsDBUtils.readEntireFile(file);
+    JsonFormat.merge(jsonString, loader);
+
+    GenomicsDBVidMapProto.VidMappingPB.Builder vBuilder = 
+        GenomicsDBVidMapProto.VidMappingPB.newBuilder();
+
+    if (loader.hasVidMapping()) {
+      vBuilder.mergeFrom(loader.getVidMapping());
+    } else {
+      vBuilder.mergeFrom(generateVidMapFromFile(loader.getVidMappingFile()));
+    }
+
+    return vBuilder.build();
+  }
+
   public static void main(final String[] args) throws IOException,
-         org.json.simple.parser.ParseException {
-    LongOpt[] longopts = new LongOpt[7];
+        ParseException {
+    TestGenomicsDBSource test = new TestGenomicsDBSource();
+    LongOpt[] longopts = new LongOpt[8];
     longopts[0] = new LongOpt("loader", LongOpt.REQUIRED_ARGUMENT, null, 'l');
     longopts[1] = new LongOpt("query", LongOpt.REQUIRED_ARGUMENT, null, 'q');
     longopts[2] = new LongOpt("vid", LongOpt.REQUIRED_ARGUMENT, null, 'v');
@@ -133,19 +154,21 @@ public final class TestGenomicsDBSource {
     longopts[4] = new LongOpt("spark_master", LongOpt.REQUIRED_ARGUMENT, null, 's');
     longopts[5] = new LongOpt("use-query-protobuf", LongOpt.NO_ARGUMENT, null, 'p');
     longopts[6] = new LongOpt("gdb_datasource", LongOpt.OPTIONAL_ARGUMENT, null, 'd');
+    longopts[7] = new LongOpt("use-loader-protobuf", LongOpt.NO_ARGUMENT, null, 'e');
 
     if (args.length < 8) {
       System.err.println(
           "Usage:\n\t--loader <loader.json> --query <query.json> --vid <vid.json> "
               + "--spark_master <sparkMaster>"
-              +"\nOptional args:\n--hostfile <hostfile> --use-query-protobuf --gdb_datasource=<gdbDataSource>");
+              +"\nOptional args:\n--hostfile <hostfile> --use-query-protobuf --gdb_datasource=<gdbDataSource> --use-loader-protobuf");
       System.exit(-1);
     }
     String loaderFile, queryFile, hostfile, vidMapping, sparkMaster, gdbDataSource, jarDir;
     boolean useQueryProtobuf = false;
+    boolean useLoaderProtobuf = false;
     gdbDataSource = "org.genomicsdb.spark.sources.GenomicsDBSource";
     loaderFile = queryFile = hostfile = sparkMaster = vidMapping = "";
-    Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:s:d:v:p", longopts);
+    Getopt g = new Getopt("TestGenomicsDBSparkHDFS", args, "l:q:h:s:d:v:p:e", longopts);
     int c = -1;
     String optarg;
 
@@ -172,6 +195,9 @@ public final class TestGenomicsDBSource {
         case 'p':
           useQueryProtobuf = true;
           break;
+        case 'e':
+          useLoaderProtobuf = true;
+          break;
         default:
           System.err.println("Unknown command line option " + g.getOptarg());
           System.exit(-1);
@@ -184,51 +210,55 @@ public final class TestGenomicsDBSource {
     Path qSrc = Paths.get(queryFile);
     Path lSrc = Paths.get(loaderFile);
     File qDstFile = null;
+    File lDstFile = null;
+    SparkContext sc = spark.sparkContext();
     if (!useQueryProtobuf) {
       qDstFile = File.createTempFile("query", ".json", new File(dstdir.toString()));
       qDstFile.deleteOnExit();
-    }
-    File lDstFile = File.createTempFile("loader", ".json", new File(dstdir.toString()));
-    lDstFile.deleteOnExit();
-    if (!useQueryProtobuf) {
       Files.copy(qSrc, qDstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-    }
-    Files.copy(lSrc, lDstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-
-    SparkContext sc = spark.sparkContext();
-    if (!useQueryProtobuf) {
       sc.addFile(qDstFile.getName());
     }
-    sc.addFile(lDstFile.getName());
+    if (!useLoaderProtobuf) {
+      lDstFile = File.createTempFile("loader", ".json", new File(dstdir.toString()));
+      lDstFile.deleteOnExit();
+      Files.copy(lSrc, lDstFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+      sc.addFile(lDstFile.getName());
+    }
 
     StructType schema = null;
+    String loaderPBString = null;
     try {
-      GenomicsDBSchemaFactory schemaBuilder = new GenomicsDBSchemaFactory(loaderFile);
+      GenomicsDBSchemaFactory schemaBuilder = null;
+      if (useLoaderProtobuf) {
+        schemaBuilder = new GenomicsDBSchemaFactory(test.getVidMapPBFromLoaderPB(loaderFile));
+      }
+      else {
+        schemaBuilder = new GenomicsDBSchemaFactory(loaderFile);
+
+      }
       StructType querySchema = getSchemaFromQuery(new File(queryFile), vidMapping);
       schema = schemaBuilder.buildSchemaWithVid(querySchema.fields());
-      
-      // test building schema without vid
-      StructType schemaTest = GenomicsDBSchemaFactory.buildSchema(querySchema.fields());
-
-    } catch (ParseException e) {
+    } catch (com.googlecode.protobuf.format.JsonFormat.ParseException e) {
       e.printStackTrace();
     }
 
     Dataset<Row> variants;
     DataFrameReader reader = spark.read()
             .format(gdbDataSource)
-            .schema(schema)
-            .option("genomicsdb.input.loaderjsonfile", lDstFile.getName());
+            .schema(schema);
+    if (useLoaderProtobuf) {
+      String pbString = JsonFileExtensions.getProtobufAsBase64StringFromFile(GenomicsDBImportConfiguration.ImportConfiguration.newBuilder(),
+                                                        loaderFile);
+      reader = reader.option("genomicsdb.input.loaderprotobuf", pbString);
+    } else {
+      reader = reader.option("genomicsdb.input.loaderjsonfile", lDstFile.getName());
+    }
     if (!hostfile.isEmpty()) {
       reader = reader.option("genomicsdb.input.mpi.hostfile", hostfile);
     }
     if (useQueryProtobuf) {
-      GenomicsDBExportConfiguration.ExportConfiguration.Builder builder =
-      GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
-      String jsonString = readFile(queryFile, Charset.defaultCharset());
-      JsonFormat.merge(jsonString, builder);
-      byte[] pb = builder.build().toByteArray();
-      String pbString = Base64.getEncoder().encodeToString(pb);
+      String pbString = JsonFileExtensions.getProtobufAsBase64StringFromFile(GenomicsDBExportConfiguration.ExportConfiguration.newBuilder(),
+                                                        queryFile);
 
       reader = reader.option("genomicsdb.input.queryprotobuf", pbString);
     } else {

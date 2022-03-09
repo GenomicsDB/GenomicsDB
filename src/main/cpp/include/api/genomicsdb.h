@@ -647,6 +647,7 @@ class GenomicsDB {
   void* m_storage_manager = nullptr; // Pointer to VariantStorageManager instance
   void* m_vid_mapper = nullptr;      // Pointer to VidMapper instance
   void* m_query_config = nullptr;    // Pointer to a base VariantQueryConfig instance
+  void *m_annotation_service = nullptr; // Pointer to AnnotationService instance
 
   int m_concurrency_rank = 0;
 

@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2020 Omics Data Automation, Inc.
+ * Copyright (c) 2020, 2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -27,6 +27,7 @@
 #define ONE_GB (1024ull*1024ull*1024ull)
 
 #ifdef DO_MEMORY_PROFILING
+#include "genomicsdb_logger.h"
 #include "memory_measure.h"
 #endif
 
@@ -379,7 +380,7 @@ void LoaderCombinedGVCFOperator::operate(const void* cell_ptr) {
   statm_t mem_result;
   read_off_memory_status(mem_result);
   if (mem_result.resident >= m_next_memory_limit) {
-    std::cerr << "Crossed "<<m_next_memory_limit<<" at position "<<column_begin<<"\n";
+    logger.info("Crossed {} at position {}", m_next_memory_limit, column_begin);
     m_next_memory_limit += ONE_GB;
   }
 #endif
@@ -405,7 +406,7 @@ void LoaderCombinedGVCFOperator::finish(const int64_t column_interval_end) {
     statm_t mem_result;
     read_off_memory_status(mem_result);
     if (mem_result.resident > m_next_memory_limit) {
-      std::cerr << "ENDING crossed "<<m_next_memory_limit<<"\n";
+      logger.info("ENDING crossed {}", m_next_memory_limit);
       m_next_memory_limit += ONE_GB;
     }
 #endif
