@@ -584,7 +584,7 @@ void GenomicsDB::generate_plink(const std::string& array,
       for(auto& c : cs) {
         auto fields = get_genomic_fields_for(array, &c, query_config);
         
-        int64_t coords[] = {c.get_row_idx(), c.get_column_begin()};
+        int64_t coords[] = {(int64_t)c.get_row_idx(), (int64_t)c.get_column_begin()};
         int64_t end_position = c.get_column_end();
 
         std::string contig_name;
