@@ -49,6 +49,10 @@ void VariantQueryConfig::set_attributes_to_query(const vector<string>& attribute
     add_attribute_to_query(attributeNames[i], UNDEFINED_ATTRIBUTE_IDX_VALUE);
 }
 
+void VariantQueryConfig::set_attributes_to_query() {
+  set_attributes_to_query(m_attributes);
+}
+
 void VariantQueryConfig::clear_attributes_to_query() {
   m_query_attribute_name_to_query_idx.clear();
   m_query_attributes_info_vec.clear();
@@ -169,6 +173,7 @@ void VariantQueryConfig::reorder_query_fields() {
 void VariantQueryConfig::flatten_composite_fields(const VidMapper& vid_mapper) {
   auto has_composite_fields = false;
   for (auto i=0u; i<get_num_queried_attributes(); ++i) {
+    logger.error("REMOVE flatten_composite_fields placeholder");
     auto field_info = vid_mapper.get_field_info(m_query_attributes_info_vec[i].m_name);
     if (field_info == 0)
       throw UnknownQueryAttributeException(std::string("Field ")
@@ -225,8 +230,7 @@ void VariantQueryConfig::read_from_PB_binary_string(const std::string& str, cons
 }
 
 void VariantQueryConfig::validate(const int rank) {
-  logger.error("REMOVE +++++++++++++++++++ validate rows {} lb {}", get_num_rows_in_array(), get_smallest_row_idx_in_array());
-  logger.error("REMOVE info vec size {}", m_query_attributes_info_vec.size());
+  logger.error("REMOVE validate");
   for(auto& a : m_query_attributes_info_vec) {
     std::cerr << a.m_name << std::endl;
   }
@@ -263,16 +267,13 @@ void VariantQueryConfig::validate(const int rank) {
       add_column_interval_to_query(range.first, range.second);
   }
 
-  // REMOVE clean up
-  //VariantStorageManager* storage_manager = new VariantStorageManager(workspace, DEFAULT_SEGMENT_SIZE);
-  //int ad = storage_manager->open_array(array_name, &m_vid_mapper, "r");
-  //auto array_rows = storage_manager->get_num_valid_rows_in_array(ad);
-  auto array_rows = get_num_rows_in_array();
-  //auto array_lb = storage_manager->get_lb_row_idx(ad);
-  auto array_lb = get_smallest_row_idx_in_array();
-  auto array_ub = array_lb + array_rows - 1;
-  //storage_manager->close_array(ad);
-  //delete storage_manager;
+  // get array bounds if array has been opened
+  uint64_t array_rows, array_lb, array_ub;
+  if(m_num_rows_in_array != UNDEFINED_NUM_ROWS_VALUE) {
+    array_rows = get_num_rows_in_array();
+    array_lb = get_smallest_row_idx_in_array();
+    array_ub = array_lb + array_rows - 1;
+  }
 
   //Query rows
   if (!m_scan_whole_array && m_row_ranges.size()) {
@@ -286,9 +287,11 @@ void VariantQueryConfig::validate(const int rank) {
         continue;
       }
 
-      int64_t lb, ub;
-      lb = range.first >= array_lb ? range.first : array_lb;
-      ub = range.second <= array_ub ? range.second : array_ub;
+      int64_t lb = range.first, ub = range.second;
+      if(m_num_rows_in_array != UNDEFINED_NUM_ROWS_VALUE) {
+        lb = range.first >= array_lb ? range.first : array_lb;
+        ub = range.second <= array_ub ? range.second : array_ub;
+      }
 
       logger.error("REMOVE interval {} -> {}", lb, ub);
 
@@ -302,5 +305,5 @@ void VariantQueryConfig::validate(const int rank) {
     set_rows_to_query(row_idxs);
   }
   //Attributes
-  set_attributes_to_query(m_attributes);
+  //set_attributes_to_query(m_attributes);
 }

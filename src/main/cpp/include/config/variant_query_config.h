@@ -92,6 +92,10 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
    */
   void set_attributes_to_query(const std::vector<std::string>& attributeNames);
   /**
+   * Identical to above but uses m_attributes
+   */
+  void set_attributes_to_query();
+  /**
    * Function used by query processor to add extra attributes to query
    */
   void add_attribute_to_query(const std::string& name, unsigned schema_idx);

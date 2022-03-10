@@ -29,6 +29,7 @@
 #include "variant_array_schema.h"
 #include "known_field_info.h"
 #include "rapidjson/document.h"
+#include "genomicsdb_logger.h" // REMOVE
 
 typedef std::tuple<std::string, int64_t, int64_t> ContigIntervalTuple;
 
@@ -728,6 +729,11 @@ class VidMapper {
    * If field is not found, return 0
    */
   inline const FieldInfo* get_field_info(const std::string& name) const {
+    logger.error("REMOVE vid mapper fields");
+    for(auto& a : m_field_name_to_idx) { // REMOVE
+      std::cerr << a.first << std::endl;
+    } // REMOVE
+
     int field_idx = -1;
     auto status = get_global_field_idx(name, field_idx);
     if (!status)

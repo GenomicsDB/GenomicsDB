@@ -546,6 +546,7 @@ void VariantQueryProcessor::iterate_over_gvcf_entries(
 void VariantQueryProcessor::do_query_bookkeeping(const VariantArraySchema& array_schema,
     VariantQueryConfig& query_config, const VidMapper& vid_mapper, const bool alleles_required, int rank) const {
   logger.error("REMOVE +++++++++++++++++++ do_query_bookkeeping");
+  query_config.set_attributes_to_query();
   //Flatten composite fields - fields whose elements are tuples
   //Must do this before call to finalize_queried_attributes obtain_TileDB_attribute_idxs
   query_config.flatten_composite_fields(vid_mapper);

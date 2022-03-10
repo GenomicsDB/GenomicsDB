@@ -56,6 +56,8 @@ TEST_CASE("gvcf iterator", "[gvcf_iterator]") {
   loader_config.read_from_file(loader_json);
   query_config.update_from_loader(loader_config);
   query_config.read_from_file(query_json);
+  query_config.set_attributes_to_query();
+  query_config.validate();
 
   CHECK(query_config.get_num_column_intervals() == 1);
   

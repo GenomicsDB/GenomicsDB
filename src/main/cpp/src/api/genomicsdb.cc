@@ -264,8 +264,6 @@ std::vector<Variant>* GenomicsDB::query_variants(const std::string& array, Varia
   query_processor->do_query_bookkeeping(query_processor->get_array_schema(),
                                         *query_config, query_config->get_vid_mapper(), true);
 
-  logger.error("REMOVE +++++++++++++ query_variants size {} lb {}", query_config->get_num_rows_in_array(), query_config->get_smallest_row_idx_in_array());
-
   // Perform Query over all the intervals
   std::vector<Variant>* pvariants = new std::vector<Variant>;
 
@@ -453,8 +451,6 @@ std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& arr
   query_processor->do_query_bookkeeping(query_processor->get_array_schema(),
                                         *query_config, query_config->get_vid_mapper(), true);
 
-  logger.error("REMOVE +++++++++++++ query_variant_calls size {} lb {}", query_config->get_num_rows_in_array(), query_config->get_smallest_row_idx_in_array());
-
 #if(DEBUG)
   print_variant_calls(*query_config, *query_processor, query_config->get_vid_mapper());
 #endif
@@ -528,8 +524,6 @@ void GenomicsDB::generate_vcf(const std::string& array, VariantQueryConfig* quer
       TO_VARIANT_STORAGE_MANAGER(m_storage_manager), array, query_config->get_vid_mapper());
   query_processor->do_query_bookkeeping(query_processor->get_array_schema(),
                                         *query_config, query_config->get_vid_mapper(), true);
-
-  logger.error("REMOVE +++++++++++++ generate_vcf size {} lb {}", query_config->get_num_rows_in_array(), query_config->get_smallest_row_idx_in_array());
 
   // Get a VCF Adapter
   VCFAdapter vcf_adapter;
