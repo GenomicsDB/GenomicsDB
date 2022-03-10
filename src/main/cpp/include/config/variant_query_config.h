@@ -381,6 +381,129 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   int64_t m_smallest_row_idx;
   /*Column ranges to query*/
   std::vector<ColumnRange> m_query_column_intervals;
+
+  class interval_expander {
+    public:
+      struct interval {
+        // left of interval, right of interval, size of interval, size of all preceeding intervals
+        int64_t first, second, total_size_before;
+        interval(int64_t first = -1, int64_t second = -1, int64_t total_size_before = -1) : first(first), second(second), total_size_before(total_size_before) { }
+        bool operator<(const interval& r) const {
+          return first < r.first;
+        }
+        // number of rows in interval
+        inline int64_t size() const { return second - first + 1; }
+        inline int64_t span() const { return second - first; }
+        // total number of rows in interval and all preceeding
+        inline int64_t size_inclusive() const { return second - first + 1 + total_size_before; }
+        bool intersects(const interval& r) const {
+          return second >= r.first && first <= r.second;
+        }
+        // bounding interval
+        interval operator+(const interval& r) const {
+          int64_t nfirst, nsecond;
+          nfirst = (first <= r.first ? first : r.first);
+          nsecond = (second >= r.second ? second : r.second);
+
+          return interval(nfirst, nsecond);
+        }
+      };
+
+      void update_rows(const std::vector<std::pair<int64_t, int64_t>>& vec) {
+        std::vector<interval> temp_intervals;
+        std::swap(temp_intervals, intervals);
+
+        for(auto& e : vec) {
+          int64_t first = e.first, second = e.second;
+          // make sure interval isn't backwards
+          if(e.first <= e.second) {
+            first = e.first;
+            second = e.second;
+          }
+          else {
+            first = e.second;
+            second = e.first;
+          }
+
+          // make sure interval is in bounds (on the left)
+          if(first < 0) {
+            first = 0;
+          }
+          if(second >= 0) {
+            temp_intervals.push_back(interval(first, second));
+          }
+        }
+        // sort by left of intervals
+        std::sort(intervals.begin(), intervals.end());
+
+        bool current_empty = true;
+        interval current;
+        for(auto& ival : temp_intervals) { // merge overlapping intervals
+          if(current_empty) {
+            current = ival;
+          }
+          else {
+            if(current.intersects(ival)) {
+              current = current + ival;
+            }
+            else {
+              intervals.push_back(current);
+              current_empty = true;
+            }
+          }
+        }
+        if(!current_empty) {
+          intervals.push_back(current);
+          current_empty = true;
+        }
+
+        index();
+      }
+
+      void index() {
+        int64_t total_size = 0;
+        for(auto& ival : intervals) {
+          ival.total_size_before = total_size;
+          total_size += ival.size();
+        }
+      }
+
+      // TODO buffering/binary search
+      int64_t get_row_by_idx (int64_t idx) {
+        auto it = std::upper_bound(intervals.begin(), intervals.end(), idx, [] (int64_t l, const interval& r) { return l < r.size_inclusive(); });
+        assert(it != intervals.end());
+        int64_t offset_in_interval = idx - it->total_size_before;
+        return it->first + offset_in_interval;
+      };
+
+      inline int64_t operator[](int64_t idx) {
+        return get_row_by_idx(idx);
+      }
+
+      int64_t get_index_of_row(int64_t row) {
+        auto it = std::find_if(intervals.begin(), intervals.end(), [row] (const interval& ival) { return row >= ival.first && row <= ival.second; });
+        assert(it != intervals.end());
+        return it->total_size_before + (row - it->first);
+      }
+
+      interval_expander(const std::vector<std::pair<int64_t, int64_t>>& vec) {
+        update_rows(vec);
+      }
+
+      void clear() {
+        intervals.clear();
+      }
+
+      int64_t size() {
+        if(!intervals.size()) {
+          return 0;
+        }
+        return intervals.back().size_inclusive();
+      }
+
+    private:
+      std::vector<interval> intervals;
+  };
 };
 
 #endif
