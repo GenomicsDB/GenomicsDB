@@ -48,7 +48,7 @@ void build_gold_gt_idx_to_test_gt_idx(const std::vector<DataType>& input_data,
   if (curr_genotype_combination_contains_missing_allele_for_input)
     remapper.add_mapping(remapped_gt_idx, lut_missing_value);
   else {
-    auto input_gt_idx = VariantOperations::get_genotype_index(input_call_allele_idx_vec, false);
+    auto input_gt_idx = KnownFieldInfo::get_genotype_index(input_call_allele_idx_vec, false);
     remapper.add_mapping(remapped_gt_idx, input_gt_idx);
   }
 }

@@ -24,6 +24,7 @@
 #include "vcf.h"
 #include "broad_combined_gvcf.h"
 #include "gt_remapper.h"
+#include "pl_remapper.h"
 
 template<class WriterTy, bool contains_phase, bool produce_GT_field, bool do_remap>
 bool BroadCombinedGVCFOperator::write_vcf_line(WriterTy& writer, const GenomicsDBGVCFCell& variant) {
@@ -132,6 +133,17 @@ bool BroadCombinedGVCFOperator::write_vcf_line(WriterTy& writer, const GenomicsD
       }
     }
   }
+  auto is_PL_valid = false;
+  const auto PL_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_PL_IDX);
+  if (m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_PL_IDX)) {
+    for (auto iter = m_iterator->begin_valid_row_query_idx(); iter != m_iterator->end_valid_row_query_idx(); ++iter) {
+      if (m_iterator->is_field_valid_for_valid_row_query_idx(PL_query_idx, *iter)) {
+        no_overflow = no_overflow && writer.template write<char, true>(static_cast<const char*>(":PL"), 3u);
+        is_PL_valid = true;
+        break;
+      }
+    }
+  }
   const auto num_queried_rows = m_query_config->get_num_rows_to_query();
   const auto& gt_remapper = m_iterator->get_GT_remapper();
   const auto GT_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_GT_IDX);
@@ -177,6 +189,15 @@ bool BroadCombinedGVCFOperator::write_vcf_line(WriterTy& writer, const GenomicsD
             reinterpret_cast<const int*>(ptr_length_pair.first), ptr_length_pair.second, ',');
       }
     }
+    // PL
+    if (is_PL_valid) {
+      no_overflow = no_overflow && writer.template write<char, true>(':');
+      if (!(m_iterator->is_field_valid_for_valid_row_query_idx(GQ_query_idx, row_query_idx)))
+        no_overflow = no_overflow && writer.template write<char, true>('.');
+      else
+        no_overflow = no_overflow && m_pl_remapper->remap_for_row_query_idx<WriterTy, int, contains_phase, do_remap>(
+                                         writer, PL_query_idx, row_query_idx);
+    }
   }
   no_overflow = no_overflow && writer. template write<char, true>('\n');
   for(const auto& field_info : m_FORMAT_fields_vec) {
@@ -184,8 +205,15 @@ bool BroadCombinedGVCFOperator::write_vcf_line(WriterTy& writer, const GenomicsD
   return no_overflow;
 }
 
+void BroadCombinedGVCFOperator::initialize_with_columnar_iterator(const GenomicsDBGVCFIterator& iterator) {
+  GA4GHOperator::initialize_with_columnar_iterator(iterator);
+  if (m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_GT_IDX))
+    m_pl_remapper =
+        std::make_unique<PLRemapper<GenomicsDBGVCFIterator>>(m_GT_query_idx, iterator, iterator.get_alleles_combiner());
+}
+
 void BroadCombinedGVCFOperator::operate_on_columnar_cell(const GenomicsDBGVCFCell& variant) {
-  SingleVariantOperatorBase::operate_on_columnar_cell(variant);
+  GA4GHOperator::operate_on_columnar_cell(variant);
   // The objective is to minimize the number of if-else conditions at runtime in the lower levels of the
   // callgraph. For example, the condition produce_GT_field is determined at the time of query and doesn't
   // change through the lifetime of the query. Hence, we would like to check for it at the highest possible

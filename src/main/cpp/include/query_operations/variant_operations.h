@@ -313,40 +313,6 @@ class VariantOperations {
       const uint64_t remapped_gt_idx,
       std::vector<int>& input_call_allele_idx_vec_for_current_gt_combination
                                                    );
-
-  //Combination operation
-  static inline uint64_t nCr(const int64_t n, const int64_t r) {
-    if (n < 0 || r < 0 || n < r)
-      return 0u;
-    //Not the fastest method - if this is a bottleneck, implement faster algorithm
-    auto begin_idx = 0ull;
-    auto end_idx = 0ull;
-    if (r > n-r) {
-      begin_idx = r+1u;
-      end_idx = n-r;
-    } else {
-      begin_idx = n-r+1u;
-      end_idx = r;
-    }
-    auto numerator = 1ull;
-    for (auto i=begin_idx; i<=static_cast<uint64_t>(n); ++i) {
-      /*auto numerator_bits = 64 - __builtin_clzll(numerator);*/
-      /*auto i_bits = 64 - __builtin_clzll(i);*/
-      /*if(numerator_bits + i_bits > 64) //this might sometimes falsely mark some products are overflowing*/
-      /*return UINT64_MAX;*/
-      auto tmp = numerator*i;
-      if(tmp/i == numerator) //detects overflow
-	numerator = tmp;
-      else
-	return UINT64_MAX; //overflow
-    }
-    auto denominator = 1ull;
-    for (auto i=1ull; i<=end_idx; ++i)
-      denominator *= i;
-    return numerator/denominator;
-  }
-  //Return genotype index given a list of allele indexes
-  static uint64_t get_genotype_index(std::vector<int>& allele_idx_vec, const bool is_sorted);
 };
 
 /*
@@ -373,6 +339,8 @@ class SingleVariantOperatorBase {
    * (b) Merged ALT allele list and updates the alleles LUT
    */
   virtual void operate(Variant& variant);
+  // Called once before iteration over GVCF entries begins
+  virtual void initialize_with_columnar_iterator(const GenomicsDBGVCFIterator& iterator) { ; }
   virtual void operate_on_columnar_cell(const GenomicsDBGVCFCell& variant);
   /*
    * Return true in child class if some output buffer used by the operator

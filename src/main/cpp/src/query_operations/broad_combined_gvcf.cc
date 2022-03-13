@@ -24,6 +24,7 @@
 #include "broad_combined_gvcf.h"
 #include "genomicsdb_multid_vector_field.h"
 #include "genomicsdb_logger.h"
+#include "pl_remapper.h"
 
 #ifdef DO_MEMORY_PROFILING
 #include "memory_measure.h"
@@ -990,7 +991,7 @@ void BroadCombinedGVCFOperator::handle_deletions(Variant& variant) {
           if (PL_field_exists) {
             //Genotype with all elements set to the deletion allele
             m_spanning_deletion_current_genotype.assign(ploidy, allele_idx);
-            auto gt_idx = VariantOperations::get_genotype_index(m_spanning_deletion_current_genotype, true);
+            auto gt_idx = KnownFieldInfo::get_genotype_index(m_spanning_deletion_current_genotype, true);
             //Truncations - dropped values etc
             if (gt_idx < PL_vector.size() && PL_vector[gt_idx] < lowest_PL_value) {
               lowest_PL_value = PL_vector[gt_idx];

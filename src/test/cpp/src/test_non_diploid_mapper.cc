@@ -79,7 +79,7 @@ void verify_remapped_gt_order(const std::vector<DataType>& input_data,
   CHECK_THAT(dynamic_cast<RemapDataTestClass&>(remapped_data).get_genotype_combination(remapped_gt_idx),
 	       Equals(s));
   s.clear();
-  auto input_gt_idx = VariantOperations::get_genotype_index(input_call_allele_idx_vec, false);
+  auto input_gt_idx = KnownFieldInfo::get_genotype_index(input_call_allele_idx_vec, false);
   auto found_unmatched_allele = false;
   for(auto i=0u;i<ploidy;++i)
   {

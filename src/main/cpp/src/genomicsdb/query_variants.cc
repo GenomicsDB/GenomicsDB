@@ -531,6 +531,7 @@ void VariantQueryProcessor::iterate_over_gvcf_entries(
   //Initialize forward scan iterators
   GenomicsDBGVCFIterator* columnar_gvcf_iter = get_storage_manager()->begin_gvcf_iterator(ad, query_config,
       use_common_array_object);
+  variant_operator.initialize_with_columnar_iterator(*columnar_gvcf_iter);
   for (; !(columnar_gvcf_iter->end()); ++(*columnar_gvcf_iter)) {
     auto& cell = **columnar_gvcf_iter;
     //auto coords = cell.get_coordinates();
