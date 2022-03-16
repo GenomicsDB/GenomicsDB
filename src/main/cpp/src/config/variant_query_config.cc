@@ -52,14 +52,6 @@ void VariantQueryConfig::clear_attributes_to_query() {
   m_query_idx_known_variant_field_enum_LUT.reset_luts();
 }
 
-void VariantQueryConfig::set_rows_to_query(const vector<int64_t>& rowIdxVec) {
-  m_query_rows.resize(rowIdxVec.size());
-  for (auto i=0u; i<rowIdxVec.size(); ++i)
-    m_query_rows[i] = rowIdxVec[i];
-  std::sort(m_query_rows.begin(), m_query_rows.end());    //useful in querying
-  m_query_all_rows = false;
-}
-
 void VariantQueryConfig::add_column_interval_to_query(const int64_t colBegin, const int64_t colEnd) {
   m_query_column_intervals.push_back(make_pair(colBegin, colEnd));
   std::sort(m_query_column_intervals.begin(), m_query_column_intervals.end(), ColumnRangeCompare);
@@ -70,74 +62,13 @@ void VariantQueryConfig::set_column_interval_to_query(const int64_t colBegin, co
   m_query_column_intervals[0] = make_pair(colBegin, colEnd);
 }
 
-void VariantQueryConfig::invalidate_array_row_idx_to_query_row_idx_map(bool all_rows) {
-  if (all_rows)
-    for (auto i=0ull; i<get_num_rows_in_array(); ++i)
-      m_array_row_idx_to_query_row_idx[i] = UNDEFINED_NUM_ROWS_VALUE;
-  else
-    for (auto i=0ull; i<get_num_rows_to_query(); ++i) {
-      assert(get_array_row_idx_for_query_row_idx(i) >= m_smallest_row_idx
-             && (get_array_row_idx_for_query_row_idx(i)-m_smallest_row_idx) < static_cast<int64_t>(m_array_row_idx_to_query_row_idx.size()));
-      m_array_row_idx_to_query_row_idx[get_array_row_idx_for_query_row_idx(i)-m_smallest_row_idx] = UNDEFINED_NUM_ROWS_VALUE;
-    }
-}
-
-void VariantQueryConfig::setup_array_row_idx_to_query_row_idx_map() {
-  if (m_query_all_rows) //if querying all rows, don't even bother setting up map
-    return;
-  m_array_row_idx_to_query_row_idx.resize(get_num_rows_in_array(), UNDEFINED_NUM_ROWS_VALUE);
-  invalidate_array_row_idx_to_query_row_idx_map(true);
-  //Some queried row idxs may be out of bounds - ignore them
-  //This is done by creating a tmp_vector
-  std::vector<int64_t> tmp_vector(m_query_rows.size());
-  auto valid_rows_idx = 0ull;
-  for (auto i=0ull; i<m_query_rows.size(); ++i) {
-    //Within bounds
-    if (get_array_row_idx_for_query_row_idx(i) >= m_smallest_row_idx &&
-        get_array_row_idx_for_query_row_idx(i) < static_cast<int64_t>(get_num_rows_in_array()+m_smallest_row_idx)) {
-      const auto array_row_idx = m_query_rows[i]-m_smallest_row_idx;
-      if(m_array_row_idx_to_query_row_idx[array_row_idx] == UNDEFINED_NUM_ROWS_VALUE) { //first time this row is seen, skip duplicates
-	m_array_row_idx_to_query_row_idx[array_row_idx] = valid_rows_idx;
-	tmp_vector[valid_rows_idx++] = m_query_rows[i];
-      }
-    }
-  }
-  tmp_vector.resize(valid_rows_idx);
-  m_query_rows = std::move(tmp_vector);
-}
-
-void VariantQueryConfig::update_rows_to_query(const std::vector<int64_t>& rows) {
-  assert(is_bookkeeping_done());
-  //invalidate old queried rows, if a subset of rows were being queried earlier
-  if (!m_query_all_rows) {
-    invalidate_array_row_idx_to_query_row_idx_map(false);
-    set_rows_to_query(rows);
-  } else {
-    set_rows_to_query(rows);
-    setup_array_row_idx_to_query_row_idx_map();
-  }
-  //setup mapping for newly querid rows
-  //Some queried row idxs may be out of bounds - ignore them
-  //This is done by creating a tmp_vector
-  std::vector<int64_t> tmp_vector(m_query_rows.size());
-  auto valid_rows_idx = 0ull;
-  for (auto i=0ull; i<m_query_rows.size(); ++i) {
-    //Within bounds
-    if (get_array_row_idx_for_query_row_idx(i) >= m_smallest_row_idx &&
-        get_array_row_idx_for_query_row_idx(i) < static_cast<int64_t>(get_num_rows_in_array()+m_smallest_row_idx)) {
-      m_array_row_idx_to_query_row_idx[m_query_rows[i]-m_smallest_row_idx] = valid_rows_idx;
-      tmp_vector[valid_rows_idx++] = m_query_rows[i];
-    }
-  }
-  tmp_vector.resize(valid_rows_idx);
-  m_query_rows = std::move(tmp_vector);
-}
-
 void VariantQueryConfig::update_rows_to_query_to_all_rows() {
+  logger.error("REMOVE VariantQueryConfig::update_rows_to_query_to_all_rows m_query_all_rows {} -> true", m_query_all_rows);
+
   if (m_query_all_rows) //already querying all rows
     return;
   assert(is_bookkeeping_done());
-  invalidate_array_row_idx_to_query_row_idx_map(false); //invalidate mappings for currently queried rows
+  //invalidate_array_row_idx_to_query_row_idx_map(false); //invalidate mappings for currently queried rows // REMOVE old
   m_query_all_rows = true;
 }
 
@@ -258,14 +189,15 @@ void VariantQueryConfig::validate(const int rank) {
   if (!m_scan_whole_array && m_row_ranges.size()) {
     VERIFY_OR_THROW((m_single_query_row_ranges_vector || static_cast<size_t>(rank) < m_row_ranges.size())
                     && "Rank >= query row ranges vector size");
-    std::vector<int64_t> row_idxs;
+    /*std::vector<int64_t> row_idxs;
     for (const auto& range : get_query_row_ranges(rank)) {
       auto j = row_idxs.size();
       row_idxs.resize(row_idxs.size() + (range.second - range.first + 1ll));
       for (auto i=range.first; i<=range.second; ++i,++j)
         row_idxs[j] = i;
-    }
-    set_rows_to_query(row_idxs);
+    }*/ // REMOVE old
+    //set_rows_to_query(row_idxs); // REMOVE old
+    set_rows_to_query(get_query_row_ranges(rank));
   }
   //Attributes
   set_attributes_to_query(m_attributes);

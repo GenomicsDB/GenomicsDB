@@ -27,6 +27,7 @@
 #include "lut.h"
 #include "known_field_info.h"
 #include "genomicsdb_config_base.h"
+#include "genomicsdb_logger.h" // REMOVE
 
 //Out of bounds query exception
 class OutOfBoundsQueryException : public std::exception {
@@ -83,9 +84,9 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   void clear() {
     m_query_attributes_info_vec.clear();
     m_query_attribute_name_to_query_idx.clear();
-    m_query_rows.clear();
+    m_query_rows.clear(); // REMOVE updated
     m_query_column_intervals.clear();
-    m_array_row_idx_to_query_row_idx.clear();
+    // m_array_row_idx_to_query_row_idx.clear(); // REMOVE old
   }
   /**
    * Function that specifies which attributes to query from each cell
@@ -235,27 +236,39 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   /*
    * Function that specifies which rows to query
    */
-  void set_rows_to_query(const std::vector<int64_t>& rowIdx);
+  void set_rows_to_query(const std::vector<std::pair<int64_t, int64_t>>& rowIntervals) {
+    logger.error("REMOVE VariantQueryConfig::set_rows_to_query m_query_all_rows {} -> false", m_query_all_rows);
+    m_query_rows.set_rows(rowIntervals);
+    m_query_all_rows = false;
+  }
+  
+  /*
+   * Clamps all row intervals to between lo and hi
+   * Might result in no remaining row intervals
+   */ 
+  void clamp_query_rows(uint64_t lo, uint64_t hi) {
+    m_query_rows.clamp_low(lo);
+    m_query_rows.clamp_high(hi);
+  }
   /*
    * Used by QueryProcessor to set number of rows if all rows need to be queried.
    */
   void set_num_rows_in_array(uint64_t num_rows, const uint64_t smallest_row_idx) {
+    logger.error("REMOVE VariantQueryConfig::set_num_rows_in_array num rows {}, smallest {}", num_rows, smallest_row_idx);
     m_num_rows_in_array = num_rows;
     m_smallest_row_idx = smallest_row_idx;
+    m_query_rows.clamp_low(m_smallest_row_idx);
+    m_query_rows.clamp_high(m_num_rows_in_array - 1); // 0 based
   }
   /*
-   * Initialize map between array row to query row
-   */
-  void setup_array_row_idx_to_query_row_idx_map();
-  /*
    * Function that specifies which rows to query and also updates
-   * m_array_row_idx_to_query_row_idx
-   * Pre-requisite: query bookkeeping should be done before calling this function
+   * m_array_row_idx_to_query_row_idx // REMOVE comment
+   * Pre-requisite: query bookkeeping should be done before calling this function // REMOVE no longer true
    */
-  void update_rows_to_query(const std::vector<int64_t>& rowIdx);
+  void update_rows_to_query(const std::vector<std::pair<int64_t, int64_t>>& rowIntervals) { set_rows_to_query(rowIntervals); } // NOTE: interval_expander::update_rows retains old rows
   /*
    * Function that specifies all rows should be queried.
-   * m_array_row_idx_to_query_row_idx
+   * m_array_row_idx_to_query_row_idx // REMOVE comment
    * Pre-requisite: query bookkeeping should be done before calling this function
    */
   void update_rows_to_query_to_all_rows();
@@ -265,17 +278,15 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   inline bool query_all_rows() const {
     return m_query_all_rows;
   }
-  inline const std::vector<int64_t>& get_rows_to_query() const {
-    return m_query_rows;
-  }
   /**
    * If all rows are queried, return m_num_rows_in_array (set by QueryProcessor)
-   * Else return size of m_query_rows vector
+   * Else return size of m_query_rows vector // REMOVE comment
    */
   inline uint64_t get_num_rows_to_query() const {
-    /*Either query subset of rows (in m_query_rows) or set the variable m_num_rows_in_array correctly*/
+    logger.error("REMOVE VariantQueryConfig::get_num_rows_to_query m_query_all_rows {}", m_query_all_rows);
+    /*Either query subset of rows (in m_query_rows) or set the variable m_num_rows_in_array correctly*/ // REMOVE comment
     assert(!m_query_all_rows || (m_num_rows_in_array != UNDEFINED_NUM_ROWS_VALUE));
-    return m_query_all_rows ? m_num_rows_in_array : m_query_rows.size();
+    return m_query_all_rows ? m_num_rows_in_array : m_query_rows.size(); // REMOVE updated
   }
   inline int64_t get_smallest_row_idx_in_array() const {
     return m_smallest_row_idx;
@@ -286,27 +297,29 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   }
   /**
    * If all rows are queried, return idx
-   * Else return m_query_rows[idx]
+   * Else return m_query_rows[idx] // REMOVE comment
    */
   inline int64_t get_array_row_idx_for_query_row_idx(uint64_t idx) const {
     assert(idx < get_num_rows_to_query());
-    return m_query_all_rows ? (idx+m_smallest_row_idx) : m_query_rows[idx];
+    return m_query_all_rows ? (idx+m_smallest_row_idx) : m_query_rows[idx]; // REMOVE updated
   }
   /*
-   * Index in m_query_rows for given array row idx
+   * Index in m_query_rows for given array row idx // REMOVE comment
    */
   inline uint64_t get_query_row_idx_for_array_row_idx(int64_t row_idx) const {
-    assert(row_idx >= m_smallest_row_idx && (row_idx-m_smallest_row_idx) < static_cast<int64_t>(get_num_rows_in_array()));
-    if (m_query_all_rows)
-      return row_idx - m_smallest_row_idx;
-    assert((row_idx-m_smallest_row_idx) < static_cast<int64_t>(m_array_row_idx_to_query_row_idx.size()));
-    return m_array_row_idx_to_query_row_idx[row_idx-m_smallest_row_idx];
+    logger.error("REMOVE VariantQueryConfig::get_query_row_idx_for_array_row_idx {} m_query_all_rows is {}", row_idx, m_query_all_rows);
+    if(m_query_all_rows) {
+      auto retval = row_idx - m_smallest_row_idx;
+      assert(retval >= 0 && retval < get_num_rows_to_query());
+      return retval;
+    }
+    return m_query_rows.get_query_row_from_array_row(row_idx);
   }
   /*
    * Check if this row is being queried or no
    */
   inline bool is_queried_array_row_idx(int64_t row_idx) const {
-    return m_query_all_rows ? true : (get_query_row_idx_for_array_row_idx(row_idx) != UNDEFINED_NUM_ROWS_VALUE);
+    return m_query_all_rows ? true : m_query_rows.is_queried_row(row_idx);
   }
   /*
    * Function that specifies which column ranges to query
@@ -358,9 +371,8 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
  private:
   /*
    * Function to invalid TileDB array row idx -> query row idx mapping
-   * @param all_rows if true, invalidates all mappings, else invalidates mapping for rows in m_query_rows only
+   * @param all_rows if true, invalidates all mappings, else invalidates mapping for rows in m_query_rows only // REMOVE comment
    */
-  void invalidate_array_row_idx_to_query_row_idx_map(bool all_rows);
   std::vector<VariantQueryFieldInfo> m_query_attributes_info_vec;
   //Map from query name to index in m_query_attributes_info_vec
   std::unordered_map<std::string, unsigned> m_query_attribute_name_to_query_idx;
@@ -373,9 +385,9 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   /*Rows to query*/
   bool m_query_all_rows;
   /*vector of specific row idxs to query*/
-  std::vector<int64_t> m_query_rows;
+  //std::vector<int64_t> m_query_rows; // REMOVE old
   /*vector mapping array row_idx to query row idx*/
-  std::vector<uint64_t> m_array_row_idx_to_query_row_idx;
+  //std::vector<uint64_t> m_array_row_idx_to_query_row_idx; // REMOVE old
   /*Set by query processor*/
   uint64_t m_num_rows_in_array;
   int64_t m_smallest_row_idx;
@@ -410,6 +422,7 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
       };
 
       void update_rows(const std::vector<std::pair<int64_t, int64_t>>& vec) {
+        logger.error("REMOVE interval_expander::update_rows {} pairs", vec.size());
         std::vector<interval> temp_intervals;
         std::swap(temp_intervals, intervals);
 
@@ -434,33 +447,89 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
           }
         }
         // sort by left of intervals
-        std::sort(intervals.begin(), intervals.end());
+        std::sort(temp_intervals.begin(), temp_intervals.end());
+        logger.error("REMOVE after sort");
+        for(auto& ival : temp_intervals) {
+          std::cerr << ival.first << " -- " << ival.second << std::endl;
+        }
+
 
         bool current_empty = true;
         interval current;
         for(auto& ival : temp_intervals) { // merge overlapping intervals
           if(current_empty) {
             current = ival;
+            current_empty = false;
+            logger.error("\tREMOVE set current to {} {}", current.first, current.second);
           }
           else {
             if(current.intersects(ival)) {
               current = current + ival;
+              logger.error("\tREMOVE {} {} intersects with {} {}", current.first, current.second, ival.first, ival.second);
             }
             else {
+              logger.error("\tREMOVE {} {} does not intersect with {} {}, pushing first interval", current.first, current.second, ival.first, ival.second);
               intervals.push_back(current);
-              current_empty = true;
+              current = ival;
             }
           }
         }
         if(!current_empty) {
+          logger.error("REMOVE pushing current {} {}", current.first, current.second);
           intervals.push_back(current);
           current_empty = true;
+        }
+
+        logger.error("REMOVE end of update_rows {} intervals", intervals.size());
+        logger.error("REMOVE contents of intervals");
+        for(auto& ival : intervals) {
+          std::cerr << ival.first << " -- " << ival.second << std::endl;
         }
 
         index();
       }
 
+      void set_rows(const std::vector<std::pair<int64_t, int64_t>>& vec) {
+        logger.error("REMOVE interval_expander::set_rows");
+        clear();
+        update_rows(vec);
+      }
+
+      // makes sure all array rows to be queried are greater than or equal to lo
+      void clamp_low(int64_t lo) {
+        intervals.erase(std::remove_if(intervals.begin(),
+                                       intervals.end(),
+                                       [lo](interval& ival) -> bool { return ival.second < lo; }),
+                        intervals.end());
+
+        if(!intervals.size()) {
+          return;
+        }
+
+        if(intervals[0].first < lo) { // only need to check first because intervals should be merged
+          intervals[0].first = lo;
+        }
+      }
+
+      // makes sure all array rows to be queried are greater than or equal to hi
+      void clamp_high(int64_t hi) {
+        intervals.erase(std::remove_if(intervals.begin(),
+                                       intervals.end(),
+                                       [hi](interval& ival) -> bool { return ival.first > hi; }),
+                        intervals.end());
+
+        if(!intervals.size()) {
+          return;
+        }
+
+        if(intervals.back().second > hi) { // only need to check last because intervals should be merged
+          intervals.back().second = hi;
+        }
+      }
+
       void index() {
+        logger.error("REMOVE interval_expander::index");
+
         int64_t total_size = 0;
         for(auto& ival : intervals) {
           ival.total_size_before = total_size;
@@ -469,24 +538,35 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
       }
 
       // TODO buffering/binary search
-      int64_t get_row_by_idx (int64_t idx) {
-        auto it = std::upper_bound(intervals.begin(), intervals.end(), idx, [] (int64_t l, const interval& r) { return l < r.size_inclusive(); });
+      int64_t get_array_row_from_query_row(int64_t row) const {
+        logger.error("REMOVE interval_expander::get_array_row_from_query_row {}", row);
+        auto it = std::upper_bound(intervals.begin(), intervals.end(), row, [] (int64_t l, const interval& r) { logger.error("REMOVE ival {} {} size inc {}", r.first, r.second, r.size_inclusive()); return l < r.size_inclusive(); });
         assert(it != intervals.end());
-        int64_t offset_in_interval = idx - it->total_size_before;
+        int64_t offset_in_interval = row - it->total_size_before;
         return it->first + offset_in_interval;
       };
 
-      inline int64_t operator[](int64_t idx) {
-        return get_row_by_idx(idx);
+      // check if array row is queried
+      bool is_queried_row(int64_t row) const {
+        logger.error("REMOVE interval_expander::is_queried_row");
+        auto it = std::find_if(intervals.begin(), intervals.end(), [row] (const interval& ival) { return row >= ival.first && row <= ival.second; });
+        return it != intervals.end();
       }
 
-      int64_t get_index_of_row(int64_t row) {
-        auto it = std::find_if(intervals.begin(), intervals.end(), [row] (const interval& ival) { return row >= ival.first && row <= ival.second; });
+      inline int64_t operator[](int64_t idx) const {
+        return get_array_row_from_query_row(idx);
+      }
+
+      // TODO use upper_bound to use binary search
+      int64_t get_query_row_from_array_row(int64_t row) const {
+        logger.error("REMOVE interval_expander::get_query_row_from_array_row {}", row);
+        auto it = std::find_if(intervals.begin(), intervals.end(), [row] (const interval& ival) { logger.error("REMOVE ival {} {}", ival.first, ival.second); return row >= ival.first && row <= ival.second; });
         assert(it != intervals.end());
         return it->total_size_before + (row - it->first);
       }
 
-      interval_expander(const std::vector<std::pair<int64_t, int64_t>>& vec) {
+      interval_expander(const std::vector<std::pair<int64_t, int64_t>>& vec = {}) {
+        logger.error("REMOVE interval_expander ctor with {} pairs", vec.size());
         update_rows(vec);
       }
 
@@ -494,7 +574,7 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
         intervals.clear();
       }
 
-      int64_t size() {
+      int64_t size() const {
         if(!intervals.size()) {
           return 0;
         }
@@ -504,6 +584,8 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
     private:
       std::vector<interval> intervals;
   };
+
+  interval_expander m_query_rows; // REMOVE updated
 };
 
 #endif

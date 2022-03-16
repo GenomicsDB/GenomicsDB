@@ -139,6 +139,12 @@ TEST_CASE("api query_variants direct DP", "[query_variants]") {
   delete gdb;
 }
 
+TEST_CASE("api query_variants direct DP with huge row range", "[query_variants_huge_range]") {
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}, {{0,10000000000}}));
+  delete gdb;
+}
+
 TEST_CASE("api query_variants direct DP and GT", "[query_variants_DP_GT]") {
   GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP", "GT"}, 40);
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}, {{0,3}}));

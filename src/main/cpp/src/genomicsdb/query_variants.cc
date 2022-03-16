@@ -622,7 +622,6 @@ void VariantQueryProcessor::do_query_bookkeeping(const VariantArraySchema& array
   else  //Must be invoked during load process
     query_config.set_num_rows_in_array(query_config.get_num_rows_within_bounds(),
                                        query_config.get_row_bounds().first);
-  query_config.setup_array_row_idx_to_query_row_idx_map();
   //Bounds checking for query
   for (auto i=0u; i<query_config.get_num_column_intervals(); ++i) {
     const auto& col_range = query_config.get_column_interval(i);
@@ -632,12 +631,14 @@ void VariantQueryProcessor::do_query_bookkeeping(const VariantArraySchema& array
                                       +std::to_string(col_range.second)+" is out of bounds");
   }
   //If specific rows requested
-  if (!query_config.query_all_rows())
-    for (uint64_t i=0ull; i<query_config.get_num_rows_to_query(); ++i) {
-      auto row_idx = query_config.get_rows_to_query()[i];
+  if (!query_config.query_all_rows()) {
+    /*for (uint64_t i=0ull; i<query_config.get_num_rows_to_query(); ++i) {
+      auto row_idx = query_config.get_array_row_idx_for_query_row_idx(i);
       if (row_idx < dim_domains[0].first || row_idx > dim_domains[0].second)
         throw OutOfBoundsQueryException("Queried row index "+std::to_string(row_idx)+" is out of bounds");
-    }
+    }*/
+    query_config.clamp_query_rows(dim_domains[0].first, dim_domains[0].second);
+  }
   //Done with bookkeeping
   query_config.set_done_bookkeeping(true);
 }
@@ -654,8 +655,8 @@ void VariantQueryProcessor::gt_get_column_interval(
   uint64_t start_variant_idx = variants.size();
   //Will be used later in the function to produce Variants with one CallSet
   VariantQueryConfig subset_query_config(query_config);
-  vector<int64_t> subset_rows = vector<int64_t>(1u, query_config.get_smallest_row_idx_in_array());
-  subset_query_config.update_rows_to_query(subset_rows);  //only 1 row, row 0
+  //vector<int64_t> subset_rows = vector<int64_t>(1u, query_config.get_smallest_row_idx_in_array()); // REMOVE old
+  subset_query_config.update_rows_to_query( { {query_config.get_smallest_row_idx_in_array(), query_config.get_smallest_row_idx_in_array()} } ); // only 1 row, row 0
   //Structure that helps merge multiple Calls into a single variant if the GA4GH specific merging
   //conditions are satisfied
   GA4GHCallInfoToVariantIdx call_info_2_variant;
@@ -702,7 +703,9 @@ void VariantQueryProcessor::gt_get_column_interval(
     //Used to store single call variants  - one variant per cell
     //Multiple variants could be merged later on
     Variant tmp_variant(&subset_query_config);
+    logger.error("REMOVE tmp_variant.get_num_calls() 1 before tmp_variant.resize_based_on_query() {}", tmp_variant.get_num_calls());
     tmp_variant.resize_based_on_query();
+    logger.error("REMOVE tmp_variant.get_num_calls() 1 {}", tmp_variant.get_num_calls());
 #if VERBOSE>0
     logger.info("[query_variants:gt_get_column_interval] Fetching columns from {} to {}", query_config.get_column_begin(column_interval_idx) + 1, query_config.get_column_end(column_interval_idx));
 #endif
@@ -734,9 +737,10 @@ void VariantQueryProcessor::gt_get_column_interval(
         continue;
       if (query_config.is_queried_array_row_idx(curr_row_idx)) {    //If row is part of query, process cell
         //Create Variant with single Call (subset_query_config contains one row)
-        subset_rows[0] = curr_row_idx;
-        subset_query_config.update_rows_to_query(subset_rows);
+        subset_query_config.update_rows_to_query( { { curr_row_idx, curr_row_idx } } );
+        logger.error("REMOVE tmp_variant.get_num_calls() before tmp_variant.resize_based_on_query() {}", tmp_variant.get_num_calls());
         tmp_variant.resize_based_on_query();
+        logger.error("REMOVE tmp_variant.get_num_calls() {}", tmp_variant.get_num_calls());
         assert(tmp_variant.get_num_calls() == 1u);      //exactly 1 call
         tmp_variant.reset_for_new_interval();
         tmp_variant.get_call(0u).set_row_idx(curr_row_idx); //set row idx

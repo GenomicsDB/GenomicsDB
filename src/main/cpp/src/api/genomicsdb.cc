@@ -250,6 +250,7 @@ GenomicsDBVariants GenomicsDB::query_variants() {
 
 
 std::vector<Variant>* GenomicsDB::query_variants(const std::string& array, VariantQueryConfig* query_config) {
+logger.error("REMOVE ================================================================= query_variants =================================================================");
 #if(0)
   auto query_timer = Timer();
   query_timer.start();
