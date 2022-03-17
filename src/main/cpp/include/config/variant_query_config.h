@@ -56,6 +56,61 @@ class UnknownQueryAttributeException : public std::exception {
   std::string msg_;
 };
 
+class interval_expander {
+  public:
+    struct interval {
+      // left of interval, right of interval, size of interval, size of all preceeding intervals
+      int64_t first, second, total_size_before;
+      interval(int64_t first = -1, int64_t second = -1, int64_t total_size_before = -1) : first(first), second(second), total_size_before(total_size_before) { }
+      bool operator<(const interval& r) const {
+        return first < r.first;
+      }
+      // number of rows in interval
+      inline int64_t size() const { return second - first + 1; }
+      inline int64_t span() const { return second - first; }
+      // total number of rows in interval and all preceeding
+      inline int64_t size_inclusive() const { return second - first + 1 + total_size_before; }
+      bool intersects(const interval& r) const {
+        return second >= r.first && first <= r.second;
+      }
+      // bounding interval/generalized intersection
+      interval operator+(const interval& r) const {
+        int64_t nfirst, nsecond;
+        nfirst = (first <= r.first ? first : r.first);
+        nsecond = (second >= r.second ? second : r.second);
+        return interval(nfirst, nsecond);
+      }
+    };
+    interval_expander(const std::vector<std::pair<int64_t, int64_t>>& vec = {}) {
+      logger.error("REMOVE interval_expander ctor with {} pairs", vec.size());
+      update_rows(vec);
+    }
+
+    // merge new rows with existing
+    void update_rows(const std::vector<std::pair<int64_t, int64_t>>& vec);
+    // overwrite existing rows
+    void set_rows(const std::vector<std::pair<int64_t, int64_t>>& vec);
+    // makes sure all array rows to be queried are greater than or equal to lo
+    void clamp_low(int64_t lo);
+    // makes sure all array rows to be queried are greater than or equal to hi
+    void clamp_high(int64_t hi);
+    // sets total_size_before field of each interval in intervals
+    void index();
+    // check if array row is queried
+    bool is_queried_row(int64_t row) const;
+    // NOTE: triggers an assertion if row is out of bounds
+    int64_t get_array_row_from_query_row(int64_t row) const;
+    // equivalent to get_array_row_from_query_row
+    int64_t operator[](int64_t idx) const;
+    // NOTE: triggers an assertion if row is out of bounds
+    int64_t get_query_row_from_array_row(int64_t row) const;
+    void clear();
+    int64_t size() const;
+
+  private:
+    std::vector<interval> intervals;
+};
+
 class VariantQueryConfig : public GenomicsDBConfigBase {
  private:
   class VariantQueryFieldInfo {
@@ -393,198 +448,6 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   int64_t m_smallest_row_idx;
   /*Column ranges to query*/
   std::vector<ColumnRange> m_query_column_intervals;
-
-  class interval_expander {
-    public:
-      struct interval {
-        // left of interval, right of interval, size of interval, size of all preceeding intervals
-        int64_t first, second, total_size_before;
-        interval(int64_t first = -1, int64_t second = -1, int64_t total_size_before = -1) : first(first), second(second), total_size_before(total_size_before) { }
-        bool operator<(const interval& r) const {
-          return first < r.first;
-        }
-        // number of rows in interval
-        inline int64_t size() const { return second - first + 1; }
-        inline int64_t span() const { return second - first; }
-        // total number of rows in interval and all preceeding
-        inline int64_t size_inclusive() const { return second - first + 1 + total_size_before; }
-        bool intersects(const interval& r) const {
-          return second >= r.first && first <= r.second;
-        }
-        // bounding interval
-        interval operator+(const interval& r) const {
-          int64_t nfirst, nsecond;
-          nfirst = (first <= r.first ? first : r.first);
-          nsecond = (second >= r.second ? second : r.second);
-
-          return interval(nfirst, nsecond);
-        }
-      };
-
-      void update_rows(const std::vector<std::pair<int64_t, int64_t>>& vec) {
-        logger.error("REMOVE interval_expander::update_rows {} pairs", vec.size());
-        std::vector<interval> temp_intervals;
-        std::swap(temp_intervals, intervals);
-
-        for(auto& e : vec) {
-          int64_t first = e.first, second = e.second;
-          // make sure interval isn't backwards
-          if(e.first <= e.second) {
-            first = e.first;
-            second = e.second;
-          }
-          else {
-            first = e.second;
-            second = e.first;
-          }
-
-          // make sure interval is in bounds (on the left)
-          if(first < 0) {
-            first = 0;
-          }
-          if(second >= 0) {
-            temp_intervals.push_back(interval(first, second));
-          }
-        }
-        // sort by left of intervals
-        std::sort(temp_intervals.begin(), temp_intervals.end());
-        logger.error("REMOVE after sort");
-        for(auto& ival : temp_intervals) {
-          std::cerr << ival.first << " -- " << ival.second << std::endl;
-        }
-
-
-        bool current_empty = true;
-        interval current;
-        for(auto& ival : temp_intervals) { // merge overlapping intervals
-          if(current_empty) {
-            current = ival;
-            current_empty = false;
-            logger.error("\tREMOVE set current to {} {}", current.first, current.second);
-          }
-          else {
-            if(current.intersects(ival)) {
-              current = current + ival;
-              logger.error("\tREMOVE {} {} intersects with {} {}", current.first, current.second, ival.first, ival.second);
-            }
-            else {
-              logger.error("\tREMOVE {} {} does not intersect with {} {}, pushing first interval", current.first, current.second, ival.first, ival.second);
-              intervals.push_back(current);
-              current = ival;
-            }
-          }
-        }
-        if(!current_empty) {
-          logger.error("REMOVE pushing current {} {}", current.first, current.second);
-          intervals.push_back(current);
-          current_empty = true;
-        }
-
-        logger.error("REMOVE end of update_rows {} intervals", intervals.size());
-        logger.error("REMOVE contents of intervals");
-        for(auto& ival : intervals) {
-          std::cerr << ival.first << " -- " << ival.second << std::endl;
-        }
-
-        index();
-      }
-
-      void set_rows(const std::vector<std::pair<int64_t, int64_t>>& vec) {
-        logger.error("REMOVE interval_expander::set_rows");
-        clear();
-        update_rows(vec);
-      }
-
-      // makes sure all array rows to be queried are greater than or equal to lo
-      void clamp_low(int64_t lo) {
-        intervals.erase(std::remove_if(intervals.begin(),
-                                       intervals.end(),
-                                       [lo](interval& ival) -> bool { return ival.second < lo; }),
-                        intervals.end());
-
-        if(!intervals.size()) {
-          return;
-        }
-
-        if(intervals[0].first < lo) { // only need to check first because intervals should be merged
-          intervals[0].first = lo;
-        }
-      }
-
-      // makes sure all array rows to be queried are greater than or equal to hi
-      void clamp_high(int64_t hi) {
-        intervals.erase(std::remove_if(intervals.begin(),
-                                       intervals.end(),
-                                       [hi](interval& ival) -> bool { return ival.first > hi; }),
-                        intervals.end());
-
-        if(!intervals.size()) {
-          return;
-        }
-
-        if(intervals.back().second > hi) { // only need to check last because intervals should be merged
-          intervals.back().second = hi;
-        }
-      }
-
-      void index() {
-        logger.error("REMOVE interval_expander::index");
-
-        int64_t total_size = 0;
-        for(auto& ival : intervals) {
-          ival.total_size_before = total_size;
-          total_size += ival.size();
-        }
-      }
-
-      // TODO buffering/binary search
-      int64_t get_array_row_from_query_row(int64_t row) const {
-        logger.error("REMOVE interval_expander::get_array_row_from_query_row {}", row);
-        auto it = std::upper_bound(intervals.begin(), intervals.end(), row, [] (int64_t l, const interval& r) { logger.error("REMOVE ival {} {} size inc {}", r.first, r.second, r.size_inclusive()); return l < r.size_inclusive(); });
-        assert(it != intervals.end());
-        int64_t offset_in_interval = row - it->total_size_before;
-        return it->first + offset_in_interval;
-      };
-
-      // check if array row is queried
-      bool is_queried_row(int64_t row) const {
-        logger.error("REMOVE interval_expander::is_queried_row");
-        auto it = std::find_if(intervals.begin(), intervals.end(), [row] (const interval& ival) { return row >= ival.first && row <= ival.second; });
-        return it != intervals.end();
-      }
-
-      inline int64_t operator[](int64_t idx) const {
-        return get_array_row_from_query_row(idx);
-      }
-
-      // TODO use upper_bound to use binary search
-      int64_t get_query_row_from_array_row(int64_t row) const {
-        logger.error("REMOVE interval_expander::get_query_row_from_array_row {}", row);
-        auto it = std::find_if(intervals.begin(), intervals.end(), [row] (const interval& ival) { logger.error("REMOVE ival {} {}", ival.first, ival.second); return row >= ival.first && row <= ival.second; });
-        assert(it != intervals.end());
-        return it->total_size_before + (row - it->first);
-      }
-
-      interval_expander(const std::vector<std::pair<int64_t, int64_t>>& vec = {}) {
-        logger.error("REMOVE interval_expander ctor with {} pairs", vec.size());
-        update_rows(vec);
-      }
-
-      void clear() {
-        intervals.clear();
-      }
-
-      int64_t size() const {
-        if(!intervals.size()) {
-          return 0;
-        }
-        return intervals.back().size_inclusive();
-      }
-
-    private:
-      std::vector<interval> intervals;
-  };
-
   interval_expander m_query_rows; // REMOVE updated
 };
 

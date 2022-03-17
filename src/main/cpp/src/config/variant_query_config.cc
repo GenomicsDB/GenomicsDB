@@ -202,3 +202,150 @@ void VariantQueryConfig::validate(const int rank) {
   //Attributes
   set_attributes_to_query(m_attributes);
 }
+
+void interval_expander::update_rows(const std::vector<std::pair<int64_t, int64_t>>& vec) {
+  logger.error("REMOVE interval_expander::update_rows {} pairs", vec.size());
+  std::vector<interval> temp_intervals;
+  std::swap(temp_intervals, intervals);
+
+  for(auto& e : vec) {
+    int64_t first = e.first, second = e.second;
+    // make sure interval isn't backwards
+    if(e.first <= e.second) {
+      first = e.first;
+      second = e.second;
+    }
+    else {
+      first = e.second;
+      second = e.first;
+    }
+
+    // make sure interval is in bounds (on the left)
+    if(first < 0) {
+      first = 0;
+    }
+    if(second >= 0) {
+      temp_intervals.push_back(interval(first, second));
+    }
+  }
+  // sort by left of intervals
+  std::sort(temp_intervals.begin(), temp_intervals.end());
+  logger.error("REMOVE after sort");
+  for(auto& ival : temp_intervals) {
+    std::cerr << ival.first << " -- " << ival.second << std::endl;
+  }
+
+  bool current_empty = true;
+  interval current;
+  for(auto& ival : temp_intervals) { // merge overlapping intervals
+    if(current_empty) {
+      current = ival;
+      current_empty = false;
+      logger.error("\tREMOVE set current to {} {}", current.first, current.second);
+    }
+    else {
+      if(current.intersects(ival)) {
+        current = current + ival;
+        logger.error("\tREMOVE {} {} intersects with {} {}", current.first, current.second, ival.first, ival.second);
+      }
+      else {
+        logger.error("\tREMOVE {} {} does not intersect with {} {}, pushing first interval", current.first, current.second, ival.first, ival.second);
+        intervals.push_back(current);
+        current = ival;
+      }
+    }
+  }
+  if(!current_empty) {
+    logger.error("REMOVE pushing current {} {}", current.first, current.second);
+    intervals.push_back(current);
+    current_empty = true;
+  }
+
+  logger.error("REMOVE end of update_rows {} intervals", intervals.size());
+  logger.error("REMOVE contents of intervals");
+  for(auto& ival : intervals) {
+    std::cerr << ival.first << " -- " << ival.second << std::endl;
+  }
+
+  index();
+}
+
+void interval_expander::set_rows(const std::vector<std::pair<int64_t, int64_t>>& vec) {
+  logger.error("REMOVE interval_expander::set_rows");
+  clear();
+  update_rows(vec);
+}
+
+void interval_expander::clamp_low(int64_t lo) {
+  intervals.erase(std::remove_if(intervals.begin(),
+                                 intervals.end(),
+                                 [lo](interval& ival) -> bool { return ival.second < lo; }),
+                  intervals.end());
+  if(!intervals.size()) {
+    return;
+  }
+  if(intervals[0].first < lo) { // only need to check first because intervals should be merged
+    intervals[0].first = lo;
+  }
+}
+
+void interval_expander::clamp_high(int64_t hi) {
+  intervals.erase(std::remove_if(intervals.begin(),
+                                 intervals.end(),
+                                 [hi](interval& ival) -> bool { return ival.first > hi; }),
+                  intervals.end());
+  if(!intervals.size()) {
+    return;
+  }
+  if(intervals.back().second > hi) { // only need to check last because intervals should be merged
+    intervals.back().second = hi;
+  }
+}
+
+void interval_expander::index() {
+  logger.error("REMOVE interval_expander::index");
+
+  int64_t total_size = 0;
+  for(auto& ival : intervals) {
+    ival.total_size_before = total_size;
+    total_size += ival.size();
+  }
+}
+
+int64_t interval_expander::get_array_row_from_query_row(int64_t row) const {
+  logger.error("REMOVE interval_expander::get_array_row_from_query_row {}", row);
+  auto it = std::upper_bound(intervals.begin(), intervals.end(), row, [] (int64_t l, const interval& r) { logger.error("REMOVE ival {} {} size inc {}", r.first, r.second, r.size_inclusive()); return l < r.size_inclusive(); });
+  assert(it != intervals.end());
+  int64_t offset_in_interval = row - it->total_size_before;
+  return it->first + offset_in_interval;
+}
+
+// check if array row is queried
+bool interval_expander::is_queried_row(int64_t row) const {
+  logger.error("REMOVE interval_expander::is_queried_row");
+  auto it = std::find_if(intervals.begin(), intervals.end(), [row] (const interval& ival) { return row >= ival.first && row <= ival.second; });
+  return it != intervals.end();
+}
+
+int64_t interval_expander::operator[](int64_t idx) const {
+  return get_array_row_from_query_row(idx);
+}
+
+int64_t interval_expander::get_query_row_from_array_row(int64_t row) const {
+  logger.error("REMOVE interval_expander::get_query_row_from_array_row {}", row);
+  auto it = std::find_if(intervals.begin(), intervals.end(), [row] (const interval& ival) { logger.error("REMOVE ival {} {}", ival.first, ival.second); return row >= ival.first && row <= ival.second; });
+  assert(it != intervals.end());
+  return it->total_size_before + (row - it->first);
+}
+
+
+void interval_expander::clear() {
+  intervals.clear();
+}
+
+int64_t interval_expander::size() const {
+  if(!intervals.size()) {
+    return 0;
+  }
+  return intervals.back().size_inclusive();
+}
