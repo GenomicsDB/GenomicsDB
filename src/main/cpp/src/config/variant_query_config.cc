@@ -323,8 +323,9 @@ int64_t interval_expander::get_array_row_from_query_row(int64_t row) const {
 // check if array row is queried
 bool interval_expander::is_queried_row(int64_t row) const {
   logger.error("REMOVE interval_expander::is_queried_row");
-  auto it = std::find_if(intervals.begin(), intervals.end(), [row] (const interval& ival) { return row >= ival.first && row <= ival.second; });
-  return it != intervals.end();
+  //auto it = std::find_if(intervals.begin(), intervals.end(), [row] (const interval& ival) { return row >= ival.first && row <= ival.second; }); // REMOVE
+  auto it = std::lower_bound(intervals.begin(), intervals.end(), row, [row] (const interval& l, int64_t r) { return l.second < row; });
+  return it != intervals.end() && it->first <= row;
 }
 
 int64_t interval_expander::operator[](int64_t idx) const {
@@ -333,8 +334,9 @@ int64_t interval_expander::operator[](int64_t idx) const {
 
 int64_t interval_expander::get_query_row_from_array_row(int64_t row) const {
   logger.error("REMOVE interval_expander::get_query_row_from_array_row {}", row);
-  auto it = std::find_if(intervals.begin(), intervals.end(), [row] (const interval& ival) { logger.error("REMOVE ival {} {}", ival.first, ival.second); return row >= ival.first && row <= ival.second; });
-  assert(it != intervals.end());
+  //auto it = std::find_if(intervals.begin(), intervals.end(), [row] (const interval& ival) { logger.error("REMOVE ival {} {}", ival.first, ival.second); return row >= ival.first && row <= ival.second; });
+  auto it = std::lower_bound(intervals.begin(), intervals.end(), row, [row] (const interval& l, int64_t r) { return l.second < row; });
+  assert(it != intervals.end() && it->first <= row);
   return it->total_size_before + (row - it->first);
 }
 
