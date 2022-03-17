@@ -655,7 +655,6 @@ void VariantQueryProcessor::gt_get_column_interval(
   uint64_t start_variant_idx = variants.size();
   //Will be used later in the function to produce Variants with one CallSet
   VariantQueryConfig subset_query_config(query_config);
-  //vector<int64_t> subset_rows = vector<int64_t>(1u, query_config.get_smallest_row_idx_in_array()); // REMOVE old
   subset_query_config.update_rows_to_query( { {query_config.get_smallest_row_idx_in_array(), query_config.get_smallest_row_idx_in_array()} } ); // only 1 row, row 0
   //Structure that helps merge multiple Calls into a single variant if the GA4GH specific merging
   //conditions are satisfied
@@ -703,9 +702,7 @@ void VariantQueryProcessor::gt_get_column_interval(
     //Used to store single call variants  - one variant per cell
     //Multiple variants could be merged later on
     Variant tmp_variant(&subset_query_config);
-    logger.error("REMOVE tmp_variant.get_num_calls() 1 before tmp_variant.resize_based_on_query() {}", tmp_variant.get_num_calls());
     tmp_variant.resize_based_on_query();
-    logger.error("REMOVE tmp_variant.get_num_calls() 1 {}", tmp_variant.get_num_calls());
 #if VERBOSE>0
     logger.info("[query_variants:gt_get_column_interval] Fetching columns from {} to {}", query_config.get_column_begin(column_interval_idx) + 1, query_config.get_column_end(column_interval_idx));
 #endif
@@ -738,9 +735,7 @@ void VariantQueryProcessor::gt_get_column_interval(
       if (query_config.is_queried_array_row_idx(curr_row_idx)) {    //If row is part of query, process cell
         //Create Variant with single Call (subset_query_config contains one row)
         subset_query_config.update_rows_to_query( { { curr_row_idx, curr_row_idx } } );
-        logger.error("REMOVE tmp_variant.get_num_calls() before tmp_variant.resize_based_on_query() {}", tmp_variant.get_num_calls());
         tmp_variant.resize_based_on_query();
-        logger.error("REMOVE tmp_variant.get_num_calls() {}", tmp_variant.get_num_calls());
         assert(tmp_variant.get_num_calls() == 1u);      //exactly 1 call
         tmp_variant.reset_for_new_interval();
         tmp_variant.get_call(0u).set_row_idx(curr_row_idx); //set row idx

@@ -389,8 +389,6 @@ void Variant::resize_based_on_query() {
   assert(m_query_config->is_bookkeeping_done());
   //Initialize VariantCall vector and pointer vector
   uint64_t num_rows = m_query_config->get_num_rows_to_query();
-  logger.error("REMOVE Variant::resize_based_on_query num_rows is {}", num_rows);
-  logger.error("REMOVE Variant::resize_based_on_query attributes {}", m_query_config->get_num_queried_attributes());
   resize(num_rows, m_query_config->get_num_queried_attributes());
   for (uint64_t i=0ull; i<num_rows; ++i) {
     uint64_t row_idx = m_query_config->get_array_row_idx_for_query_row_idx(i);

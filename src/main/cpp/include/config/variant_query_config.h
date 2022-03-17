@@ -27,7 +27,6 @@
 #include "lut.h"
 #include "known_field_info.h"
 #include "genomicsdb_config_base.h"
-#include "genomicsdb_logger.h" // REMOVE
 
 //Out of bounds query exception
 class OutOfBoundsQueryException : public std::exception {
@@ -82,7 +81,6 @@ class interval_expander {
       }
     };
     interval_expander(const std::vector<std::pair<int64_t, int64_t>>& vec = {}) {
-      logger.error("REMOVE interval_expander ctor with {} pairs", vec.size());
       update_rows(vec);
     }
 
@@ -139,9 +137,8 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   void clear() {
     m_query_attributes_info_vec.clear();
     m_query_attribute_name_to_query_idx.clear();
-    m_query_rows.clear(); // REMOVE updated
+    m_query_rows.clear();
     m_query_column_intervals.clear();
-    // m_array_row_idx_to_query_row_idx.clear(); // REMOVE old
   }
   /**
    * Function that specifies which attributes to query from each cell
@@ -292,7 +289,6 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
    * Function that specifies which rows to query
    */
   void set_rows_to_query(const std::vector<std::pair<int64_t, int64_t>>& rowIntervals) {
-    logger.error("REMOVE VariantQueryConfig::set_rows_to_query m_query_all_rows {} -> false", m_query_all_rows);
     m_query_rows.set_rows(rowIntervals);
     m_query_all_rows = false;
   }
@@ -309,21 +305,17 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
    * Used by QueryProcessor to set number of rows if all rows need to be queried.
    */
   void set_num_rows_in_array(uint64_t num_rows, const uint64_t smallest_row_idx) {
-    logger.error("REMOVE VariantQueryConfig::set_num_rows_in_array num rows {}, smallest {}", num_rows, smallest_row_idx);
     m_num_rows_in_array = num_rows;
     m_smallest_row_idx = smallest_row_idx;
     m_query_rows.clamp_low(m_smallest_row_idx);
     m_query_rows.clamp_high(m_num_rows_in_array - 1); // 0 based
   }
   /*
-   * Function that specifies which rows to query and also updates
-   * m_array_row_idx_to_query_row_idx // REMOVE comment
-   * Pre-requisite: query bookkeeping should be done before calling this function // REMOVE no longer true
+   * Function that specifies which rows to query (discards old rows)
    */
   void update_rows_to_query(const std::vector<std::pair<int64_t, int64_t>>& rowIntervals) { set_rows_to_query(rowIntervals); } // NOTE: interval_expander::update_rows retains old rows
   /*
    * Function that specifies all rows should be queried.
-   * m_array_row_idx_to_query_row_idx // REMOVE comment
    * Pre-requisite: query bookkeeping should be done before calling this function
    */
   void update_rows_to_query_to_all_rows();
@@ -335,13 +327,12 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   }
   /**
    * If all rows are queried, return m_num_rows_in_array (set by QueryProcessor)
-   * Else return size of m_query_rows vector // REMOVE comment
+   * Else return rows tracked by m_query_rows
    */
   inline uint64_t get_num_rows_to_query() const {
-    logger.error("REMOVE VariantQueryConfig::get_num_rows_to_query m_query_all_rows {}", m_query_all_rows);
-    /*Either query subset of rows (in m_query_rows) or set the variable m_num_rows_in_array correctly*/ // REMOVE comment
+    /*Either query subset of rows (in m_query_rows) or set the variable m_num_rows_in_array correctly*/
     assert(!m_query_all_rows || (m_num_rows_in_array != UNDEFINED_NUM_ROWS_VALUE));
-    return m_query_all_rows ? m_num_rows_in_array : m_query_rows.size(); // REMOVE updated
+    return m_query_all_rows ? m_num_rows_in_array : m_query_rows.size();
   }
   inline int64_t get_smallest_row_idx_in_array() const {
     return m_smallest_row_idx;
@@ -352,17 +343,16 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   }
   /**
    * If all rows are queried, return idx
-   * Else return m_query_rows[idx] // REMOVE comment
+   * Else return m_query_rows[idx]
    */
   inline int64_t get_array_row_idx_for_query_row_idx(uint64_t idx) const {
     assert(idx < get_num_rows_to_query());
-    return m_query_all_rows ? (idx+m_smallest_row_idx) : m_query_rows[idx]; // REMOVE updated
+    return m_query_all_rows ? (idx+m_smallest_row_idx) : m_query_rows[idx];
   }
   /*
-   * Index in m_query_rows for given array row idx // REMOVE comment
+   * Index in m_query_rows for given array row idx
    */
   inline uint64_t get_query_row_idx_for_array_row_idx(int64_t row_idx) const {
-    logger.error("REMOVE VariantQueryConfig::get_query_row_idx_for_array_row_idx {} m_query_all_rows is {}", row_idx, m_query_all_rows);
     if(m_query_all_rows) {
       auto retval = row_idx - m_smallest_row_idx;
       assert(retval >= 0 && retval < get_num_rows_to_query());
@@ -424,10 +414,6 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
    */
   void validate(const int rank=0);
  private:
-  /*
-   * Function to invalid TileDB array row idx -> query row idx mapping
-   * @param all_rows if true, invalidates all mappings, else invalidates mapping for rows in m_query_rows only // REMOVE comment
-   */
   std::vector<VariantQueryFieldInfo> m_query_attributes_info_vec;
   //Map from query name to index in m_query_attributes_info_vec
   std::unordered_map<std::string, unsigned> m_query_attribute_name_to_query_idx;
@@ -439,16 +425,12 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   QueryIdxToKnownVariantFieldsEnumLUT m_query_idx_known_variant_field_enum_LUT;
   /*Rows to query*/
   bool m_query_all_rows;
-  /*vector of specific row idxs to query*/
-  //std::vector<int64_t> m_query_rows; // REMOVE old
-  /*vector mapping array row_idx to query row idx*/
-  //std::vector<uint64_t> m_array_row_idx_to_query_row_idx; // REMOVE old
   /*Set by query processor*/
   uint64_t m_num_rows_in_array;
   int64_t m_smallest_row_idx;
   /*Column ranges to query*/
   std::vector<ColumnRange> m_query_column_intervals;
-  interval_expander m_query_rows; // REMOVE updated
+  interval_expander m_query_rows;
 };
 
 #endif
