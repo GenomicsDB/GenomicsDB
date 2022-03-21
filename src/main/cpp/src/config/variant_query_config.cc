@@ -194,7 +194,7 @@ void VariantQueryConfig::validate(const int rank) {
 
 void interval_expander::update_rows(const std::vector<std::pair<int64_t, int64_t>>& vec) {
   std::vector<interval> temp_intervals;
-  std::swap(temp_intervals, intervals);
+  std::swap(temp_intervals, m_intervals);
 
   for(auto& e : vec) {
     int64_t first = e.first, second = e.second;
@@ -223,18 +223,14 @@ void interval_expander::update_rows(const std::vector<std::pair<int64_t, int64_t
       if(current.intersects(ival)) {
         current = current + ival;
       } else {
-        intervals.push_back(current);
+        m_intervals.push_back(current);
         current = ival;
       }
     }
   }
   if(!current_empty) {
-    intervals.push_back(current);
+    m_intervals.push_back(current);
     current_empty = true;
-  }
-
-  for(auto& ival : intervals) {
-    std::cerr << ival.first << " -- " << ival.second << std::endl;
   }
 
   index();
@@ -246,50 +242,50 @@ void interval_expander::set_rows(const std::vector<std::pair<int64_t, int64_t>>&
 }
 
 void interval_expander::clamp_low(int64_t lo) {
-  intervals.erase(std::remove_if(intervals.begin(),
-                                 intervals.end(),
-                                 [lo](interval& ival) -> bool { return ival.second < lo; }),
-                  intervals.end());
-  if(!intervals.size()) {
+  m_intervals.erase(std::remove_if(m_intervals.begin(),
+                                   m_intervals.end(),
+                                   [lo](interval& ival) -> bool { return ival.second < lo; }),
+                    m_intervals.end());
+  if(!m_intervals.size()) {
     return;
   }
-  if(intervals[0].first < lo) { // only need to check first because intervals should be merged
-    intervals[0].first = lo;
+  if(m_intervals[0].first < lo) { // only need to check first because m_intervals should be merged
+    m_intervals[0].first = lo;
   }
 }
 
 void interval_expander::clamp_high(int64_t hi) {
-  intervals.erase(std::remove_if(intervals.begin(),
-                                 intervals.end(),
-                                 [hi](interval& ival) -> bool { return ival.first > hi; }),
-                  intervals.end());
-  if(!intervals.size()) {
+  m_intervals.erase(std::remove_if(m_intervals.begin(),
+                                   m_intervals.end(),
+                                   [hi](interval& ival) -> bool { return ival.first > hi; }),
+                    m_intervals.end());
+  if(!m_intervals.size()) {
     return;
   }
-  if(intervals.back().second > hi) { // only need to check last because intervals should be merged
-    intervals.back().second = hi;
+  if(m_intervals.back().second > hi) { // only need to check last because m_intervals should be merged
+    m_intervals.back().second = hi;
   }
 }
 
 void interval_expander::index() {
   int64_t total_size = 0;
-  for(auto& ival : intervals) {
+  for(auto& ival : m_intervals) {
     ival.total_size_before = total_size;
     total_size += ival.size();
   }
 }
 
 int64_t interval_expander::get_array_row_from_query_row(int64_t row) const {
-  auto it = std::upper_bound(intervals.begin(), intervals.end(), row, [] (int64_t l, const interval& r) { return l < r.size_inclusive(); });
-  assert(it != intervals.end());
+  auto it = std::upper_bound(m_intervals.begin(), m_intervals.end(), row, [] (int64_t l, const interval& r) { return l < r.size_inclusive(); });
+  assert(it != m_intervals.end());
   int64_t offset_in_interval = row - it->total_size_before;
   return it->first + offset_in_interval;
 }
 
 // check if array row is queried
 bool interval_expander::is_queried_row(int64_t row) const {
-  auto it = std::lower_bound(intervals.begin(), intervals.end(), row, [row] (const interval& l, int64_t r) { return l.second < row; });
-  return it != intervals.end() && it->first <= row;
+  auto it = std::lower_bound(m_intervals.begin(), m_intervals.end(), row, [row] (const interval& l, int64_t r) { return l.second < row; });
+  return it != m_intervals.end() && it->first <= row;
 }
 
 int64_t interval_expander::operator[](int64_t idx) const {
@@ -297,19 +293,19 @@ int64_t interval_expander::operator[](int64_t idx) const {
 }
 
 int64_t interval_expander::get_query_row_from_array_row(int64_t row) const {
-  auto it = std::lower_bound(intervals.begin(), intervals.end(), row, [row] (const interval& l, int64_t r) { return l.second < row; });
-  assert(it != intervals.end() && it->first <= row);
+  auto it = std::lower_bound(m_intervals.begin(), m_intervals.end(), row, [row] (const interval& l, int64_t r) { return l.second < row; });
+  assert(it != m_intervals.end() && it->first <= row);
   return it->total_size_before + (row - it->first);
 }
 
 
 void interval_expander::clear() {
-  intervals.clear();
+  m_intervals.clear();
 }
 
 int64_t interval_expander::size() const {
-  if(!intervals.size()) {
+  if(!m_intervals.size()) {
     return 0;
   }
-  return intervals.back().size_inclusive();
+  return m_intervals.back().size_inclusive();
 }

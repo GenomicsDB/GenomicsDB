@@ -92,7 +92,7 @@ class interval_expander {
     void clamp_low(int64_t lo);
     // makes sure all array rows to be queried are greater than or equal to hi
     void clamp_high(int64_t hi);
-    // sets total_size_before field of each interval in intervals
+    // sets total_size_before field of each interval in m_intervals
     void index();
     // check if array row is queried
     bool is_queried_row(int64_t row) const;
@@ -106,7 +106,7 @@ class interval_expander {
     int64_t size() const;
 
   private:
-    std::vector<interval> intervals;
+    std::vector<interval> m_intervals;
 };
 
 class VariantQueryConfig : public GenomicsDBConfigBase {
