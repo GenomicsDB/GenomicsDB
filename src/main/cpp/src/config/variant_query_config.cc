@@ -202,19 +202,13 @@ void interval_expander::update_rows(const std::vector<std::pair<int64_t, int64_t
     if(e.first <= e.second) {
       first = e.first;
       second = e.second;
-    }
-    else {
+    } else {
       first = e.second;
       second = e.first;
     }
 
-    // make sure interval is in bounds (on the left)
-    if(first < 0) {
-      first = 0;
-    }
-    if(second >= 0) {
-      temp_intervals.push_back(interval(first, second));
-    }
+    // all values allowed until clamp_low and clamp_high are called
+    temp_intervals.push_back(interval(first, second));
   }
   // sort by left of intervals
   std::sort(temp_intervals.begin(), temp_intervals.end());
@@ -225,12 +219,10 @@ void interval_expander::update_rows(const std::vector<std::pair<int64_t, int64_t
     if(current_empty) {
       current = ival;
       current_empty = false;
-    }
-    else {
+    } else {
       if(current.intersects(ival)) {
         current = current + ival;
-      }
-      else {
+      } else {
         intervals.push_back(current);
         current = ival;
       }
