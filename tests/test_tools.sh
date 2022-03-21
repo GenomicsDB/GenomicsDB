@@ -332,5 +332,23 @@ run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Br
 create_query_json $REFERENCE_GENOME
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF"
 
+# transcriptomics
+cd $VCFS_DIR/../transcriptomics
+~/GenomicsDB/build.debug/tools/vcf2genomicsdb_init -o -w auto_bed_workspace --transcriptomics --sample-list bed_list  --fai bed.fasta.fai &> $TEMP_DIR/output
+rm -f tiny.gi
+~/GenomicsDB/build.debug/tools/vcf2genomicsdb -t auto_bed_workspace/loader.json --gtf tiny.gtf --gi tiny.gi &> $TEMP_DIR/output
+~/GenomicsDB/build.debug/tools/gt_mpi_gather -j auto_bed_query.json --transcriptomics-query > test_output 2> $TEMP_DIR/output
+assert_true $(diff test_output reference_output) 0
+rm -rf auto_bed_workspace
+# transcriptomics with gi instead of gtf
+~/GenomicsDB/build.debug/tools/vcf2genomicsdb_init -o -w auto_bed_workspace --transcriptomics --sample-list bed_list  --fai bed.fasta.fai &> $TEMP_DIR/output
+~/GenomicsDB/build.debug/tools/vcf2genomicsdb -t auto_bed_workspace/loader.json --gi tiny.gi &> $TEMP_DIR/output
+~/GenomicsDB/build.debug/tools/gt_mpi_gather -j auto_bed_query.json --transcriptomics-query > test_output 2> $TEMP_DIR/output
+assert_true $(diff test_output reference_output) 0
+rm -rf auto_bed_workspace
+rm -f test_output
+rm -f tiny.gi
+cd -
+
 cleanup
 exit $STATUS

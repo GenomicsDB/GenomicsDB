@@ -1,0 +1,4 @@
+track name=example description="Sample1" useScore=1
+1	5	99	Line1	0.1
+1	105	199	Line2	0.7
+3	60	400	Line3	0.4

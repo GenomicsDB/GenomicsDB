@@ -94,8 +94,6 @@ SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& conf
   //m_vid_mapper.build_tiledb_array_schema(m_array_schema_ptr, array_name, false, TILEDB_NO_COMPRESSION, 0, true);
   m_array_schema = VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression_types, compression_levels);
 
-//=================================================================
-
   m_storage_manager = std::make_shared<VariantStorageManager>(workspace, m_segment_size, enable_shared_posixfs_optimizations());
   if (delete_and_create_tiledb_array()) {
     m_storage_manager->delete_array(array_name);
@@ -127,9 +125,6 @@ SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& conf
   m_storage_manager->update_row_bounds_in_array(m_array_descriptor, get_row_bounds().first, std::min(get_row_bounds().second, m_vid_mapper.get_max_callset_row_idx()));
   m_storage_manager->write_column_bounds_to_array(m_array_descriptor, get_column_partition(m_idx).first, get_column_partition(m_idx).second);
 
-
-//=================================================================
-
   // use gi file if exists, otherwise gtf/gff
   std::ifstream gi_file(gi_name);
   std::ifstream gtf_file(gtf_name);
@@ -159,37 +154,8 @@ SinglePosition2TileDBLoader::SinglePosition2TileDBLoader(const std::string& conf
     logger.error("No valid GTF/GFF or GI file specified, cannot import transcriptomics style data");
     exit(1);  
   }
-
-  /*size_t then = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-  read_uncompressed_gtf(gtf_file, type);
-  size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-
-  double time = double(now - then) / 1000;
-  std::cout << "Read uncompressed gtf took " << time << " s" << std::endl;
-
-  then = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-  std::ofstream serial_file;
-  serial_file.open("/nfs/home/andrei/benchmarking_requirements/serialized", std::ios::out | std::ios::binary);
-  serialize_transcript_map(serial_file);
-  now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-
-  time = double(now - then) / 1000;
-  std::cout << "serialize took " << time << " s" << std::endl;
-
-  serial_file.close();
-  transcript_map.clear();
-
-  then = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-  std::ifstream deserial_file;
-  deserial_file.open("/nfs/home/andrei/benchmarking_requirements/serialized", std::ios::in | std::ios::binary);
-  deserialize_transcript_map(deserial_file);
-  now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-
-  time = double(now - then) / 1000;
-  std::cout << "deserialize took " << time << " s" << std::endl;*/
 }
 
-// TODO: maybe also create end cell, add ability to specify here
 // assume valid input
 bool SinglePosition2TileDBLoader::info_to_cell(const transcriptomics_cell& tc) {
   int64_t start = tc.start, end = tc.end, row = tc.sample_idx, pos = tc.position;

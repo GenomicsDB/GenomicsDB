@@ -1,0 +1,9 @@
+{ "workspace" : "auto_bed_workspace",
+                           "array" : "1$1$249250621",
+                           "query_column_ranges" : [ [ [0, 50000000000 ] ] ],
+                           "query_row_ranges" : [ [ [0, 1000 ] ] ],
+                           "reference_genome": "../chr1_2_3_4_70Kb.fasta.gz",
+                           "vid_mapping_file" : "auto_bed_workspace/vidmap.json",
+                           "callset_mapping_file": "auto_bed_workspace/callset.json",
+                           "enable_shared_posixfs_optimizations": true,
+                           "query_attributes" : ["START", "END", "SCORE", "NAME", "GENE", "SAMPLE_NAME"] }
