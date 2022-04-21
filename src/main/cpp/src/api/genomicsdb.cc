@@ -300,6 +300,43 @@ std::vector<Variant>* GenomicsDB::query_variants(const std::string& array, Varia
   return pvariants;
 }
 
+void GenomicsDB::query_variants(const std::string& array, VariantQueryConfig* query_config, GenomicsDBVariantProcessor& proc) {
+#if(0)
+  auto query_timer = Timer();
+  query_timer.start();
+#endif
+
+  // Get a Variant Query Processor
+  VariantQueryProcessor *query_processor = new VariantQueryProcessor(
+      TO_VARIANT_STORAGE_MANAGER(m_storage_manager), array, query_config->get_vid_mapper());
+  query_processor->do_query_bookkeeping(query_processor->get_array_schema(),
+                                        *query_config, query_config->get_vid_mapper(), true);
+
+  // Perform Query over all the intervals
+  std::vector<Variant>* pvariants = new std::vector<Variant>;
+
+  for (auto i=0u; i<query_config->get_num_column_intervals(); i++) {
+    query_processor->gt_get_column_interval(query_processor->get_array_descriptor(),
+                                            *query_config, i, *pvariants);
+    proc.process(*pvariants);
+    pvariants->clear();
+  }
+
+#if(DEBUG)
+  //print_variants(*pvariants, "default", *query_config);
+#endif
+
+  delete query_processor;
+
+#if(0)
+  query_timer.stop();
+  query_timer.print();
+#endif
+
+  // TODO: Should not need this map, but required for associating variant field names with indices in Variant
+  m_query_configs_map.emplace(array, *query_config);
+}
+
 GenomicsDBVariantCalls GenomicsDB::query_variant_calls(const std::string& array,
                                                        genomicsdb_ranges_t column_ranges,
                                                        genomicsdb_ranges_t row_ranges) {
@@ -561,7 +598,7 @@ void GenomicsDB::generate_plink(const std::string& array,
                                 const std::string& output_prefix,
                                 const std::string& fam_list) {
 
-  GenomicsDBPlinkProcessor proc(query_config, format, compression, progress_interval, output_prefix, fam_list);
+  GenomicsDBPlinkProcessor proc(query_config, static_cast<VidMapper*>(m_vid_mapper), array, format, compression, progress_interval, output_prefix, fam_list);
   auto types = create_genomic_field_types(*query_config, m_annotation_service);
   auto it = types.find("ALT");
   if(it != types.end()) {
@@ -570,12 +607,21 @@ void GenomicsDB::generate_plink(const std::string& array,
 
   proc.initialize(types);
 
+  query_variants(array, query_config, proc);
+  proc.advance_state();
+  query_variants(array, query_config, proc);
+  proc.advance_state();
+
   VidMapper* vid_mapper = static_cast<VidMapper*>(m_vid_mapper);
 
   if(!vid_mapper) {
     logger.error("No valid VidMapper, PLINK generation cancelled");
   }
 
+  
+
+  GenomicsDBPlinkProcessor proc2(query_config, static_cast<VidMapper*>(m_vid_mapper), array, format, compression, progress_interval, "old_method", fam_list);
+  proc2.initialize(types);
   auto& variants = *query_variants(array, query_config);
   for(int8_t i = 0; i < 2; i++) {
     for(auto& v : variants) {
@@ -604,10 +650,10 @@ void GenomicsDB::generate_plink(const std::string& array,
           sample_name = "NONE";
         }
 
-        proc.process(sample_name, coords, genomic_interval, fields);
+        proc2.process(sample_name, coords, genomic_interval, fields);
       }
     }
-    proc.advance_state();
+    proc2.advance_state();
   }
 }
 
@@ -808,10 +854,54 @@ void GenomicsDBVariantCallProcessor::process(const interval_t& interval) {
   std::cout << "----------------\nInterval:[" << interval.first << "," << interval.second << "]\n\n";
 }
 
+void GenomicsDBVariantProcessor::process(const std::vector<Variant>& variants) {
+  for(const auto& variant : variants) {
+    process(variant);
+  }
+}
+
+void GenomicsDBPlinkProcessor::process(const Variant& variant) {
+  auto& calls = variant.get_calls();
+
+  for(auto& c : calls) {
+    auto fields = get_genomic_fields_for(array, &c, query_config);
+
+    int64_t coords[] = {(int64_t)c.get_row_idx(), (int64_t)c.get_column_begin()};
+    int64_t end_position = c.get_column_end();
+
+    std::string contig_name;
+    int64_t contig_position;
+    if (!vid_mapper->get_contig_location(coords[1], contig_name, contig_position)) {
+      std::cerr << "Could not find genomic interval associated with Variant(Call) at "
+        << coords[1] << std::endl;
+      continue;
+    }
+
+    contig_position++;
+    genomic_interval_t genomic_interval(std::move(contig_name),
+                                        std::make_pair(contig_position, contig_position+end_position-coords[1]));
+
+    std::string sample_name;
+    if (!vid_mapper->get_callset_name(coords[0], sample_name)) {
+      sample_name = "NONE";
+    }
+
+    std::cerr << "REMOVE new ";
+    process(sample_name, coords, genomic_interval, fields);
+  }
+}
+
 void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
                                        const int64_t* coords,
                                        const genomic_interval_t& genomic_interval,
                                        const std::vector<genomic_field_t>& genomic_fields) {
+  std::cerr << "REMOVE process " << sample_name << " {" << coords[0] << ", " << coords[1] << "}, interval " << genomic_interval.contig_name << ": " << genomic_interval.interval.first << ", " << genomic_interval.interval.second << ", num fields " << genomic_fields.size() << std::endl;
+  std::cerr << "\tREMOVE fields: ";
+  for(auto& f : genomic_fields) {
+    std::cerr << f.name << ": " << f.num_elements << ", ";
+  }
+  std::cerr << std::endl;
+
   static size_t tm = 0;
   auto progress_bar = [&] () {
     size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();

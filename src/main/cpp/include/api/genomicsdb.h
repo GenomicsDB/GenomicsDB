@@ -271,10 +271,42 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
   std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
 };
 
-class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallProcessor {
+class Variant;
+
+class GENOMICSDB_EXPORT GenomicsDBVariantProcessor {
+ public:
+  GenomicsDBVariantProcessor() {};
+  void initialize(std::map<std::string, genomic_field_type_t> genomic_field_types) {
+     m_genomic_field_types = std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types));
+  }
+  const std::shared_ptr<std::map<std::string, genomic_field_type_t>> get_genomic_field_types() const {
+    return m_genomic_field_types;
+  }
+  const genomic_field_type_t get_genomic_field_type(const std::string& name) const {
+    if (m_genomic_field_types->find(name) != m_genomic_field_types->end()) {
+      return m_genomic_field_types->at(name);
+    } else {
+      throw GenomicsDBException("Genomic Field="+name+" does not seem to have an associated type");
+    }
+  }
+  virtual void process(const Variant& variant) = 0;
+  virtual void process(const std::vector<Variant>& variants);
+ private:
+  std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
+};
+
+class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProcessor {
   public:
     // the formats variable encodes which formats to produce by the values of specific bits: 0 - bgen, 1 - bed, 2 - tped, e.g. formats == 0b110 encodes bed and tped
-    GenomicsDBPlinkProcessor(VariantQueryConfig* qc, unsigned char formats = 7, int compression = 1, double progress_interval = -1, std::string prefix = "output", std::string fam_list = "") : query_config(qc), compression(compression), progress_interval(progress_interval), prefix(prefix), fam_list(fam_list) {
+    GenomicsDBPlinkProcessor(VariantQueryConfig* qc,
+                             VidMapper* vid_mapper,
+                             const std::string& array,
+                             unsigned char formats = 7,
+                             int compression = 1,
+                             double progress_interval = -1,
+                             std::string prefix = "output",
+                             std::string fam_list = ""
+                            ) : query_config(qc), vid_mapper(vid_mapper), array(array), compression(compression), progress_interval(progress_interval), prefix(prefix), fam_list(fam_list) {
       make_bgen = (bool)(formats & 1);
       make_bed = (bool)(formats & 2);
       make_tped = (bool)(formats & 4);
@@ -343,8 +375,11 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
                          const int64_t* coordinates,
                          const genomic_interval_t& genomic_interval,
                          const std::vector<genomic_field_t>& genomic_fields);
+    virtual void process(const Variant& variant) override;
     void advance_state();
   //private:
+    const std::string& array;
+    VidMapper* vid_mapper;
     bool make_bgen, make_tped, make_bed;
     int compression = 0; // 0 for none, 1 for zlib, 2 for zstd
     // flattened coordinate to place in sorted map, phased status of column for bgen purposes (entire column considered unphased if any are unphased)
@@ -459,6 +494,8 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
 
       size_t uncompressed_size = codec_buf.size(), data_size = codec_buf.size();
 
+      std::cout << "\tREMOVE finish_gt uncompressed_size " << uncompressed_size << std::endl;
+
       if(compression) {
         char* data;
         TileDBUtils::compress(codec, (unsigned char*)codec_buf.c_str(), codec_buf.length(), (void**)&data, data_size);
@@ -466,10 +503,12 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantCallP
         bgen_file.write((char*)&total_size, 4); // BGEN: size of previous gt probability data plus D field
         bgen_file.write((char*)&uncompressed_size, 4);
         bgen_file.write(data, data_size);
+        std::cout << "\tREMOVE finish_gt data_size " << data_size << std::endl;
       }
       else {
         bgen_file.write((char*)&uncompressed_size, 4); // BGEN: size of previous gt probability data plus D field
         bgen_file.write(codec_buf.c_str(), codec_buf.length());
+        std::cout << "\tREMOVE no compression" << std::endl;
       }
 
       codec_buf.clear();
@@ -633,6 +672,9 @@ class GenomicsDB {
  private:
   std::vector<Variant>*  query_variants(const std::string& array,
                                         VariantQueryConfig *query_config);
+  void query_variants(const std::string& array,
+                      VariantQueryConfig* query_config,
+                      GenomicsDBVariantProcessor& proc);
   std::vector<VariantCall>* query_variant_calls(const std::string& array,
                                                 VariantQueryConfig *query_config,
                                                 GenomicsDBVariantCallProcessor& processor);
