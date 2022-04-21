@@ -617,44 +617,6 @@ void GenomicsDB::generate_plink(const std::string& array,
   if(!vid_mapper) {
     logger.error("No valid VidMapper, PLINK generation cancelled");
   }
-
-  
-
-  GenomicsDBPlinkProcessor proc2(query_config, static_cast<VidMapper*>(m_vid_mapper), array, format, compression, progress_interval, "old_method", fam_list);
-  proc2.initialize(types);
-  auto& variants = *query_variants(array, query_config);
-  for(int8_t i = 0; i < 2; i++) {
-    for(auto& v : variants) {
-      auto& cs = v.get_calls();
-
-      for(auto& c : cs) {
-        auto fields = get_genomic_fields_for(array, &c, query_config);
-        
-        int64_t coords[] = {(int64_t)c.get_row_idx(), (int64_t)c.get_column_begin()};
-        int64_t end_position = c.get_column_end();
-
-        std::string contig_name;
-        int64_t contig_position;
-        if (!vid_mapper->get_contig_location(coords[1], contig_name, contig_position)) {
-          std::cerr << "Could not find genomic interval associated with Variant(Call) at "
-                    << coords[1] << std::endl;
-          continue;
-        }
-
-        contig_position++;
-        genomic_interval_t genomic_interval(std::move(contig_name),
-                                            std::make_pair(contig_position, contig_position+end_position-coords[1]));
-
-        std::string sample_name;
-        if (!vid_mapper->get_callset_name(coords[0], sample_name)) {
-          sample_name = "NONE";
-        }
-
-        proc2.process(sample_name, coords, genomic_interval, fields);
-      }
-    }
-    proc2.advance_state();
-  }
 }
 
 // Template to get the mapped interval from the GenomicsDB array for the Variant(Call)
@@ -886,7 +848,6 @@ void GenomicsDBPlinkProcessor::process(const Variant& variant) {
       sample_name = "NONE";
     }
 
-    std::cerr << "REMOVE new ";
     process(sample_name, coords, genomic_interval, fields);
   }
 }
@@ -895,13 +856,6 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
                                        const int64_t* coords,
                                        const genomic_interval_t& genomic_interval,
                                        const std::vector<genomic_field_t>& genomic_fields) {
-  std::cerr << "REMOVE process " << sample_name << " {" << coords[0] << ", " << coords[1] << "}, interval " << genomic_interval.contig_name << ": " << genomic_interval.interval.first << ", " << genomic_interval.interval.second << ", num fields " << genomic_fields.size() << std::endl;
-  std::cerr << "\tREMOVE fields: ";
-  for(auto& f : genomic_fields) {
-    std::cerr << f.name << ": " << f.num_elements << ", ";
-  }
-  std::cerr << std::endl;
-
   static size_t tm = 0;
   auto progress_bar = [&] () {
     size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();

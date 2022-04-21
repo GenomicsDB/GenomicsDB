@@ -494,8 +494,6 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
 
       size_t uncompressed_size = codec_buf.size(), data_size = codec_buf.size();
 
-      std::cout << "\tREMOVE finish_gt uncompressed_size " << uncompressed_size << std::endl;
-
       if(compression) {
         char* data;
         TileDBUtils::compress(codec, (unsigned char*)codec_buf.c_str(), codec_buf.length(), (void**)&data, data_size);
@@ -503,12 +501,10 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
         bgen_file.write((char*)&total_size, 4); // BGEN: size of previous gt probability data plus D field
         bgen_file.write((char*)&uncompressed_size, 4);
         bgen_file.write(data, data_size);
-        std::cout << "\tREMOVE finish_gt data_size " << data_size << std::endl;
       }
       else {
         bgen_file.write((char*)&uncompressed_size, 4); // BGEN: size of previous gt probability data plus D field
         bgen_file.write(codec_buf.c_str(), codec_buf.length());
-        std::cout << "\tREMOVE no compression" << std::endl;
       }
 
       codec_buf.clear();
