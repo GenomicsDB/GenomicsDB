@@ -423,7 +423,7 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
     // BGEN variables
     char min_ploidy, max_ploidy;
     int32_t bgen_gt_size;
-    int samples_in_column = 0;
+    uint32_t samples_in_column = 0;
     void *codec;
     std::string codec_buf;
 
@@ -441,7 +441,7 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
     }
 
     // get_probabilitiles expects allele counts
-    void bgen_enumerate_unphased(int ploidy, int alleles, std::function<void(const std::vector<int>&, int)> callback, bool drop_last = true) {
+    void bgen_enumerate_unphased(int ploidy, int alleles, std::function<void(const std::vector<int>&, size_t)> callback, bool drop_last = true) {
       int size = 0;
       int ind = -1;
       std::vector<int> allele_counts(alleles);
@@ -458,7 +458,7 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
         else {
           allele_counts[depth] = ploidy - used;
           ++ind;
-          callback(allele_counts, ind);
+          callback(allele_counts, (size_t)ind);
         }
       };
 

@@ -1217,12 +1217,12 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
       }
     }
 
-    auto write_phased_probability = [&] (const std::vector<int>& v, int ind) {
+    auto write_phased_probability = [&] (const std::vector<int>& v, size_t ind) {
       char p = gt_vec[v[0]] == v[1] ? -1 : 0;
       codec_buf.push_back(p);
     };
 
-    auto write_unphased_probability = [&] (const std::vector<int>& v, int ind) {
+    auto write_unphased_probability = [&] (const std::vector<int>& v, size_t ind) {
       char p;
 
       if(!probs.size()) {

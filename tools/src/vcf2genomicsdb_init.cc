@@ -725,7 +725,7 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
     progress_update_size = std::atol(progress_update_sample_size);
   }
   for (auto sample_uri: samples) {
-    if (samples_size > progress_update_size) {
+    if (samples_size > (unsigned long)progress_update_size) {
       if ((processed_samples%progress_update_size) == 0) {
         g_logger.info("  Processing {}/{}", processed_samples, samples_size);
       }

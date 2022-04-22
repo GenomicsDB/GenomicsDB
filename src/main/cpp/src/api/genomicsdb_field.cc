@@ -43,7 +43,7 @@ std::string genomic_field_t::recombine_ALT_value(const genomic_field_type_t& fie
   std::string output;
   std::string item;
   if(field_type.is_cppstring()) {
-    for(int i = 0; i < num_elements; i++) {
+    for(unsigned int i = 0; i < num_elements; i++) {
       item = cpp_str_value_at(i);
       if (IS_NON_REF_ALLELE(item)) {
         output.empty()?output=NON_REF:output=output+separator+NON_REF;
