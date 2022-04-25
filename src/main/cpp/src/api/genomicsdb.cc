@@ -597,6 +597,10 @@ void GenomicsDB::generate_plink(const std::string& array,
                                 double progress_interval,
                                 const std::string& output_prefix,
                                 const std::string& fam_list) {
+  if(!vid_mapper) {
+    logger.error("No valid VidMapper, PLINK generation cancelled");
+    return;
+  }
 
   GenomicsDBPlinkProcessor proc(query_config, static_cast<VidMapper*>(m_vid_mapper), array, format, compression, progress_interval, output_prefix, fam_list);
   auto types = create_genomic_field_types(*query_config, m_annotation_service);
@@ -613,10 +617,6 @@ void GenomicsDB::generate_plink(const std::string& array,
   proc.advance_state();
 
   VidMapper* vid_mapper = static_cast<VidMapper*>(m_vid_mapper);
-
-  if(!vid_mapper) {
-    logger.error("No valid VidMapper, PLINK generation cancelled");
-  }
 }
 
 // Template to get the mapped interval from the GenomicsDB array for the Variant(Call)
