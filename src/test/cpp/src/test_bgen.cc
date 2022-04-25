@@ -30,12 +30,32 @@ TEST_CASE("test bgen", "[bgen]") {
                  query_config.get_callset_mapping_file(),
                  query_config.get_vid_mapping_file(),
                  query_config.get_reference_genome());
-  gdb.generate_plink(array_name, &query_config, 1, 1);
+  gdb.generate_plink(array_name, &query_config, 7, 1);
 
   std::string cmd = "diff output.bgen " + ctests_input_dir + "/bgen/output_1.bgen > /dev/null";
   int status = system(cmd.c_str());
   if(WEXITSTATUS(status)) {
     throw std::runtime_error("first BGEN test output did not match reference output");
+  }
+  cmd = "diff output.bed " + ctests_input_dir + "/bgen/output_1.bed > /dev/null"; // compare beds
+  status = system(cmd.c_str());
+  if(WEXITSTATUS(status)) {
+    throw std::runtime_error("first BED test output did not match reference output");
+  }
+  cmd = "diff output.bim " + ctests_input_dir + "/bgen/output_1.bim > /dev/null"; // compare bim
+  status = system(cmd.c_str());
+  if(WEXITSTATUS(status)) {
+    throw std::runtime_error("first BIM test output did not match reference output");
+  }
+  cmd = "diff output.fam " + ctests_input_dir + "/bgen/output_1.fam > /dev/null"; // compare fams
+  status = system(cmd.c_str());
+  if(WEXITSTATUS(status)) {
+    throw std::runtime_error("first FAM test output did not match reference output");
+  }
+  cmd = "diff output.tped " + ctests_input_dir + "/bgen/output_1.tped > /dev/null"; // compare beds
+  status = system(cmd.c_str());
+  if(WEXITSTATUS(status)) {
+    throw std::runtime_error("first tped test output did not match reference output");
   }
 
   // test 2 (min_PL_spanning_deletion)
