@@ -597,7 +597,7 @@ void GenomicsDB::generate_plink(const std::string& array,
                                 double progress_interval,
                                 const std::string& output_prefix,
                                 const std::string& fam_list) {
-  if(!vid_mapper) {
+  if(!m_vid_mapper) {
     logger.error("No valid VidMapper, PLINK generation cancelled");
     return;
   }
