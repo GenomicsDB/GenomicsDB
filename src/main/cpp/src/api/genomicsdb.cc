@@ -1237,7 +1237,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
           p = probs[ind];
         }
         else {
-          logger.error("BGEN generation error: GL/PL probabilies don't have enough terms, halting BGEN generation");
+          logger.error("BGEN generation error: GL/PL probabilies only have {} term(s), halting BGEN generation", probs.size());
           make_bgen = 0; // FIXME inelegant. Detect and use default
         }
       }
