@@ -692,21 +692,6 @@ std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, co
     if (field && field->is_valid()) {
       std::string name = get_query_attribute_name(variant_or_variant_call, query_config, index);
       void* ptr = const_cast<void *>(field->get_raw_pointer());
-      /*if (name.compare("ALT") == 0) {
-        void *p;
-        unsigned size;
-        bool allocated;
-        std::type_index type_idx= field->get_C_pointers(size, &p, allocated);
-        if (allocated) {
-          if (type_idx == std::type_index(typeid(int))) {
-            ptr = *(reinterpret_cast<int **>(p));
-          } else if (type_idx == std::type_index(typeid(float))) {
-            ptr = *(reinterpret_cast<float **>(p));
-          } else  if (type_idx == std::type_index(typeid(char))) {
-            ptr = *(reinterpret_cast<char **>(p));
-          }
-        }
-      }*/
       genomic_field_t field_vec(name,
                                 ptr,
                                 field->length());
@@ -825,6 +810,23 @@ void GenomicsDBVariantProcessor::process(const std::vector<Variant>& variants) {
 void GenomicsDBPlinkProcessor::process(const Variant& variant) {
   auto& calls = variant.get_calls();
 
+  bool phased = true;
+  std::string gt_string;
+
+  for(auto& c : calls) {
+    auto fields = get_genomic_fields_for(array, &c, query_config);
+    
+    for(auto& f : fields) {
+      if(f.name == "GT") {
+        gt_string = f.to_string(get_genomic_field_type(f.name));
+        if(gt_string.find('/') != std::string::npos && gt_string.find('.') == std::string::npos) { // unphased if contains a slash but is not ./.
+          phased = false;
+        }
+        break;
+      }
+    }
+  }
+
   for(auto& c : calls) {
     auto fields = get_genomic_fields_for(array, &c, query_config);
 
@@ -848,14 +850,16 @@ void GenomicsDBPlinkProcessor::process(const Variant& variant) {
       sample_name = "NONE";
     }
 
-    process(sample_name, coords, genomic_interval, fields);
+    process(sample_name, coords, genomic_interval, fields, phased);
   }
 }
 
 void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
                                        const int64_t* coords,
                                        const genomic_interval_t& genomic_interval,
-                                       const std::vector<genomic_field_t>& genomic_fields) {
+                                       const std::vector<genomic_field_t>& genomic_fields,
+                                       const bool phased) {
+  last_phased = phased;
   static size_t tm = 0;
   auto progress_bar = [&] () {
     size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -944,17 +948,17 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
 
   std::vector<int> gt_vec;
   auto iter = gt_string.begin();
-  bool sample_phased = false;
+  //bool sample_phased = false;
  
-  bool new_col = (last_coord != coords[1] || last_sample == -1);
+  //bool new_col = (last_coord != coords[1] || last_sample == -1);
 
   // parse GT
   try {
     while((iter = find_if(gt_string.begin(), gt_string.end(), [] (char c) { return c == '|' || c == '/'; })) != gt_string.end()) {
       index = iter - gt_string.begin();
-      if(*iter == '|') {
+      /*if(*iter == '|') {
         sample_phased = true;
-      }
+      }*/
       gt_vec.push_back(std::stoi(gt_string.substr(0, index)));
       gt_string.erase(0, index + 1);
     }
@@ -965,13 +969,17 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
   }
 
   if(!state) {
+    if(last_coord != coords[1]) { // first in variant
+      num_variants++;
+    }
+
     sample_map.insert(std::make_pair(coords[0], std::make_pair(-1, sample_name)));
-    if(!variant_map.count(coords[1])) {
+    /*if(!variant_map.count(coords[1])) {
       variant_map.insert(std::make_pair(coords[1], std::make_pair(-1, sample_phased)));
     }
     else {
       variant_map[coords[1]].second = variant_map[coords[1]].second & sample_phased;
-    }
+    }*/
     last_coord = coords[1];
     return;
   }
@@ -999,13 +1007,14 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     rsid_row = genomic_interval.contig_name + " " + rsid + " 0 " + std::to_string(genomic_interval.interval.first);
 
     int sind = sample_map[coords[0]].first;
-    int vind = variant_map[coords[1]].first;
+    //int vind = variant_map[coords[1]].first;
 
     // backfill if needed
-    int add_to_prev = (vind - last_variant) ? sample_map.size() - (last_sample + 1) : 0;
-    int add_to_current = (vind - last_variant) ? sind : sind - (last_sample + 1);
+    bool backfill = coords[1] - last_coord && last_coord != -1;
+    int add_to_prev = backfill ? sample_map.size() - (last_sample + 1) : 0;
+    int add_to_current = backfill ? sind : sind - (last_sample + 1);
 
-    if(new_col) {
+    if(last_coord != coords[1]) {
       for(int i = 0; i < add_to_prev; i++) { // backfill samples missing from previous variant
         if(make_tped) {
           tped_file << " 0 0";
@@ -1013,8 +1022,10 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
         if(make_bed) {
           write_to_bed(1);
         }
-        // BGEN: backfill probability data
-        bgen_empty_cell(2, last_alleles, variant_map[coords[1]].second);
+        if(make_bgen) {
+          // BGEN: backfill probability data
+          bgen_empty_cell(2, last_alleles, phased);
+        }
       }
       if(make_bed) {
         flush_to_bed();
@@ -1082,7 +1093,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
         for(int j = 0; j < N; j++) {
           codec_buf.append(&default_sample_info, 1); // BGEN: default sample information within this variant: because missing is set to 1, no need to backfill skipped cells
         }
-        codec_buf.append((char*)&variant_map[coords[1]].second, 1); // BGEN: 1 byte phased
+        codec_buf.append((char*)&phased, 1); // BGEN: 1 byte phased
         char B = 8; // precision at one byte to avoid alignment difficulties
         codec_buf.append(&B, 1); // BGEN: 1 byte unsigned bits of precision
         bgen_probability_offset = bgen_file.tellp();
@@ -1103,7 +1114,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
 
       if(make_bgen) {
         // BGEN: backfill probability data
-        bgen_empty_cell(2, vec.size(), variant_map[coords[1]].second);
+        bgen_empty_cell(2, vec.size(), phased);
       }
     }
 
@@ -1126,7 +1137,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     }
 
     if(make_bed) {
-      if(new_col) {
+      if(last_coord != coords[1]) {
         bim_file << rsid_row;
         bim_file << " " << vec[0] << " " << vec[1] << std::endl;
       }
@@ -1138,7 +1149,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     }
 
     last_sample = sample_map[coords[0]].first;
-    last_variant = vind;
+    //last_variant = vind;
     last_coord = coords[1];
 
     // convert PL to BGEN format
@@ -1252,7 +1263,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
         char p = ploidy;
         codec_buf[8 + sample_map[coords[0]].first] = p;
 
-        if(variant_map[coords[1]].second) { // phased
+        if(phased) { // phased
           bgen_enumerate_phased(ploidy, vec.size(), write_phased_probability);
         }
          else { // unphased
@@ -1278,12 +1289,12 @@ void GenomicsDBPlinkProcessor::advance_state() {
     }
     // associate variants with sorted position
     i = -1;
-    for(auto& b : variant_map) {
+    /*for(auto& b : variant_map) {
       ++i;
       b.second.first = (uint64_t)i;
-    }
+    }*/
     last_sample = -1;
-    last_variant = 0;
+    //last_variant = 0;
     last_coord = -1;
   
     if(make_bed || make_tped) {
@@ -1318,7 +1329,8 @@ void GenomicsDBPlinkProcessor::advance_state() {
     if(make_bgen) {
       // BGEN: fill in M, N in header
       bgen_file.seekp(8);
-      int32_t M = variant_map.size();
+      //int32_t M = variant_map.size();
+      int32_t M = num_variants;
       int32_t N = sample_map.size();
       bgen_file.write((char*)&M, 4); // BGEN: 4 byte M
       bgen_file.write((char*)&N, 4); // BGEN: 4 byte N
@@ -1362,7 +1374,7 @@ void GenomicsDBPlinkProcessor::advance_state() {
       }
       if(make_bgen) {
         // BGEN: backfill last variant
-        bgen_empty_cell(2, last_alleles, variant_map[last_coord].second);
+        bgen_empty_cell(2, last_alleles, last_phased);
       }
     }
     if(make_bed) {

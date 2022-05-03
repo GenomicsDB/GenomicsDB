@@ -374,7 +374,8 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
     virtual void process(const std::string& sample_name,
                          const int64_t* coordinates,
                          const genomic_interval_t& genomic_interval,
-                         const std::vector<genomic_field_t>& genomic_fields);
+                         const std::vector<genomic_field_t>& genomic_fields,
+                         const bool phased);
     virtual void process(const Variant& variant) override;
     void advance_state();
   //private:
@@ -395,9 +396,11 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
     int temp_file_line = 0;
     int state = 0;
     int last_sample = -1;
-    int last_variant = 0;
+    //int last_variant = 0;
+    int num_variants = 0;
     int last_coord = -1;
     int last_alleles = -1;
+    bool last_phased;
     int rank;
     int total_rows = 0;
     int total_cols = 0;
