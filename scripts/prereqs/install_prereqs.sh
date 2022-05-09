@@ -59,7 +59,7 @@ fi
 ################################# Should not have to change anything below ############################
 
 CENTOS_VERSION=0
-PARENT_DIR="$(dirname $(python -c "import os; import sys; print(os.path.realpath(sys.argv[1]))" $0))"
+PARENT_DIR="$(dirname $0)"
 
 # $1 - path variable name
 # $2 - path variable value
@@ -216,14 +216,18 @@ install_os_prerequisites() {
   case `uname` in
     Linux )
       if apt-get --version >/dev/null 2>&1; then
-        source system/install_ubuntu_prereqs.sh
+        source $PARENT_DIR/system/install_ubuntu_prereqs.sh
       else
-        source system/install_centos_prereqs.sh
+        source $PARENT_DIR/system/install_centos_prereqs.sh
       fi
-      install_system_prerequisites
+      if [[ $1 == "base" ]]; then
+        install_nobuild_prerequisites
+      else 
+        install_system_prerequisites
+      fi
       ;;
     Darwin )
-      system/install_macos_prereqs.sh
+      $PARENT_DIR/system/install_macos_prereqs.sh
       ;;
     * )
       echo "OS=`uname` not supported"
@@ -232,10 +236,11 @@ install_os_prerequisites() {
 }
 
 install_prerequisites() {
-  PREREQS_ENV=$PREREQS_ENV install_os_prerequisites && echo "Install OS prerequistes successful" &&
-    source $PREREQS_ENV &&
+  PREREQS_ENV=$PREREQS_ENV install_os_prerequisites $2 && echo "Install OS prerequistes successful" &&
+    source $PREREQS_ENV
+  if [[ $2 == "full" ]]; then
     install_mvn
-  #    install_protobuf
+  fi
 }
 
 finalize() {
@@ -257,7 +262,7 @@ if [[ $BUILD_DISTRIBUTABLE_LIBRARY == false && $CENTOS_VERSION -eq 6 ]]; then
 fi
 
 RC=1
-install_prerequisites $2 &&
+install_prerequisites $2 $3 &&
   if [[ $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
     echo "Installing static libraries"
     install_openssl &&

@@ -38,8 +38,8 @@ GENOMICSDB_USER_DIR=`eval echo ~$GENOMICSDB_USER`
 GENOMICSDB_DIR=$GENOMICSDB_USER_DIR/GenomicsDB
 echo GENOMICSDB_DIR=$GENOMICSDB_DIR
 
-CMAKE=`which cmake3`
-if [[ -z $CMAKE ]]; then
+CMAKE=`cmake3 --version`
+if [[ $? != 0 ]]; then
   echo "cmake3 not found. Cannot continue"
   exit 1
 fi
@@ -65,10 +65,14 @@ repair_htslib() {
 }
 
 build_genomicsdb() {
-	. /etc/profile &&
-	git clone https://github.com/GenomicsDB/GenomicsDB -b ${GENOMICSDB_BRANCH} $GENOMICSDB_DIR &&
-	pushd $GENOMICSDB_DIR &&
-	git submodule update --recursive --init &&
+	. /etc/profile
+	git_repo_check = $(git rev-parse --is-inside-work-tree)
+	git_repo_name = $(git config --get remote.origin.url)
+	if [[ $git_repo_check != "true" || $git_repo_name != "https://github.com/GenomicsDB/GenomicsDB.git" ]]; then
+	  git clone https://github.com/GenomicsDB/GenomicsDB -b ${GENOMICSDB_BRANCH} $GENOMICSDB_DIR &&
+	  pushd $GENOMICSDB_DIR &&
+	  git submodule update --recursive --init
+	fi
 	repair_htslib &&
 	echo "Building GenomicsDB" &&
 	mkdir build &&

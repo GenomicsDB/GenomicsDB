@@ -23,27 +23,31 @@
 # OS currently tested are ubuntu and centos
 #ARG os=ubuntu:trusty
 ARG os=centos:7
-FROM $os
+FROM $os as full
 
 ARG branch=master
-ARG user=genomicsdb
+ARG appuser=genomicsdb
 ARG install_dir=/usr/local
 ARG distributable_jar=false
 # Options to enable_bindings are only java for now
 # e.g. enable_bindings="java"
 ARG enable_bindings=""
 
-COPY prereqs /build
-WORKDIR /build
-RUN ./install_prereqs.sh ${distributable_jar} ${enable_bindings}
-
-RUN groupadd -r genomicsdb && useradd -r -g genomicsdb -m ${user} -p ${user}
-
-COPY install_genomicsdb.sh /build
-WORKDIR /build
+COPY . /build/GenomicsDB/
 ENV DOCKER_BUILD=true
-RUN ./install_genomicsdb.sh ${user} ${branch} ${install_dir} ${distributable_jar} ${enable_bindings}
+WORKDIR /build/GenomicsDB
+RUN ./scripts/prereqs/install_prereqs.sh ${distributable_jar} ${enable_bindings} full &&\
+     groupadd -r genomicsdb && useradd -r -g genomicsdb -m ${appuser} -p ${appuser} &&\
+    ./scripts/install_genomicsdb.sh ${appuser} ${branch} ${install_dir} ${distributable_jar} ${enable_bindings}
 
-USER ${user}
-WORKDIR /home/${user}
+FROM $os as base
+COPY ./scripts/prereqs /build
+WORKDIR /build
+RUN ./install_prereqs.sh ${distributable_jar} ${enable_bindings} base &&\
+     groupadd -r genomicsdb && useradd -r -g genomicsdb -m ${appuser} -p ${appuser}
+
+COPY --from=full /usr/local/*genomicsdb* /usr/local/gt_mpi_gather /usr/local/vcf* /usr/local/bin/
+
+USER ${appuser}
+WORKDIR /home/${appuser}
 ENTRYPOINT ["/bin/bash", "--login"]

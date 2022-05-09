@@ -33,11 +33,11 @@ install_jdk8() {
     JDK_VERSION=$($JAVAC -version 2>&1 | awk '/version/{print $2}')
   fi
   if [[ -z $JDK_VERSION || $JDK_VERSION < "1.8" ]]; then
-    apt-get -y install openjdk-8-jdk icedtea-plugin &&
+    apt-get -y install default-jdk &&
       apt-get update -q &&
       pushd $HOME &&
       git clone https://github.com/michaelklishin/jdk_switcher.git &&
-      source jdk_switcher/jdk_switcher.sh && jdk_switcher use openjdk8 &&
+      source jdk_switcher/jdk_switcher.sh && jdk_switcher use openjdk11 &&
       echo "export JAVA_HOME=$JAVA_HOME" >> $PREREQS_ENV &&
       popd
   fi
@@ -119,6 +119,22 @@ install_system_prerequisites() {
     install_jdk8 &&
     install_cmake3 &&
     install_R &&
+    apt-get clean &&
+    apt-get purge -y &&
+    rm -rf /var/lib/apt/lists*
+}
+
+install_nobuild_prerequisites() {
+    apt-get update -q &&
+    mkdir -p /usr/share/man/man7 && mkdir -p /usr/share/man/man1 &&
+    apt-get -y install --no-install-recommends \
+                                    zlib1g-dev \
+                                    libbz2-dev \
+                                    libssl-dev \
+                                    libgomp1 \
+                                    mpich \
+                                    zstd \
+                                    libcurl4-openssl-dev &&
     apt-get clean &&
     apt-get purge -y &&
     rm -rf /var/lib/apt/lists*
