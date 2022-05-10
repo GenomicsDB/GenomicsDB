@@ -216,6 +216,7 @@ install_os_prerequisites() {
   case `uname` in
     Linux )
       if apt-get --version >/dev/null 2>&1; then
+        export DEBIAN_FRONTEND=noninteractive
         source $PARENT_DIR/system/install_ubuntu_prereqs.sh
       else
         source $PARENT_DIR/system/install_centos_prereqs.sh
@@ -262,7 +263,6 @@ if [[ $BUILD_DISTRIBUTABLE_LIBRARY == false && $CENTOS_VERSION -eq 6 ]]; then
 fi
 
 RC=1
-export DEBIAN_FRONTEND=noninteractive
 install_prerequisites $2 $3 &&
   if [[ $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
     echo "Installing static libraries"

@@ -7,7 +7,10 @@ on:
     paths-ignore:
       - '**/*.md'
       - '**/*.rst'
-    #branches: ['release', 'develop']
+    branches:
+      - develop
+    tags:
+      - v*
 
 env:
   REGISTRY: ghcr.io

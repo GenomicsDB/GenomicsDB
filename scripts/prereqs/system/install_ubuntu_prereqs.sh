@@ -32,8 +32,8 @@ install_jdk11() {
   if [[ ! -z $JAVAC ]]; then
     JDK_VERSION=$($JAVAC -version 2>&1 | awk '/version/{print $2}')
   fi
-  if [[ -z $JDK_VERSION || $JDK_VERSION < "1.8" ]]; then
-    apt-get -y install openjdk-11-jdk # &&
+  if [[ -z $JDK_VERSION || $JDK_VERSION < "1.11" ]]; then
+    apt-get -y install openjdk-11-jdk
   fi
 }
 
