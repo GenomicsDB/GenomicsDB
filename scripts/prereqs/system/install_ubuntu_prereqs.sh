@@ -23,7 +23,7 @@
 
 set -e
 
-install_jdk8() {
+install_jdk11() {
   if type -p javac; then
     JAVAC=java
   elif [[ -n $JAVA_HOME ]] && [[ -x $JAVA_HOME/bin/javac ]];  then
@@ -33,13 +33,7 @@ install_jdk8() {
     JDK_VERSION=$($JAVAC -version 2>&1 | awk '/version/{print $2}')
   fi
   if [[ -z $JDK_VERSION || $JDK_VERSION < "1.8" ]]; then
-    apt-get -y install default-jdk &&
-      apt-get update -q &&
-      pushd $HOME &&
-      git clone https://github.com/michaelklishin/jdk_switcher.git &&
-      source jdk_switcher/jdk_switcher.sh && jdk_switcher use openjdk11 &&
-      echo "export JAVA_HOME=$JAVA_HOME" >> $PREREQS_ENV &&
-      popd
+    apt-get -y install openjdk-11-jdk # &&
   fi
 }
 
@@ -53,15 +47,14 @@ install_cmake3() {
     wget -nv https://github.com/Kitware/CMake/releases/download/v3.19.1/cmake-3.19.1-Linux-x86_64.sh -P /tmp &&
       chmod +x /tmp/cmake-3.19.1-Linux-x86_64.sh &&
       /tmp/cmake-3.19.1-Linux-x86_64.sh --prefix=/usr/local --skip-license
+    if [ ! -f /usr/local/bin/cmake3 ]; then
+      ln -s /usr/local/bin/cmake /usr/local/bin/cmake3
+    fi
   fi
 }
 
 install_gcc() {
-  GCC=`which gcc`
-  GPLUSPLUS=`which g++`
-  if [[ -z $GCC || -z $GPLUSPLUS ]]; then
-    apt-get -y install build-essential software-properties-common
-  fi
+  apt-get -y install build-essential software-properties-common
 }
 
 install_package() {
@@ -93,30 +86,29 @@ install_R() {
 
 install_system_prerequisites() {
   apt-get update -q &&
-    install_package tzdata &&
-    install_package install 1 &&
-    install_package lcov 1 &&
-    install_package mpich &&
-    install_package zlib1g-dev &&
-    install_package libssl-dev &&
-    install_package rsync 1 &&
-    install_package libidn11 &&
-    install_package uuid-dev &&
-    install_package libcurl4-openssl-dev &&
-    install_package wget 1 &&
-    install_package autoconf 1 &&
-    install_package automake 1 &&
-    install_package libtool 1 &&
-    install_package zip 1 &&
-    install_package unzip 1 &&
-    install_package curl 1 &&
-    install_package git &&
-    install_package libcsv-dev &&
-    install_package zstd &&
-    install_package sudo 1 &&
+    apt install -y tzdata \
+       lcov \
+       mpich \
+       zlib1g-dev \
+       libssl-dev \
+       rsync \
+       libidn11-dev \
+       uuid-dev \
+       libcurl4-openssl-dev \
+       wget \
+       autoconf \
+       automake \
+       libtool \
+       zip \
+       unzip \
+       curl \
+       git \
+       libcsv-dev \
+       zstd \
+       sudo &&
     apt-get update -q &&
     install_gcc &&
-    install_jdk8 &&
+    install_jdk11 &&
     install_cmake3 &&
     install_R &&
     apt-get clean &&

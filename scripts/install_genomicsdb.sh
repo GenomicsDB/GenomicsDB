@@ -66,8 +66,8 @@ repair_htslib() {
 
 build_genomicsdb() {
 	. /etc/profile
-	git_repo_check = $(git rev-parse --is-inside-work-tree)
-	git_repo_name = $(git config --get remote.origin.url)
+	git_repo_check=$(git rev-parse --is-inside-work-tree)
+	git_repo_name=$(git config --get remote.origin.url)
 	if [[ $git_repo_check != "true" || $git_repo_name != "https://github.com/GenomicsDB/GenomicsDB.git" ]]; then
 	  git clone https://github.com/GenomicsDB/GenomicsDB -b ${GENOMICSDB_BRANCH} $GENOMICSDB_DIR &&
 	  pushd $GENOMICSDB_DIR &&
@@ -75,6 +75,7 @@ build_genomicsdb() {
 	fi
 	repair_htslib &&
 	echo "Building GenomicsDB" &&
+	rm -rf build &&
 	mkdir build &&
 	pushd build &&
 	echo "	$CMAKE .. -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DBUILD_DISTRIBUTABLE_LIBRARY=$BUILD_DISTRIBUTABLE_LIBRARY -DBUILD_JAVA=$BUILD_JAVA" &&

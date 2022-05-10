@@ -236,9 +236,9 @@ install_os_prerequisites() {
 }
 
 install_prerequisites() {
-  PREREQS_ENV=$PREREQS_ENV install_os_prerequisites $2 && echo "Install OS prerequistes successful" &&
+  PREREQS_ENV=$PREREQS_ENV install_os_prerequisites $1 && echo "Install OS prerequistes successful" &&
     source $PREREQS_ENV
-  if [[ $2 == "full" ]]; then
+  if [[ $1 == "full" ]]; then
     install_mvn
   fi
 }
@@ -262,6 +262,7 @@ if [[ $BUILD_DISTRIBUTABLE_LIBRARY == false && $CENTOS_VERSION -eq 6 ]]; then
 fi
 
 RC=1
+export DEBIAN_FRONTEND=noninteractive
 install_prerequisites $2 $3 &&
   if [[ $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
     echo "Installing static libraries"
