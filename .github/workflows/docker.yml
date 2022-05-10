@@ -11,6 +11,10 @@ on:
       - develop
     tags:
       - v*
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.rst'
 
 env:
   REGISTRY: ghcr.io
@@ -40,7 +44,20 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: Build and push Docker image
+      - name: Build and export to Docker
+        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        with:
+          context: .
+          build-args: os=ubuntu:focal-20220426
+          load: true
+          tags: gchr.io/genomicsdb/genomicsdb:test
+
+      - name: Test docker image
+        run: |
+          docker run --rm -v ${{github.workspace}}/tests:/opt/tests --entrypoint /opt/tests/docker_test.sh ghcr.io/genomicsdb/genomicsdb:test
+
+      - name: Build and push to ghcr.io
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
         with:
           context: .

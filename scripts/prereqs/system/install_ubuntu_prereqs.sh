@@ -126,6 +126,7 @@ install_nobuild_prerequisites() {
                                     libgomp1 \
                                     mpich \
                                     zstd \
+                                    libcsv3 \
                                     libcurl4-openssl-dev &&
     apt-get clean &&
     apt-get purge -y &&
