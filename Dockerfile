@@ -25,8 +25,9 @@
 ARG os=centos:7
 FROM $os as full
 
+ARG os=centos:7
 ARG branch=master
-ARG appuser=genomicsdb
+ARG user=genomicsdb
 ARG install_dir=/usr/local
 ARG distributable_jar=false
 # Options to enable_bindings are only java for now
@@ -36,18 +37,23 @@ ARG enable_bindings=""
 COPY . /build/GenomicsDB/
 ENV DOCKER_BUILD=true
 WORKDIR /build/GenomicsDB
-RUN ./scripts/prereqs/install_prereqs.sh ${distributable_jar} full ${enable_bindings} &&\
-    echo ${appuser} && useradd -r -U -m ${appuser} &&\
-    ./scripts/install_genomicsdb.sh ${appuser} ${branch} ${install_dir} ${distributable_jar} ${enable_bindings}
+RUN echo "userbcf $os" && ./scripts/prereqs/install_prereqs.sh ${distributable_jar} full ${enable_bindings} &&\
+    useradd -r -U -m ${user} &&\
+    ./scripts/install_genomicsdb.sh ${user} ${branch} ${install_dir} ${distributable_jar} ${enable_bindings}
 
 FROM $os as base
+ARG branch=master
+ARG user=genomicsdb
+ARG install_dir=/usr/local
+ARG distributable_jar=false
+ARG enable_bindings=""
 COPY ./scripts/prereqs /build
 WORKDIR /build
-RUN ./install_prereqs.sh ${distributable_jar} base ${enable_bindings} &&\
-    echo ${appuser} && useradd -r -U -m ${appuser}
+RUN echo "userabc ${user} ${branch}" && ./install_prereqs.sh ${distributable_jar} base ${enable_bindings} &&\
+    echo "userabc ${user} ${branch}" && useradd -r -U -m ${user}
 
-COPY --from=full /usr/local/*genomicsdb* /usr/local/gt_mpi_gather /usr/local/vcf* /usr/local/bin/
+COPY --from=full /usr/local/*genomicsdb* /usr/local/gt_mpi_gather /usr/local/vcf* ${install_dir}/bin/
 
-USER ${appuser}
+USER ${user}
 WORKDIR /home/${appuser}
 ENTRYPOINT ["/bin/bash", "--login"]
