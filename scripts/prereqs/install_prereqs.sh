@@ -62,7 +62,7 @@ CENTOS_VERSION=0
 PARENT_DIR="$(dirname $0)"
 
 # $1 - path variable name
-# $2 - 'full' if build prerequisites should be installed, 'base' if only runtime prerequisites should be installed
+# $2 - 'full' if build prerequisites should be installed, 'release' if only runtime prerequisites should be installed
 # $3 - path variable value
 add_to_env() {
   SEP=":"
@@ -222,7 +222,7 @@ install_os_prerequisites() {
       else
         source $PARENT_DIR/system/install_centos_prereqs.sh
       fi
-      if [[ $1 == "base" ]]; then
+      if [[ $1 == "release" ]]; then
         install_nobuild_prerequisites
       else 
         install_system_prerequisites

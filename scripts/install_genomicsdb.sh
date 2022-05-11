@@ -46,7 +46,7 @@ fi
 
 if [[ $ENABLE_BINDINGS == *java* ||  $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
 	BUILD_JAVA=true
-	USE_HDFS=true
+	USE_HDFS=false
 else
 	BUILD_JAVA=false
 	USE_HDFS=false

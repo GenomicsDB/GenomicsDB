@@ -25,7 +25,6 @@
 ARG os=centos:7
 FROM $os as full
 
-ARG os=centos:7
 ARG branch=master
 ARG user=genomicsdb
 ARG install_dir=/usr/local
@@ -41,7 +40,10 @@ RUN ./scripts/prereqs/install_prereqs.sh ${distributable_jar} full ${enable_bind
     useradd -r -U -m ${user} &&\
     ./scripts/install_genomicsdb.sh ${user} ${branch} ${install_dir} ${distributable_jar} ${enable_bindings}
 
-FROM $os as base
+ARG os=centos:7
+
+FROM $os as release
+
 ARG branch=master
 ARG user=genomicsdb
 ARG install_dir=/usr/local
@@ -49,7 +51,7 @@ ARG distributable_jar=false
 ARG enable_bindings=""
 COPY ./scripts/prereqs /build
 WORKDIR /build
-RUN ./install_prereqs.sh ${distributable_jar} base ${enable_bindings} &&\
+RUN ./install_prereqs.sh ${distributable_jar} release ${enable_bindings} &&\
     useradd -r -U -m ${user}
 
 COPY --from=full /usr/local/bin/*genomicsdb* /usr/local/bin/gt_mpi_gather /usr/local/bin/vcf* ${install_dir}/bin/
