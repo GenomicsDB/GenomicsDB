@@ -62,8 +62,8 @@ CENTOS_VERSION=0
 PARENT_DIR="$(dirname $0)"
 
 # $1 - path variable name
-# $2 - path variable value
-# $3 - 'full' if build prerequisites should be installed, 'base' if only runtime prerequisites should be installed
+# $2 - 'full' if build prerequisites should be installed, 'base' if only runtime prerequisites should be installed
+# $3 - path variable value
 add_to_env() {
   SEP=":"
   if [[ $1 != *PATH ]]; then
