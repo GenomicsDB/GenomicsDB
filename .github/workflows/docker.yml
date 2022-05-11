@@ -50,7 +50,7 @@ jobs:
           context: .
           build-args: os=ubuntu:focal-20220426
           load: true
-          tags: gchr.io/genomicsdb/genomicsdb:test
+          tags: ghcr.io/genomicsdb/genomicsdb:test
 
       - name: Test docker image
         run: |
