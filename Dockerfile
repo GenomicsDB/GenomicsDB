@@ -55,6 +55,7 @@ RUN ./install_prereqs.sh ${distributable_jar} release ${enable_bindings} &&\
     useradd -r -U -m ${user}
 
 COPY --from=full /usr/local/bin/*genomicsdb* /usr/local/bin/gt_mpi_gather /usr/local/bin/vcf* ${install_dir}/bin/
+COPY --from=full /usr/local/lib/libtiledbgenomicsdb.so ${install_dir}/lib/
 
 USER ${user}
 WORKDIR /home/${user}
