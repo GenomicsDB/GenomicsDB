@@ -25,7 +25,6 @@
 ARG os=centos:7
 FROM $os as full
 
-ARG branch=master
 ARG user=genomicsdb
 ARG install_dir=/usr/local
 ARG distributable_jar=false
@@ -38,13 +37,12 @@ ENV DOCKER_BUILD=true
 WORKDIR /build/GenomicsDB
 RUN ./scripts/prereqs/install_prereqs.sh ${distributable_jar} full ${enable_bindings} &&\
     useradd -r -U -m ${user} &&\
-    ./scripts/install_genomicsdb.sh ${user} ${branch} ${install_dir} ${distributable_jar} ${enable_bindings}
+    ./scripts/install_genomicsdb.sh ${user} ${install_dir} ${distributable_jar} ${enable_bindings}
 
 ARG os=centos:7
 
 FROM $os as release
 
-ARG branch=master
 ARG user=genomicsdb
 ARG install_dir=/usr/local
 ARG distributable_jar=false
@@ -55,7 +53,6 @@ RUN ./install_prereqs.sh ${distributable_jar} release ${enable_bindings} &&\
     useradd -r -U -m ${user}
 
 COPY --from=full /usr/local/bin/*genomicsdb* /usr/local/bin/gt_mpi_gather /usr/local/bin/vcf* ${install_dir}/bin/
-COPY --from=full /usr/local/lib/libtiledbgenomicsdb.so ${install_dir}/lib/
 
 USER ${user}
 WORKDIR /home/${user}

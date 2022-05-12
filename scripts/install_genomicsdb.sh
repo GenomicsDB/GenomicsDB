@@ -29,10 +29,9 @@ if [[ -z $DOCKER_BUILD ]]; then
 fi
 
 GENOMICSDB_USER=${1:-genomicsdb}
-GENOMICSDB_BRANCH=${2:-develop}
-GENOMICSDB_INSTALL_DIR=${3:-/usr/local}
-BUILD_DISTRIBUTABLE_LIBRARY=${4:-false}
-ENABLE_BINDINGS=${5:-none}
+GENOMICSDB_INSTALL_DIR=${2:-/usr/local}
+BUILD_DISTRIBUTABLE_LIBRARY=${3:-false}
+ENABLE_BINDINGS=${4:-none}
 
 GENOMICSDB_USER_DIR=`eval echo ~$GENOMICSDB_USER`
 GENOMICSDB_DIR=$GENOMICSDB_USER_DIR/GenomicsDB
@@ -71,9 +70,8 @@ build_genomicsdb() {
 	git_repo_check=$(git rev-parse --is-inside-work-tree)
 	git_repo_name=$(git config --get remote.origin.url)
 	if [[ $git_repo_check != "true" || $git_repo_name != "https://github.com/GenomicsDB/GenomicsDB.git" ]]; then
-	  git clone https://github.com/GenomicsDB/GenomicsDB -b ${GENOMICSDB_BRANCH} $GENOMICSDB_DIR &&
-	  pushd $GENOMICSDB_DIR &&
-	  git submodule update --recursive --init
+	  echo "Could not find GenomicsDB git repo. Exiting."
+	  exit 1
 	fi
 	repair_htslib &&
 	echo "Building GenomicsDB" &&
