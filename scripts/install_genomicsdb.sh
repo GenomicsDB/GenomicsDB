@@ -34,8 +34,6 @@ BUILD_DISTRIBUTABLE_LIBRARY=${3:-false}
 ENABLE_BINDINGS=${4:-none}
 
 GENOMICSDB_USER_DIR=`eval echo ~$GENOMICSDB_USER`
-GENOMICSDB_DIR=$GENOMICSDB_USER_DIR/GenomicsDB
-echo GENOMICSDB_DIR=$GENOMICSDB_DIR
 
 CMAKE=`which cmake3`
 if [[ -z $CMAKE ]]; then
@@ -70,7 +68,7 @@ build_genomicsdb() {
 	git_repo_check=$(git rev-parse --is-inside-work-tree)
 	git_repo_name=$(git config --get remote.origin.url)
 	if [[ $git_repo_check != "true" || $git_repo_name != "https://github.com/GenomicsDB/GenomicsDB.git" ]]; then
-	  echo "Could not find GenomicsDB git repo. Exiting."
+	  echo "Could not find GenomicsDB git repo: $git_repo_check, $git_repo_name. Exiting."
 	  exit 1
 	fi
 	repair_htslib &&
