@@ -67,7 +67,7 @@ build_genomicsdb() {
 	. /etc/profile
 	git_repo_check=$(git rev-parse --is-inside-work-tree)
 	git_repo_name=$(git config --get remote.origin.url)
-	if [[ $git_repo_check != "true" || $git_repo_name != "https://github.com/GenomicsDB/GenomicsDB.git" ]]; then
+	if [[ $git_repo_check != "true" || $git_repo_name != *"GenomicsDB/GenomicsDB"* ]]; then
 	  echo "Could not find GenomicsDB git repo: $git_repo_check, $git_repo_name. Exiting."
 	  exit 1
 	fi
