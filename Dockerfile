@@ -23,9 +23,8 @@
 # OS currently tested are ubuntu and centos
 #ARG os=ubuntu:trusty
 ARG os=centos:7
-FROM $os
+FROM $os as full
 
-ARG branch=master
 ARG user=genomicsdb
 ARG install_dir=/usr/local
 ARG distributable_jar=false
@@ -33,16 +32,27 @@ ARG distributable_jar=false
 # e.g. enable_bindings="java"
 ARG enable_bindings=""
 
-COPY prereqs /build
-WORKDIR /build
-RUN ./install_prereqs.sh ${distributable_jar} ${enable_bindings}
-
-RUN groupadd -r genomicsdb && useradd -r -g genomicsdb -m ${user} -p ${user}
-
-COPY install_genomicsdb.sh /build
-WORKDIR /build
+COPY . /build/GenomicsDB/
 ENV DOCKER_BUILD=true
-RUN ./install_genomicsdb.sh ${user} ${branch} ${install_dir} ${distributable_jar} ${enable_bindings}
+WORKDIR /build/GenomicsDB
+RUN ./scripts/prereqs/install_prereqs.sh ${distributable_jar} full ${enable_bindings} &&\
+    useradd -r -U -m ${user} &&\
+    ./scripts/install_genomicsdb.sh ${user} ${install_dir} ${distributable_jar} ${enable_bindings}
+
+ARG os=centos:7
+
+FROM $os as release
+
+ARG user=genomicsdb
+ARG install_dir=/usr/local
+ARG distributable_jar=false
+ARG enable_bindings=""
+COPY ./scripts/prereqs /build
+WORKDIR /build
+RUN ./install_prereqs.sh ${distributable_jar} release ${enable_bindings} &&\
+    useradd -r -U -m ${user}
+
+COPY --from=full /usr/local/bin/*genomicsdb* /usr/local/bin/gt_mpi_gather /usr/local/bin/vcf* ${install_dir}/bin/
 
 USER ${user}
 WORKDIR /home/${user}

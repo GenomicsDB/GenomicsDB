@@ -68,7 +68,22 @@ install_system_prerequisites() {
     yum install -y -q openssl-devel &&
     yum install -y -q cmake3 &&
     yum install -y -q libuuid libuuid-devel &&
+    yum install -y -q patch &&
     yum install -y -q zstd &&
     yum install -y -q curl libcurl-devel &&
     install_csv
+}
+
+install_nobuild_prerequisites() {
+  yum install -y -q deltarpm
+  yum update -y -q &&
+    install_mpi &&
+    yum install -y -q epel-release &&
+    yum install -y zlib-devel &&
+    yum install -y -q openssl-devel &&
+    yum install -y -q cmake3 &&
+    yum install -y -q patch &&
+    yum install -y -q libuuid libuuid-devel &&
+    yum install -y -q zstd &&
+    yum install -y -q curl libcurl-devel
 }
