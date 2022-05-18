@@ -466,7 +466,9 @@ void VariantArrayInfo::update_row_bounds_in_array(
   }
 }
 
-void VariantArrayInfo::close_array(const bool consolidate_tiledb_array) {
+void VariantArrayInfo::close_array(const bool consolidate_tiledb_array,
+                                   const size_t consolidate_buffer_size,
+                                   const int consolidation_batch_size) {
   auto coords_buffer_idx = m_buffers.size()-1u;
   if ((m_mode == TILEDB_ARRAY_WRITE || m_mode == TILEDB_ARRAY_WRITE_UNSORTED)) {
     //Flush cells in buffer
@@ -506,7 +508,8 @@ void VariantArrayInfo::close_array(const bool consolidate_tiledb_array) {
       auto max_valid_row_idx_in_array = m_max_valid_row_idx_in_array;
       m_max_valid_row_idx_in_array = -1;
       update_row_bounds_in_array(lb_row_idx, max_valid_row_idx_in_array);
-      auto status = tiledb_array_consolidate(m_tiledb_ctx, (SLASHIFY(m_workspace) + m_name).c_str());
+      auto status = tiledb_array_consolidate(m_tiledb_ctx, (SLASHIFY(m_workspace) + m_name).c_str(),
+                                             consolidate_buffer_size, consolidation_batch_size);
       if (status != TILEDB_OK)
         logger.fatal(VariantStorageManagerException(
             logger.format("Error while consolidating TileDB array {}\nTileDB error message : {}",
@@ -565,10 +568,11 @@ int VariantStorageManager::open_array(const std::string& array_name, const VidMa
   return -1;
 }
 
-void VariantStorageManager::close_array(const int ad, const bool consolidate_tiledb_array) {
+void VariantStorageManager::close_array(const int ad, const bool consolidate_tiledb_array,
+                                        const int consolidation_batch_size) {
   VERIFY_OR_THROW(static_cast<size_t>(ad) < m_open_arrays_info_vector.size() &&
                   m_open_arrays_info_vector[ad].get_array_name().length());
-  m_open_arrays_info_vector[ad].close_array(consolidate_tiledb_array);
+  m_open_arrays_info_vector[ad].close_array(consolidate_tiledb_array, m_segment_size, consolidation_batch_size);
 }
 
 int VariantStorageManager::define_array(const VariantArraySchema* variant_array_schema,

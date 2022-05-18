@@ -926,16 +926,16 @@ void VCF2TileDBLoader::clear() {
   m_operators_overflow.clear();
 }
 
-// TODO: Support consolidation with shared posixfs optimizations turned ON. This is only used
-// by the consolidate_genomicsdb_array tool.
-void VCF2TileDBLoader::consolidate_tiledb_array(const char* workspace, const char* array_name) {
-  VariantStorageManager sm(workspace);
+void VCF2TileDBLoader::consolidate_tiledb_array(const char* workspace, const char* array_name,
+                                                const size_t buffer_size, const int batch_size,
+                                                const bool enable_shared_posixfs_optimizations) {
+  VariantStorageManager sm(workspace, buffer_size, enable_shared_posixfs_optimizations);
   auto ad = sm.open_array(array_name, 0, "w");
   if (ad < 0)
     throw VCF2TileDBException(std::string("Error opening array ")+array_name
                               +" in workspace "+workspace+" when trying to consolidate"
                               + "\nTileDB error message : "+tiledb_errmsg);
-  sm.close_array(ad, true);
+  sm.close_array(ad, true, batch_size);
 }
 
 
