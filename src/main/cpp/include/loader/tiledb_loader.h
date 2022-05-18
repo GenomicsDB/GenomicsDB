@@ -361,8 +361,9 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
    * Consolidate TileDB array
    */
   static void consolidate_tiledb_array(const char* workspace, const char* array_name,
-                                       const size_t buffer_size, const int batch_size,
-                                       const bool enable_shared_posixfs_optimzations);
+                                       const size_t buffer_size=TILEDB_CONSOLIDATION_BUFFER_SIZE,
+                                       const int batch_size=-1,
+                                       const bool enable_shared_posixfs_optimzations=false);
  private:
   void common_constructor_initialization(
     const std::string& config_filename,

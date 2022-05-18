@@ -43,7 +43,7 @@ Logger logger;
 std::shared_ptr<spdlog::logger> Logger::get_logger(const std::string& name) {
   auto new_logger = spdlog::stderr_color_mt(name);
   // Follow default log4j pattern for now
-  new_logger->set_pattern("%H:%M:%S.%e %4!l  %n - pid=%P tid=%t %v");
+  new_logger->set_pattern("%H:%M:%S.%e %-5!l %n - pid=%P tid=%t %v");
 #ifdef NDEBUG
   new_logger->set_level(spdlog::level::info);
 #else
