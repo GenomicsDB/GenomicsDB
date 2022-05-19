@@ -40,7 +40,6 @@ VCFS_DIR=$(cd $1 && pwd)
 TEMP_DIR=$(mktemp -d -t test_tools-XXXXXXXXXX)
 
 WORKSPACE=$TEMP_DIR/ws
-echo "WORKSPACE=$WORKSPACE"
 LOADER_JSON=$TEMP_DIR/ws/loader.json
 CALLSET_MAPPING_JSON=$TEMP_DIR/ws/callset_mapping.json
 TEMPLATE_HEADER=$TESTS_DIR/ws/vcf_header.vcf
@@ -341,6 +340,12 @@ run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Br
 # Test consolidate_genomicsdb_array and gt_mpi_gather after consolidation
 create_sample_list t0.vcf.gz
 ARRAY="1\$1\$249250621"
+
+# Workspace and array specified cannot be null
+EMPTY=""
+run_command "consolidate_genomicsdb_array --workspace $EMPTY --array $ARRAY" ERR
+run_command "consolidate_genomicsdb_array -w $WORKSPACE -a $EMPTY" ERR
+
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#40"
 run_command "consolidate_genomicsdb_array --workspace $WORKSPACE --array $ARRAY"
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
