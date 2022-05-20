@@ -46,7 +46,7 @@ void print_usage() {
             << "\t \e[1m--buffer-size\e[0m=<Buffer Size>, \e[1m-z\e[0m <Buffer Size>\n"
             << "\t\t Optional, default is 10M. Specify a buffer size for consolidation\n"
             << "\t \e[1m--batch-size\e[0m=<Batch Size>, \e[1m-z\e[0m <Batch Size>\n"
-            << "\t\t Optional, default is all fragments considered. Specify a batch size for consolidating with a set of fragments at a time\n"
+            << "\t\t (Experimental) Optional, default is all fragments considered. Specify a batch size for consolidating with a set of fragments at a time\n"
             << "\t \e[1m--shared-posixfs-optimizations\e[0m, \e[1m-p\e[0m\n"
             << "\t\t Optional, default is false. If specified, the array folder is not locked for read/write and file handles are kept open until a final close for write\n"
             << "\t \e[1m--version\e[0m Print version and exit\n"
