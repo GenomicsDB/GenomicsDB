@@ -111,7 +111,7 @@ VariantArrayCellIterator::VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const
                   query_filter.c_str());
   if (status != TILEDB_OK) {
     logger.fatal(VariantStorageManagerException(
-        logger.format("Error while initializing TileDB iterator\nTileDB error message : {}",
+        logger.format("Error while initializing TileDB iterator : {}",
                       tiledb_errmsg)));
   }
 #ifdef DEBUG
@@ -135,7 +135,7 @@ const BufferVariantCell& VariantArrayCellIterator::operator*() {
                   reinterpret_cast<const void**>(&field_ptr), &field_size);
     if (status != TILEDB_OK)
       logger.fatal(VariantStorageManagerException(
-          logger.format("Error while getting value from TileDB iterator for field with query index {}\nTileDB error message : {}",
+          logger.format("Error while getting value from TileDB iterator for field with query index {} : {}",
                         i, tiledb_errmsg)));
     m_cell.set_field_ptr_for_query_idx(i, field_ptr);
     m_cell.set_field_size_in_bytes(i, field_size);
@@ -145,7 +145,7 @@ const BufferVariantCell& VariantArrayCellIterator::operator*() {
                 reinterpret_cast<const void**>(&field_ptr), &field_size);
   if (status != TILEDB_OK)
       logger.fatal(VariantStorageManagerException(
-          logger.format("Error while getting coordinate value from TileDB iterator\nTileDB error message : {}",
+          logger.format("Error while getting coordinate value from TileDB iterator : {}",
                         tiledb_errmsg)));
   assert(field_size == m_variant_array_schema->dim_size_in_bytes());
   auto coords_ptr = reinterpret_cast<const int64_t*>(field_ptr);
@@ -259,8 +259,7 @@ void VariantArrayInfo::write_cell(const void* ptr) {
     auto status = tiledb_array_write(m_tiledb_array, const_cast<const void**>(&(m_buffer_pointers[0])), &(m_buffer_offsets[0]));
     if (status != TILEDB_OK)
       logger.fatal(VariantStorageManagerException(
-          logger.format("Error while writing to TileDB array\nTileDB error message : {}",
-                        tiledb_errmsg)));
+          logger.format("Error while writing to GenomicsDB array : {}", tiledb_errmsg)));
     memset(&(m_buffer_offsets[0]), 0, m_buffer_offsets.size()*sizeof(size_t));
   }
   buffer_idx = 0;
@@ -454,19 +453,20 @@ void VariantArrayInfo::update_row_bounds_in_array(
 
     if (write_file(m_tiledb_ctx, metadata_filepath, buffer.GetString(), strlen(buffer.GetString()))) {
       logger.fatal(VariantStorageManagerException(
-          logger.format("Could not write to metadata file {}\nTileDB error message : {}",
-                        metadata_filepath, tiledb_errmsg)));
+          logger.format("Could not write to metadata file {} : {}", metadata_filepath, tiledb_errmsg)));
     };
 
     if (close_file(m_tiledb_ctx, metadata_filepath)) {
       logger.fatal(VariantStorageManagerException(
-          logger.format("Could not close after write to metadata file {}\nTileDB error message : {}",
+          logger.format("Could not close after write to metadata file {} : {}",
                         metadata_filepath, tiledb_errmsg)));
     }
   }
 }
 
-void VariantArrayInfo::close_array(const bool consolidate_tiledb_array) {
+void VariantArrayInfo::close_array(const bool consolidate_tiledb_array,
+                                   const size_t consolidate_buffer_size,
+                                   const int consolidation_batch_size) {
   auto coords_buffer_idx = m_buffers.size()-1u;
   if ((m_mode == TILEDB_ARRAY_WRITE || m_mode == TILEDB_ARRAY_WRITE_UNSORTED)) {
     //Flush cells in buffer
@@ -474,23 +474,21 @@ void VariantArrayInfo::close_array(const bool consolidate_tiledb_array) {
       auto status = tiledb_array_write(m_tiledb_array, const_cast<const void**>(&(m_buffer_pointers[0])), &(m_buffer_offsets[0]));
       if (status != TILEDB_OK)
         logger.fatal(VariantStorageManagerException(
-            logger.format("Error while writing to array {}\nTileDB error message : {}",
-                          m_name, tiledb_errmsg)));
+            logger.format("Error while writing to GenomicsDB array {} : {}", m_name, tiledb_errmsg)));
       memset(&(m_buffer_offsets[0]), 0, m_buffer_offsets.size()*sizeof(size_t));
     }
     auto sync_status = tiledb_array_sync(m_tiledb_array);
     if (sync_status != TILEDB_OK)
       logger.fatal(VariantStorageManagerException(
-          logger.format("Error while syncing array {} to disk\nTileDB error message : {}",
-                        m_name, tiledb_errmsg)));
+          logger.format("Error while syncing array {} to disk : {}", m_name, tiledb_errmsg)));
   }
   if (m_tiledb_array) {
     auto status = tiledb_array_finalize(m_tiledb_array);
     if (status != TILEDB_OK)
       logger.fatal(VariantStorageManagerException(
-          logger.format("Error while finalizing TileDB array {}\nTileDB error message : {}",
-                        m_name, tiledb_errmsg)));
+          logger.format("Error while finalizing GenomicsDB array {} : {}", m_name, tiledb_errmsg)));
     if (consolidate_tiledb_array) {
+      logger.info("Consolidating GenomicsDB array {} in workspace {}",  m_name, m_workspace);
       //Consolidate metadb entries as well
       std::vector<std::string> files = get_files(m_tiledb_ctx, GET_METADATA_DIRECTORY(m_workspace, m_name));
       for (auto filepath : files) {
@@ -506,11 +504,11 @@ void VariantArrayInfo::close_array(const bool consolidate_tiledb_array) {
       auto max_valid_row_idx_in_array = m_max_valid_row_idx_in_array;
       m_max_valid_row_idx_in_array = -1;
       update_row_bounds_in_array(lb_row_idx, max_valid_row_idx_in_array);
-      auto status = tiledb_array_consolidate(m_tiledb_ctx, (SLASHIFY(m_workspace) + m_name).c_str());
+      auto status = tiledb_array_consolidate(m_tiledb_ctx, (SLASHIFY(m_workspace) + m_name).c_str(),
+                                             consolidate_buffer_size, consolidation_batch_size);
       if (status != TILEDB_OK)
         logger.fatal(VariantStorageManagerException(
-            logger.format("Error while consolidating TileDB array {}\nTileDB error message : {}",
-                          m_name, tiledb_errmsg)));
+            logger.format("Error while consolidating GenomicsDB array {} : {}", m_name, tiledb_errmsg)));
     }
   }
   m_tiledb_array = 0;
@@ -526,8 +524,7 @@ VariantStorageManager::VariantStorageManager(const std::string& workspace, const
 
   if (TileDBUtils::initialize_workspace(&m_tiledb_ctx, workspace, false, enable_shared_posixfs_optimizations) < 0 || m_tiledb_ctx == NULL) {
     logger.fatal(VariantStorageManagerException(
-        logger.format("Error while creating TileDB workspace {}\nTileDB error message : {}",
-                      workspace, tiledb_errmsg)));
+        logger.format("Error while creating workspace {} : {}", workspace, tiledb_errmsg)));
   }
 }
 
@@ -565,10 +562,11 @@ int VariantStorageManager::open_array(const std::string& array_name, const VidMa
   return -1;
 }
 
-void VariantStorageManager::close_array(const int ad, const bool consolidate_tiledb_array) {
+void VariantStorageManager::close_array(const int ad, const bool consolidate_tiledb_array,
+                                        const int consolidation_batch_size) {
   VERIFY_OR_THROW(static_cast<size_t>(ad) < m_open_arrays_info_vector.size() &&
                   m_open_arrays_info_vector[ad].get_array_name().length());
-  m_open_arrays_info_vector[ad].close_array(consolidate_tiledb_array);
+  m_open_arrays_info_vector[ad].close_array(consolidate_tiledb_array, m_segment_size, consolidation_batch_size);
 }
 
 int VariantStorageManager::define_array(const VariantArraySchema* variant_array_schema,
@@ -702,7 +700,7 @@ void VariantStorageManager::delete_array(const std::string& array_name) {
     auto status = tiledb_delete(m_tiledb_ctx, (m_workspace+"/"+array_name).c_str());
     if (status != TILEDB_OK)
       logger.fatal(VariantStorageManagerException(
-          logger.format("Error while deleting TileDB array {}\nTileDB error message : {}",
+          logger.format("Error while deleting GenomicsDB array {} : {}",
                         m_workspace+"/"+array_name, tiledb_errmsg)));
   }
 }
@@ -715,8 +713,7 @@ int VariantStorageManager::define_metadata_schema(const VariantArraySchema* vari
   auto status = create_dir(m_tiledb_ctx, meta_dir);
   if (status != TILEDB_OK)
     logger.fatal(VariantStorageManagerException(
-        logger.format("Could not create GenomicsDB meta-data directory\nTileDB error message : {}",
-                      tiledb_errmsg)));
+        logger.format("Could not create GenomicsDB metadata directory : {}", tiledb_errmsg)));
   return TILEDB_OK;
 }
 
@@ -853,8 +850,7 @@ void VariantStorageManager::write_column_bounds_to_array(const int ad, const int
   
     if (write_file(m_tiledb_ctx, column_filepath, buffer.GetString(), strlen(buffer.GetString()))) {
       logger.fatal(VariantStorageManagerException(
-          logger.format("Could not write to column bounds file\nTileDB error message : {}",
-                        tiledb_errmsg)));
+          logger.format("Could not write to column bounds file : {}", tiledb_errmsg)));
     };
   
     if (close_file(m_tiledb_ctx, column_filepath)) {
