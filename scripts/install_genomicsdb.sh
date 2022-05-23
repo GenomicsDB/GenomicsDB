@@ -32,6 +32,7 @@ GENOMICSDB_USER=${1:-genomicsdb}
 GENOMICSDB_INSTALL_DIR=${2:-/usr/local}
 BUILD_DISTRIBUTABLE_LIBRARY=${3:-false}
 ENABLE_BINDINGS=${4:-none}
+USE_HDFS=${USE_HDFS:-false}
 
 GENOMICSDB_USER_DIR=`eval echo ~$GENOMICSDB_USER`
 
@@ -43,10 +44,8 @@ fi
 
 if [[ $ENABLE_BINDINGS == *java* ||  $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
 	BUILD_JAVA=true
-	USE_HDFS=false
 else
 	BUILD_JAVA=false
-	USE_HDFS=false
 fi
 
 # Autoconf version 2.73 is the highest version supported by yum install on centos 6,
@@ -65,20 +64,28 @@ repair_htslib() {
 
 build_genomicsdb() {
 	. /etc/profile
-	git_repo_check=$(git rev-parse --is-inside-work-tree)
-	git_repo_name=$(git config --get remote.origin.url)
-	if [[ $git_repo_check != "true" || $git_repo_name != *"GenomicsDB/GenomicsDB"* ]]; then
-	  echo "Could not find GenomicsDB git repo: $git_repo_check, $git_repo_name. Exiting."
-	  exit 1
-	fi
+	ls /etc/profile
+	cat /etc/profile.d/genomicsdb_prereqs.sh
+	env
+	ls -hatl dependencies/htslib
 	repair_htslib &&
 	echo "Building GenomicsDB" &&
 	rm -rf build &&
 	mkdir build &&
 	pushd build &&
-	echo "	$CMAKE .. -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DBUILD_DISTRIBUTABLE_LIBRARY=$BUILD_DISTRIBUTABLE_LIBRARY -DBUILD_JAVA=$BUILD_JAVA -DUSE_HDFS=$USE_HDFS" &&
-	$CMAKE .. -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DBUILD_DISTRIBUTABLE_LIBRARY=$BUILD_DISTRIBUTABLE_LIBRARY -DBUILD_JAVA=$BUILD_JAVA -DUSE_HDFS=$USE_HDFS && make && make install &&
-	popd &&
+	if [[ -n "$IPPROOT" && -n "$GENOMICSDB_RELEASE_VERSION" ]]; then
+	  echo "	$CMAKE .. -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DIPPROOT=$IPPROOT -DBUILD_DISTRIBUTABLE_LIBRARY=$BUILD_DISTRIBUTABLE_LIBRARY -DBUILD_JAVA=$BUILD_JAVA -DUSE_HDFS=$USE_HDFS" &&
+	  $CMAKE .. -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION -DIPPROOT=$IPPROOT -DBUILD_DISTRIBUTABLE_LIBRARY=$BUILD_DISTRIBUTABLE_LIBRARY -DBUILD_JAVA=$BUILD_JAVA -DUSE_HDFS=$USE_HDFS && make && make install
+	else
+	  echo "	$CMAKE .. -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DBUILD_DISTRIBUTABLE_LIBRARY=$BUILD_DISTRIBUTABLE_LIBRARY -DBUILD_JAVA=$BUILD_JAVA -DUSE_HDFS=$USE_HDFS" &&
+	  $CMAKE .. -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DBUILD_DISTRIBUTABLE_LIBRARY=$BUILD_DISTRIBUTABLE_LIBRARY -DBUILD_JAVA=$BUILD_JAVA -DUSE_HDFS=$USE_HDFS && make && make install
+	fi
+	if [[ -f "$MAC_DYLIB_PATH" ]]; then
+	  find . -name "genomicsdb*jar" -exec rm -f {} \;
+	  cp $MAC_DYLIB_PATH target/classes
+	  cp $MAC_DYLIB_PATH src/main
+	  make install
+	fi &&
 	echo "Building GenomicsDB DONE" &&
 	popd
 }

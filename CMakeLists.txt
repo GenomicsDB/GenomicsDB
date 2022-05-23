@@ -506,7 +506,7 @@ if(BUILD_JAVA)
         set(JAVA_SCALA_SOURCES ${JAVA_SCALA_SOURCES} ${PROTOBUF_GENERATED_JAVA_SRCS})
         set(MAVEN_PROTOBUF_REGENERATE_ARGS "")
     endif()
-    set(MAVEN_QUIET_ARGS "")
+    set(MAVEN_QUIET_ARGS "--no-transfer-progress")
     if(MAVEN_QUIET)
         set(MAVEN_QUIET_ARGS "--quiet")
     endif()
@@ -581,7 +581,7 @@ if(BUILD_JAVA)
     add_dependencies(mvn_central_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
 
     add_custom_target(mvn_local_deploy
-            COMMAND mvn install:install-file -Dfile=target/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar -DpomFile=pom.xml)
+            COMMAND mvn ${MAVEN_ARGS} install:install-file -Dfile=target/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar -DpomFile=pom.xml)
     add_dependencies(mvn_local_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
 
     if(NOT DISABLE_MPI)
