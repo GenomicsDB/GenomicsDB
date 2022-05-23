@@ -60,6 +60,7 @@ enum ArgsEnum {
   ARGS_IDX_TPED,
   ARGS_IDX_PLINK,
   ARGS_IDX_PLINK_PREFIX,
+  ARGS_IDX_PLINK_ONE_PASS,
   ARGS_IDX_FAM_LIST,
   ARGS_IDX_PROG,
   ARGS_IDX_VERSION,
@@ -487,6 +488,8 @@ void print_usage() {
             << "\t\t\t Optional, Show query progress (currently implemented for: \e[1m--produce-bgen\e[0m, \e[1m--produce-bed\e[0m, \e[1m--produce-tped\e[0m, and \e[1m--produce-plink\e[0m\n"
             << "\t\t\t specify minimum amount of time between progress messages\n"
             << "\t\t\t where <interval> is a floating point number. Default units are seconds, explicitly specify seconds, minutes, or hours by appending s, m, or h to the end of the number\n"
+            << "\t\t \e[1m--plink-one-pass\e[0m\n"
+            << "\t\t\t Optional, produce plink files with only one pass, using samples from callset. Improves runtime, but will include samples in query range without any data.\n"
             << "\t \e[1m--produce-Broad-GVCF\e[0m\n"
             << "\t\t Optional, produces combined gVCF from the GenomicsDB data constrained by the query configuration\n"
             << "\t\t \e[1m--output-format\e[0m=<output_format>, \e[1m-O\e[0m <output_format>\n"
@@ -550,6 +553,7 @@ int main(int argc, char *argv[]) {
     {"produce-tped", 0, 0, ARGS_IDX_TPED},
     {"produce-plink", 0, 0, ARGS_IDX_PLINK},
     {"plink-prefix",1,0,ARGS_IDX_PLINK_PREFIX},
+    {"plink-one-pass", 0, 0, ARGS_IDX_PLINK_ONE_PASS},
     {"progress",2,0, ARGS_IDX_PROG},
     {"fam-list", 1, 0, ARGS_IDX_FAM_LIST},
     {"print-AC",0,0,ARGS_IDX_PRINT_ALT_ALLELE_COUNTS},
@@ -576,6 +580,7 @@ int main(int argc, char *argv[]) {
   auto use_columnar_iterator = false;
   std::string plink_prefix = "output";
   unsigned char plink_formats = 0;
+  bool one_pass = false;
   std::string fam_list = "";
   double progress_interval = -1;
   int bgen_compression = 1;
@@ -662,6 +667,9 @@ int main(int argc, char *argv[]) {
       if(optarg) {
         plink_prefix = std::string(optarg);
       }
+      break;
+    case ARGS_IDX_PLINK_ONE_PASS:
+      one_pass = true;
       break;
     case ARGS_IDX_PROG:
       if (optarg) {
@@ -799,7 +807,7 @@ int main(int argc, char *argv[]) {
                        query_config.get_callset_mapping_file(),
                        query_config.get_vid_mapping_file(),
                        query_config.get_reference_genome());
-        gdb.generate_plink(array_name, &query_config, plink_formats, bgen_compression, progress_interval, plink_prefix, fam_list);
+        gdb.generate_plink(array_name, &query_config, plink_formats, bgen_compression, one_pass, progress_interval, plink_prefix, fam_list);
         break;
     }
 #ifdef USE_GPERFTOOLS_HEAP

@@ -378,7 +378,7 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
                          const bool phased);
     virtual void process(const Variant& variant) override;
     void advance_state();
-  //private:
+  private:
     const std::string& array;
     VidMapper* vid_mapper;
     bool make_bgen, make_tped, make_bed;
@@ -391,6 +391,7 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
     VariantQueryConfig* query_config;
     // row to place in sorted map and sample name
     std::map<uint64_t, std::pair<int, std::string>> sample_map;
+    bool sample_map_initialized = false;
     // fam is identical to tfam, used with bed, tped respectively
     std::fstream tped_file, fam_file, bim_file, bed_file, bgen_file;
     int temp_file_line = 0;
@@ -648,6 +649,7 @@ class GenomicsDB {
                                         VariantQueryConfig* query_config,
                                         unsigned char format = 7,
                                         int compression = 1,
+                                        bool one_pass = false,
                                         double progress_interval = -1,
                                         const std::string& output_prefix = "output",
                                         const std::string& fam_list = "");

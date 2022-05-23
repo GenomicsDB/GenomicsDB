@@ -594,6 +594,7 @@ void GenomicsDB::generate_plink(const std::string& array,
                                 VariantQueryConfig* query_config,
                                 unsigned char format,
                                 int compression,
+                                bool one_pass,
                                 double progress_interval,
                                 const std::string& output_prefix,
                                 const std::string& fam_list) {
@@ -611,7 +612,9 @@ void GenomicsDB::generate_plink(const std::string& array,
 
   proc.initialize(types);
 
-  query_variants(array, query_config, proc);
+  if(!one_pass) { // if one_pass is true, skip first pass and get participating samples from callset (will include samples without data)
+    query_variants(array, query_config, proc);
+  }
   proc.advance_state();
   query_variants(array, query_config, proc);
   proc.advance_state();
@@ -969,9 +972,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
   }
 
   if(!state) {
-    if(last_coord != coords[1]) { // first in variant
-      num_variants++;
-    }
+    sample_map_initialized = true; // possible to skip first pass, sample map will be populated from callset
 
     sample_map.insert(std::make_pair(coords[0], std::make_pair(-1, sample_name)));
     /*if(!variant_map.count(coords[1])) {
@@ -1014,7 +1015,9 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     int add_to_prev = backfill ? sample_map.size() - (last_sample + 1) : 0;
     int add_to_current = backfill ? sind : sind - (last_sample + 1);
 
-    if(last_coord != coords[1]) {
+    if(last_coord != coords[1]) { // first in variant
+      num_variants++;
+
       for(int i = 0; i < add_to_prev; i++) { // backfill samples missing from previous variant
         if(make_tped) {
           tped_file << " 0 0";
@@ -1281,6 +1284,14 @@ void GenomicsDBPlinkProcessor::process(const interval_t& interval) {
 
 void GenomicsDBPlinkProcessor::advance_state() {
   if(!state) {
+    if(!sample_map_initialized) { // populate from callset
+      std::string str;
+      for(auto& row : query_config->get_rows_to_query()) {
+        vid_mapper->get_callset_name(row, str);
+        sample_map.insert(std::make_pair(row, std::make_pair(-1, str)));
+      }
+    }
+
     // associate samples with sorted position
     int i = -1;
     for(auto& a : sample_map) {
@@ -1327,12 +1338,13 @@ void GenomicsDBPlinkProcessor::advance_state() {
     }
 
     if(make_bgen) {
-      // BGEN: fill in M, N in header
-      bgen_file.seekp(8);
+      // BGEN: fill in N in header
+      bgen_file.seekp(12);
       //int32_t M = variant_map.size();
-      int32_t M = num_variants;
+      //int32_t M = num_variants;
+      // Fill in M at end, as first pass, which counts variants, may be skipped
       int32_t N = sample_map.size();
-      bgen_file.write((char*)&M, 4); // BGEN: 4 byte M
+      //bgen_file.write((char*)&M, 4); // BGEN: 4 byte M
       bgen_file.write((char*)&N, 4); // BGEN: 4 byte N
 
       // BGEN: write sample identifier block
@@ -1387,6 +1399,13 @@ void GenomicsDBPlinkProcessor::advance_state() {
 
     if(sample_map.size() && make_bgen) {
       bgen_finish_gt();
+    }
+
+    if(make_bgen) {
+      // BGEN: fill in M in header
+      bgen_file.seekp(8);
+      int32_t M = num_variants;
+      bgen_file.write((char*)&M, 4); // BGEN: 4 byte M
     }
   }
   state++;
