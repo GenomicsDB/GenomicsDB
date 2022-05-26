@@ -145,6 +145,18 @@ TEST_CASE("api query_variants direct DP with huge row range", "[query_variants_h
   delete gdb;
 }
 
+TEST_CASE("api query_variants direct DP with huge disjoint row ranges", "[query_variants_huge_disjoint_range]") {
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  check_query_variants_results(gdb, array, gdb->query_variants(array, {{0, 1}, {2,1000000000}, {2000000000, 3000000000}}, {{0,10000000000}}));
+  delete gdb;
+}
+
+TEST_CASE("api query_variants direct DP with invalid row range", "[query_variants_invalid_range]") {
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  REQUIRE_THROWS(check_query_variants_results(gdb, array, gdb->query_variants(array, {{-100, 1}}, {{0,10000000000}})));
+  delete gdb;
+}
+
 TEST_CASE("api query_variants direct DP and GT", "[query_variants_DP_GT]") {
   GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP", "GT"}, 40);
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}, {{0,3}}));
