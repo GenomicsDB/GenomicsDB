@@ -90,8 +90,6 @@ TEST_CASE("test bgen", "[bgen]") {
                  query_config3.get_reference_genome());
   gdb3.generate_plink(array_name, &query_config3, 1, 1);
 
-  //std::vector<std::string> types = {"bgen", "bed", "tped", "bim", "fam"};
-
   cmd = "diff output.bgen " + ctests_input_dir + "/bgen/output_3.bgen > /dev/null";
   status = system(cmd.c_str());
   if(WEXITSTATUS(status)) {
@@ -99,4 +97,76 @@ TEST_CASE("test bgen", "[bgen]") {
   }
  
   system("rm -f output.bgen");
+
+  // test 4 (PL/GL with one sample empty, standard two pass generation)
+  VariantQueryConfig query_config4;
+  query_config4.read_from_file(ctests_input_dir + "/bgen/bgen_test_query_1.json", my_world_mpi_rank);
+
+  array_name = query_config4.get_array_name(my_world_mpi_rank);
+
+  GenomicsDB gdb4(query_config4.get_workspace(my_world_mpi_rank),
+                 query_config4.get_callset_mapping_file(),
+                 query_config4.get_vid_mapping_file(),
+                 query_config4.get_reference_genome());
+  gdb4.generate_plink(array_name, &query_config4, 1, 1); 
+
+  cmd = "diff output.bgen " + ctests_input_dir + "/bgen/bgen_test_output_1_2p.bgen > /dev/null";
+  status = system(cmd.c_str());
+  if(WEXITSTATUS(status)) {
+    throw std::runtime_error("fourth BGEN test output did not match reference output");
+  }
+ 
+  // test 5 (PL/GL with one sample empty, one pass generation)
+  VariantQueryConfig query_config5;
+  query_config5.read_from_file(ctests_input_dir + "/bgen/bgen_test_query_1.json", my_world_mpi_rank);
+
+  array_name = query_config5.get_array_name(my_world_mpi_rank);
+
+  GenomicsDB gdb5(query_config5.get_workspace(my_world_mpi_rank),
+                 query_config5.get_callset_mapping_file(),
+                 query_config5.get_vid_mapping_file(),
+                 query_config5.get_reference_genome());
+  gdb5.generate_plink(array_name, &query_config5, 1, 1, true);
+
+  cmd = "diff output.bgen " + ctests_input_dir + "/bgen/bgen_test_output_1_1p.bgen > /dev/null";
+  status = system(cmd.c_str());
+  if(WEXITSTATUS(status)) {
+    throw std::runtime_error("fifth BGEN test output did not match reference output");
+  }
+
+  // test 6 (PL/GL, standard two pass generation)
+  VariantQueryConfig query_config6;
+  query_config6.read_from_file(ctests_input_dir + "/bgen/bgen_test_query_2.json", my_world_mpi_rank);
+
+  array_name = query_config6.get_array_name(my_world_mpi_rank);
+
+  GenomicsDB gdb6(query_config6.get_workspace(my_world_mpi_rank),
+                 query_config6.get_callset_mapping_file(),
+                 query_config6.get_vid_mapping_file(),
+                 query_config6.get_reference_genome());
+  gdb6.generate_plink(array_name, &query_config6, 1, 1);
+
+  cmd = "diff output.bgen " + ctests_input_dir + "/bgen/bgen_test_output_2_2p.bgen > /dev/null";
+  status = system(cmd.c_str());
+  if(WEXITSTATUS(status)) {
+    throw std::runtime_error("sixth BGEN test output did not match reference output");
+  }
+
+  // test 7 (PL/GL, one pass generation)
+  VariantQueryConfig query_config7;
+  query_config7.read_from_file(ctests_input_dir + "/bgen/bgen_test_query_2.json", my_world_mpi_rank);
+
+  array_name = query_config7.get_array_name(my_world_mpi_rank);
+
+  GenomicsDB gdb7(query_config7.get_workspace(my_world_mpi_rank),
+                 query_config7.get_callset_mapping_file(),
+                 query_config7.get_vid_mapping_file(),
+                 query_config7.get_reference_genome());
+  gdb7.generate_plink(array_name, &query_config7, 1, 1, true);
+
+  cmd = "diff output.bgen " + ctests_input_dir + "/bgen/bgen_test_output_2_1p.bgen > /dev/null";
+  status = system(cmd.c_str());
+  if(WEXITSTATUS(status)) {
+    throw std::runtime_error("seventh BGEN test output did not match reference output");
+  }
 }
