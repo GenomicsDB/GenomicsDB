@@ -56,6 +56,7 @@ enum ArgsEnum {
   ARGS_IDX_PRINT_CSV,
   ARGS_IDX_BGEN,
   ARGS_IDX_BGEN_COMPRESSION,
+  ARGS_IDX_BGEN_VERBOSE,
   ARGS_IDX_BED,
   ARGS_IDX_TPED,
   ARGS_IDX_PLINK,
@@ -471,6 +472,8 @@ void print_usage() {
             << "\t\t \e[1m--bgen-compression=<type>\e[0m\n"
             << "\t\t\t Optional, used with \e[1m--produce-bgen\e[0m, specify the compression method used for the probability data storage\n"
             << "\t\t\t 0 - no compression, 1 - gzip (default), 2 - z standard\n"
+            << "\t\t \e[1m--bgen-verbose\e[0m\n"
+            << "\t\t\t Optional, used with \e[1m--produce-bgen\e[0m, when specified will log various issues with GL/PL fields\n"
             << "\t \e[1m--produce-bed\e[0m\n"
             << "\t\t Optional, outputs plink1.9 .bed, .bim, and .fam file\n"
             << "\t \e[1m--produce-tped\e[0m\n"
@@ -549,6 +552,7 @@ int main(int argc, char *argv[]) {
     {"print-csv",0,0,ARGS_IDX_PRINT_CSV},
     {"produce-bgen", 0, 0, ARGS_IDX_BGEN},
     {"bgen-compression", 1, 0, ARGS_IDX_BGEN_COMPRESSION},
+    {"bgen-verbose", 0, 0, ARGS_IDX_BGEN_VERBOSE},
     {"produce-bed", 0, 0, ARGS_IDX_BED},
     {"produce-tped", 0, 0, ARGS_IDX_TPED},
     {"produce-plink", 0, 0, ARGS_IDX_PLINK},
@@ -581,6 +585,7 @@ int main(int argc, char *argv[]) {
   std::string plink_prefix = "output";
   unsigned char plink_formats = 0;
   bool one_pass = false;
+  bool bgen_verbose = false;
   std::string fam_list = "";
   double progress_interval = -1;
   int bgen_compression = 1;
@@ -651,6 +656,10 @@ int main(int argc, char *argv[]) {
         catch ( std::exception& e ) {
         }
       }
+      break;
+    case ARGS_IDX_BGEN_VERBOSE:
+      bgen_verbose = true;
+      break;
     case ARGS_IDX_BED:
       command_idx = COMMAND_PLINK;
       plink_formats = plink_formats | 2;
@@ -807,7 +816,7 @@ int main(int argc, char *argv[]) {
                        query_config.get_callset_mapping_file(),
                        query_config.get_vid_mapping_file(),
                        query_config.get_reference_genome());
-        gdb.generate_plink(array_name, &query_config, plink_formats, bgen_compression, one_pass, progress_interval, plink_prefix, fam_list);
+        gdb.generate_plink(array_name, &query_config, plink_formats, bgen_compression, one_pass, bgen_verbose, progress_interval, plink_prefix, fam_list);
         break;
     }
 #ifdef USE_GPERFTOOLS_HEAP

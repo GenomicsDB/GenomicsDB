@@ -595,6 +595,7 @@ void GenomicsDB::generate_plink(const std::string& array,
                                 unsigned char format,
                                 int compression,
                                 bool one_pass,
+                                bool verbose,
                                 double progress_interval,
                                 const std::string& output_prefix,
                                 const std::string& fam_list) {
@@ -603,7 +604,7 @@ void GenomicsDB::generate_plink(const std::string& array,
     return;
   }
 
-  GenomicsDBPlinkProcessor proc(query_config, static_cast<VidMapper*>(m_vid_mapper), array, format, compression, progress_interval, output_prefix, fam_list);
+  GenomicsDBPlinkProcessor proc(query_config, static_cast<VidMapper*>(m_vid_mapper), array, format, compression, verbose, progress_interval, output_prefix, fam_list);
   auto types = create_genomic_field_types(*query_config, m_annotation_service);
   auto it = types.find("ALT");
   if(it != types.end()) {
@@ -822,7 +823,8 @@ void GenomicsDBPlinkProcessor::process(const Variant& variant) {
     for(auto& f : fields) {
       if(f.name == "GT") {
         gt_string = f.to_string(get_genomic_field_type(f.name));
-        if(gt_string.find('/') != std::string::npos && gt_string.find('.') == std::string::npos) { // unphased if contains a slash but is not ./.
+
+        if(gt_string.find('/') != std::string::npos && gt_string.find('.') == std::string::npos) { // unphased if contains a slash or is ./. (might be able to use GL/PL, which are unphased probabilities)
           phased = false;
         }
         break;
@@ -862,6 +864,25 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
                                        const genomic_interval_t& genomic_interval,
                                        const std::vector<genomic_field_t>& genomic_fields,
                                        const bool phased) {
+  auto split = [] (std::string str, std::string sep = ",") {
+    std::vector<std::string> retval;
+    int index;
+
+    if(str.length() >= 2) {
+      if(str[0] == '[') {
+         str = str.substr(1, str.length() - 2);
+      }
+    }
+
+    while((index = str.find(sep)) != std::string::npos) {
+      retval.push_back(str.substr(0, index));
+      str.erase(0, index + 1);
+    }
+    retval.push_back(str);
+
+    return retval;
+  };
+
   last_phased = phased;
   static size_t tm = 0;
   auto progress_bar = [&] () {
@@ -928,15 +949,15 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
   }
 
   if(!alt_string.size()) {
-    logger.error("No ALT field for sample {}", sample_name);
+    logger.error("No ALT field for sample: {} row: {} column: {}", sample_name, coords[0], coords[1]);
     exit(1);
   }
   if(!ref_string.size()) {
-    logger.error("No REF field for sample {}", sample_name);
+    logger.error("No REF field for sample: {} row: {} column: {}", sample_name, coords[0], coords[1]);
     exit(1);
   }
   if(!gt_string.size()) {
-    logger.error("No GT field for sample {}", sample_name);
+    logger.error("No GT field for sample: {} row: {} column: {}", sample_name, coords[0], coords[1]);
     exit(1);
   }
 
@@ -967,9 +988,20 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     }
     gt_vec.push_back(std::stoi(gt_string));
   }
-  catch (...) { // behave as if this cell is missing (probably ./.)
+  catch (...) { // probably ./., treat as missing cell
     return;
   }
+
+  for(auto g : gt_vec) {
+    if(g < 0 || g >= vec.size()) {
+      if(verbose) {
+        logger.error("GT field for sample: {} row: {} column: {},  contains index {}, which is out of bounds (1 ref allele, {} alt allele(s))", sample_name, coords[0], coords[1], g, vec.size() - 1);
+       }
+      return;
+    }
+  }
+
+  int16_t ploidy = gt_vec.size();
 
   if(!state) {
     sample_map_initialized = true; // possible to skip first pass, sample map will be populated from callset
@@ -984,8 +1016,6 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     last_coord = coords[1];
     return;
   }
-
-  int16_t ploidy = gt_vec.size();
 
   if(ploidy != 2 && (make_bed || make_tped)) { // FIXME: not applicable for bgen
     logger.error("The tped/bed formats do not support ploidies other than 2.");
@@ -1157,68 +1187,99 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
 
     // convert PL to BGEN format
     std::vector<double> pl_vec;
-    try {
-      if(pl_string.length()) {
-        if(pl_string[0] == '[') {
-          pl_string = pl_string.substr(1, pl_string.length() - 2);
-        }
+    bool pl_dot = false;
 
-        while((index = pl_string.find(",")) != std::string::npos) {
-          pl_vec.push_back(std::stoi(pl_string.substr(0, index)));
-          pl_string.erase(0, index + 1);
+    try {
+      for(auto& tok : split(pl_string)) {
+        if(tok == ".") pl_dot = true;
+        int val = std::stoi(tok);
+        if(val >= 0) {
+          pl_vec.push_back(val);
         }
-        pl_vec.push_back(std::stoi(pl_string));
+        else {
+          throw std::runtime_error("PL value is negative");
+        }
       }
     }
     catch(...) {
       pl_vec.clear();
+      if(!pl_dot && verbose) {
+        logger.error("PL field for sample: {} row: {} column: {} contains a negative value or otherwise did not parse, full string: {}", sample_name, coords[0], coords[1], pl_string);
+      }
     }
 
     std::vector<char> pl_probs;
 
-    double total = 0;
+    double pl_total = 0;
+    double epsilon = .05;
     for(auto& a : pl_vec) {
-      a = std::pow(10, (double)a/-10);
-      total += a;
-    }
-
-    for(auto& a : pl_vec) {
-      char prob = (char)((double)std::numeric_limits<unsigned char>::max() * a / total);
-      pl_probs.push_back(prob);
+      double prob = std::pow(10, double(a)/-10);
+      pl_total += prob;
+      pl_probs.push_back(char(std::numeric_limits<unsigned char>::max() * prob));
     }
 
     // parse GL
     std::vector<double> gl_vec;
-    try {
-      if(gl_string.length()) {
-        if(gl_string[0] == '[') {
-          gl_string = gl_string.substr(1, gl_string.length() - 2);
-        }
+    bool gl_dot = false;
 
-        while((index = gl_string.find(",")) != std::string::npos) {
-          pl_vec.push_back(std::stod(gl_string.substr(0, index)));
-          gl_string.erase(0, index + 1);
+    try {
+      for(auto& tok : split(gl_string)) {
+        if(tok == ".") gl_dot = true;
+        double val = std::stod(tok);
+        if(val <= 0) {
+          gl_vec.push_back(val);
         }
-        pl_vec.push_back(std::stod(gl_string));
+        else {
+          throw std::runtime_error("GL value is positive");
+        }
       }
     }
     catch(...) {
       gl_vec.clear();
+      if(!gl_dot && verbose) {
+        logger.error("GL field for sample: {} row: {} column: {} contains a strictly positive value or otherwise did not parse, full string {}", sample_name, coords[0], coords[1], gl_string);
+      }
     }
 
     std::vector<char> gl_probs;
 
+    double gl_total = 0;
     for(auto& a : gl_vec) {
-      gl_probs.push_back((char)((double)std::numeric_limits<unsigned char>::max() * std::pow(10, a)));
+      double prob = std::pow(10, a);
+      gl_total += prob;
+      gl_probs.push_back(char(std::numeric_limits<unsigned char>::max() * prob));
     }
 
     std::vector<char> probs;
 
-    if(pl_vec.size()) {
-      probs = pl_probs;
+    // subtract 1 representing reference
+    auto num_genotypes = KnownFieldInfo::get_number_of_genotypes(vec.size() - 1, ploidy);
+
+    if(gl_probs.size()) { // prefer gl as it is more precise (pl is rounded)
+      if(gl_probs.size() == num_genotypes) {
+        if(std::abs(1 - gl_total) > epsilon && verbose) {
+          logger.warn("GL probabilities at sample: {} row: {} column: {} sum to {}, expected near 1. Generated BGEN may be invalid", sample_name, coords[0], coords[1], gl_total);
+        }
+        probs = gl_probs;
+      }
+      else {
+        if(verbose) {
+          logger.error("GL length at sample: {} row: {} column: {} is {}, expected {}. Defaulting to using GT to construct probabilities", sample_name, coords[0], coords[1], gl_vec.size(), num_genotypes);
+        }
+      }
     }
-    else {
-      probs = gl_probs;
+    else if(pl_probs.size()) {
+      if(pl_probs.size() == num_genotypes) {
+        if(std::abs(1 - pl_total) > epsilon && verbose) {
+          logger.warn("PL probabilities at sample: {} row: {} column: {} sum to {}, expected near 1. Generated BGEN may be invalid", sample_name, coords[0], coords[1], pl_total);
+        }
+        probs = pl_probs;
+      }
+      else {
+        if(verbose) {
+          logger.error("PL length at sample: {} row: {} column: {} is {}, expected {}. Defaulting to using GT to construct probabilities", sample_name, coords[0], coords[1], pl_vec.size(), num_genotypes);
+        }
+      }
     }
 
     double pq;

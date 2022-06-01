@@ -303,10 +303,11 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
                              const std::string& array,
                              unsigned char formats = 7,
                              int compression = 1,
+                             bool verbose = false,
                              double progress_interval = -1,
                              std::string prefix = "output",
                              std::string fam_list = ""
-                            ) : query_config(qc), vid_mapper(vid_mapper), array(array), compression(compression), progress_interval(progress_interval), prefix(prefix), fam_list(fam_list) {
+                            ) : query_config(qc), vid_mapper(vid_mapper), array(array), compression(compression), verbose(verbose), progress_interval(progress_interval), prefix(prefix), fam_list(fam_list) {
       make_bgen = (bool)(formats & 1);
       make_bed = (bool)(formats & 2);
       make_tped = (bool)(formats & 4);
@@ -383,6 +384,7 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
     VidMapper* vid_mapper;
     bool make_bgen, make_tped, make_bed;
     int compression = 0; // 0 for none, 1 for zlib, 2 for zstd
+    bool verbose = false;
     // flattened coordinate to place in sorted map, phased status of column for bgen purposes (entire column considered unphased if any are unphased)
     std::map<uint64_t, std::pair<int, bool>> variant_map;
     double progress_interval;
@@ -650,6 +652,7 @@ class GenomicsDB {
                                         unsigned char format = 7,
                                         int compression = 1,
                                         bool one_pass = false,
+                                        bool verbose = false,
                                         double progress_interval = -1,
                                         const std::string& output_prefix = "output",
                                         const std::string& fam_list = "");
