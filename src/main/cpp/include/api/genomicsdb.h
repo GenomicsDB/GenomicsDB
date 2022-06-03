@@ -307,65 +307,7 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
                              double progress_interval = -1,
                              std::string prefix = "output",
                              std::string fam_list = ""
-                            ) : query_config(qc), vid_mapper(vid_mapper), array(array), compression(compression), verbose(verbose), progress_interval(progress_interval), prefix(prefix), fam_list(fam_list) {
-      make_bgen = (bool)(formats & 1);
-      make_bed = (bool)(formats & 2);
-      make_tped = (bool)(formats & 4);
-
-      // For use with BGEN compression
-      if(compression == 1) {
-        TileDBUtils::create_codec(&codec, TILEDB_GZIP, Z_DEFAULT_COMPRESSION);
-      }
-      else {
-        TileDBUtils::create_codec(&codec, TILEDB_ZSTD, 9);
-      }
-
-      // open various files
-      if(make_tped) {
-        tped_file.open(prefix + ".tped", std::ios::out);
-      }
-      if(make_bed) {
-        bed_file.open(prefix + ".bed", std::ios::out | std::ios::binary);
-        bim_file.open(prefix + ".bim", std::ios::out);
-      }
-      if(make_tped || make_bed) {
-        fam_file.open(prefix + ".fam", std::ios::out);
-      }
-      if(make_bgen) {
-        bgen_file.open(prefix + ".bgen", std::ios::out | std::ios::binary);
-      }
-
-      if(make_bed) {
-        char magic_numbers[] = {0x6c, 0x1b, 0x01};
-        bed_file.write(magic_numbers, 3); // BED: magic numbers
-      }
-
-      if(make_bgen) {
-        int32_t zero = 0;
-        int32_t offset = 20; // BGEN: offset of first variant data block relative to 5th byte. Always 20 here because free data area left empty
-        bgen_file.write((char*)&offset, 4); // BGEN: first 4 bytes has offset
-        bgen_file.write((char*)&offset, 4); // BGEN: beginning of header, next 4 bytes same in this case
-        bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of variants (M), filled in later
-        bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of samples (N), filled in later
-
-        char bgen_magic_numbers[] = {'b', 'g', 'e', 'n'};
-        bgen_file.write(bgen_magic_numbers, 4); // BGEN: 4 bytes bgen magic number
-
-        int32_t flags = 0b10000000000000000000000000001000; // BGEN: layout 2, sample identifier block present
-        flags = flags | compression;
-        bgen_file.write((char*)&flags, 4); // BGEN: 4 bytes flags, end of header
-      }
-
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-      // for use with progress bar
-      for(auto& a : query_config->get_query_row_ranges(rank)) {
-        total_rows += a.second - a.first + 1;
-      }
-      for(auto& b : query_config->get_query_column_ranges(rank)) {
-        total_cols += b.second - b.first + 1;
-      }
-    }
+                             );
 
     ~GenomicsDBPlinkProcessor() {
       TileDBUtils::finalize_codec(codec);
@@ -396,7 +338,6 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
     bool sample_map_initialized = false;
     // fam is identical to tfam, used with bed, tped respectively
     std::fstream tped_file, fam_file, bim_file, bed_file, bgen_file;
-    int temp_file_line = 0;
     int state = 0;
     int last_sample = -1;
     //int last_variant = 0;
@@ -469,12 +410,6 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
       };
 
       enumerate_unphased(0, alleles - 1);    
-
-      //return size;
-    }
-
-    void bw() {
-      std::cout << "bgen fp: " << bgen_file.tellp() << ", bgen_gt_size: " << bgen_gt_size << std::endl;
     }
 
     void bgen_empty_cell(int ploidy, int alleles, bool phased) {
