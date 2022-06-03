@@ -147,7 +147,21 @@ TEST_CASE("api query_variants direct DP with huge row range", "[query_variants_h
 
 TEST_CASE("api query_variants direct DP with huge disjoint row ranges", "[query_variants_huge_disjoint_range]") {
   GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
-  check_query_variants_results(gdb, array, gdb->query_variants(array, {{0, 1}, {2,1000000000}, {2000000000, 3000000000}}, {{0,10000000000}}));
+  check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,10000000000}}, {{0, 1}, {2,1000000000}, {2000000000, 3000000000}}));
+  delete gdb;
+}
+
+TEST_CASE("api query_variants direct DP with range composed of multiple points", "[query_variants_points]") {
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  REQUIRE(gdb->query_variants(array, {{0,10000000000}}, {{0, 0}, {2,2}}).size() == 2);
+  check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,10000000000}}, {{0, 0}, {2,2}, {1,1}}));
+  delete gdb;
+}
+
+TEST_CASE("api query_variants direct DP with range composed of overlapping ranges", "[query_variants_overlap]") {
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  REQUIRE(gdb->query_variants(array, {{0,10000000000}}, {{1000,2000}, {1, 5}, {2,2}}).size() == 3);
+  check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,10000000000}}, {{0, 10}, {1,5}, {2,3}}));
   delete gdb;
 }
 
