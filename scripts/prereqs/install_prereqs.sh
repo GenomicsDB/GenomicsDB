@@ -23,6 +23,15 @@
 
 set -e
 
+# Arguments to the script
+#  $1 - BUILD_DISTRIBUTABLE_LIBRARY, if true will build/install OpenSSL/CURL/UUID/Intel zlib libs
+#  $2 - 'full' if build prerequisites should be installed, 'release' if only runtime prerequisites should be installed
+
+OPENSSL_VERSION=1.0.2o
+MAVEN_VERSION=3.6.3
+CURL_VERSION=7.83.1
+UUID_VERSION=1.0.3
+
 # Check for the following overriding env variables
 #    $INSTALL_PREFIX allows for dependencies maven/protobuf/etc. that are built to be installed to $INSTALL_PREFIX for user installs
 #    $PREREQS_ENV will set up file that can be sourced to set up the ENV for building GenomicsDB
@@ -48,9 +57,6 @@ touch $PREREQS_ENV
 
 BUILD_DISTRIBUTABLE_LIBRARY=${1:-false}
 
-OPENSSL_VERSION=1.0.2o
-MAVEN_VERSION=3.6.3
-
 if [[ `uname` == "Darwin" && $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
   export MACOSX_DEPLOYMENT_TARGET=10.13
   echo "export MACOSX_DEPLOYMENT_TARGET=10.13" >> $PREREQS_ENV
@@ -63,8 +69,7 @@ WGET_NO_CERTIFICATE=""
 PARENT_DIR="$(dirname $0)"
 
 # $1 - path variable name
-# $2 - 'full' if build prerequisites should be installed, 'release' if only runtime prerequisites should be installed
-# $3 - path variable value
+# $2 - path variable value
 add_to_env() {
   SEP=":"
   if [[ $1 != *PATH ]]; then
@@ -106,32 +111,6 @@ install_mvn() {
     add_to_env PATH "\${M2_HOME}/bin"
 }
 
-PROTOBUF_PREFIX=$INSTALL_PREFIX
-install_protobuf() {
-  if [ ! -f $PROTOBUF_PREFIX/bin/protoc ]; then 
-    echo "Installing Protobuf"
-    pushd /tmp
-    if [[ $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
-      wget $WGET_NO_CERTIFICATE -nv https://github.com/protocolbuffers/protobuf/releases/download/v3.0.0-beta-1/protobuf-cpp-3.0.0-beta-1.zip &&
-        unzip protobuf-cpp-3.0.0-beta-1.zip &&
-        cp $PARENT_DIR/protobuf-v3.0.0-beta-1.autogen.sh.patch protobuf-3.0.0-beta-1/autogen.sh &&
-        mv protobuf-3.0.0-beta-1 protobuf
-    else
-      git clone -b 3.8.x https://github.com/google/protobuf.git
-    fi
-    pushd protobuf &&
-      ./autogen.sh &&
-      ./configure --prefix=$INSTALL_PREFIX --with-pic &&
-      make -j4 && make install &&
-        echo "Installing Protobuf DONE"
-    popd
-    rm -fr /tmp/protobuf*
-    popd
-  fi
-  add_to_env PATH $PROTOBUF_PREFIX/bin &&
-    add_to_env LD_LIBRARY_PATH  $PROTOBUF_PREFIX/lib
-}
-
 OPENSSL_PREFIX=$INSTALL_PREFIX/ssl
 install_openssl() {
   if [[ ! -d $OPENSSL_PREFIX ]]; then
@@ -162,9 +141,10 @@ install_curl() {
   if [[ ! -f $CURL_PREFIX/libcurl.a ]]; then
     echo "Installing CURL into $CURL_PREFIX"
     pushd /tmp
-    wget https://github.com/curl/curl/releases/download/curl-7_83_1/curl-7.83.1.tar.gz &&
-    tar xzf curl-7.83.1.tar.gz &&
-    cd curl-7.83.1 &&
+    CURL_VERSION_=$(echo $CURL_VERSION | sed -r 's/\./_/g')
+    wget https://github.com/curl/curl/releases/download/curl-$CURL_VERSION_/curl-$CURL_VERSION.tar.gz &&
+    tar xzf curl-$CURL_VERSION.tar.gz &&
+    cd curl-$CURL_VERSION &&
       ./configure --disable-shared --with-pic -without-zstd --with-ssl=$OPENSSL_PREFIX --prefix $CURL_PREFIX &&
       make && make install && echo "Installing CURL DONE"
     rm -fr /tmp/curl
@@ -182,9 +162,9 @@ install_uuid() {
   if [[ ! -f $UUID_PREFIX/libuuid.a ]]; then
     echo "Installing libuuid into $UUID_PREFIX"
     pushd /tmp
-    wget $WGET_NO_CERTIFICATE https://sourceforge.net/projects/libuuid/files/libuuid-1.0.3.tar.gz &&
-      tar -xvzf libuuid-1.0.3.tar.gz &&
-      cd libuuid-1.0.3 &&
+    wget $WGET_NO_CERTIFICATE https://sourceforge.net/projects/libuuid/files/libuuid-$UUID_VERSION.tar.gz &&
+      tar -xvzf libuuid-$UUID_VERSION.tar.gz &&
+      cd libuuid-$UUID_VERSION &&
       sed -i s/2.69/2.63/ configure.ac &&
       aclocal &&
       automake --add-missing &&
