@@ -53,11 +53,12 @@ execute_process(
 set(GENOMICSDB_RELEASE_VERSION "1.4.4-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 set(GENOMICSDB_VERSION "${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}" CACHE STRING "GenomicsDB full version string")
 
-set(DISABLE_MPI False CACHE BOOL "Disable use of any MPI compiler/libraries")
-set(DISABLE_OPENMP False CACHE BOOL "Disable OpenMP")
+option(BUILD_DISTRIBUTABLE_LIBRARY "Build the GenomicsDB library with minimal runtime dependencies")
+option(BUILD_FOR_PYTHON "Build GenomicsDB library with minimal runtime, no jvm/openssl/curl dependencies and python protobuf bindings")
+option(BUILD_JAVA "Build Java/JNI interface for combined VCF records")
 
-set(BUILD_DISTRIBUTABLE_LIBRARY False CACHE BOOL "Build the TileDB/GenomicsDB library with minimal runtime dependencies")
-set(BUILD_JAVA False CACHE BOOL "Build Java/JNI interface for combined VCF records")
+option(DISABLE_MPI "Disable use of any MPI compiler/libraries")
+option(DISABLE_OPENMP "Disable OpenMP")
 
 set(HTSLIB_INSTALL_DIR "" CACHE PATH "Path to htslib install directory")
 
@@ -71,15 +72,16 @@ set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf 
 set(USE_LIBCSV False CACHE BOOL "Disable library components that import data from csv files")
 set(LIBCSV_DIR "" CACHE PATH "Path to libcsv header and library")
 
-set(DO_PROFILING False CACHE BOOL "Collect some stats during execution - doesn't add much overhead")
-set(COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW False CACHE BOOL "Counting #cells traversed in columnar iterator")
-set(PROFILE_NUM_CELLS_TO_TRAVERSE_AT_EVERY_QUERY_INTERVAL False CACHE BOOL "Counting #cells traversed in columnar iterator in sliding window")
-set(DO_MEMORY_PROFILING False CACHE BOOL "Collect memory consumption in parts of the combine gVCF program - high overhead")
+#Profiling
+option(DO_PROFILING "Collect some stats during execution - doesn't add much overhead")
+option(COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW "Counting #cells traversed in columnar iterator")
+option(PROFILE_NUM_CELLS_TO_TRAVERSE_AT_EVERY_QUERY_INTERVAL "Counting #cells traversed in columnar iterator in sliding window")
+option(DO_MEMORY_PROFILING "Collect memory consumption in parts of the combine gVCF program - high overhead")
 
 #See https://gperftools.github.io/gperftools/cpuprofile.html
-set(USE_GPERFTOOLS False CACHE BOOL "Collect profiling information using gperftools/profiler for analysis with pprof")
+option(USE_GPERFTOOLS "Collect profiling information using gperftools/profiler for analysis with pprof")
 #See https://gperftools.github.io/gperftools/heapprofile.html
-set(USE_GPERFTOOLS_HEAP False CACHE BOOL "Collect heap profiling information using gperftools/tcmalloc for analysis with pprof")
+option(USE_GPERFTOOLS_HEAP "Collect heap profiling information using gperftools/tcmalloc for analysis with pprof")
 
 set(GENOMICSDB_MAVEN_BUILD_DIR ${CMAKE_BINARY_DIR}/target CACHE PATH "Path to maven build directory")
 set(MAVEN_QUIET False CACHE BOOL "Do not print mvn messages")
@@ -114,16 +116,18 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND BUILD_FOR_ARCH)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${BUILD_FOR_ARCH}")
 endif()
 
-if(BUILD_DISTRIBUTABLE_LIBRARY)
+if(BUILD_DISTRIBUTABLE_LIBRARY OR BUILD_FOR_PYTHON)
     set(DISABLE_MPI True)
     set(DISABLE_OPENMP True)
+    if(APPLE)
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
+    endif()
+endif()
+if (BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_FOR_PYTHON)
     #For the GNU compiler, link in static gcc libraries
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-    endif()
-    if(APPLE)  
-        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
     endif()
 endif()
 
@@ -255,7 +259,7 @@ if(BUILD_JAVA)
 endif()
 
 #libcsv
-if(NOT BUILD_DISTRIBUTABLE_LIBRARY)
+if(NOT BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_FOR_PYTHON)
     if(USE_LIBCSV)
         find_package(libcsv REQUIRED)
     else()

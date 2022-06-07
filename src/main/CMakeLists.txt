@@ -3,7 +3,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2019-2020 Omics Data Automation, Inc.
+# Copyright (c) 2019-2020,2022 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -78,7 +78,11 @@ set(GenomicsDB_library_sources
 
 if(PROTOBUF_REGENERATE)
     #Must be set here - see https://cmake.org/cmake/help/v3.3/command/set_source_files_properties.html
-    set_source_files_properties(${PROTOBUF_GENERATED_CXX_SRCS} ${PROTOBUF_GENERATED_CXX_HDRS} PROPERTIES GENERATED True)
+    if(BUILD_FOR_PYTHON)
+      set_source_files_properties(${PROTOBUF_GENERATED_CXX_SRCS} ${PROTOBUF_GENERATED_CXX_HDRS} ${PROTOBUF_GENERATED_PYTHON_SRCS} PROPERTIES GENERATED True)
+    else()
+      set_source_files_properties(${PROTOBUF_GENERATED_CXX_SRCS} ${PROTOBUF_GENERATED_CXX_HDRS} PROPERTIES GENERATED True)
+    endif()
 endif()
 
 if(BUILD_JAVA)
@@ -124,3 +128,6 @@ endif()
 
 install(TARGETS genomicsdb tiledbgenomicsdb LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
 install(FILES cpp/include/api/genomicsdb.h  cpp/include/api/genomicsdb_exception.h DESTINATION include)
+if(BUILD_FOR_PYTHON)
+  install(FILES ${PROTOBUF_GENERATED_PYTHON_SRCS} DESTINATION genomicsdb/protobuf/python)
+endif()
