@@ -150,7 +150,6 @@ GenomicsDB::GenomicsDB(const std::string& query_configuration,
       std::vector<ContigIntervalTuple> contig_intervals = query_config->get_vid_mapper().get_contig_intervals_for_column_partition(column_partition.first, column_partition.second, true);
       std::set<std::string> contigs;
       for (auto interval : contig_intervals) {
-        // std::cerr << "Interval=" << std::get<0>(interval) << ":" << std::get<1>(interval) << std::get<2>(interval) << std::endl;
         contigs.insert(std::get<0>(interval));
       }
 
@@ -732,8 +731,6 @@ GenomicsDBVariantCalls GenomicsDB::get_variant_calls(const std::string& array, c
     it->second.type_idx = genomic_field_type_t::genomicsdb_basic_type::STRING;
   }
 
-  //return GenomicsDBResults<genomicsdb_variant_call_t>(TO_GENOMICSDB_VARIANT_CALL_VECTOR(variant_calls),
-  //                                                    create_genomic_field_types(*get_query_config_for(array)));
   return GenomicsDBResults<genomicsdb_variant_call_t>(TO_GENOMICSDB_VARIANT_CALL_VECTOR(variant_calls), types);
 }
 
@@ -1095,7 +1092,6 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     rsid_row = genomic_interval.contig_name + " " + rsid + " 0 " + std::to_string(genomic_interval.interval.first);
 
     int sind = sample_map[coords[0]].first;
-    //int vind = variant_map[coords[1]].first;
 
     // backfill if needed
     bool backfill = coords[1] - last_coord && last_coord != -1;
@@ -1159,7 +1155,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
         bgen_file.write((char*)&K, 2);// BGEN: 2 byte K for number of alleles
         // write alleles and lengths
         int32_t len;
-        for(auto& a : vec) { // iterate over alleles FIXME assuming ALT same for all samples in column
+        for(auto& a : vec) { // iterate over alleles
           len = a.length();
           bgen_file.write((char*)&len, 4); // BGEN: 4 byte length of allele
           bgen_file.write(a.c_str(), len); // BGEN: allele
@@ -1369,8 +1365,9 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
           p = probs[ind];
         }
         else {
+          // NOTE: this should never be triggered, GL/PL length is checked above
           logger.error("BGEN generation error: GL/PL probabilies only have {} term(s), halting BGEN generation", probs.size());
-          make_bgen = 0; // FIXME inelegant. Detect and use default
+          make_bgen = 0;
         }
       }
       codec_buf.push_back(p);
@@ -1396,7 +1393,6 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
 }
 
 void GenomicsDBPlinkProcessor::process(const interval_t& interval) {
-  //GenomicsDBVariantCallProcessor::process(interval);
   return;
 }
 
@@ -1418,19 +1414,13 @@ void GenomicsDBPlinkProcessor::advance_state() {
     }
     // associate variants with sorted position
     i = -1;
-    /*for(auto& b : variant_map) {
-      ++i;
-      b.second.first = (uint64_t)i;
-    }*/
     last_sample = -1;
-    //last_variant = 0;
     last_coord = -1;
   
     if(make_bed || make_tped) {
       // Find samples coincident with entries in fam files (if specified) and associate information with sample name
       std::map<std::string, std::string> fam_entries;
     
-      // TODO maybe do some kind of buffering in case there is a huge number of fam entries
       if(fam_list.length()) {
         std::ifstream fam_list_file(fam_list);
         std::string fname;
@@ -1458,12 +1448,9 @@ void GenomicsDBPlinkProcessor::advance_state() {
     if(make_bgen) {
       // BGEN: fill in N in header
       bgen_file.seekp(12);
-      //int32_t M = variant_map.size();
-      //int32_t M = num_variants;
-      // Fill in M at end, as first pass, which counts variants, may be skipped
       int32_t N = sample_map.size();
-      //bgen_file.write((char*)&M, 4); // BGEN: 4 byte M
       bgen_file.write((char*)&N, 4); // BGEN: 4 byte N
+      // Fill in M at end, as first pass, which counts variants, may be skipped
 
       // BGEN: write sample identifier block
       bgen_file.seekp(24);

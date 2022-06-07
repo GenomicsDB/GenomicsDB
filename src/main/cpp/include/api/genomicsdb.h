@@ -340,7 +340,6 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
     std::fstream tped_file, fam_file, bim_file, bed_file, bgen_file;
     int state = 0;
     int last_sample = -1;
-    //int last_variant = 0;
     int num_variants = 0;
     int last_coord = -1;
     int last_alleles = -1;
