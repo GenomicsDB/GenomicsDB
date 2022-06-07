@@ -49,6 +49,7 @@ else
 fi
 
 if [[ $ENABLE_BINDINGS == *python* ]]; then
+  BUILD_JAVA=false
   BUILD_FOR_PYTHON=true
   BUILD_DISTRIBUTABLE_LIBRARY=false
 else
