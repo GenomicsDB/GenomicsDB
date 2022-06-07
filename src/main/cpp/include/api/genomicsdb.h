@@ -37,6 +37,7 @@
 #include "variant_query_config.h"
 #include "tiledb.h"
 #include "tiledb_utils.h"
+#include "genomicsdb_logger.h"
 
 #include <map>
 #include <set>
@@ -347,6 +348,62 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
     int rank;
     int total_rows = 0;
     int total_cols = 0;
+
+    size_t tm = 0;
+    void progress_bar(const int64_t* coords) {
+      size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+      if (now - progress_interval > tm) {
+        // flatten column and row ranges
+        int row = 0, col = 0;
+        for(auto& a : query_config->get_query_row_ranges(rank)) {
+          if(coords[0] <= a.second) {
+            row += coords[0] - a.first + 1;
+            break;
+          }
+          else {
+            row += a.second - a.first + 1;
+          }
+        }
+        for(auto& b : query_config->get_query_column_ranges(rank)) {
+          if(coords[1] <= b.second) {
+            col += coords[1] - b.first + 1;
+            break;
+          }
+          else {
+            col += b.second - b.first + 1;
+          }
+        }
+
+        long num = (long)col * total_rows + row + ((bool)state)*((long)total_rows * total_cols);
+        long den = (long)total_rows * total_cols * 2;
+
+        logger.info("Plink progress {} / {} = {:.2f}%", num, den, 100*(double)num/den);
+
+        tm = now;
+      }
+    }
+
+    // populate variant data block in bgen file for variant with given rsid spanning genomic_interval
+    // vec is REF and ALT combined (REF is first entry)
+    void bgen_variant_data_block(const std::string& rsid, const genomic_interval_t& genomic_interval, const std::vector<std::string>& vec, bool phased);
+
+    // return vector of tokens that were separated by sep in str
+    std::vector<std::string> split(std::string str, std::string sep = ",") {
+      std::vector<std::string> retval;
+      int index;
+      if(str.length() >= 2) {
+        if(str[0] == '[') {
+           str = str.substr(1, str.length() - 2);
+        }
+      }
+      while((index = str.find(sep)) != std::string::npos) {
+        retval.push_back(str.substr(0, index));
+        str.erase(0, index + 1);
+      }
+      retval.push_back(str);
+      return retval;
+    };
+
     // BED variables/functions
     char bed_buf = 0;
     char bed_buf_state = 0;

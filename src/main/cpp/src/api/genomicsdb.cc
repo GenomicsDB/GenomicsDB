@@ -45,7 +45,6 @@
 #include "variant_query_config.h"
 #include "vcf_adapter.h"
 #include "vid_mapper_pb.h"
-#include "genomicsdb_logger.h"
 
 #define TO_VARIANT_QUERY_CONFIG(X) (reinterpret_cast<VariantQueryConfig *>(static_cast<void *>(X)))
 #define TO_VARIANT_STORAGE_MANAGER(X) (reinterpret_cast<VariantStorageManager *>(static_cast<void *>(X)))
@@ -818,64 +817,125 @@ GenomicsDBPlinkProcessor::GenomicsDBPlinkProcessor(VariantQueryConfig* qc,
                                                    std::string prefix,
                                                    std::string fam_list
                                                   ) : query_config(qc), vid_mapper(vid_mapper), array(array), compression(compression), verbose(verbose), progress_interval(progress_interval), prefix(prefix), fam_list(fam_list) {
-      make_bgen = (bool)(formats & 1);
-      make_bed = (bool)(formats & 2);
-      make_tped = (bool)(formats & 4);
+  make_bgen = (bool)(formats & 1);
+  make_bed = (bool)(formats & 2);
+  make_tped = (bool)(formats & 4);
 
-      // For use with BGEN compression
-      if(compression == 1) {
-        TileDBUtils::create_codec(&codec, TILEDB_GZIP, Z_DEFAULT_COMPRESSION);
-      }
-      else {
-        TileDBUtils::create_codec(&codec, TILEDB_ZSTD, 9);
-      }
+  // For use with BGEN compression
+  if(compression == 1) {
+    TileDBUtils::create_codec(&codec, TILEDB_GZIP, Z_DEFAULT_COMPRESSION);
+  }
+  else {
+    TileDBUtils::create_codec(&codec, TILEDB_ZSTD, 9);
+  }
 
-      // open various files
-      if(make_tped) {
-        tped_file.open(prefix + ".tped", std::ios::out);
-      }
-      if(make_bed) {
-        bed_file.open(prefix + ".bed", std::ios::out | std::ios::binary);
-        bim_file.open(prefix + ".bim", std::ios::out);
-      }
-      if(make_tped || make_bed) {
-        fam_file.open(prefix + ".fam", std::ios::out);
-      }
-      if(make_bgen) {
-        bgen_file.open(prefix + ".bgen", std::ios::out | std::ios::binary);
-      }
+  // open various files
+  if(make_tped) {
+    tped_file.open(prefix + ".tped", std::ios::out);
+  }
+  if(make_bed) {
+    bed_file.open(prefix + ".bed", std::ios::out | std::ios::binary);
+    bim_file.open(prefix + ".bim", std::ios::out);
+  }
+  if(make_tped || make_bed) {
+    fam_file.open(prefix + ".fam", std::ios::out);
+  }
+  if(make_bgen) {
+    bgen_file.open(prefix + ".bgen", std::ios::out | std::ios::binary);
+  }
 
-      if(make_bed) {
-        char magic_numbers[] = {0x6c, 0x1b, 0x01};
-        bed_file.write(magic_numbers, 3); // BED: magic numbers
-      }
+  if(make_bed) {
+    char magic_numbers[] = {0x6c, 0x1b, 0x01};
+    bed_file.write(magic_numbers, 3); // BED: magic numbers
+  }
 
-      if(make_bgen) {
-        int32_t zero = 0;
-        int32_t offset = 20; // BGEN: offset of first variant data block relative to 5th byte. Always 20 here because free data area left empty
-        bgen_file.write((char*)&offset, 4); // BGEN: first 4 bytes has offset
-        bgen_file.write((char*)&offset, 4); // BGEN: beginning of header, next 4 bytes same in this case
-        bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of variants (M), filled in later
-        bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of samples (N), filled in later
+  if(make_bgen) {
+    int32_t zero = 0;
+    int32_t offset = 20; // BGEN: offset of first variant data block relative to 5th byte. Always 20 here because free data area left empty
+    bgen_file.write((char*)&offset, 4); // BGEN: first 4 bytes has offset
+    bgen_file.write((char*)&offset, 4); // BGEN: beginning of header, next 4 bytes same in this case
+    bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of variants (M), filled in later
+    bgen_file.write((char*)&zero, 4); // BGEN: 4 bytes number of samples (N), filled in later
 
-        char bgen_magic_numbers[] = {'b', 'g', 'e', 'n'};
-        bgen_file.write(bgen_magic_numbers, 4); // BGEN: 4 bytes bgen magic number
+    char bgen_magic_numbers[] = {'b', 'g', 'e', 'n'};
+    bgen_file.write(bgen_magic_numbers, 4); // BGEN: 4 bytes bgen magic number
 
-        int32_t flags = 0b10000000000000000000000000001000; // BGEN: layout 2, sample identifier block present
-        flags = flags | compression;
-        bgen_file.write((char*)&flags, 4); // BGEN: 4 bytes flags, end of header
-      }
+    int32_t flags = 0b10000000000000000000000000001000; // BGEN: layout 2, sample identifier block present
+    flags = flags | compression;
+    bgen_file.write((char*)&flags, 4); // BGEN: 4 bytes flags, end of header
+  }
 
-      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-      // for use with progress bar
-      for(auto& a : query_config->get_query_row_ranges(rank)) {
-        total_rows += a.second - a.first + 1;
-      }
-      for(auto& b : query_config->get_query_column_ranges(rank)) {
-        total_cols += b.second - b.first + 1;
-      }
+  // for use with progress bar
+  for(auto& a : query_config->get_query_row_ranges(rank)) {
+    total_rows += a.second - a.first + 1;
+  }
+  for(auto& b : query_config->get_query_column_ranges(rank)) {
+    total_cols += b.second - b.first + 1;
+  }
+}
+
+void GenomicsDBPlinkProcessor::bgen_variant_data_block(const std::string& rsid, const genomic_interval_t& genomic_interval, const std::vector<std::string>& vec, bool phased) {
+  // BGEN: fill in genotype block size and min/max ploidy from previous iteration
+  if(last_sample != -1) { // no need on first column
+    if(samples_in_column < sample_map.size()) {
+      min_ploidy = (min_ploidy > 2) ? 2 : min_ploidy;
+      max_ploidy = (max_ploidy < 2) ? 2 : max_ploidy;
     }
+    samples_in_column = 0;
+    bgen_finish_gt();
+  }
+  min_ploidy = 64;
+  max_ploidy = -1;
+
+  // BGEN: variant data blocks
+  int16_t zero = 0;
+  int16_t one = 1;
+  bgen_file.write((char*)&one, 2); // BGEN: 2 byte length of variant identifier, not stored in GenomicsDB so using dummy
+  bgen_file.write((char*)&one, 1); // BGEN: dummy variant id
+  int16_t rsid_len = rsid.length();
+  bgen_file.write((char*)&rsid_len, 2); // BGEN: 2 byte length of rsid
+  bgen_file.write(rsid.c_str(), rsid_len); // BGEN: rsid
+  std::string chrom = genomic_interval.contig_name;
+  int16_t chrom_len = chrom.length();
+  bgen_file.write((char*)&chrom_len, 2); // BGEN: 2 byte chrom length
+  bgen_file.write(chrom.c_str(), chrom_len); // BGEN: chrom
+  uint32_t variant_pos = genomic_interval.interval.first;
+  bgen_file.write((char*)&variant_pos, 4); // BGEN: 4 byte variant position
+  int16_t K = vec.size();
+  bgen_file.write((char*)&K, 2);// BGEN: 2 byte K for number of alleles
+  // write alleles and lengths
+  int32_t len;
+  for(auto& a : vec) { // iterate over alleles
+    len = a.length();
+    bgen_file.write((char*)&len, 4); // BGEN: 4 byte length of allele
+    bgen_file.write(a.c_str(), len); // BGEN: allele
+  }
+
+  // BGEN: genotype data block (layout 2, uncompressed)
+  bgen_gt_size_offset = bgen_file.tellp();
+  bgen_gt_size = 0;
+  int32_t fourB_zero = 0;
+
+  // BGEN: preallocate probability data storage
+  int32_t N = sample_map.size();
+  codec_buf.append((char*)&N, 4); // BGEN: 4 byte N
+  codec_buf.append((char*)&K, 2); // BGEN: 2 byte K
+  bgen_min_ploidy_offset = bgen_file.tellp();
+  codec_buf.append((char*)&fourB_zero, 1); // BGEN: 1 byte min ploidy (placeholder)
+  bgen_max_ploidy_offset = bgen_file.tellp();
+  codec_buf.append((char*)&fourB_zero, 1); // BGEN: 1 byte max ploidy (placeholder)
+  bgen_ploidy_info_offset = bgen_file.tellp();
+  char default_sample_info = 0b10000010; // default missingness and ploidy information: set to missing/diploid unspecified
+  for(int j = 0; j < N; j++) {
+    codec_buf.append(&default_sample_info, 1); // BGEN: default sample information within this variant: because missing is set to 1, no need to backfill skipped cells
+  }
+  codec_buf.append((char*)&phased, 1); // BGEN: 1 byte phased
+  char B = 8; // precision at one byte to avoid alignment difficulties
+  codec_buf.append(&B, 1); // BGEN: 1 byte unsigned bits of precision
+  bgen_probability_offset = bgen_file.tellp();
+}
 
 void GenomicsDBPlinkProcessor::process(const Variant& variant) {
   auto& calls = variant.get_calls();
@@ -930,60 +990,10 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
                                        const genomic_interval_t& genomic_interval,
                                        const std::vector<genomic_field_t>& genomic_fields,
                                        const bool phased) {
-  auto split = [] (std::string str, std::string sep = ",") {
-    std::vector<std::string> retval;
-    int index;
-
-    if(str.length() >= 2) {
-      if(str[0] == '[') {
-         str = str.substr(1, str.length() - 2);
-      }
-    }
-
-    while((index = str.find(sep)) != std::string::npos) {
-      retval.push_back(str.substr(0, index));
-      str.erase(0, index + 1);
-    }
-    retval.push_back(str);
-
-    return retval;
-  };
-
   last_phased = phased;
-  static size_t tm = 0;
-  auto progress_bar = [&] () {
-    size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    if (now - progress_interval > tm) {
-      // flatten column and row ranges
-      int row = 0, col = 0;
-      for(auto& a : query_config->get_query_row_ranges(rank)) {
-        if(coords[0] <= a.second) {
-          row += coords[0] - a.first + 1;
-          break;
-        }
-        else {
-          row += a.second - a.first + 1;
-        }
-      }
-      for(auto& b : query_config->get_query_column_ranges(rank)) {
-        if(coords[1] <= b.second) {
-          col += coords[1] - b.first + 1;
-          break;
-        }
-        else {
-          col += b.second - b.first + 1;
-        }
-      }
-   
-      long num = (long)col * total_rows + row + ((bool)state)*((long)total_rows * total_cols);
-      long den = (long)total_rows * total_cols * 2;
-
-      tm = now;
-    }
-  };
 
   if(progress_interval > 0) {
-    progress_bar();
+    progress_bar(coords);
   }
 
   std::string ref_string, alt_string, gt_string, id_string, pl_string, gl_string, pq_string;
@@ -1125,64 +1135,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
       }
 
       if(make_bgen) {
-        // BGEN: fill in genotype block size and min/max ploidy from previous iteration
-        if(last_sample != -1) { // no need on first column
-          if(samples_in_column < sample_map.size()) {
-            min_ploidy = (min_ploidy > 2) ? 2 : min_ploidy;
-            max_ploidy = (max_ploidy < 2) ? 2 : max_ploidy;
-          }
-          samples_in_column = 0;
-          bgen_finish_gt();
-        }
-        min_ploidy = 64;
-        max_ploidy = -1;
-
-        // BGEN: variant data blocks
-        int16_t zero = 0;
-        int16_t one = 1;
-        bgen_file.write((char*)&one, 2); // BGEN: 2 byte length of variant identifier, not stored in GenomicsDB so using dummy
-        bgen_file.write((char*)&one, 1); // BGEN: dummy variant id
-        int16_t rsid_len = rsid.length();
-        bgen_file.write((char*)&rsid_len, 2); // BGEN: 2 byte length of rsid
-        bgen_file.write(rsid.c_str(), rsid_len); // BGEN: rsid
-        std::string chrom = genomic_interval.contig_name;
-        int16_t chrom_len = chrom.length();
-        bgen_file.write((char*)&chrom_len, 2); // BGEN: 2 byte chrom length
-        bgen_file.write(chrom.c_str(), chrom_len); // BGEN: chrom
-        uint32_t variant_pos = genomic_interval.interval.first;
-        bgen_file.write((char*)&variant_pos, 4); // BGEN: 4 byte variant position
-        int16_t K = vec.size();
-        bgen_file.write((char*)&K, 2);// BGEN: 2 byte K for number of alleles
-        // write alleles and lengths
-        int32_t len;
-        for(auto& a : vec) { // iterate over alleles
-          len = a.length();
-          bgen_file.write((char*)&len, 4); // BGEN: 4 byte length of allele
-          bgen_file.write(a.c_str(), len); // BGEN: allele
-        }
-
-        // BGEN: genotype data block (layout 2, uncompressed)
-        bgen_gt_size_offset = bgen_file.tellp();
-        bgen_gt_size = 0;
-        int32_t fourB_zero = 0;
-
-        // BGEN: preallocate probability data storage
-        int32_t N = sample_map.size();
-        codec_buf.append((char*)&N, 4); // BGEN: 4 byte N
-        codec_buf.append((char*)&K, 2); // BGEN: 2 byte K
-        bgen_min_ploidy_offset = bgen_file.tellp();
-        codec_buf.append((char*)&fourB_zero, 1); // BGEN: 1 byte min ploidy (placeholder)
-        bgen_max_ploidy_offset = bgen_file.tellp();
-        codec_buf.append((char*)&fourB_zero, 1); // BGEN: 1 byte max ploidy (placeholder)
-        bgen_ploidy_info_offset = bgen_file.tellp();
-        char default_sample_info = 0b10000010; // default missingness and ploidy information: set to missing/diploid unspecified
-        for(int j = 0; j < N; j++) {
-          codec_buf.append(&default_sample_info, 1); // BGEN: default sample information within this variant: because missing is set to 1, no need to backfill skipped cells
-        }
-        codec_buf.append((char*)&phased, 1); // BGEN: 1 byte phased
-        char B = 8; // precision at one byte to avoid alignment difficulties
-        codec_buf.append(&B, 1); // BGEN: 1 byte unsigned bits of precision
-        bgen_probability_offset = bgen_file.tellp();
+        bgen_variant_data_block(rsid, genomic_interval, vec, phased);
       }
     }
     else {
