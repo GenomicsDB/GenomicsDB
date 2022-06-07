@@ -50,9 +50,10 @@ fi
 
 if [[ $ENABLE_BINDINGS == *python* ]]; then
   BUILD_FOR_PYTHON=true
+  BUILD_DISTRIBUTABLE_LIBRARY=false
 else
   BUILD_FOR_PYTHON=false
-endif
+fi
 
 # Autoconf version 2.73 is the highest version supported by yum install on centos 6,
 # and 2.73 does not support m4_esyscmd_s in configure.ac.
