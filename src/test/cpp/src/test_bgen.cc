@@ -152,7 +152,7 @@ TEST_CASE("test bgen", "[bgen]") {
     throw std::runtime_error("sixth BGEN test output did not match reference output");
   }
 
-  // test 7 (PL/GL, one pass generation)
+  // test 7 (PL/GL, one pass generation, verbose, progress interval)
   VariantQueryConfig query_config7;
   query_config7.read_from_file(ctests_input_dir + "/bgen/bgen_test_query_2.json", my_world_mpi_rank);
 
@@ -162,7 +162,7 @@ TEST_CASE("test bgen", "[bgen]") {
                  query_config7.get_callset_mapping_file(),
                  query_config7.get_vid_mapping_file(),
                  query_config7.get_reference_genome());
-  gdb7.generate_plink(array_name, &query_config7, 1, 1, true);
+  gdb7.generate_plink(array_name, &query_config7, 1, 1, true, true, 1000);
 
   cmd = "diff output.bgen " + ctests_input_dir + "/bgen/bgen_test_output_2_1p.bgen > /dev/null";
   status = system(cmd.c_str());
