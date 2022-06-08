@@ -29,9 +29,6 @@
 # TILEDB_FOUND - TileDB found
 
 # Update git submodule if necessary
-Message(Submodule stuff)
-Message(${TILEDB_SOURCE_DIR})
-Message(NOT EXISTS "${TILEDB_SOURCE_DIR}/CMakeLists.txt")
 if((DEFINED TILEDB_SOURCE_DIR) AND (NOT "${TILEDB_SOURCE_DIR}" STREQUAL "") AND (NOT EXISTS "${TILEDB_SOURCE_DIR}/CMakeLists.txt"))
   Message(BAD)
   MESSAGE(STATUS "Installing submodule TileDB at ${CMAKE_SOURCE_DIR}/dependencies")
@@ -76,17 +73,11 @@ if(TILEDB_SOURCE_DIR)
         set(USE_OPENMP True CACHE BOOL "Enable OpenMP" FORCE)
     endif()
 
-    Message(P1)
     find_path(TILEDB_INCLUDE_DIR NAMES tiledb.h HINTS "${TILEDB_SOURCE_DIR}/core/include/c_api")
-    Message(Hello)
     find_path(TILEDB_CODEC_INCLUDE_DIR NAMES codec.h HINTS "${TILEDB_SOURCE_DIR}/core/include/codec")
-    Message(Hello)
     find_package_handle_standard_args(TileDB "Could not find TileDB headers ${DEFAULT_MSG}" TILEDB_INCLUDE_DIR TILEDB_CODEC_INCLUDE_DIR)
-    Message(Hello)
     add_subdirectory(${TILEDB_SOURCE_DIR} dependencies/TileDB EXCLUDE_FROM_ALL)
-    Message(P3)
 else()
-    Message(P2)
     find_path(TILEDB_INCLUDE_DIR NAMES "tiledb.h" HINTS "${TILEDB_INSTALL_DIR}/include")
     find_path(TILEDB_CODEC_INCLUDE_DIR NAMES "codec.h" HINTS "${TILEDB_INSTALL_DIR}/include")
     find_library(TILEDB_LIBRARY NAMES libtiledb.a tiledb HINTS "${TILEDB_INSTALL_DIR}" "${TILEDB_INSTALL_DIR}/lib64" "${TILEDB_INSTALL_DIR}/lib")

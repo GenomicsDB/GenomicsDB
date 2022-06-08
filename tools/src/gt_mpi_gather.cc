@@ -430,20 +430,6 @@ void produce_column_histogram(const VariantQueryProcessor& qp, const VariantQuer
 }
   
 void print_usage() {
-  std::cout << "FIXME remove" << std::endl;
-  char message[] = "aaaaaasdfsdfkmmmmmmeeeeeaaaaaasdfasdfasdfasdfasdfasdfbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbnml\0";
-  std::string str(message);
-  std::cout << "Original size: " << str.length() << std::endl;
-  char* data;
-  size_t data_size;
-
-  void *codec;
-  TileDBUtils::create_codec(&codec, TILEDB_ZSTD, Z_DEFAULT_COMPRESSION);
-  TileDBUtils::compress(codec, (unsigned char*)message, str.length(), (void**)&data, data_size);
-  TileDBUtils::finalize_codec(codec);
-
-  std::cout << "Compressed size " << data_size << std::endl;
-
   std::cout << "Usage: gt_mpi_gather [options]\n"
             << "where options include:\n"
             << "\t \e[1m--help\e[0m, \e[1m-h\e[0m Print a usage message summarizing options available and exit\n"
