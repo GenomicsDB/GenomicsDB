@@ -1,0 +1,61 @@
+name: Build release jar
+
+on:
+  workflow_call:
+    inputs:
+      dylib_artifact:
+        required: true
+        type: string
+
+jobs:
+  build-and-push-jar:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: true # cmake does this for us...but need to patch htslib before calling cmake
+
+      - name: Set version number
+        run: echo VERSION_NUMBER=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
+
+      - name: Download dylib
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.dylib_artifact }}
+
+      - name: Build Centos 6 and create release jar
+        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        with:
+          context: .
+          file: Dockerfile.release
+          build-args: |
+            GENOMICSDB_RELEASE_VERSION=${{ env.VERSION_NUMBER }}
+            MAC_DYLIB_PATH=/opt/libtiledbgenomicsdb.dylib
+            USE_HDFS=true
+          load: true
+          tags: ghcr.io/genomicsdb/genomicsdb:release
+
+      - name: Get artifacts from docker image
+        shell: bash
+        run: |
+          docker create -it --name genomicsdb ghcr.io/genomicsdb/genomicsdb:release bash
+          docker cp genomicsdb:/build/GenomicsDB/build/src/main/libtiledbgenomicsdb.so .
+          docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}.jar .
+          docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-allinone.jar .
+          docker cp genomicsdb:/build/GenomicsDB/pom.xml genomicsdb-${VERSION_NUMBER}.pom
+          sed -i.bak 's/${genomicsdb.version}/'"${VERSION_NUMBER}"'/' genomicsdb-${VERSION_NUMBER}.pom
+
+      - name: Archive libraries as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: release.${{ github.ref_name }}
+          path: |
+            libtiledbgenomicsdb.*
+            genomicsdb-${{ env.VERSION_NUMBER }}.jar
+            genomicsdb-${{ env.VERSION_NUMBER }}-allinone.jar
+            genomicsdb-${{ env.VERSION_NUMBER }}.pom

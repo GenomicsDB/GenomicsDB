@@ -15,7 +15,7 @@ env:
   SPARK_ENV: ${{github.workspace}}/spark_env.sh
   HADOOP_ENV: ${{github.workspace}}/hadoop_env.sh
   PREREQS_INSTALL_DIR: ${{github.workspace}}/prereqs
-  PROTOBUF_VERSION: 3.8.0
+  PROTOBUF_VERSION: 3.19.4
   CMAKE_INSTALL_PREFIX: ${{github.workspace}}/install
   GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
   GENOMICSDB_RELEASE_VERSION: x.y.z.test

@@ -147,7 +147,9 @@ class VariantArrayInfo {
   ~VariantArrayInfo() {
     close_array();
   }
-  void close_array(const bool consolidate_tiledb_array=false);
+  void close_array(const bool consolidate_tiledb_array=false,
+                   const size_t consolidate_buffer_size=TILEDB_CONSOLIDATION_BUFFER_SIZE,
+                   const int consolidation_batch_size=-1);
   void set_schema(const VariantArraySchema& schema) {
     m_schema = schema;
     m_cell = std::move(BufferVariantCell(m_schema));
@@ -234,7 +236,8 @@ class VariantStorageManager {
   VariantStorageManager(VariantStorageManager&& other) = delete;
 
   int open_array(const std::string& array_name, const VidMapper* vid_mapper, const char* mode, const std::string& query_filter=std::string());
-  void close_array(const int ad, const bool consolidate_tiledb_array=false);
+  void close_array(const int ad, const bool consolidate_tiledb_array=false,
+                   const int consolidation_batch_size=-1);
   int define_array(const VariantArraySchema* variant_array_schema,
                    const size_t num_cells_per_tile=1000u,
                    const bool disable_delta_encode_for_offsets=false,

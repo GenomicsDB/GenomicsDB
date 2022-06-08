@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # The MIT License (MIT)
-# Copyright (c) 2021 Omics Data Automation Inc.
+# Copyright (c) 2021-2022 Omics Data Automation Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -46,6 +46,8 @@ TEMPLATE_HEADER=$TESTS_DIR/ws/vcf_header.vcf
 
 REFERENCE_GENOME=$VCFS_DIR/../chr1_10MB.fasta.gz
 
+EMPTY=""
+
 cleanup() {
   rm -fr $TEMP_DIR
 }
@@ -56,6 +58,14 @@ die() {
     echo $1
   fi
   exit 1
+}
+
+sanity_check() {
+  CMD=$1
+  run_command "$CMD" ERR
+  run_command "$CMD --help"
+  run_command "$CMD --version"
+  run_command "$CMD --notanargument" ERR
 }
 
 create_sample_list() {
@@ -147,6 +157,7 @@ EOF
 #    $2 : optional - 0(default) if command should return successfully
 #                    any other value if the command should return a failure
 run_command() {
+  echo $EMPTY > $TEMP_DIR/output
   declare -i EXPECT_NZ
   declare -i GOT_NZ  
   EXPECT_NZ=0
@@ -170,11 +181,11 @@ run_command() {
 
 ERR=1
 
-# Sanity Checks
-run_command "vcf2genomicsdb_init" ERR
-run_command "vcf2genomicsdb_init --help"
-run_command "vcf2genomicsdb_init --version"
-run_command "vcf2genomicsdb_init --notanargument" ERR
+# Sanity Checks for Tools
+sanity_check "vcf2genomicsdb_init"
+sanity_check "vcf2genomicsdb"
+sanity_check "consolidate_genomicsdb_array"
+sanity_check "gt_mpi_gather"
 
 WORKSPACE=$TEMP_DIR/ws_$RANDOM
 run_command "vcf2genomicsdb_init -w $WORKSPACE" ERR
@@ -214,7 +225,7 @@ run_command_and_check_results() {
   run_command "vcf2genomicsdb --progress $WORKSPACE/loader.json"
 }
       
-# Basic Tests
+# Basic Tests for vcf2genomicsdb_init
 create_sample_list t0.vcf.gz
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST" 1 85 24 85 "#1"
 run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST" ERR
@@ -306,9 +317,6 @@ create_template_loader_json -5 -5
 run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o -t $TEMPLATE"
 run_command "vcf2genomicsdb $WORKSPACE/loader.json" ERR
 
-# Run help command to appease the coverage bot
-run_command "vcf2genomicsdb --help"
-
 # Sanity test gt_mpi_gather
 create_sample_list t0.vcf.gz
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#30"
@@ -331,6 +339,53 @@ run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Br
 # Run with valid reference genome successfully
 create_query_json $REFERENCE_GENOME
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF"
+
+# Test consolidate_genomicsdb_array and gt_mpi_gather after consolidation
+diff_gt_output() {
+  sed "1 d" $1 > $1.cut
+  sed "1 d" $2 > $2.cut
+  DIFF_RESULT=$(diff $1.cut $2.cut)
+  if [[ ! -z  $DIFF_RESULT ]]; then
+     echo "gt_mpi_gather results for Test $3 differ after consolidation"
+     STATUS=1
+  fi
+}
+
+run_consolidation_and_check_results() {
+  run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+  mv -f $TEMP_DIR/output $TEMP_DIR/output.no.consolidation
+  run_command "$1"
+  run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+  diff_gt_output  $TEMP_DIR/output.no.consolidation $TEMP_DIR/output $2
+}
+
+ARRAY="1\$1\$249250621"
+
+# Workspace and array specified cannot be null
+run_command "consolidate_genomicsdb_array --workspace $EMPTY --array $ARRAY" ERR
+run_command "consolidate_genomicsdb_array -w $WORKSPACE -a $EMPTY" ERR
+
+create_sample_list t0.vcf.gz
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#40"
+run_consolidation_and_check_results  "consolidate_genomicsdb_array --workspace $WORKSPACE --array $ARRAY" "#41"
+
+create_sample_list t1.vcf.gz
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -a" 2 85 24 85 "#42"
+run_consolidation_and_check_results  "consolidate_genomicsdb_array -w $WORKSPACE -a $ARRAY -p" "#43"
+
+# Test consolidate_genomicsdb_array with buffer-size
+create_sample_list t2.vcf.gz
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -a" 3 85 24 85 "#44"
+run_consolidation_and_check_results "consolidate_genomicsdb_array -w $WORKSPACE -a $ARRAY -z 1024 -p" "#45"
+
+# Test consolidate_genomicsdb_array with batch-size
+create_sample_list t0.vcf.gz
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#46"
+create_sample_list t1.vcf.gz
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -a" 2 85 24 85 "#47"
+create_sample_list t2.vcf.gz
+run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -a" 3 85 24 85 "#48"
+run_consolidation_and_check_results "consolidate_genomicsdb_array -w $WORKSPACE -a $ARRAY -z 1024 -b 2 -p" "#49"
 
 cleanup
 exit $STATUS

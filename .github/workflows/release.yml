@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - v*
+
+env:
+  PREREQS_ENV: ${{github.workspace}}/prereqs.sh
+  PREREQS_INSTALL_DIR: ${{github.workspace}}/prereqs
+  PROTOBUF_VERSION: 3.8.0
+  CMAKE_INSTALL_PREFIX: ${{github.workspace}}/install
+  GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
+  BUILD_DISTRIBUTABLE_LIBRARY: true
+
+jobs:
+  build-and-push-mac-dylib:
+    runs-on: macos-10.15
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Cache built prerequisites
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{env.PREREQS_INSTALL_DIR}}
+            ~/.m2/repository
+            ~/awssdk-install
+            ~/gcssdk-install
+            ~/protobuf-install/${{env.PROTOBUF_VERSION}}
+          key: ${{matrix.os}}-cache-prereqs-v5
+
+      - name: Set version number
+        run: echo VERSION_NUMBER=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
+
+      - name: Install Prerequisites
+        shell: bash
+        working-directory: ${{github.workspace}}/scripts/prereqs
+        run: |
+          echo "Installing Prerequistes for MacOS..."
+          export INSTALL_PREFIX=$PREREQS_INSTALL_DIR
+          ./install_prereqs.sh
+
+      - name: Build GenomicsDB distributable
+        shell: bash
+        run: |
+          echo "Building GenomicsDB for MacOS..."
+          export INSTALL_PREFIX=$PREREQS_INSTALL_DIR
+          mkdir -p $GENOMICSDB_BUILD_DIR
+          source $PREREQS_ENV
+          cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
+            -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION         \
+            -DGENOMICSDB_RELEASE_VERSION=${VERSION_NUMBER} -DBUILD_JAVA=1 -DUSE_HDFS=1 -DBUILD_DISTRIBUTABLE_LIBRARY=1
+          make -j4
+          make install
+          cp $CMAKE_INSTALL_PREFIX/lib/libtiledbgenomicsdb.dylib .
+
+      - name: Archive libraries as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: libtiledbgenomicsdb.dylib.${{ github.ref_name }}
+          path: libtiledbgenomicsdb.dylib
+
+  release-jar:
+    needs: [build-and-push-mac-dylib]
+    uses: ./.github/workflows/release_jar.yml
+    with:
+      dylib_artifact: libtiledbgenomicsdb.dylib.${{ github.ref_name }}
+
+  test:
+    needs: [release-jar]
+    uses: ./.github/workflows/release_test.yml
+    with:
+      release_artifact: release.${{ github.ref_name }}
+
+  publish:
+    needs: [test]
+    uses: ./.github/workflows/release_publish.yml
+    with:
+      release_artifact: release.${{ github.ref_name }}
+    secrets: inherit

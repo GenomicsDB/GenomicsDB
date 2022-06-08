@@ -33,6 +33,11 @@
 #ifndef GENOMICSDB_LOGGER
 #define GENOMICSDB_LOGGER
 
+// Override spdlog level names to upper case for consistency with log4j from Java
+#if !defined(SPDLOG_LEVEL_NAMES)
+#define SPDLOG_LEVEL_NAMES { "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "OFF" }
+#endif
+
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/fmt/fmt.h>
