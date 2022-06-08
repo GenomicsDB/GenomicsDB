@@ -30,7 +30,6 @@
 
 # Update git submodule if necessary
 if((DEFINED TILEDB_SOURCE_DIR) AND (NOT "${TILEDB_SOURCE_DIR}" STREQUAL "") AND (NOT EXISTS "${TILEDB_SOURCE_DIR}/CMakeLists.txt"))
-  Message(BAD)
   MESSAGE(STATUS "Installing submodule TileDB at ${CMAKE_SOURCE_DIR}/dependencies")
   execute_process(
     COMMAND git submodule update --recursive --init ${CMAKE_SOURCE_DIR}/dependencies/TileDB
