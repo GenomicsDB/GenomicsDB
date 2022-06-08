@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # The MIT License (MIT)
-# Copyright (c) 2019-2021 Omics Data Automation, Inc.
+# Copyright (c) 2019-2022 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -22,6 +22,15 @@
 #
 
 set -e
+
+# Arguments to the script
+#  $1 - BUILD_DISTRIBUTABLE_LIBRARY, if true will build/install OpenSSL/CURL/UUID/Intel zlib libs
+#  $2 - 'full' if build prerequisites should be installed, 'release' if only runtime prerequisites should be installed
+
+OPENSSL_VERSION=1.0.2o
+MAVEN_VERSION=3.6.3
+CURL_VERSION=7.83.1
+UUID_VERSION=1.0.3
 
 # Check for the following overriding env variables
 #    $INSTALL_PREFIX allows for dependencies maven/protobuf/etc. that are built to be installed to $INSTALL_PREFIX for user installs
@@ -48,9 +57,6 @@ touch $PREREQS_ENV
 
 BUILD_DISTRIBUTABLE_LIBRARY=${1:-false}
 
-OPENSSL_VERSION=1.0.2o
-MAVEN_VERSION=3.6.3
-
 if [[ `uname` == "Darwin" && $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
   export MACOSX_DEPLOYMENT_TARGET=10.13
   echo "export MACOSX_DEPLOYMENT_TARGET=10.13" >> $PREREQS_ENV
@@ -59,7 +65,8 @@ fi
 ################################# Should not have to change anything below ############################
 
 CENTOS_VERSION=0
-PARENT_DIR="$(dirname $(python -c "import os; import sys; print(os.path.realpath(sys.argv[1]))" $0))"
+WGET_NO_CERTIFICATE=""
+PARENT_DIR="$(dirname $0)"
 
 # $1 - path variable name
 # $2 - path variable value
@@ -87,7 +94,7 @@ install_mvn() {
   if [ -z $MVN ]; then
     if [ ! -d $MAVEN_INSTALL_PREFIX/apache-maven-$MAVEN_VERSION ]; then
       echo "Installing Maven"
-      wget -nv https://downloads.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz -P /tmp &&
+      wget $WGET_NO_CERTIFICATE -nv https://downloads.apache.org/maven/maven-3/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz -P /tmp &&
         tar xf /tmp/apache-maven-*.tar.gz -C $MAVEN_INSTALL_PREFIX &&
         rm /tmp/apache-maven-*.tar.gz
       echo "Installing Maven DONE"
@@ -104,38 +111,12 @@ install_mvn() {
     add_to_env PATH "\${M2_HOME}/bin"
 }
 
-PROTOBUF_PREFIX=$INSTALL_PREFIX
-install_protobuf() {
-  if [ ! -f $PROTOBUF_PREFIX/bin/protoc ]; then 
-    echo "Installing Protobuf"
-    pushd /tmp
-    if [[ $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
-      wget -nv https://github.com/protocolbuffers/protobuf/releases/download/v3.0.0-beta-1/protobuf-cpp-3.0.0-beta-1.zip &&
-        unzip protobuf-cpp-3.0.0-beta-1.zip &&
-        cp $PARENT_DIR/protobuf-v3.0.0-beta-1.autogen.sh.patch protobuf-3.0.0-beta-1/autogen.sh &&
-        mv protobuf-3.0.0-beta-1 protobuf
-    else
-      git clone -b 3.8.x https://github.com/google/protobuf.git
-    fi
-    pushd protobuf &&
-      ./autogen.sh &&
-      ./configure --prefix=$INSTALL_PREFIX --with-pic &&
-      make -j4 && make install &&
-        echo "Installing Protobuf DONE"
-    popd
-    rm -fr /tmp/protobuf*
-    popd
-  fi
-  add_to_env PATH $PROTOBUF_PREFIX/bin &&
-    add_to_env LD_LIBRARY_PATH  $PROTOBUF_PREFIX/lib
-}
-
 OPENSSL_PREFIX=$INSTALL_PREFIX/ssl
 install_openssl() {
   if [[ ! -d $OPENSSL_PREFIX ]]; then
     echo "Installing OpenSSL"
     pushd /tmp
-    wget https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz &&
+    wget $WGET_NO_CERTIFICATE https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz &&
       tar -xvzf openssl-$OPENSSL_VERSION.tar.gz &&
       cd openssl-$OPENSSL_VERSION &&
       if [[ `uname` == "Linux" ]]; then
@@ -160,9 +141,10 @@ install_curl() {
   if [[ ! -f $CURL_PREFIX/libcurl.a ]]; then
     echo "Installing CURL into $CURL_PREFIX"
     pushd /tmp
-    git clone https://github.com/curl/curl.git &&
-      cd curl &&
-      autoreconf -i &&
+    CURL_VERSION_=$(echo $CURL_VERSION | sed -r 's/\./_/g')
+    wget https://github.com/curl/curl/releases/download/curl-$CURL_VERSION_/curl-$CURL_VERSION.tar.gz &&
+    tar xzf curl-$CURL_VERSION.tar.gz &&
+    cd curl-$CURL_VERSION &&
       ./configure --disable-shared --with-pic -without-zstd --with-ssl=$OPENSSL_PREFIX --prefix $CURL_PREFIX &&
       make && make install && echo "Installing CURL DONE"
     rm -fr /tmp/curl
@@ -180,9 +162,9 @@ install_uuid() {
   if [[ ! -f $UUID_PREFIX/libuuid.a ]]; then
     echo "Installing libuuid into $UUID_PREFIX"
     pushd /tmp
-    wget https://sourceforge.net/projects/libuuid/files/libuuid-1.0.3.tar.gz &&
-      tar -xvzf libuuid-1.0.3.tar.gz &&
-      cd libuuid-1.0.3 &&
+    wget $WGET_NO_CERTIFICATE https://sourceforge.net/projects/libuuid/files/libuuid-$UUID_VERSION.tar.gz &&
+      tar -xvzf libuuid-$UUID_VERSION.tar.gz &&
+      cd libuuid-$UUID_VERSION &&
       sed -i s/2.69/2.63/ configure.ac &&
       aclocal &&
       automake --add-missing &&
@@ -193,6 +175,42 @@ install_uuid() {
     popd
   fi
   add_to_env LD_LIBRARY_PATH $UUID_PREFIX/lib
+}
+
+ZLIB_PREFIX=$INSTALL_PREFIX
+install_intel_zlib() {
+  echo "Installing Intel optimized zlib"
+
+  yum install -y yum-utils &&
+	yum-config-manager --add-repo https://yum.repos.intel.com/ipp/setup/intel-ipp.repo &&
+		rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB &&
+		yum -y install intel-ipp-2018.2-046 &&
+	  if [ ! -f /opt/intel/compilers_and_libraries_2018.2.199/linux/ipp/bin/ippvars.sh ]; then
+		  echo "Could not find ippvars.sh. Aborting installing Intel optimized zlib"
+		  exit 1
+	  fi &&
+	  wget http://zlib.net/fossils/zlib-1.2.8.tar.gz &&
+		tar -xvzf zlib-1.2.8.tar.gz &&
+	  source /opt/intel/compilers_and_libraries_2018.2.199/linux/ipp/bin/ippvars.sh intel64 &&
+  	echo "source /opt/intel/compilers_and_libraries_2018.2.199/linux/ipp/bin/ippvars.sh intel64" >> $PREREQS_ENV &&
+	  pushd $IPPROOT/examples &&
+		if [ ! -d components_and_examples_lin_ps ]; then
+			sudo mkdir components_and_examples_lin_ps
+		fi &&
+	  cd components_and_examples_lin_ps &&
+		tar -xzvf ../components_and_examples_lin_ps.tgz &&
+		popd &&
+		cd zlib-1.2.8 &&
+		patch -p1 < $IPPROOT/examples/components_and_examples_lin_ps/components/interfaces/ipp_zlib/zlib-1.2.8.patch &&
+		export CFLAGS="-m64 -DWITH_IPP -I$IPPROOT/include -fPIC" &&
+		export LDFLAGS="$IPPROOT/lib/intel64/libippdc.a $IPPROOT/lib/intel64/libipps.a $IPPROOT/lib/intel64/libippcore.a" &&
+		./configure &&
+		make shared &&
+		mkdir -p $HOME/intel_zlib/lib &&
+		cp libz.a $HOME/intel_zlib/lib &&
+		rm -fr $HOME/zlib* &&
+	echo "Installing Intel optimized zlib done"
+  add_to_env LD_LIBRARY_PATH $HOME/intel_zlib
 }
 
 centos_version() {
@@ -216,14 +234,19 @@ install_os_prerequisites() {
   case `uname` in
     Linux )
       if apt-get --version >/dev/null 2>&1; then
-        source system/install_ubuntu_prereqs.sh
+        export DEBIAN_FRONTEND=noninteractive
+        source $PARENT_DIR/system/install_ubuntu_prereqs.sh
       else
-        source system/install_centos_prereqs.sh
+        source $PARENT_DIR/system/install_centos_prereqs.sh
       fi
-      install_system_prerequisites
+      if [[ $1 == "release" ]]; then
+        install_nobuild_prerequisites
+      else 
+        install_system_prerequisites
+      fi
       ;;
     Darwin )
-      system/install_macos_prereqs.sh
+      $PARENT_DIR/system/install_macos_prereqs.sh
       ;;
     * )
       echo "OS=`uname` not supported"
@@ -232,10 +255,11 @@ install_os_prerequisites() {
 }
 
 install_prerequisites() {
-  PREREQS_ENV=$PREREQS_ENV install_os_prerequisites && echo "Install OS prerequistes successful" &&
-    source $PREREQS_ENV &&
+  PREREQS_ENV=$PREREQS_ENV install_os_prerequisites $1 && echo "Install OS prerequistes successful" &&
+    source $PREREQS_ENV
+  if [[ $1 == "full" ]]; then
     install_mvn
-  #    install_protobuf
+  fi
 }
 
 finalize() {
@@ -254,14 +278,27 @@ centos_version
 if [[ $BUILD_DISTRIBUTABLE_LIBRARY == false && $CENTOS_VERSION -eq 6 ]]; then
   echo "Centos 6 is supported only when build-arg distributable_jar=true"
   exit 1
+elif [[ $CENTOS_VERSION -eq 6 ]]; then
+  # Centos6 has EOL-ed so workaround to get yum to work
+  curl https://www.getpagespeed.com/files/centos6-eol.repo --output /etc/yum.repos.d/CentOS-Base.repo
+  yum -y install centos-release-scl
+  curl https://www.getpagespeed.com/files/centos6-scl-eol.repo --output /etc/yum.repos.d/CentOS-SCLo-scl.repo
+  curl https://www.getpagespeed.com/files/centos6-scl-rh-eol.repo --output /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
+  sed -i 's/http/https/g' /etc/yum.repos.d/CentOS-Base.repo
+  sed -i 's/http/https/g' /etc/yum.repos.d/CentOS-SCLo-scl.repo
+  sed -i 's/http/https/g' /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
+  WGET_NO_CERTIFICATE=" --no-check-certificate"
 fi
 
 RC=1
-install_prerequisites $2 &&
+install_prerequisites $2 $3 &&
   if [[ $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
     echo "Installing static libraries"
     install_openssl &&
       install_curl &&
-      install_uuid
+      install_uuid &&
+      if [[ $CENTOS_VERSION -eq 6 ]]; then
+        install_intel_zlib
+      fi
   fi && RC=0
 finalize $RC

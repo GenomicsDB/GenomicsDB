@@ -23,14 +23,15 @@ To build and install GenomicsDB using Docker, specify the following *optional* b
   | --- | --- |
   | os=ubuntu:trusty\|centos:7\|\<linux_base:ver\> | centos:7 |
   | user=<user_name> | genomicdb |
-  | branch=master\|develop\|<any_branch> | master |
   | install_dir=<my_install_dir> | /usr/local |
   | distributable_jar=true\|false | false |  
   | enable_bindings=java | none |
   
+Note that the Dockerfile is at the repository root so all the example commands below should be executed there.
+
 Examples:
 ```
-docker build --build-arg os=ubuntu:trusty --build-arg branch=develop --build-arg install_dir=/home/$USER -t genomicsdb:build . 
+docker build --build-arg os=ubuntu:trusty --build-arg install_dir=/home/$USER -t genomicsdb:build . 
 ```
 
 To run and enter the bash shell:

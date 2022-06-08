@@ -1,5 +1,5 @@
 # The MIT License (MIT)
-# Copyright (c) 2019-2020 Omics Data Automation, Inc.
+# Copyright (c) 2022 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -18,32 +18,19 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
-# Description: Docker file for building and installing GenomicsDB
+# Description: Docker file to generate GenomicsDB release jar
 
-# OS currently tested are ubuntu and centos
-#ARG os=ubuntu:trusty
-ARG os=centos:7
-FROM $os
+FROM ghcr.io/genomicsdb/genomicsdb:centos_6_prereqs
+ARG GENOMICSDB_RELEASE_VERSION=""
+ARG MAC_DYLIB_PATH=""
+ARG USE_HDFS=""
 
-ARG branch=master
-ARG user=genomicsdb
-ARG install_dir=/usr/local
-ARG distributable_jar=false
-# Options to enable_bindings are only java for now
-# e.g. enable_bindings="java"
-ARG enable_bindings=""
-
-COPY prereqs /build
-WORKDIR /build
-RUN ./install_prereqs.sh ${distributable_jar} ${enable_bindings}
-
-RUN groupadd -r genomicsdb && useradd -r -g genomicsdb -m ${user} -p ${user}
-
-COPY install_genomicsdb.sh /build
-WORKDIR /build
 ENV DOCKER_BUILD=true
-RUN ./install_genomicsdb.sh ${user} ${branch} ${install_dir} ${distributable_jar} ${enable_bindings}
-
-USER ${user}
-WORKDIR /home/${user}
-ENTRYPOINT ["/bin/bash", "--login"]
+ENV MAC_DYLIB_PATH=${MAC_DYLIB_PATH}
+ENV USE_HDFS=${USE_HDFS}
+ENV GENOMICSDB_RELEASE_VERSION=${GENOMICSDB_RELEASE_VERSION}
+COPY . /build/GenomicsDB/
+COPY libtiledbgenomicsdb.dylib ${MAC_DYLIB_PATH}
+WORKDIR /build/GenomicsDB
+RUN useradd -r -U -m genomicsdb &&\
+    ./scripts/install_genomicsdb.sh genomicsdb /usr/local true java

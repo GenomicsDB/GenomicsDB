@@ -34,6 +34,22 @@ install_devtoolset() {
   fi
 }
 
+install_cmake3() {
+  CMAKE=`which cmake`
+  if [[ ! -z $CMAKE ]]; then
+    CMAKE_VERSION=$($CMAKE -version | awk '/version/{print $3}')
+  fi
+  if [[ -z $CMAKE_VERSION || CMAKE_VERSION < "3.6" ]]; then
+    echo "Installing cmake..."
+    wget -nv https://github.com/Kitware/CMake/releases/download/v3.19.1/cmake-3.19.1-Linux-x86_64.sh -P /tmp &&
+      chmod +x /tmp/cmake-3.19.1-Linux-x86_64.sh &&
+      /tmp/cmake-3.19.1-Linux-x86_64.sh --prefix=/usr/local --skip-license
+    if [ ! -f /usr/local/bin/cmake3 ]; then
+      ln -s /usr/local/bin/cmake /usr/local/bin/cmake3
+    fi
+  fi
+}
+
 install_openjdk() {
   echo "Installing openjdk" &&
   yum install -y -q java-1.8.0-openjdk-devel &&
@@ -66,9 +82,24 @@ install_system_prerequisites() {
     yum install -y -q epel-release &&
     yum install -y zlib-devel &&
     yum install -y -q openssl-devel &&
-    yum install -y -q cmake3 &&
+    install_cmake3 &&
     yum install -y -q libuuid libuuid-devel &&
+    yum install -y -q patch &&
     yum install -y -q zstd &&
     yum install -y -q curl libcurl-devel &&
     install_csv
+}
+
+install_nobuild_prerequisites() {
+  yum install -y -q deltarpm
+  yum update -y -q &&
+    install_mpi &&
+    yum install -y -q epel-release &&
+    yum install -y zlib-devel &&
+    yum install -y -q openssl-devel &&
+    yum install -y -q cmake3 &&
+    yum install -y -q patch &&
+    yum install -y -q libuuid libuuid-devel &&
+    yum install -y -q zstd &&
+    yum install -y -q curl libcurl-devel
 }
