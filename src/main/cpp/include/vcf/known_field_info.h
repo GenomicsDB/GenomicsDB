@@ -164,6 +164,12 @@ class KnownFieldInfo {
       return 0u;
     }
   }
+  // Same as above, slightly more efficient
+  template <bool contains_phase>
+  static inline unsigned get_ploidy(const unsigned num_elements) {
+    return contains_phase ? ((num_elements + 1u) >> 1u)  // Eg. 0/1 becomes [0,0,1], 0|2/1 becomes [0,1,2,0,1]
+                          : num_elements;
+  }
   /*
    * Given a length descriptor, get #elements
    */
@@ -173,6 +179,48 @@ class KnownFieldInfo {
    * Get #possible genotypes given #ALT alleles and ploidy
    */
   static uint64_t get_number_of_genotypes(const unsigned num_ALT_alleles, const unsigned ploidy);
+  /*
+   * Get the allele indexes for a given genotype index
+   * Inputs are ploidy, number of alleles and genotype index
+   * Allele indexes will be in sorted order
+   */
+  static void genotype_idx_to_allele_idx_vec(unsigned ploidy, unsigned num_alleles, int genotype_index,
+                                             std::vector<int>& allele_idx_vec);
+  /*
+   * Return genotype index given a list of allele indexes
+   */
+  static uint64_t get_genotype_index(std::vector<int>& allele_idx_vec, const bool is_sorted);
+  /*
+   * Combination operation
+   */
+  static inline uint64_t nCr(const int64_t n, const int64_t r) {
+    if (n < 0 || r < 0 || n < r) return 0u;
+    // Not the fastest method - if this is a bottleneck, implement faster algorithm
+    auto begin_idx = 0ull;
+    auto end_idx = 0ull;
+    if (r > n - r) {
+      begin_idx = r + 1u;
+      end_idx = n - r;
+    } else {
+      begin_idx = n - r + 1u;
+      end_idx = r;
+    }
+    auto numerator = 1ull;
+    for (auto i = begin_idx; i <= static_cast<uint64_t>(n); ++i) {
+      /*auto numerator_bits = 64 - __builtin_clzll(numerator);*/
+      /*auto i_bits = 64 - __builtin_clzll(i);*/
+      /*if(numerator_bits + i_bits > 64) //this might sometimes falsely mark some products are overflowing*/
+      /*return UINT64_MAX;*/
+      auto tmp = numerator * i;
+      if (tmp / i == numerator)  // detects overflow
+        numerator = tmp;
+      else
+        return UINT64_MAX;  // overflow
+    }
+    auto denominator = 1ull;
+    for (auto i = 1ull; i <= end_idx; ++i) denominator *= i;
+    return numerator / denominator;
+  }
   /*
    * Function that determines whether length of the field is dependent on the #genotypes
    */

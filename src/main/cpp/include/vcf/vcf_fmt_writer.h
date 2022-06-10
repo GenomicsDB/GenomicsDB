@@ -108,6 +108,25 @@ class VCFWriterNoOverflow {
       return true;
     }
 
+    template <typename element_type>
+    inline bool write_empty(unsigned field_query_idx, const uint64_t row_query_idx) {
+      return true;
+    }
+
+    template <typename element_type, bool is_first_element>
+    inline bool write_missing(unsigned field_query_idx, const uint64_t row_query_idx) {
+      if (!is_first_element) FmtWriter::write<char>(m_buffer, ',');
+      FmtWriter::write<char>(m_buffer, '.');
+      return true;
+    }
+
+    template <typename element_type, bool is_first_element>
+    inline bool write_element(unsigned field_query_idx, const uint64_t row_query_idx, const element_type value) {
+      if (!is_first_element) FmtWriter::write<char>(m_buffer, ',');
+      FmtWriter::write<element_type>(m_buffer, value);
+      return true;
+    }
+
     void reset(const size_t n) { m_buffer.resize(n); }
 
     std::string& get_string_buffer() {
@@ -246,6 +265,27 @@ class VCFWriterFSB {
 
     inline bool write_GT_empty(const uint64_t row_query_idx) {
       return FmtWriter::write_if_space_available<char>(m_ptr, m_size, m_offset, '.');
+    }
+
+    template <typename element_type>
+    inline bool write_empty(unsigned field_query_idx, const uint64_t row_query_idx) {
+      return true;
+    }
+
+    template <typename element_type, bool is_first_element>
+    inline bool write_missing(unsigned field_query_idx, const uint64_t row_query_idx) {
+      auto no_overflow = true;
+      if (!is_first_element) no_overflow = FmtWriter::write_if_space_available<char>(m_ptr, m_size, m_offset, ',');
+      no_overflow = no_overflow && FmtWriter::write_if_space_available<char>(m_ptr, m_size, m_offset, '.');
+      return no_overflow;
+    }
+
+    template <typename element_type, bool is_first_element>
+    inline bool write_element(unsigned field_query_idx, const uint64_t row_query_idx, const element_type value) {
+      auto no_overflow = true;
+      if (!is_first_element) no_overflow = FmtWriter::write_if_space_available<char>(m_ptr, m_size, m_offset, ',');
+      no_overflow = no_overflow && FmtWriter::write_if_space_available<element_type>(m_ptr, m_size, m_offset, value);
+      return no_overflow;
     }
 
   private:

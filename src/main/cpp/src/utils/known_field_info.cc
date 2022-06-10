@@ -131,7 +131,53 @@ uint64_t KnownFieldInfo::get_number_of_genotypes(const unsigned num_ALT_alleles,
   //From http://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
   default:
     //C(ploidy+num_ALT_alleles, num_ALT_alleles)
-    return VariantOperations::nCr(ploidy+num_ALT_alleles, num_ALT_alleles);
+    return KnownFieldInfo::nCr(ploidy+num_ALT_alleles, num_ALT_alleles);
+  }
+}
+
+// Copied from https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
+void KnownFieldInfo::genotype_idx_to_allele_idx_vec(unsigned ploidy, unsigned num_alleles, int genotype_index,
+                                                    std::vector<int>& allele_idx_vec) {
+  assert(allele_idx_vec.size() >= ploidy);
+  if (genotype_index == 0) {
+    allele_idx_vec.assign(allele_idx_vec.size(), 0);
+    return;
+  }
+  int32_t pth = ploidy;
+  int32_t max_allele_index = std::min<int32_t>(num_alleles - 1u, genotype_index);
+  int32_t leftover_genotype_index = genotype_index;
+  while (pth > 0) {
+    for (int32_t allele_index = 0; allele_index <= max_allele_index; ++allele_index) {
+      int32_t i = KnownFieldInfo::nCr(pth + allele_index - 1, pth);
+      if (i >= leftover_genotype_index || allele_index == max_allele_index) {
+        if (i > leftover_genotype_index) --allele_index;
+        leftover_genotype_index -= KnownFieldInfo::nCr(pth + allele_index - 1, pth);
+        --pth;
+        max_allele_index = allele_index;
+        allele_idx_vec[pth] = allele_index;
+        break;
+      }
+    }
+  }
+}
+
+uint64_t KnownFieldInfo::get_genotype_index(std::vector<int>& allele_idx_vec, const bool is_sorted) {
+  switch (allele_idx_vec.size()) {  // ploidy
+    case 0u:
+      return 0u;
+    case 1u:
+      return allele_idx_vec[0u];
+    case 2u:
+      return bcf_alleles2gt(allele_idx_vec[0u], allele_idx_vec[1u]);
+    default: {
+      // To get genotype combination index for the input, alleles must be in sorted order
+      if (!is_sorted) std::sort(allele_idx_vec.begin(), allele_idx_vec.end());
+      auto gt_idx = 0ull;
+      // From http://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
+      for (auto i = 0ull; i < allele_idx_vec.size(); ++i)
+        gt_idx += KnownFieldInfo::nCr(i + allele_idx_vec[i], allele_idx_vec[i] - 1);
+      return gt_idx;
+    }
   }
 }
 

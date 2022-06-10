@@ -273,27 +273,6 @@ void VariantOperations::remap_data_based_on_genotype_general(const std::vector<D
   }
 }
 
-uint64_t VariantOperations::get_genotype_index(std::vector<int>& allele_idx_vec, const bool is_sorted) {
-  switch (allele_idx_vec.size()) { //ploidy
-  case 0u:
-    return 0u;
-  case 1u:
-    return allele_idx_vec[0u];
-  case 2u:
-    return bcf_alleles2gt(allele_idx_vec[0u], allele_idx_vec[1u]);
-  default: {
-    //To get genotype combination index for the input, alleles must be in sorted order
-    if (!is_sorted)
-      std::sort(allele_idx_vec.begin(), allele_idx_vec.end());
-    auto gt_idx = 0ull;
-    //From http://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
-    for (auto i=0ull; i<allele_idx_vec.size(); ++i)
-      gt_idx += VariantOperations::nCr(i+allele_idx_vec[i], allele_idx_vec[i]-1);
-    return gt_idx;
-  }
-  }
-}
-
 template<class DataType>
 void VariantOperations::reorder_field_based_on_genotype_index(const std::vector<DataType>& input_data,
     const uint64_t input_call_idx,
@@ -312,7 +291,7 @@ void VariantOperations::reorder_field_based_on_genotype_index(const std::vector<
     *(reinterpret_cast<DataType*>(remapped_data.put_address(input_call_idx, remapped_gt_idx))) = (missing_value);
     return;
   }
-  auto input_gt_idx = VariantOperations::get_genotype_index(input_call_allele_idx_vec_for_current_gt_combination, false);
+  auto input_gt_idx = KnownFieldInfo::get_genotype_index(input_call_allele_idx_vec_for_current_gt_combination, false);
   assert(remapped_gt_idx < KnownFieldInfo::get_number_of_genotypes(num_merged_alleles-1u, ploidy));
   //Input data could have been truncated due to missing values - if so, put missing value
   if (input_gt_idx >= input_data.size())
@@ -371,7 +350,7 @@ void  VariantOperations::remap_data_based_on_genotype(const std::vector<DataType
 template<class DataType>
 void GenotypeForMinValueTracker<DataType>::track_minimum(const std::vector<DataType>& input_data,
     std::vector<int>& allele_idx_vec_for_current_gt_combination) {
-  auto gt_idx = VariantOperations::get_genotype_index(allele_idx_vec_for_current_gt_combination, false);
+  auto gt_idx = KnownFieldInfo::get_genotype_index(allele_idx_vec_for_current_gt_combination, false);
   if (gt_idx < input_data.size() && is_bcf_valid_value<DataType>(input_data[gt_idx])
       && input_data[gt_idx] < m_current_min_value ) {
     m_current_min_value = input_data[gt_idx];

@@ -50,6 +50,10 @@ class BroadCombinedGVCFException : public std::exception {
   std::string msg_;
 };
 
+// Forward declarations
+template<typename ValidRowAndGTDataProviderTy>
+class PLRemapper;
+
 /*
  * Operator to produce the combined GVCF that Broad expects
  */
@@ -105,6 +109,7 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
       const unsigned query_idx_bin, const unsigned query_idx_count, std::string& result_str);
   //For columnar iterator
   void operate_on_columnar_cell(const GenomicsDBGVCFCell& variant);
+  virtual void initialize_with_columnar_iterator(const GenomicsDBGVCFIterator& iterator);
   template<class WriterTy, bool contains_phase, bool produce_GT_field, bool do_remap>
   bool write_vcf_line(WriterTy& writer, const GenomicsDBGVCFCell& variant);
   VCFWriterNoOverflow<std::string>& get_vcf_writer_to_string() {
@@ -165,6 +170,7 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   VCFWRITER_ENUM m_writer_type_enum;
   VCFWriterNoOverflow<std::string> m_vcf_writer_to_string;
   VCFWriterNoOverflow<std::ostream> m_vcf_writer_to_ostream;
+  std::unique_ptr<PLRemapper<GenomicsDBGVCFIterator>> m_pl_remapper;
 #ifdef DO_MEMORY_PROFILING
   uint64_t m_next_memory_limit;
 #endif

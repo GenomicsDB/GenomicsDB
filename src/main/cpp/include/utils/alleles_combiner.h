@@ -181,6 +181,7 @@ class AllelesCombiner {
     inline unsigned get_NON_REF_allele_index_in_merged_allele_list() const {
       return m_merged_alleles_vec.size()-1u; //always last
     }
+    inline unsigned get_num_merged_alleles() const { return m_merged_alleles_vec.size(); }
     inline unsigned get_spanning_deletion_allele_index_in_merged_allele_list() const {
       assert(merged_alleles_list_contains_spanning_deletion());
       return m_spanning_deletion_allele_idx;
@@ -247,6 +248,24 @@ class AllelesCombiner {
       }
       else //also static if !do_remap
         return allele_idx;
+    }
+    // Counter part of the above function which  returns input allele index given merged allele index
+    template <bool do_remap, bool is_REF_block, bool contains_NON_REF_allele>
+    inline int get_input_allele_idx(const size_t row_query_idx, const int merged_allele_idx) const {
+      assert(!contains_NON_REF_allele || merged_alleles_list_contains_NON_REF());
+      if (do_remap && merged_allele_idx >= 0) {
+        if (is_REF_block) {  // static
+          return (merged_allele_idx == 0) ? 0 : 1;
+        } else {
+          auto input_allele_idx = m_alleles_LUT.get_input_idx_for_merged(row_query_idx, merged_allele_idx);
+          const auto input_NON_REF_allele_idx = get_NON_REF_allele_idx(row_query_idx);
+          return CombineAllelesLUT::is_missing_value(input_allele_idx)
+                     ? (contains_NON_REF_allele ? input_NON_REF_allele_idx
+                                                : get_bcf_gt_no_call_allele_index<int>())  // static
+                     : input_allele_idx;
+        }
+      } else  // also static if !do_remap
+        return merged_allele_idx;
     }
     //Convenience function - deals with some of the template parameters internally
     //Should be used at places where performance is of no concern (unit tests etc)
