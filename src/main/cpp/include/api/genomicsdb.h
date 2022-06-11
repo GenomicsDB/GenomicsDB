@@ -113,7 +113,7 @@ typedef struct genomic_field_type_t {
   inline bool contains_phase_information() const {
     return contains_phase_info;
   }
-  inline genomicsdb_basic_type type_index_to_basic_type(std::type_index ti) {
+  static inline genomicsdb_basic_type type_index_to_basic_type(std::type_index ti) {
     if(ti == std::type_index(typeid(int)))
       return INT32;
     if(ti == std::type_index(typeid(float)))
@@ -307,8 +307,8 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
                              bool verbose = false,
                              double progress_interval = -1,
                              std::string prefix = "output",
-                             std::string fam_list = ""
-                             );
+                             std::string fam_list = "",
+                             int rank = 0);
 
     ~GenomicsDBPlinkProcessor() {
       TileDBUtils::finalize_codec(codec);
@@ -322,6 +322,9 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
                          const bool phased);
     virtual void process(const Variant& variant) override;
     void advance_state();
+    const char BGEN_MASK = 1;
+    const char  BED_MASK = 2;
+    const char TPED_MASK = 4;
   private:
     const std::string& array;
     VidMapper* vid_mapper;

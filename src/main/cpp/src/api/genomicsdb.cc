@@ -190,7 +190,7 @@ GenomicsDB::~GenomicsDB() {
 }
 
 std::map<std::string, genomic_field_type_t> create_genomic_field_types(const VariantQueryConfig &query_config,
-								       void *annotation_service) {
+                                       void *annotation_service) {
   std::map<std::string, genomic_field_type_t> genomic_field_types;
   for (auto i=0u; i<query_config.get_num_queried_attributes(); i++) {
     const std::string attribute_name = query_config.get_query_attribute_name(i);
@@ -201,12 +201,12 @@ std::map<std::string, genomic_field_type_t> create_genomic_field_types(const Var
       const std::type_index type_index = descr.get_tuple_element_type_index(0);
       const FieldLengthDescriptor length_descr = field_info->m_length_descriptor;
       genomic_field_types.insert(std::make_pair(
-	  attribute_name,
-	  genomic_field_type_t(type_index,
-			       length_descr.is_fixed_length_field(),
-			       length_descr.is_fixed_length_field()?length_descr.get_num_elements():0,
-			       length_descr.get_num_dimensions(),
-			       length_descr.is_length_ploidy_dependent()&&length_descr.contains_phase_information())));
+      attribute_name,
+      genomic_field_type_t(type_index,
+                           length_descr.is_fixed_length_field(),
+                           length_descr.is_fixed_length_field()?length_descr.get_num_elements():0,
+                           length_descr.get_num_dimensions(),
+                           length_descr.is_length_ploidy_dependent()&&length_descr.contains_phase_information())));
     }
   }
   if (annotation_service) {
@@ -217,6 +217,8 @@ std::map<std::string, genomic_field_type_t> create_genomic_field_types(const Var
   }
   return genomic_field_types;
 }
+
+
 
 GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
                                                genomicsdb_ranges_t column_ranges,
@@ -602,7 +604,7 @@ void GenomicsDB::generate_plink(const std::string& array,
     return;
   }
 
-  GenomicsDBPlinkProcessor proc(query_config, static_cast<VidMapper*>(m_vid_mapper), array, format, compression, verbose, progress_interval, output_prefix, fam_list);
+  GenomicsDBPlinkProcessor proc(query_config, static_cast<VidMapper*>(m_vid_mapper), array, format, compression, verbose, progress_interval, output_prefix, fam_list, m_concurrency_rank);
   auto types = create_genomic_field_types(*query_config, m_annotation_service);
   auto it = types.find("ALT");
   if(it != types.end()) {
@@ -815,11 +817,12 @@ GenomicsDBPlinkProcessor::GenomicsDBPlinkProcessor(VariantQueryConfig* qc,
                                                    bool verbose,
                                                    double progress_interval,
                                                    std::string prefix,
-                                                   std::string fam_list
-                                                  ) : query_config(qc), vid_mapper(vid_mapper), array(array), compression(compression), verbose(verbose), progress_interval(progress_interval), prefix(prefix), fam_list(fam_list) {
-  make_bgen = (bool)(formats & 1);
-  make_bed = (bool)(formats & 2);
-  make_tped = (bool)(formats & 4);
+                                                   std::string fam_list,
+                                                   int rank
+                                                  ) : query_config(qc), vid_mapper(vid_mapper), array(array), compression(compression), verbose(verbose), progress_interval(progress_interval), prefix(prefix), fam_list(fam_list), rank(rank) {
+  make_bgen = (bool)(formats & BGEN_MASK);
+  make_bed = (bool)(formats & BED_MASK);
+  make_tped = (bool)(formats & TPED_MASK);
 
   // For use with BGEN compression
   if(compression == 1) {
@@ -864,8 +867,6 @@ GenomicsDBPlinkProcessor::GenomicsDBPlinkProcessor(VariantQueryConfig* qc,
     flags = flags | compression;
     bgen_file.write((char*)&flags, 4); // BGEN: 4 bytes flags, end of header
   }
-
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   // for use with progress bar
   for(auto& a : query_config->get_query_row_ranges(rank)) {
@@ -1160,25 +1161,20 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     // safe to update now that backfilling is over
     last_alleles = vec.size();
 
-    char gt_code;
-
-    if(!(gt_vec[0] || gt_vec[1])) { // homozygous for first allele
-      gt_code = 0;
-    }
-    else if(gt_vec[0] + gt_vec[1] == 1) { // heterozygous
-      gt_code = 2;
-    }
-    else if(gt_vec[0] == 1 && gt_vec[1] == 1) { // homozygous for second allele
-      gt_code = 3;
-    }
-    else {
-      gt_code = 1;
-    }
-
     if(make_bed) {
+      // 0 is homozygous for first allele
+      // 1 is missing genotype
+      // 2 is heterozygous
+      // 3 is homozygous for second allele
+      char gt_code;
+
+      // FIXME cover with tests
+      // FIXME will never get code 1 (call skipped if no GT) or 3 (no clear concept of a first vs second allele if they match)
+      gt_code = char((gt_vec[0] != gt_vec[1]) * 2);
+
       if(last_coord != coords[1]) {
         bim_file << rsid_row;
-        bim_file << " " << vec[0] << " " << vec[1] << std::endl;
+        bim_file << " " << vec[gt_vec[0]] << " " << vec[gt_vec[1]] << std::endl;
       }
       write_to_bed(gt_code);
     }
