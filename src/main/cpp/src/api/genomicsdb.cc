@@ -949,8 +949,8 @@ void GenomicsDBPlinkProcessor::process(const Variant& variant) {
         }
         break;
       }
-      if(!phased) { break; }
     }
+    if(!phased) { break; }
   }
 
   for(auto& c : calls) {
