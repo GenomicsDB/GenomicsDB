@@ -238,11 +238,7 @@ GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
 
   // ALT pointer will be to the first std::string in a std::vector owned by an instance of VariantFieldALTData
   auto field_types = create_genomic_field_types(query_config, m_annotation_service);
-
-  auto it = field_types.find("ALT");
-  if(it != field_types.end()) {
-    it->second.type_idx = genomic_field_type_t::genomicsdb_basic_type::STRING;
-  }
+  change_alt_to_string(field_types);
 
   return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_VECTOR(query_variants(array, &query_config)), field_types);
 }
@@ -253,11 +249,7 @@ GenomicsDBVariants GenomicsDB::query_variants() {
 
   // ALT pointer will be to the first std::string in a std::vector owned by an instance of VariantFieldALTData
   auto field_types = create_genomic_field_types(*query_config, m_annotation_service);
-
-  auto it = field_types.find("ALT");
-  if(it != field_types.end()) {
-    it->second.type_idx = genomic_field_type_t::genomicsdb_basic_type::STRING;
-  }
+  change_alt_to_string(field_types);
 
   return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_VECTOR(query_variants(array, query_config)), field_types);
 }
@@ -587,6 +579,13 @@ void GenomicsDB::generate_vcf(const std::string& array, VariantQueryConfig* quer
   delete query_processor;
 }
 
+void GenomicsDB::change_alt_to_string(std::map<std::string, genomic_field_type_t>& types) {
+  auto it = types.find("ALT");
+  if(it != types.end()) {
+    it->second.type_idx = genomic_field_type_t::genomicsdb_basic_type::STRING;
+  }
+}
+
 template<class VariantOrVariantCall>
 std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, const VariantOrVariantCall* variant_or_variant_call, VariantQueryConfig* query_config);
 
@@ -606,10 +605,7 @@ void GenomicsDB::generate_plink(const std::string& array,
 
   GenomicsDBPlinkProcessor proc(query_config, static_cast<VidMapper*>(m_vid_mapper), array, format, compression, verbose, progress_interval, output_prefix, fam_list, m_concurrency_rank);
   auto types = create_genomic_field_types(*query_config, m_annotation_service);
-  auto it = types.find("ALT");
-  if(it != types.end()) {
-    it->second.type_idx = genomic_field_type_t::genomicsdb_basic_type::STRING;
-  }
+  change_alt_to_string(types);
 
   proc.initialize(types);
 
@@ -727,10 +723,7 @@ GenomicsDBVariantCalls GenomicsDB::get_variant_calls(const std::string& array, c
   std::vector<VariantCall>* variant_calls = const_cast<std::vector<VariantCall>*>(&(TO_VARIANT(variant)->get_calls()));
 
   auto types = create_genomic_field_types(*get_query_config_for(array), m_annotation_service);
-  auto it = types.find("ALT"); // REMOVE?
-  if(it != types.end()) {
-    it->second.type_idx = genomic_field_type_t::genomicsdb_basic_type::STRING;
-  }
+  change_alt_to_string(types);
 
   return GenomicsDBResults<genomicsdb_variant_call_t>(TO_GENOMICSDB_VARIANT_CALL_VECTOR(variant_calls), types);
 }
@@ -956,6 +949,7 @@ void GenomicsDBPlinkProcessor::process(const Variant& variant) {
         }
         break;
       }
+      if(!phased) { break; }
     }
   }
 

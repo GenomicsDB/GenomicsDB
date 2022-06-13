@@ -682,6 +682,11 @@ class GenomicsDB {
                     const std::string& output_format,
                     bool overwrite);
 
+  /**
+   * Utility function to set the type of the ALT field to string
+   */ 
+  void change_alt_to_string(std::map<std::string, genomic_field_type_t>& types);
+
   VariantQueryConfig* get_query_config_for(const std::string& array);
 
   void* m_storage_manager = nullptr; // Pointer to VariantStorageManager instance
