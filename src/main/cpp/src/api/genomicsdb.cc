@@ -1156,19 +1156,23 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     last_alleles = vec.size();
 
     if(make_bed) {
-      // 0 is homozygous for first allele
-      // 1 is missing genotype
-      // 2 is heterozygous
-      // 3 is homozygous for second allele
       char gt_code;
-
-      // FIXME cover with tests
-      // FIXME will never get code 1 (call skipped if no GT) or 3 (no clear concept of a first vs second allele if they match)
-      gt_code = char((gt_vec[0] != gt_vec[1]) * 2);
+      if(!(gt_vec[0] || gt_vec[1])) { // homozygous for first allele
+        gt_code = 0;
+      }
+      else if(gt_vec[0] + gt_vec[1] == 1) { // heterozygous
+        gt_code = 2;
+      }
+      else if(gt_vec[0] == 1 && gt_vec[1] == 1) { // homozygous for second allele
+        gt_code = 3;
+      }
+      else { // missing genotype
+        gt_code = 1;
+      }
 
       if(last_coord != coords[1]) {
         bim_file << rsid_row;
-        bim_file << " " << vec[gt_vec[0]] << " " << vec[gt_vec[1]] << std::endl;
+        bim_file << " " << vec[0] << " " << vec[1] << std::endl;
       }
       write_to_bed(gt_code);
     }
