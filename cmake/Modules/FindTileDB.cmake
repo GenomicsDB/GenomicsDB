@@ -43,7 +43,7 @@ endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
   #TileDB c-api returns a tiledb_errmsg which is what GenomicsDB should rely on
-  set(TILEDB_VERBOSE CACHE BOOL "" False FORCE)
+  set(TILEDB_VERBOSE FALSE CACHE BOOL "Suppress TileDB Verbosity for GenomicsDB" FORCE)
 endif()
 set(TILEDB_DISABLE_TESTING True)
 
