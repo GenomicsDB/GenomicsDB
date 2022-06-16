@@ -92,9 +92,12 @@ set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when intel optimized zli
 
 set(LIBDBI_DIR "" CACHE PATH "Path to libdbi install directory")
 
-if (NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE Release)
+# if no build build type is specified, default to release builds
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "GenomicsDB default set to Release" FORCE)
 endif()
+message(STATUS "CMAKE_BUILD_TYPE=" ${CMAKE_BUILD_TYPE})
+
 set(USE_HDFS True CACHE BOOL "Enables HDFS support")
 set(BUILD_FOR_ARCH "" CACHE STRING "Arch for which to build - values passed to -march= option for gcc")
 
@@ -180,7 +183,7 @@ add_definitions(-D_FILE_OFFSET_BITS=64)  #large file support
 add_definitions(-DDUPLICATE_CELL_AT_END=1) #mandatory
 add_definitions(-DGENOMICSDB_VERSION=\"${GENOMICSDB_VERSION}\")
 
-if(${CMAKE_BUILD_TYPE} STREQUAL "Release")
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
   add_definitions(-D_FORTIFY_SOURCE=2)
 endif()
 
