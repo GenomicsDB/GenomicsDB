@@ -1347,7 +1347,10 @@ void GenomicsDBPlinkProcessor::advance_state() {
   if(!state) {
     if(!sample_map_initialized) { // populate from callset
       std::string str;
-      for(auto& row : query_config->get_rows_to_query()) {
+      auto num_rows = query_config->get_num_rows_to_query();
+      int row;
+      for(int i = 0; i < num_rows; i++) {
+        row = query_config->get_array_row_idx_for_query_row_idx(i);
         vid_mapper->get_callset_name(row, str);
         sample_map.insert(std::make_pair(row, std::make_pair(-1, str)));
       }

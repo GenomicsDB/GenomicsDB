@@ -393,7 +393,7 @@ class GENOMICSDB_EXPORT GenomicsDBPlinkProcessor : public GenomicsDBVariantProce
     // return vector of tokens that were separated by sep in str
     std::vector<std::string> split(std::string str, std::string sep = ",") {
       std::vector<std::string> retval;
-      int index;
+      size_t index;
       if(str.length() >= 2) {
         if(str[0] == '[') {
            str = str.substr(1, str.length() - 2);

@@ -292,7 +292,7 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
     m_query_rows.set_rows(rowIntervals);
     m_query_all_rows = false;
   }
-  
+
   /*
    * Clamps all row intervals to between lo and hi
    * Might result in no remaining row intervals
@@ -355,7 +355,7 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   inline uint64_t get_query_row_idx_for_array_row_idx(int64_t row_idx) const {
     if(m_query_all_rows) {
       auto retval = row_idx - m_smallest_row_idx;
-      assert(retval >= 0 && retval < get_num_rows_to_query());
+      assert(retval >= 0 && (uint64_t)retval < get_num_rows_to_query());
       return retval;
     }
     return m_query_rows.get_query_row_from_array_row(row_idx);
