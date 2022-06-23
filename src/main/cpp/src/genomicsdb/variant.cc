@@ -39,11 +39,13 @@ bool GA4GHCallInfoToVariantIdx::find_or_insert(uint64_t begin, uint64_t end, con
     REF_iter = REF_map.insert(std::pair<std::string, ALTSetToVariantIdxTy>(REF, ALTSetToVariantIdxTy())).first;
   auto& ALT_map = (*REF_iter).second;
   std::set<std::string> ALT_set;
-  for (auto& ALT:ALT_vec)
+  for (auto& ALT:ALT_vec) {
     ALT_set.insert(ALT);
+  }
   auto ALT_iter = ALT_map.find(ALT_set);
-  if (ALT_iter == ALT_map.end())
+  if (ALT_iter == ALT_map.end()) {
     ALT_iter = ALT_map.insert(std::pair<std::set<std::string>, uint64_t>(ALT_set, variant_idx)).first;
+  }
   else {
     newly_inserted = false;
     variant_idx = (*ALT_iter).second;
@@ -57,6 +59,7 @@ bool GA4GHCallInfoToVariantIdx::find_or_insert(const VariantQueryConfig& query_c
     get_known_field_if_queried<VariantFieldString, true>(to_move_call, query_config, GVCF_REF_IDX);
   const auto* ALT_field_ptr =
     get_known_field_if_queried<VariantFieldALTData, true>(to_move_call, query_config, GVCF_ALT_IDX);
+
   bool newly_inserted = true;
   //Checking for identical REF, ALT etc
   if (REF_field_ptr && ALT_field_ptr) {
@@ -856,6 +859,7 @@ bool move_call_to_variant_vector(const VariantQueryConfig& query_config, Variant
     curr_variant.set_column_interval(to_move_call.get_column_begin(), to_move_call.get_column_end());
     curr_variant.add_call(std::move(to_move_call));
   }
+
   return newly_inserted;
 }
 
