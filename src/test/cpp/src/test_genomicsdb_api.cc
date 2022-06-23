@@ -30,7 +30,6 @@
 #include "genomicsdb.h"
 #include "genomicsdb_config_base.h"
 #include "tiledb_utils.h"
-#include "genomicsdb_logger.h" // REMOVE
 
 #include "genomicsdb_export_config.pb.h"
 
@@ -128,8 +127,8 @@ void check_query_variants_results(GenomicsDB* gdb, const std::string& array, Gen
    CHECK(variant_calls.get_genomic_field_type(call_genomic_fields[0].name).is_string());
    CHECK(call_genomic_fields[0].str_value() == "C");
    CHECK(call_genomic_fields[1].name == "ALT");
-   CHECK(variant_calls.get_genomic_field_type(call_genomic_fields[1].name).is_cppstring());
-   CHECK(call_genomic_fields[1].to_string(variant_calls.get_genomic_field_type(call_genomic_fields[1].name)) == "&");
+   CHECK(variant_calls.get_genomic_field_type(call_genomic_fields[1].name).is_string());
+   CHECK(call_genomic_fields[1].str_value() == "&");
 }
 
 TEST_CASE("api query_variants direct DP", "[query_variants]") {

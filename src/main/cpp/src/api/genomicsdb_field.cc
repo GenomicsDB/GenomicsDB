@@ -39,31 +39,17 @@
 
 #define NON_REF "<NON_REF>"
 
-std::string genomic_field_t::recombine_ALT_value(const genomic_field_type_t& field_type, std::string separator) const {
+std::string genomic_field_t::recombine_ALT_value(std::string separator) const {
+  std::stringstream ss(str_value());
   std::string output;
   std::string item;
-  if(field_type.is_cppstring()) {
-    for(unsigned int i = 0; i < num_elements; i++) {
-      item = cpp_str_value_at(i);
-      if (IS_NON_REF_ALLELE(item)) {
-        output.empty()?output=NON_REF:output=output+separator+NON_REF;
-      } else {
-        output.empty()?output=item:output=output+separator+item;
-      }
+  while (std::getline(ss, item, PHASED_ALLELE_SEPARATOR)){
+    if (IS_NON_REF_ALLELE(item)) {
+      output.empty()?output=NON_REF:output=output+separator+NON_REF;
+    } else {
+      output.empty()?output=item:output=output+separator+item;
     }
   }
-  // otherwise treat as char*
-  else {
-    std::stringstream ss(str_value());
-    while (std::getline(ss, item, PHASED_ALLELE_SEPARATOR)){
-      if (IS_NON_REF_ALLELE(item)) {
-        output.empty()?output=NON_REF:output=output+separator+NON_REF;
-      } else {
-        output.empty()?output=item:output=output+separator+item;
-      }
-    }
-  }
-
   return "[" + output + "]";
 }
 
