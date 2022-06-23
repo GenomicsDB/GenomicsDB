@@ -3,7 +3,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2021 Omics Data Automation, Inc.
+# Copyright (c) 2021-2022 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -42,6 +42,9 @@ foreach(PROTO_FILE ${PROTOBUF_PROTO_FILES})
   get_filename_component(CURR_FILENAME ${PROTO_FILE} NAME_WE)
   list(APPEND PROTO_GENERATED_CXX_SRCS ${PROTO_SRC_DIR}/${CURR_FILENAME}.pb.cc)
   list(APPEND PROTO_GENERATED_CXX_HDRS ${PROTO_SRC_DIR}/${CURR_FILENAME}.pb.h)
+  if(BUILD_FOR_PYTHON)
+    list(APPEND PROTO_GENERATED_PYTHON_SRCS ${PROTO_SRC_DIR}/python/${CURR_FILENAME}_pb2.py)
+  endif()
 endforeach()
 
 if(PROTOBUF_REGENERATE)
@@ -52,7 +55,17 @@ if(PROTOBUF_REGENERATE)
     BYPRODUCTS ${PROTO_GENERATED_CXX_SRCS} ${PROTO_GENERATED_CXX_HDRS}
     COMMENT "Generating source/header files from .proto files"
     DEPENDS protobuf_ep ${PROTOBUF_PROTO_FILES})
-  add_custom_target(PROTOBUF_GENERATED_CXX_TARGET DEPENDS ${PROTO_GENERATED_CXX_SRCS} ${PROTO_GENERATED_CXX_HDRS})
+  if(BUILD_FOR_PYTHON)
+    add_custom_command(OUTPUT ${PROTO_GENERATED_PYTHON_SRCS}
+      COMMAND mkdir -p ${CMAKE_CURRENT_BINARY_DIR}/python &&
+	      ${PROTOBUF_PROTOC_EXECUTABLE} --python_out=${CMAKE_CURRENT_BINARY_DIR}/python ${PROTOBUF_PROTO_FILES}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+      BYPRODUCTS ${PROTO_GENERATED_PYTHON_SRCS}
+      COMMENT "Generating GenomicsDB protobuf python bindings"
+      DEPENDS protobuf_ep  ${PROTOBUF_PROTO_FILES})
+  endif()
+  add_custom_target(PROTOBUF_GENERATED_CXX_TARGET DEPENDS
+    ${PROTO_GENERATED_CXX_SRCS} ${PROTO_GENERATED_CXX_HDRS} ${PROTO_GENERATED_PYTHON_SRCS})
   set(PROTOBUF_GENERATED_JAVA_SRCS
     ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/org/genomicsdb/GenomicsDBColumn.java
     ${GENOMICSDB_MAVEN_BUILD_DIR}/protobuf/org/genomicsdb/GenomicsDBCallsetsMapProto.java
@@ -73,4 +86,5 @@ endif()
 set(PROTOBUF_GENERATED_CXX_SRCS ${PROTO_GENERATED_CXX_SRCS} CACHE INTERNAL "Protocol buffers generated C++ sources")
 set(PROTOBUF_GENERATED_CXX_HDRS ${PROTO_GENERATED_CXX_HDRS} CACHE INTERNAL "Protocol buffers generated C++ headers")
 set(PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS ${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS} CACHE INTERNAL "Directory containing Protocol buffers generated C++ headers")
+set(PROTOBUF_GENERATED_PYTHON_SRCS ${PROTO_GENERATED_PYTHON_SRCS} CACHE INTERNAL "Generated Python protobuf sources")
 set(PROTOBUF_GENERATED_JAVA_SRCS ${PROTOBUF_GENERATED_JAVA_SRCS} CACHE INTERNAL "Protocol buffers generated Java sources")
