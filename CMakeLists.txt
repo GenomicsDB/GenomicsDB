@@ -217,7 +217,6 @@ include_directories(BEFORE ${HTSLIB_INCLUDE_DIR})
 #TileDB
 find_package(TileDB REQUIRED)
 include_directories(${TILEDB_INCLUDE_DIR})
-#include_directories(${TILEDB_INCLUDE_DIR})
 
 #librt
 find_library(LIBRT_LIBRARY rt)
