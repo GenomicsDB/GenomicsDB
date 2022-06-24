@@ -263,9 +263,10 @@ void VariantQueryProcessor::obtain_TileDB_attribute_idxs(const VariantArraySchem
     if (queryConfig.get_query_idx_for_name(name, query_idx))
       queryConfig.set_schema_idx_for_query_idx(query_idx, i);
   }
-  for (auto i=0u; i<queryConfig.get_num_queried_attributes(); ++i)
+  for (auto i=0u; i<queryConfig.get_num_queried_attributes(); ++i) {
     if (!queryConfig.is_schema_idx_defined_for_query_idx(i))
       throw UnknownQueryAttributeException("Invalid query attribute : "+queryConfig.get_query_attribute_name(i));
+  }
 }
 
 void VariantQueryProcessor::handle_gvcf_ranges(VariantCallEndPQ& end_pq,
@@ -371,6 +372,7 @@ void VariantQueryProcessor::scan_and_operate(
   //If uninitialized, store first column idx of forward scan in current_start_position
   if (current_start_position < 0 && !(forward_iter->end())) {
     auto& cell = **forward_iter;
+
     //Coordinates are at the start of the cell
     current_start_position = cell.get_begin_column();
   }
@@ -381,6 +383,7 @@ void VariantQueryProcessor::scan_and_operate(
   auto end_loop = false;
   for (; !(forward_iter->end()) && !end_loop && (scan_state == 0 || !(variant_operator.overflow())); ++(*forward_iter)) {
     auto& cell = **forward_iter;
+
 #ifdef DO_PROFILING
     stats_ptr->update_stat(GTProfileStats::GT_NUM_CELLS, 1u);
     stats_ptr->update_stat(GTProfileStats::GT_NUM_ATTR_CELLS_ACCESSED, query_config.get_num_queried_attributes());
@@ -533,10 +536,8 @@ void VariantQueryProcessor::iterate_over_gvcf_entries(
       use_common_array_object);
   for (; !(columnar_gvcf_iter->end()); ++(*columnar_gvcf_iter)) {
     auto& cell = **columnar_gvcf_iter;
-    //auto coords = cell.get_coordinates();
+
     variant_operator.operate_on_columnar_cell(cell);
-    //if (query_config.is_queried_array_row_idx(coords[0]))      //If row is part of query, process cell
-    //variant_operator.operate_on_columnar_cell(cell, query_config, get_array_schema());
   }
   //variant_operator.finalize();
   delete columnar_gvcf_iter;
@@ -745,6 +746,7 @@ void VariantQueryProcessor::gt_get_column_interval(
         //When cells are duplicated at the END, then the VariantCall object need not be valid
         if (tmp_variant.get_call(0).is_valid()) {
           //Move call to variants vector, creating new Variant if necessary
+
           auto newly_inserted = move_call_to_variant_vector(subset_query_config, tmp_variant.get_call(0), variants, call_info_2_variant,
                                 stop_inserting_new_variants);
           //Check if page limit hit
@@ -826,6 +828,7 @@ void VariantQueryProcessor::gt_get_column(
     stats_ptr->update_stat(GTProfileStats::GT_NUM_ATTR_CELLS_ACCESSED, query_config.get_num_queried_attributes());
 #endif
     auto& cell = **cell_iter;
+
     // If next cell is not on the left of col, and
     // The rowIdx is being queried and
     // The row/call is uninitialized (uninvestigated) in the Variant
@@ -988,8 +991,9 @@ void VariantQueryProcessor::gt_fill_row(
   }
   //Initialize ALT field, if needed
   const auto* ALT_field_ptr = get_known_field_if_queried<VariantFieldALTData, true>(curr_call, query_config, GVCF_ALT_IDX);
-  if (ALT_field_ptr && ALT_field_ptr->is_valid())
+  if (ALT_field_ptr && ALT_field_ptr->is_valid()) {
     num_ALT_alleles = ALT_field_ptr->get().size();   //ALT field data is vector<string>
+  }
   //Go over all normal query fields and fetch data
   for (auto i=query_config.get_first_normal_field_query_idx(); i<query_config.get_num_queried_attributes(); ++i, ++attr_iter) {
     assert(attr_iter != cell.end());
