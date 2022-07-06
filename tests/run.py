@@ -1555,6 +1555,9 @@ def main():
         ws_dir = tmpdir + os.path.sep + 'ws'
         if(test_name.find('java_genomicsdb_importer_from_vcfs') != -1):
             ws_dir = java_import_dir+os.path.sep+test_name
+        if not os.path.isdir(ws_dir):
+            create_workspace_cmd = exe_path+os.path.sep+'create_genomicsdb_workspace '+ws_dir
+            run_cmd(create_workspace_cmd, True)
         if(test_name.find('java_genomicsdb_importer_from_vcfs_duplicate_fields') != -1):
             test_params_dict['vid_mapping_file'] = tmpdir+os.path.sep+'vid.json'
         test_loader_dict = create_loader_json(ws_dir, test_name, test_params_dict);

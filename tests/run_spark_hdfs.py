@@ -286,6 +286,9 @@ def main():
     template_vcf_header_path=parent_dir+os.path.sep+'inputs'+os.path.sep+'template_vcf_header.vcf'
     tmpdir = tempfile.mkdtemp()
     ws_dir=tmpdir+os.path.sep+'ws'
+    #Explicitly create workspace as VariantStorageManager expects it to exist
+    create_workspace_cmd = exe_path+os.path.sep+'create_genomicsdb_workspace '+namenode+ws_dir
+    subprocess.run(create_workspace_cmd, shell=True, check=True)
     jacoco, jacoco_report_cmd = common.setup_jacoco(os.path.abspath(sys.argv[1]), build_type)
     sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_version, spark_master, spark_deploy, namenode)
     loader_tests = [
