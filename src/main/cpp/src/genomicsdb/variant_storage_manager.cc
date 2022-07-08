@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2018-2021 Omics Data Automation, Inc.
+ * Copyright (c) 2018-2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -38,6 +38,7 @@
 #define SLASHIFY(path) (path.back()!='/'?path+'/':path)
 #define GET_OLD_METADATA_PATH(workspace, array) (SLASHIFY(workspace) + SLASHIFY(array) + METADATA_FILE_PREFIX + ".json")
 #define GET_METADATA_DIRECTORY(workspace, array) (SLASHIFY(workspace) + SLASHIFY(array) +"genomicsdb_meta_dir/")
+
 bool is_genomicsdb_meta_file(const TileDB_CTX* tiledb_ctx, const std::string& filepath) {
   if (!filepath.empty() && filepath.back() != '/' && is_file(tiledb_ctx, filepath)) {
     std::size_t found = filepath.find_last_of("/");
@@ -516,15 +517,24 @@ void VariantArrayInfo::close_array(const bool consolidate_tiledb_array,
   m_mode = -1;
 }
 
+#define PRINT_TILEDB_ERRMSG strlen(tiledb_errmsg)?" : "+std::string(tiledb_errmsg):""
+
 //VariantStorageManager functions
 VariantStorageManager::VariantStorageManager(const std::string& workspace, const unsigned segment_size,
     const bool enable_shared_posixfs_optimizations) {
   m_workspace = workspace;
   m_segment_size = segment_size;
+  m_tiledb_ctx = NULL;
 
-  if (TileDBUtils::initialize_workspace(&m_tiledb_ctx, workspace, false, enable_shared_posixfs_optimizations) < 0 || m_tiledb_ctx == NULL) {
+  // Variant StorageManager expects the workspace to already exist!
+  if (TileDBUtils::workspace_exists(m_workspace)) {
+    if (TileDBUtils::initialize_workspace(&m_tiledb_ctx, m_workspace, false, enable_shared_posixfs_optimizations) < 0 || m_tiledb_ctx == NULL) {
+      logger.fatal(VariantStorageManagerException(
+		     logger.format("Error while initializing workspace {}{}", workspace, PRINT_TILEDB_ERRMSG)));
+    }
+  } else {
     logger.fatal(VariantStorageManagerException(
-        logger.format("Error while creating workspace {} : {}", workspace, tiledb_errmsg)));
+                     logger.format("Workspace {} does not seem to exist{}", workspace, PRINT_TILEDB_ERRMSG)));
   }
 }
 
@@ -532,32 +542,32 @@ int VariantStorageManager::open_array(const std::string& array_name, const VidMa
   auto mode_iter = VariantStorageManager::m_mode_string_to_int.find(mode);
   VERIFY_OR_THROW(mode_iter != VariantStorageManager::m_mode_string_to_int.end() && "Unknown mode of opening an array");
   auto mode_int = (*mode_iter).second;
-  if (is_array(m_tiledb_ctx, SLASHIFY(m_workspace) + array_name)) {
-    //Try to open the array
-    TileDB_Array* tiledb_array;
-    auto status = tiledb_array_init(
-                    m_tiledb_ctx,
-                    &tiledb_array,
-                    (SLASHIFY(m_workspace)+array_name).c_str(),
-                    mode_int, NULL,
-                    0, 0);
-    if (status == TILEDB_OK && mode_int == TILEDB_ARRAY_READ && query_filter.size() != 0) {
-      status = tiledb_array_apply_filter(tiledb_array, query_filter.c_str());
-    }
-    if (status == TILEDB_OK) {
-      auto idx = m_open_arrays_info_vector.size();
-      //Schema
-      VariantArraySchema tmp_schema;
-      get_array_schema(array_name, &tmp_schema);
-      //Just to be safe
-      define_metadata_schema(&tmp_schema);
-      m_open_arrays_info_vector.emplace_back(idx, mode_int,
-                                             m_workspace, array_name,
-                                             vid_mapper, tmp_schema,
-                                             m_tiledb_ctx, tiledb_array,
-                                             m_segment_size);
-      return idx;
-    }
+
+  std::string array_path = SLASHIFY(m_workspace) + array_name;
+  if (mode_int == TILEDB_ARRAY_READ && !is_array(m_tiledb_ctx, array_path)) {
+    logger.error("Array {} in workspace {} does not seem to exist{}", array_name,  m_workspace, PRINT_TILEDB_ERRMSG);
+    return -1;
+  }
+
+  // Try to open the array
+  TileDB_Array* tiledb_array;
+  auto status = tiledb_array_init(m_tiledb_ctx, &tiledb_array, array_path.c_str(), mode_int, NULL, 0, 0);
+  if (status == TILEDB_OK && mode_int == TILEDB_ARRAY_READ && query_filter.size() != 0) {
+    status = tiledb_array_apply_filter(tiledb_array, query_filter.c_str());
+  }
+  if (status == TILEDB_OK) {
+    auto idx = m_open_arrays_info_vector.size();
+    // Schema
+    VariantArraySchema tmp_schema;
+    get_array_schema(array_name, &tmp_schema);
+    // Just to be safe
+    define_metadata_schema(&tmp_schema);
+    m_open_arrays_info_vector.emplace_back(idx, mode_int,
+					   m_workspace, array_name,
+					   vid_mapper, tmp_schema,
+					   m_tiledb_ctx, tiledb_array,
+					   m_segment_size);
+    return idx;
   }
   return -1;
 }

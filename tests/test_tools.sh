@@ -322,6 +322,8 @@ create_sample_list t0.vcf.gz
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o" 1 85 24 85 "#30"
 
 create_query_json
+run_command "gt_mpi_gather -w "non-existent-workspace" $WORKSPACE/loader.json -j $QUERY_JSON --print-AC" ERR
+run_command "gt_mpi_gather -A "non-existent-array" $WORKSPACE/loader.json -j $QUERY_JSON --print-AC" ERR
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-calls"
 
