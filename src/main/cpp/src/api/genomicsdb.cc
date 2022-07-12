@@ -529,7 +529,7 @@ void GenomicsDB::generate_vcf(const std::string& array,
     query_config.set_query_row_ranges(row_ranges);
   }
   query_config.set_reference_genome(reference_genome);
-  //query_config.set_vcf_header_filename(vcf_header);
+  query_config.set_vcf_header_filename(vcf_header);
 
   query_config.validate();
 
