@@ -27,7 +27,7 @@ set -e
 #  $1 - BUILD_DISTRIBUTABLE_LIBRARY, if true will build/install OpenSSL/CURL/UUID/Intel zlib libs
 #  $2 - 'full' if build prerequisites should be installed, 'release' if only runtime prerequisites should be installed
 
-OPENSSL_VERSION=1.0.2o
+OPENSSL_VERSION=1.1.1o
 MAVEN_VERSION=3.6.3
 CURL_VERSION=7.83.1
 UUID_VERSION=1.0.3
