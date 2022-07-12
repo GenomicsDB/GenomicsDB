@@ -178,9 +178,9 @@ public class GenomicsDBQueryInputFormat extends InputFormat<Interval, List<Varia
           }
           List<String> attributesList = exportConfiguration.getAttributesList();
           if (segmentSize > 0) {
-            queryHandle = query.connect(workspace, vidMappingFile, callsetMappingFile, referenceGenome, attributesList, segmentSize.longValue());
+            queryHandle = query.connect(workspace, vidMappingFile, callsetMappingFile, attributesList, segmentSize.longValue());
           } else {
-            queryHandle = query.connect(workspace, vidMappingFile, callsetMappingFile, referenceGenome, attributesList);
+            queryHandle = query.connect(workspace, vidMappingFile, callsetMappingFile, attributesList);
           }
           intervals = query.queryVariantCalls(queryHandle, exportConfiguration.getArrayName(),
                   ToColumnRangePairs(exportConfiguration.getQueryColumnRanges(0).getColumnOrIntervalListList()),

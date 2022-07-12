@@ -5,7 +5,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2020 Omics Data Automation, Inc.
+ * Copyright (c) 2020,2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -51,9 +51,8 @@ std::string genomic_field_t::recombine_ALT_value(const genomic_field_type_t& fie
         output.empty()?output=item:output=output+separator+item;
       }
     }
-  }
-  // otherwise treat as char*
-  else {
+  } else {
+    // otherwise treat as char*
     std::stringstream ss(str_value());
     while (std::getline(ss, item, PHASED_ALLELE_SEPARATOR)){
       if (IS_NON_REF_ALLELE(item)) {

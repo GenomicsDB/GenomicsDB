@@ -28,10 +28,10 @@ JNIEXPORT jstring JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniVersion
 /*
  * Class:     org_genomicsdb_reader_GenomicsDBQuery
  * Method:    jniConnect
- * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;J)J
+ * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;J)J
  */
 JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnect
-  (JNIEnv *, jclass, jstring, jstring, jstring, jstring, jobject, jlong);
+  (JNIEnv *, jclass, jstring, jstring, jstring, jobject, jlong);
 
 /*
  * Class:     org_genomicsdb_reader_GenomicsDBQuery
@@ -68,10 +68,10 @@ JNIEXPORT jobject JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniQueryVar
 /*
  * Class:     org_genomicsdb_reader_GenomicsDBQuery
  * Method:    jniGenerateVCF
- * Signature: (JLjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Z)V
+ * Signature: (JLjava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Z)V
  */
 JNIEXPORT void JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF
-  (JNIEnv *, jclass, jlong, jstring, jobject, jobject, jstring, jstring, jboolean);
+  (JNIEnv *, jclass, jlong, jstring, jobject, jobject, jstring, jstring, jstring, jstring, jboolean);
 
 /*
  * Class:     org_genomicsdb_reader_GenomicsDBQuery
@@ -81,39 +81,6 @@ JNIEXPORT void JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF
 JNIEXPORT void JNICALL Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF1
   (JNIEnv *, jclass, jlong, jstring, jstring, jboolean);
 
-#ifdef __cplusplus
-}
-#endif
-#endif
-/* Header for class org_genomicsdb_reader_GenomicsDBQuery_Interval */
-
-#ifndef _Included_org_genomicsdb_reader_GenomicsDBQuery_Interval
-#define _Included_org_genomicsdb_reader_GenomicsDBQuery_Interval
-#ifdef __cplusplus
-extern "C" {
-#endif
-#ifdef __cplusplus
-}
-#endif
-#endif
-/* Header for class org_genomicsdb_reader_GenomicsDBQuery_VariantCall */
-
-#ifndef _Included_org_genomicsdb_reader_GenomicsDBQuery_VariantCall
-#define _Included_org_genomicsdb_reader_GenomicsDBQuery_VariantCall
-#ifdef __cplusplus
-extern "C" {
-#endif
-#ifdef __cplusplus
-}
-#endif
-#endif
-/* Header for class org_genomicsdb_reader_GenomicsDBQuery_Pair */
-
-#ifndef _Included_org_genomicsdb_reader_GenomicsDBQuery_Pair
-#define _Included_org_genomicsdb_reader_GenomicsDBQuery_Pair
-#ifdef __cplusplus
-extern "C" {
-#endif
 #ifdef __cplusplus
 }
 #endif

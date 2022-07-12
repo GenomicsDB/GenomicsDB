@@ -2,7 +2,7 @@
  * src/test/cpp/src/test_genomicsdb_api.cc
  *
  * The MIT License (MIT)
- * Copyright (c) 2019-2021 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -50,10 +50,9 @@ TEST_CASE("api empty_args", "[empty_args]") {
   std::string empty_string;
 
   // Constructor that allows workspace/callset/vidmapping/reference genome specification
-  CHECK_THROWS_AS(new GenomicsDB(empty_string, empty_string, empty_string, empty_string), std::exception);
-  CHECK_THROWS_AS(new GenomicsDB("ws", empty_string, empty_string, empty_string), std::exception);
-  CHECK_THROWS_AS(new GenomicsDB("ws", "callset", empty_string, empty_string), std::exception);
-  CHECK_THROWS_AS(new GenomicsDB("ws", "callset", "vid", empty_string), std::exception);
+  CHECK_THROWS_AS(new GenomicsDB(empty_string, empty_string, empty_string), std::exception);
+  CHECK_THROWS_AS(new GenomicsDB("ws", empty_string, empty_string), std::exception);
+  CHECK_THROWS_AS(new GenomicsDB("ws", "callset", empty_string), std::exception);
 
   // Constructor that allows json files for configuration
   CHECK_THROWS_AS(new GenomicsDB(empty_string), std::exception);
@@ -133,7 +132,7 @@ void check_query_variants_results(GenomicsDB* gdb, const std::string& array, Gen
 }
 
 TEST_CASE("api query_variants direct DP", "[query_variants]") {
-  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, {"DP"}, 40);
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}, {{0,3}}));
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}));
   check_query_variants_results(gdb, array, gdb->query_variants(array));
@@ -141,39 +140,39 @@ TEST_CASE("api query_variants direct DP", "[query_variants]") {
 }
 
 TEST_CASE("api query_variants direct DP with huge row range", "[query_variants_huge_range]") {
-  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, {"DP"}, 40);
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}, {{0,10000000000}}));
   delete gdb;
 }
 
 TEST_CASE("api query_variants direct DP with huge disjoint row ranges", "[query_variants_huge_disjoint_range]") {
-  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, {"DP"}, 40);
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,10000000000}}, {{0, 1}, {2,1000000000}, {2000000000, 3000000000}}));
   delete gdb;
 }
 
 TEST_CASE("api query_variants direct DP with range composed of multiple points", "[query_variants_points]") {
-  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, {"DP"}, 40);
   REQUIRE(gdb->query_variants(array, {{0,10000000000}}, {{0, 0}, {2,2}}).size() == 2);
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,10000000000}}, {{0, 0}, {2,2}, {1,1}}));
   delete gdb;
 }
 
 TEST_CASE("api query_variants direct DP with range composed of overlapping ranges", "[query_variants_overlap]") {
-  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, {"DP"}, 40);
   REQUIRE(gdb->query_variants(array, {{0,10000000000}}, {{1000,2000}, {1, 5}, {2,2}}).size() == 3);
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,10000000000}}, {{0, 10}, {1,5}, {2,3}}));
   delete gdb;
 }
 
 TEST_CASE("api query_variants direct DP with invalid row range", "[query_variants_invalid_range]") {
-  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, {"DP"}, 40);
   REQUIRE_THROWS(check_query_variants_results(gdb, array, gdb->query_variants(array, {{-100, 1}}, {{0,10000000000}})));
   delete gdb;
 }
 
 TEST_CASE("api query_variants direct DP and GT", "[query_variants_DP_GT]") {
-  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP", "GT"}, 40);
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, {"DP", "GT"}, 40);
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}, {{0,3}}));
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}));
   check_query_variants_results(gdb, array, gdb->query_variants(array));
@@ -181,7 +180,7 @@ TEST_CASE("api query_variants direct DP and GT", "[query_variants_DP_GT]") {
 }
 
 TEST_CASE("api query_variants direct DP and GT with PP", "[query_variants_DP_GT_with_PP]") {
-  GenomicsDB* gdb = new GenomicsDB(workspace_PP, callset_mapping, vid_mapping_PP, reference_genome, {"DP", "GT"}, 40);
+  GenomicsDB* gdb = new GenomicsDB(workspace_PP, callset_mapping, vid_mapping_PP, {"DP", "GT"}, 40);
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}, {{0,3}}));
   check_query_variants_results(gdb, array, gdb->query_variants(array, {{0,1000000000}}));
   check_query_variants_results(gdb, array, gdb->query_variants(array));
@@ -384,7 +383,7 @@ class TwoQueryIntervalsProcessor : public GenomicsDBVariantCallProcessor {
 TEST_CASE("api query_variant_calls direct", "[query_variant_calls_direct]") {
   const std::vector<std::string> attributes = {"DP"};
 
-  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, attributes, 40);
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, attributes, 40);
 
   gdb->query_variant_calls(array);
 
@@ -409,7 +408,7 @@ TEST_CASE("api query_variant_calls direct", "[query_variant_calls_direct]") {
 TEST_CASE("api query_variant_calls direct DP and GT", "[query_variant_calls_direct_DP_GT]") {
   const std::vector<std::string> attributes = {"GT", "DP"};
 
-  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, attributes, 40);
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, attributes, 40);
 
   // Default query variant call without processor, should just print the calls
   gdb->query_variant_calls(array, {{0,1000000000}}, {{0,3}});
@@ -432,7 +431,7 @@ TEST_CASE("api query_variant_calls direct DP and GT", "[query_variant_calls_dire
 TEST_CASE("api query_variant_calls direct DP and GT with PP", "[query_variant_calls_direct_DP_GT_with_PP]") {
   const std::vector<std::string> attributes = {"GT", "DP"};
 
-  GenomicsDB* gdb = new GenomicsDB(workspace_PP, callset_mapping, vid_mapping_PP, reference_genome, attributes, 40);
+  GenomicsDB* gdb = new GenomicsDB(workspace_PP, callset_mapping, vid_mapping_PP, attributes, 40);
 
   // Default query variant call without processor, should just print the calls
   gdb->query_variant_calls(array, {{0,1000000000}}, {{0,3}});
@@ -534,21 +533,21 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
 
 TEST_CASE("api generate_vcf direct", "[query_generate_vcf_direct]") {
   TempDir temp_dir;
-  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, reference_genome, {"DP"}, 40);
+  GenomicsDB* gdb = new GenomicsDB(workspace, callset_mapping, vid_mapping, {"DP"}, 40);
 
   const std::string vcf_file1 = temp_dir.append("1.vcf.gz");
-  gdb->generate_vcf(array, {{0,1000000000}}, {{0,3}}, vcf_file1);
+  gdb->generate_vcf(array, {{0,1000000000}}, {{0,3}}, reference_genome, "", vcf_file1);
   CHECK(TileDBUtils::is_file(vcf_file1));
   CHECK(!TileDBUtils::is_file(vcf_file1+".tbi"));
 
-  gdb->generate_vcf(array, {{0,1000000000}}, {{0,3}}, vcf_file1, "z", true);
+  gdb->generate_vcf(array, {{0,1000000000}}, {{0,3}}, reference_genome, "", vcf_file1, "z", true);
   CHECK(TileDBUtils::is_file(vcf_file1));
   CHECK(TileDBUtils::is_file(vcf_file1+".tbi"));
 
-  CHECK_THROWS_AS(gdb->generate_vcf(array, {{0,1000000000}}, {{0,3}}, vcf_file1, "z", false), std::exception);
+  CHECK_THROWS_AS(gdb->generate_vcf(array, {{0,1000000000}}, {{0,3}}, reference_genome, "", vcf_file1, "z", false), std::exception);
 
   const std::string vcf_file2 = temp_dir.append("3.vcf.gz");
-  gdb->generate_vcf(array, {{0,13000}, {13000, 1000000000}}, {{0,3}}, vcf_file2, "z", true);
+  gdb->generate_vcf(array, {{0,13000}, {13000, 1000000000}}, {{0,3}}, reference_genome, "", vcf_file2, "z", true);
   CHECK(TileDBUtils::is_file(vcf_file2));
   CHECK(TileDBUtils::is_file(vcf_file2+".tbi"));
 
