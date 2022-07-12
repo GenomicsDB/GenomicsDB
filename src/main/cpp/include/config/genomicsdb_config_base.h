@@ -93,7 +93,9 @@ class GenomicsDBConfigBase {
   inline size_t get_combined_vcf_records_buffer_size_limit() const {
     return m_combined_vcf_records_buffer_size_limit;
   }
-  void set_vcf_header_filename(const std::string& vcf_header_filename);
+  void set_vcf_header_filename(const std::string& vcf_header_filename) {
+    m_vcf_header_filename = vcf_header_filename;
+  }
   const std::string& get_vcf_header_filename() const {
     return m_vcf_header_filename;
   }

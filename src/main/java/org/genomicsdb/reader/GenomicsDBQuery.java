@@ -1,6 +1,6 @@
 /*
  * The MIT License (MIT)
- * Copyright (c) 2019 Omics Data Automation, Inc.
+ * Copyright (c) 2019, 2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -137,18 +137,16 @@ public class GenomicsDBQuery {
   public long connect(final String workspace,
                       final String vidMappingFile,
                       final String callsetMappingFile,
-                      final String referenceGenome,
                       final List<String> attributes) throws GenomicsDBException {
-    return connect(workspace, vidMappingFile, callsetMappingFile, referenceGenome, attributes, defaultSegmentSize);
+    return connect(workspace, vidMappingFile, callsetMappingFile, attributes, defaultSegmentSize);
   }
 
   public long connect(final String workspace,
                       final String vidMappingFile,
                       final String callsetMappingFile,
-                      final String referenceGenome,
                       final List<String> attributes,
                       final long segmentSize) throws GenomicsDBException {
-    return jniConnect(workspace, vidMappingFile, callsetMappingFile, referenceGenome, attributes, segmentSize);
+    return jniConnect(workspace, vidMappingFile, callsetMappingFile, attributes, segmentSize);
   }
 
   public long connectJSON(final String queryJSONFile) {
@@ -193,19 +191,23 @@ public class GenomicsDBQuery {
                           final String arrayName,
                           final List<Pair> columnRanges,
                           final List<Pair> rowRanges,
+                          final String referenceGenome,
+                          final String vcfHeader,
                           final String outputFilename,
                           final String outputFormat) {
-    jniGenerateVCF(handle, arrayName, columnRanges, rowRanges, outputFilename, outputFormat, false);
+    jniGenerateVCF(handle, arrayName, columnRanges, rowRanges, referenceGenome, vcfHeader, outputFilename, outputFormat, false);
   }
 
   public void generateVCF(long handle,
                           final String arrayName,
                           final List<Pair> columnRanges,
                           final List<Pair> rowRanges,
+                          final String referenceGenome,
+                          final String vcfHeader,
                           final String outputFilename,
                           final String outputFormat,
                           final boolean overwrite) {
-    jniGenerateVCF(handle, arrayName, columnRanges, rowRanges, outputFilename, outputFormat, overwrite);
+    jniGenerateVCF(handle, arrayName, columnRanges, rowRanges, referenceGenome, vcfHeader, outputFilename, outputFormat, overwrite);
   }
 
   public void generateVCF(long handle,
@@ -229,7 +231,6 @@ public class GenomicsDBQuery {
   private static native long jniConnect(final String workspace,
                                  final String vidMappingFile,
                                  final String callsetMappingFile,
-                                 final String referenceGenome,
                                  final List<String> attributes,
                                  final long segmentSize) throws GenomicsDBException;
 
@@ -250,6 +251,8 @@ public class GenomicsDBQuery {
                                             final String arrayName,
                                             final List<Pair> columnRanges,
                                             final List<Pair> rowRanges,
+                                            final String referenceGenome,
+                                            final String vcfHeader,
                                             final String outputFilename,
                                             final String outputFormat,
                                             final boolean overwrite);

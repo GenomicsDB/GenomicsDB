@@ -1,6 +1,6 @@
 /**
  * The MIT License (MIT)
- * Copyright (c) 2019-2020 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2020,2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -215,21 +215,18 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnect(JNIEnv *env,
                                                       jstring workspace,
                                                       jstring vid_mapping_file,
                                                       jstring callset_mapping_file,
-                                                      jstring reference_genome,
                                                       jobject attributes,
                                                       jlong segment_size) {
   // Convert
   auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
   auto vid_mapping_file_cstr = env->GetStringUTFChars(vid_mapping_file, NULL);
   auto callset_mapping_file_cstr = env->GetStringUTFChars(callset_mapping_file, NULL);
-  auto reference_genome_cstr = env->GetStringUTFChars(reference_genome, NULL);
 
   GenomicsDB *genomicsdb = NULL;
   try {
     genomicsdb =  new GenomicsDB(workspace_cstr,
                                  callset_mapping_file_cstr,
                                  vid_mapping_file_cstr,
-                                 reference_genome_cstr,
                                  to_string_vector(env, attributes),
                                  segment_size);
   } catch (GenomicsDBException& e) {
@@ -240,7 +237,6 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnect(JNIEnv *env,
   env->ReleaseStringUTFChars(workspace, workspace_cstr);
   env->ReleaseStringUTFChars(vid_mapping_file, vid_mapping_file_cstr);
   env->ReleaseStringUTFChars(callset_mapping_file, callset_mapping_file_cstr);
-  env->ReleaseStringUTFChars(reference_genome, reference_genome_cstr);
   
   return static_cast<jlong>(reinterpret_cast<uintptr_t>(genomicsdb));
 }
@@ -395,12 +391,16 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF(JNIEnv *env,
                                                           jstring array_name,
                                                           jobject column_ranges,
                                                           jobject row_ranges,
+                                                          jstring reference_genome,
+                                                          jstring vcf_header,
                                                           jstring output,
                                                           jstring output_format,
                                                           jboolean overwrite) {
   // Convert
   GenomicsDB *genomicsdb = reinterpret_cast<GenomicsDB *>(static_cast<uintptr_t>(handle));
   auto array_name_cstr = env->GetStringUTFChars(array_name, NULL);
+  auto reference_genome_cstr = env->GetStringUTFChars(reference_genome, NULL);
+  auto vcf_header_cstr = env->GetStringUTFChars(vcf_header, NULL);
   auto output_cstr =  env->GetStringUTFChars(output, NULL);
   auto output_format_cstr = env->GetStringUTFChars(output_format, NULL);
 
@@ -408,6 +408,7 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF(JNIEnv *env,
     genomicsdb->generate_vcf(array_name_cstr,
                              to_genomicsdb_ranges_vector(env, column_ranges),
                              to_genomicsdb_ranges_vector(env, row_ranges),
+                             reference_genome_cstr, vcf_header_cstr,
                              output_cstr, output_format_cstr, overwrite);
   } catch (GenomicsDBException& e) {
     handleJNIException(env, e);
@@ -415,6 +416,8 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniGenerateVCF(JNIEnv *env,
 
   // Cleanup
   env->ReleaseStringUTFChars(array_name, array_name_cstr);
+  env->ReleaseStringUTFChars(reference_genome, reference_genome_cstr);
+  env->ReleaseStringUTFChars(vcf_header, vcf_header_cstr);
   env->ReleaseStringUTFChars(output_format, output_format_cstr);
   env->ReleaseStringUTFChars(output, output_cstr);
 }

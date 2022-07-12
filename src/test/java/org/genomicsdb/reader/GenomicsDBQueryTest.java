@@ -82,25 +82,19 @@ public class GenomicsDBQueryTest {
   void testGenomicsDBConnectWithEmptyRequiredParams() {
     GenomicsDBQuery query = new GenomicsDBQuery();
     try {
-      query.connect("", "", "", "", new ArrayList<String>());
+              query.connect("", "", "", new ArrayList<String>());
       Assert.fail();
     } catch (GenomicsDBException e) {
       // Expected Exception
     }
     try {
-      query.connect(workspace, "", "", "", new ArrayList<String>());
+      query.connect(workspace, "", "", new ArrayList<String>());
       Assert.fail();
     } catch (GenomicsDBException e) {
       // Expected Exception
     }
     try {
-      query.connect(workspace, vidMapping, "", "", new ArrayList<String>());
-      Assert.fail();
-    } catch (GenomicsDBException e) {
-      // Expected Exception
-    }
-    try {
-      query.connect(workspace, vidMapping, callsetMapping, "", new ArrayList<String>());
+      query.connect(workspace, vidMapping, "", new ArrayList<String>());
       Assert.fail();
     } catch (GenomicsDBException e) {
       // Expected Exception
@@ -109,7 +103,7 @@ public class GenomicsDBQueryTest {
 
   private long connect() {
     GenomicsDBQuery query = new GenomicsDBQuery();
-    long handle = query.connect(workspace, vidMapping, callsetMapping, referenceGenome, new ArrayList<>());
+    long handle = query.connect(workspace, vidMapping, callsetMapping, new ArrayList<>());
     Assert.assertTrue(handle > 0);
     return handle;
   }
@@ -118,7 +112,7 @@ public class GenomicsDBQueryTest {
     GenomicsDBQuery query = new GenomicsDBQuery();
     List<String> attributes = new ArrayList<>();
     attributes.add("DP");
-    long handle = query.connect(workspace, vidMapping, callsetMapping, referenceGenome, attributes);
+    long handle = query.connect(workspace, vidMapping, callsetMapping, attributes);
     Assert.assertTrue(handle > 0);
     return handle;
   }
@@ -128,14 +122,14 @@ public class GenomicsDBQueryTest {
     List<String> attributes = new ArrayList<>();
     attributes.add("DP");
     attributes.add("GT");
-    long handle = query.connect(workspace, vidMapping, callsetMapping, referenceGenome, attributes);
+    long handle = query.connect(workspace, vidMapping, callsetMapping, attributes);
     Assert.assertTrue(handle > 0);
     return handle;
   }
 
   private long connectWithSegmentSize() {
     GenomicsDBQuery query = new GenomicsDBQuery();
-    long handle = query.connect(workspace, vidMapping, callsetMapping, referenceGenome, new ArrayList<>(), 40);
+    long handle = query.connect(workspace, vidMapping, callsetMapping, new ArrayList<>(), 40);
     Assert.assertTrue(handle > 0);
     return handle;
   }
@@ -283,7 +277,7 @@ public class GenomicsDBQueryTest {
     File vcfFile = File.createTempFile("GenomicsDBQueryTest", "");
     File vcfIndexFile = new File(vcfFile + ".tbi");
 
-    query.generateVCF(genomicsDBHandle, arrayName, columnRanges, new ArrayList<>(), vcfFile.toString(), "z", true);
+    query.generateVCF(genomicsDBHandle, arrayName, columnRanges, new ArrayList<>(), referenceGenome, "", vcfFile.toString(), "z", true);
 
     Assert.assertTrue(vcfFile.exists());
     Assert.assertTrue(vcfFile.length() > 0);
@@ -291,7 +285,7 @@ public class GenomicsDBQueryTest {
     Assert.assertTrue(vcfIndexFile.length() > 0);
 
     try {
-      query.generateVCF(genomicsDBHandle, arrayName, columnRanges, new ArrayList<>(), vcfFile.toString(), "z", false);
+      query.generateVCF(genomicsDBHandle, arrayName, columnRanges, new ArrayList<>(), referenceGenome, "", vcfFile.toString(), "z", false);
       Assert.fail();
     } catch (GenomicsDBException e) {
       // Expected exception

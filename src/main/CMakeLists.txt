@@ -68,6 +68,7 @@ set(GenomicsDB_library_sources
     cpp/src/api/annotation_service.cc
     cpp/src/api/genomicsdb.cc
     cpp/src/api/genomicsdb_field.cc
+    cpp/src/api/genomicsdb_plink.cc
     )
 
 include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})

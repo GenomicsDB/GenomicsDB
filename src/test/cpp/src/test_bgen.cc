@@ -20,20 +20,22 @@ TEST_CASE("test bgen", "[bgen]") {
 
   std::string ctests_input_dir(GENOMICSDB_CTESTS_DIR);
 
+  // basic - direct
+  std::string workspace = ctests_input_dir + "/bgen/workspace_1";
+  GenomicsDB gdb_basic(workspace, workspace+"/callset.json", workspace+"/vidmap.json", {"REF", "ALT", "DP", "GT", "ID"});
+  gdb_basic.generate_plink("1$1$249250621", SCAN_FULL, {{0,20}}, 7, 1);
+  std::string cmd_basic = "diff output.bgen " + ctests_input_dir + "/bgen/output_1.bgen > /dev/null";
+  int status = system(cmd_basic.c_str());
+  if(WEXITSTATUS(status)) {
+    throw std::runtime_error("Direct - first BGEN test output did not match reference output");
+  }
+
   // test 1 (t0_1_2_combined)
-  VariantQueryConfig query_config;
-  query_config.read_from_file(ctests_input_dir + "/bgen/query_1.json", my_world_mpi_rank);
-
-  std::string array_name = query_config.get_array_name(my_world_mpi_rank);
-
-  GenomicsDB gdb(query_config.get_workspace(my_world_mpi_rank),
-                 query_config.get_callset_mapping_file(),
-                 query_config.get_vid_mapping_file(),
-                 query_config.get_reference_genome());
-  gdb.generate_plink(array_name, &query_config, 7, 1);
+  GenomicsDB gdb(ctests_input_dir + "/bgen/query_1.json", GenomicsDB::JSON_FILE, "", my_world_mpi_rank);
+  gdb.generate_plink(7, 1);
 
   std::string cmd = "diff output.bgen " + ctests_input_dir + "/bgen/output_1.bgen > /dev/null";
-  int status = system(cmd.c_str());
+  status = system(cmd.c_str());
   if(WEXITSTATUS(status)) {
     throw std::runtime_error("first BGEN test output did not match reference output");
   }
@@ -59,17 +61,8 @@ TEST_CASE("test bgen", "[bgen]") {
   }
 
   // test 2 (min_PL_spanning_deletion)
-  
-  VariantQueryConfig query_config2;
-  query_config2.read_from_file(ctests_input_dir + "/bgen/query_2.json", my_world_mpi_rank);
-
-  array_name = query_config2.get_array_name(my_world_mpi_rank);
-
-  GenomicsDB gdb2(query_config2.get_workspace(my_world_mpi_rank),
-                 query_config2.get_callset_mapping_file(),
-                 query_config2.get_vid_mapping_file(),
-                 query_config2.get_reference_genome());
-  gdb2.generate_plink(array_name, &query_config2, 1, 1);
+  GenomicsDB gdb2(ctests_input_dir + "/bgen/query_2.json", GenomicsDB::JSON_FILE, "", my_world_mpi_rank);
+  gdb2.generate_plink(1, 1);
 
   cmd = "diff output.bgen " + ctests_input_dir + "/bgen/output_2.bgen > /dev/null";
   status = system(cmd.c_str());
@@ -78,17 +71,8 @@ TEST_CASE("test bgen", "[bgen]") {
   }
 
   // test 3 (merged tcga vcfs)
-
-  VariantQueryConfig query_config3;
-  query_config3.read_from_file(ctests_input_dir + "/bgen/query_3.json", my_world_mpi_rank);
-
-  array_name = query_config3.get_array_name(my_world_mpi_rank);
-
-  GenomicsDB gdb3(query_config3.get_workspace(my_world_mpi_rank),
-                 query_config3.get_callset_mapping_file(),
-                 query_config3.get_vid_mapping_file(),
-                 query_config3.get_reference_genome());
-  gdb3.generate_plink(array_name, &query_config3, 1, 1);
+  GenomicsDB gdb3(ctests_input_dir + "/bgen/query_3.json", GenomicsDB::JSON_FILE, "", my_world_mpi_rank);
+  gdb3.generate_plink(1, 1);
 
   cmd = "diff output.bgen " + ctests_input_dir + "/bgen/output_3.bgen > /dev/null";
   status = system(cmd.c_str());
@@ -99,16 +83,8 @@ TEST_CASE("test bgen", "[bgen]") {
   system("rm -f output.bgen");
 
   // test 4 (PL/GL with one sample empty, standard two pass generation)
-  VariantQueryConfig query_config4;
-  query_config4.read_from_file(ctests_input_dir + "/bgen/bgen_test_query_1.json", my_world_mpi_rank);
-
-  array_name = query_config4.get_array_name(my_world_mpi_rank);
-
-  GenomicsDB gdb4(query_config4.get_workspace(my_world_mpi_rank),
-                 query_config4.get_callset_mapping_file(),
-                 query_config4.get_vid_mapping_file(),
-                 query_config4.get_reference_genome());
-  gdb4.generate_plink(array_name, &query_config4, 1, 1); 
+  GenomicsDB gdb4(ctests_input_dir + "/bgen/bgen_test_query_1.json", GenomicsDB::JSON_FILE, "", my_world_mpi_rank);
+  gdb4.generate_plink(1, 1); 
 
   cmd = "diff output.bgen " + ctests_input_dir + "/bgen/bgen_test_output_1_2p.bgen > /dev/null";
   status = system(cmd.c_str());
@@ -117,16 +93,8 @@ TEST_CASE("test bgen", "[bgen]") {
   }
  
   // test 5 (PL/GL with one sample empty, one pass generation)
-  VariantQueryConfig query_config5;
-  query_config5.read_from_file(ctests_input_dir + "/bgen/bgen_test_query_1.json", my_world_mpi_rank);
-
-  array_name = query_config5.get_array_name(my_world_mpi_rank);
-
-  GenomicsDB gdb5(query_config5.get_workspace(my_world_mpi_rank),
-                 query_config5.get_callset_mapping_file(),
-                 query_config5.get_vid_mapping_file(),
-                 query_config5.get_reference_genome());
-  gdb5.generate_plink(array_name, &query_config5, 1, 1, true);
+  GenomicsDB gdb5(ctests_input_dir + "/bgen/bgen_test_query_1.json", GenomicsDB::JSON_FILE, "", my_world_mpi_rank);
+  gdb5.generate_plink(1, 1, true);
 
   cmd = "diff output.bgen " + ctests_input_dir + "/bgen/bgen_test_output_1_1p.bgen > /dev/null";
   status = system(cmd.c_str());
@@ -135,16 +103,8 @@ TEST_CASE("test bgen", "[bgen]") {
   }
 
   // test 6 (PL/GL, standard two pass generation)
-  VariantQueryConfig query_config6;
-  query_config6.read_from_file(ctests_input_dir + "/bgen/bgen_test_query_2.json", my_world_mpi_rank);
-
-  array_name = query_config6.get_array_name(my_world_mpi_rank);
-
-  GenomicsDB gdb6(query_config6.get_workspace(my_world_mpi_rank),
-                 query_config6.get_callset_mapping_file(),
-                 query_config6.get_vid_mapping_file(),
-                 query_config6.get_reference_genome());
-  gdb6.generate_plink(array_name, &query_config6, 1, 1);
+  GenomicsDB gdb6(ctests_input_dir + "/bgen/bgen_test_query_2.json", GenomicsDB::JSON_FILE, "", my_world_mpi_rank);
+  gdb6.generate_plink(1, 1);
 
   cmd = "diff output.bgen " + ctests_input_dir + "/bgen/bgen_test_output_2_2p.bgen > /dev/null";
   status = system(cmd.c_str());
@@ -153,16 +113,8 @@ TEST_CASE("test bgen", "[bgen]") {
   }
 
   // test 7 (PL/GL, one pass generation, verbose, progress interval)
-  VariantQueryConfig query_config7;
-  query_config7.read_from_file(ctests_input_dir + "/bgen/bgen_test_query_2.json", my_world_mpi_rank);
-
-  array_name = query_config7.get_array_name(my_world_mpi_rank);
-
-  GenomicsDB gdb7(query_config7.get_workspace(my_world_mpi_rank),
-                 query_config7.get_callset_mapping_file(),
-                 query_config7.get_vid_mapping_file(),
-                 query_config7.get_reference_genome());
-  gdb7.generate_plink(array_name, &query_config7, 1, 1, true, true, 1000);
+  GenomicsDB gdb7(ctests_input_dir + "/bgen/bgen_test_query_2.json", GenomicsDB::JSON_FILE, "", my_world_mpi_rank);
+  gdb7.generate_plink(1, 1, true, true, 1000);
 
   cmd = "diff output.bgen " + ctests_input_dir + "/bgen/bgen_test_output_2_1p.bgen > /dev/null";
   status = system(cmd.c_str());
