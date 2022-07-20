@@ -49,9 +49,6 @@
 // Prototypes to internal methods in genomicsdb.cc declared here instead of header to keep the api opaque
 std::map<std::string, genomic_field_type_t> create_genomic_field_types(const VariantQueryConfig &query_config,
                                                    void *annotation_service, bool change_alt_to_string=false);
-template<class VariantOrVariantCall>
-std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, const VariantOrVariantCall* variant_or_variant_call, VariantQueryConfig* query_config);
-
 void GenomicsDB::generate_plink(const std::string& array,
                                 genomicsdb_ranges_t column_ranges,
                                 genomicsdb_ranges_t row_ranges,

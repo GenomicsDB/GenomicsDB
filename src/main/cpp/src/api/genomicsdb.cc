@@ -641,6 +641,29 @@ inline std::string get_query_attribute_name(const VariantCall* variant_call, Var
   return query_config->get_query_attribute_name(index);
 }
 
+template<class VariantOrVariantCall>
+std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, const VariantOrVariantCall* variant_or_variant_call, VariantQueryConfig* query_config) {
+  std::vector<genomic_field_t> fields;
+  auto index = 0u;
+  for (const auto& field: get_fields(variant_or_variant_call)) {
+    if (field && field->is_valid()) {
+      std::string name = get_query_attribute_name(variant_or_variant_call, query_config, index);
+      void* ptr = const_cast<void *>(field->get_raw_pointer());
+      genomic_field_t field_vec(name,
+                                ptr,
+                                field->length());
+      fields.push_back(field_vec);
+    }
+    index++;
+  }
+  return fields;
+}
+
+template
+std::vector<genomic_field_t> get_genomic_fields_for<Variant>(const std::string& array, const Variant* variant_or_variant_call, VariantQueryConfig* query_config);
+template
+std::vector<genomic_field_t> get_genomic_fields_for<VariantCall>(const std::string& array, const VariantCall* variant_or_variant_call, VariantQueryConfig* query_config);
+
 VariantQueryConfig* GenomicsDB::get_query_config_for(const std::string& array) {
   auto query_config_for_array = m_query_configs_map.find(array);
   if (query_config_for_array != m_query_configs_map.end()) {

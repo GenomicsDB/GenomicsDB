@@ -508,24 +508,7 @@ GENOMICSDB_EXPORT const genomicsdb_variant_call_t* GenomicsDBResults<genomicsdb_
 template<>
 GENOMICSDB_EXPORT void GenomicsDBResults<genomicsdb_variant_call_t>::free();
 
-// include base template definition in header so compiler is able to link
 template<class VariantOrVariantCall>
-std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, const VariantOrVariantCall* variant_or_variant_call, VariantQueryConfig* query_config) {
-  std::vector<genomic_field_t> fields;
-  auto index = 0u;
-  for (const auto& field: get_fields(variant_or_variant_call)) {
-    if (field && field->is_valid()) {
-      std::string name = get_query_attribute_name(variant_or_variant_call, query_config, index);
-      void* ptr = const_cast<void *>(field->get_raw_pointer());
-      genomic_field_t field_vec(name,
-                                ptr,
-                                field->length());
-      fields.push_back(field_vec);
-    }
-    index++;
-  }
-  return fields;
-}
-
+std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, const VariantOrVariantCall* variant_or_variant_call, VariantQueryConfig* query_config);
 
 #endif /* GENOMICSDB_H */
