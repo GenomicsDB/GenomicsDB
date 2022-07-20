@@ -576,9 +576,6 @@ void GenomicsDB::generate_vcf(const std::string& array, VariantQueryConfig* quer
   delete query_processor;
 }
 
-template<class VariantOrVariantCall>
-std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, const VariantOrVariantCall* variant_or_variant_call, VariantQueryConfig* query_config);
-
 // Template to get the mapped interval from the GenomicsDB array for the Variant(Call)
 template<class VariantOrVariantCall>
 interval_t get_interval_for(const VariantOrVariantCall* variant_or_variant_call) {
@@ -642,24 +639,6 @@ inline std::string get_query_attribute_name(const Variant* variant, VariantQuery
 template<>
 inline std::string get_query_attribute_name(const VariantCall* variant_call, VariantQueryConfig *query_config, uint index) {
   return query_config->get_query_attribute_name(index);
-}
-
-template<class VariantOrVariantCall>
-std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, const VariantOrVariantCall* variant_or_variant_call, VariantQueryConfig* query_config) {
-  std::vector<genomic_field_t> fields;
-  auto index = 0u;
-  for (const auto& field: get_fields(variant_or_variant_call)) {
-    if (field && field->is_valid()) {
-      std::string name = get_query_attribute_name(variant_or_variant_call, query_config, index);
-      void* ptr = const_cast<void *>(field->get_raw_pointer());
-      genomic_field_t field_vec(name,
-                                ptr,
-                                field->length());
-      fields.push_back(field_vec);
-    }
-    index++;
-  }
-  return fields;
 }
 
 VariantQueryConfig* GenomicsDB::get_query_config_for(const std::string& array) {
