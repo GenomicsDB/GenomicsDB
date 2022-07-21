@@ -1,4 +1,7 @@
 #include <catch2/catch.hpp>
+
+#if(INCLUDE_TEST_BGEN)
+
 #include <iostream>
 #include "variant_query_config.h"
 #include "genomicsdb.h"
@@ -122,3 +125,5 @@ TEST_CASE("test bgen", "[bgen]") {
     throw std::runtime_error("seventh BGEN test output did not match reference output");
   }
 }
+
+#endif //INCLUDE_TEST_BGEN

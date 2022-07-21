@@ -8,14 +8,14 @@ on:
 env:
   PREREQS_ENV: ${{github.workspace}}/prereqs.sh
   PREREQS_INSTALL_DIR: ${{github.workspace}}/prereqs
-  PROTOBUF_VERSION: 3.8.0
+  PROTOBUF_VERSION: 3.19.4
   CMAKE_INSTALL_PREFIX: ${{github.workspace}}/install
   GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
   BUILD_DISTRIBUTABLE_LIBRARY: true
 
 jobs:
   build-and-push-mac-dylib:
-    runs-on: macos-10.15
+    runs-on: macos-11
     permissions:
       contents: read
       packages: write
