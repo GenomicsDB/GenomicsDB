@@ -508,5 +508,7 @@ GENOMICSDB_EXPORT const genomicsdb_variant_call_t* GenomicsDBResults<genomicsdb_
 template<>
 GENOMICSDB_EXPORT void GenomicsDBResults<genomicsdb_variant_call_t>::free();
 
+template<class VariantOrVariantCall>
+std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, const VariantOrVariantCall* variant_or_variant_call, VariantQueryConfig* query_config);
 
 #endif /* GENOMICSDB_H */
