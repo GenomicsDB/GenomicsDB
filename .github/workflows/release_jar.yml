@@ -58,6 +58,5 @@ jobs:
           name: release.${{ github.ref_name }}
           path: |
             libtiledbgenomicsdb.*
-            genomicsdb-${{ env.VERSION_NUMBER }}.jar
-            genomicsdb-${{ env.VERSION_NUMBER }}-allinone.jar
+            genomicsdb-${{ env.VERSION_NUMBER }}*.jar
             genomicsdb-${{ env.VERSION_NUMBER }}.pom
