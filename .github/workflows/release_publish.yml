@@ -53,12 +53,16 @@ jobs:
             URL=`xmlstarlet sel -t -m "//_:project" -v _:distributionManagement/_:repository/_:url genomicsdb-${VERSION_NUMBER}.pom`
             REPO_ID=`xmlstarlet sel -t -m "//_:project" -v _:distributionManagement/_:repository/_:id genomicsdb-${VERSION_NUMBER}.pom`
           fi
-          echo mvn deploy:deploy-file -Durl=$URL -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
+          echo mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID
-          mvn deploy:deploy-file -Durl=$URL -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
+            -Djavadoc=genomicsdb-${VERSION_NUMBER}-javadoc.jar
+            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar
+          mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID
+            -Djavadoc=genomicsdb-${VERSION_NUMBER}-javadoc.jar
+            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
