@@ -53,12 +53,28 @@ jobs:
             URL=`xmlstarlet sel -t -m "//_:project" -v _:distributionManagement/_:repository/_:url genomicsdb-${VERSION_NUMBER}.pom`
             REPO_ID=`xmlstarlet sel -t -m "//_:project" -v _:distributionManagement/_:repository/_:id genomicsdb-${VERSION_NUMBER}.pom`
           fi
-          echo mvn deploy:deploy-file -Durl=$URL -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
+          echo mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
-            -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID
-          mvn deploy:deploy-file -Durl=$URL -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
+            -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID \
+            -Djavadoc=genomicsdb-${VERSION_NUMBER}-javadoc.jar \
+            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar \
+            -Dfiles=genomicsdb-${VERSION_NUMBER}-allinone.jar \
+            -Dtypes=jar \
+            -Dclassifiers=allinone
+          mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
-            -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID
+            -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID \
+            -Djavadoc=genomicsdb-${VERSION_NUMBER}-javadoc.jar \
+            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar \
+            -Dfiles=genomicsdb-${VERSION_NUMBER}-allinone.jar \
+            -Dtypes=jar \
+            -Dclassifiers=allinone
+          if [[ ${VERSION_NUMBER} != *SNAPSHOT ]]; then
+              mvn nexus-staging:rc-list -DnexusUrl=https://oss.sonatype.org/ -DserverId=ossrh
+              stagingRepoId=$(mvn nexus-staging:rc-list -DnexusUrl=https://oss.sonatype.org/ -DserverId=ossrh | grep orggenomicsdb|cut -f2 -d' ')
+              echo $stagingRepoId
+              mvn nexus-staging:rc-close -DserverId=ossrh -DnexusUrl=https://oss.sonatype.org/ -DstagingRepositoryId=$stagingRepoId
+          fi
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}

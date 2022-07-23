@@ -47,6 +47,8 @@ jobs:
           docker cp genomicsdb:/build/GenomicsDB/build/src/main/libtiledbgenomicsdb.so .
           docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}.jar .
           docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-allinone.jar .
+          docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-sources.jar .
+          docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-javadoc.jar .
           docker cp genomicsdb:/build/GenomicsDB/pom.xml genomicsdb-${VERSION_NUMBER}.pom
           sed -i.bak 's/${genomicsdb.version}/'"${VERSION_NUMBER}"'/' genomicsdb-${VERSION_NUMBER}.pom
 
@@ -56,6 +58,5 @@ jobs:
           name: release.${{ github.ref_name }}
           path: |
             libtiledbgenomicsdb.*
-            genomicsdb-${{ env.VERSION_NUMBER }}.jar
-            genomicsdb-${{ env.VERSION_NUMBER }}-allinone.jar
+            genomicsdb-${{ env.VERSION_NUMBER }}*.jar
             genomicsdb-${{ env.VERSION_NUMBER }}.pom
