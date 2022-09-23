@@ -35,7 +35,7 @@ public interface JsonFileExtensions {
      */
     default File dumpTemporaryLoaderJSONFile(final GenomicsDBImportConfiguration.ImportConfiguration importConfiguration,
                                              final String filename) throws IOException {
-        String loaderJSONString = JsonFormat.printToString(importConfiguration);
+      String loaderJSONString = new JsonFormat().printToString(importConfiguration);
 
         File tempLoaderJSONFile = (filename.isEmpty()) ?
                 File.createTempFile("loader_", ".json") :
@@ -61,7 +61,7 @@ public interface JsonFileExtensions {
     default void writeCallsetMapJSONFile(final String outputCallsetMapJSONFilePath,
                                          final GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB)
     {
-        String callsetMapJSONString = printToString(callsetMappingPB);
+      String callsetMapJSONString = new JsonFormat().printToString(callsetMappingPB);
         if (GenomicsDBUtils.writeToFile(outputCallsetMapJSONFilePath, callsetMapJSONString) != 0) {
             throw new GenomicsDBException(String.format("Could not write callset map json file : %s", outputCallsetMapJSONFilePath));
         }
@@ -79,7 +79,7 @@ public interface JsonFileExtensions {
     default void writeVidMapJSONFile(final String outputVidMapJSONFilePath,
                                      final GenomicsDBVidMapProto.VidMappingPB vidMappingPB)
     {
-        String vidMapJSONString = printToString(vidMappingPB);
+      String vidMapJSONString = new JsonFormat().printToString(vidMappingPB);
 	      if (GenomicsDBUtils.writeToFile(outputVidMapJSONFilePath, vidMapJSONString) != 0) {
             throw new GenomicsDBException(String.format("Could not write vid map json file : %s", outputVidMapJSONFilePath));
         }
@@ -117,14 +117,18 @@ public interface JsonFileExtensions {
      * @param vidFile file with existing vid info
      * @return a vid map containing all field names, lengths and types
      * from the merged GVCF header. for incremental import case
-     * @throws ParseException when there is an error parsing existing vid json
+     * @throws JsonFormat.ParseException when there is an error parsing existing vid json
      */
     default GenomicsDBVidMapProto.VidMappingPB generateVidMapFromFile(final String vidFile)
         throws com.googlecode.protobuf.format.JsonFormat.ParseException {
         String existingVidJson = GenomicsDBUtils.readEntireFile(vidFile);
         GenomicsDBVidMapProto.VidMappingPB.Builder vidMapBuilder = 
                 GenomicsDBVidMapProto.VidMappingPB.newBuilder();
-        merge(existingVidJson, vidMapBuilder);
+        try {
+          new JsonFormat().merge(new ByteArrayInputStream(existingVidJson.getBytes()), vidMapBuilder);
+	      } catch (IOException e) {
+          throw new GenomicsDBException(String.format("Could not generate vidmap from file : %s", e.getMessage()));
+	      }
         return vidMapBuilder.build();
     }
 
@@ -155,9 +159,13 @@ public interface JsonFileExtensions {
      * @return String base64 encoded protobuf string
      */
     static String getProtobufAsBase64StringFromFile(Message.Builder builder,
-            String file) throws com.googlecode.protobuf.format.JsonFormat.ParseException {
+            String file) throws JsonFormat.ParseException {
         String jsonString = GenomicsDBUtils.readEntireFile(file);
-        JsonFormat.merge(jsonString, builder);
+        try {
+          new JsonFormat().merge(new ByteArrayInputStream(jsonString.getBytes()), builder);
+        } catch (IOException e) {
+          throw new GenomicsDBException(String.format("Serialize protobuf json file into base64 encoded encoded string: %s", e.getMessage()));
+        }
         byte[] pb = builder.build().toByteArray();
         return Base64.getEncoder().encodeToString(pb);
     }
