@@ -132,7 +132,7 @@
          using for JsonFormat.printToString-->
       <groupId>com.googlecode.protobuf-java-format</groupId>
       <artifactId>protobuf-java-format</artifactId>
-      <version>1.2</version>
+      <version>1.4</version>
     </dependency>
     <dependency>
       <groupId>org.testng</groupId>
@@ -359,7 +359,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <version>3.2.0</version>
+        <version>3.4.1</version>
         <configuration>
           <show>private</show>
           <nohelp>true</nohelp>
