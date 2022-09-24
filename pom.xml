@@ -71,7 +71,7 @@
     <protobuf_shade_version>org.genomicsdb.shaded.com.google.protobuf</protobuf_shade_version>
     <testng.version>6.10</testng.version>
     <gnu.getopt.version>1.0.13</gnu.getopt.version>
-    <surefire.plugin.version>2.20</surefire.plugin.version>
+    <surefire.plugin.version>2.22.2</surefire.plugin.version>
     <genomicsdb_source_directory>.</genomicsdb_source_directory>
     <genomicsdb_lib_directory>${genomicsdb_build_directory}/src/main</genomicsdb_lib_directory>
     <genomicsdb_build_directory>${project.basedir}/build</genomicsdb_build_directory>
