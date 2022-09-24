@@ -63,7 +63,7 @@ option(DISABLE_OPENMP "Disable OpenMP")
 set(HTSLIB_INSTALL_DIR "" CACHE PATH "Path to htslib install directory")
 
 #Sync the GENOMICSDB_PROTOBUF_VERSION with protobuf.version in pom.xml!
-set(GENOMICSDB_PROTOBUF_VERSION "3.19.4" CACHE STRING "Version of Google Protocol Buffer library")
+set(GENOMICSDB_PROTOBUF_VERSION "3.21.6" CACHE STRING "Version of Google Protocol Buffer library")
 set(PROTOBUF_ROOT_DIR "$ENV{HOME}/protobuf-install/${GENOMICSDB_PROTOBUF_VERSION}" CACHE PATH "Path to installed protobuf")
 set(PROTOBUF_URL "https://github.com/protocolbuffers/protobuf/archive/v${GENOMICSDB_PROTOBUF_VERSION}.zip" CACHE STRING "URL to protobuf github release")
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
