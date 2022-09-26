@@ -22,7 +22,6 @@ import java.util.List;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import static java.util.stream.Collectors.toList;
-import static com.googlecode.protobuf.format.JsonFormat.*;
 
 public interface JsonFileExtensions {
     /**

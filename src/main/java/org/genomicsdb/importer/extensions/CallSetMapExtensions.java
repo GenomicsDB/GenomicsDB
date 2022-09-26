@@ -13,8 +13,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.*;
 
-import static com.googlecode.protobuf.format.JsonFormat.*;
-
 public interface CallSetMapExtensions {
     /**
      * Creates a sorted list of callsets and generates unique TileDB
