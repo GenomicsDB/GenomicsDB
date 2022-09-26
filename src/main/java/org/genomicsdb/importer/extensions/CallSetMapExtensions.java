@@ -246,13 +246,11 @@ public interface CallSetMapExtensions {
      * @param existingCallsetsJSON json string with existing callset
      * @param inputSampleNameToPath    map from sample name to VCF/BCF file path
      * @throws JsonFormat.ParseException when there is an error parsing callset jsons
-     * @throws GenomicsDBException when duplicate samples are found between existing
-     * and new callsets
      */
     default void checkDuplicateCallsetsForIncrementalImport(
             final String existingCallsetsJSON,
             final Map<String, URI> inputSampleNameToPath) 
-            throws JsonFormat.ParseException, GenomicsDBException {
+            throws JsonFormat.ParseException {
         // create PB from existing json string to iterate through it
         // maybe better to use some json library here since we just need to 
         // iterate through the existing callset
