@@ -10,6 +10,7 @@ import org.genomicsdb.reader.GenomicsDBQuery.Interval;
 import org.genomicsdb.reader.GenomicsDBQuery.VariantCall;
 import org.genomicsdb.spark.GenomicsDBConfiguration;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -55,7 +56,7 @@ public class GenomicsDBSparkBindings {
     if (isPB) {
       String queryPBString = FileUtils.readFileToString(new File(queryJsonFile));
       final GenomicsDBExportConfiguration.ExportConfiguration.Builder builder = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
-      JsonFormat.merge(queryPBString, builder);
+      new JsonFormat().merge(new ByteArrayInputStream(queryPBString.getBytes()), builder);
       queryPBString = Base64.getEncoder().encodeToString(builder.build().toByteArray());
       hadoopConf.set(GenomicsDBConfiguration.QUERYPB, queryPBString);
     } else {

@@ -132,7 +132,7 @@
          using for JsonFormat.printToString-->
       <groupId>com.googlecode.protobuf-java-format</groupId>
       <artifactId>protobuf-java-format</artifactId>
-      <version>1.2</version>
+      <version>1.4</version>
     </dependency>
     <dependency>
       <groupId>org.testng</groupId>
@@ -218,7 +218,7 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.6</version>
+        <version>0.8.8</version>
         <executions>
           <!--
             Prepares the property pointing to the JaCoCo runtime agent which
