@@ -228,7 +228,7 @@ public interface CallSetMapExtensions {
             final String callsetMapJSONFilePath,
             final Map<String, URI> inputSampleNameToPath,
             final GenomicsDBCallsetsMapProto.CallsetMappingPB newCallsetMapPB) 
-            throws JsonFormat.ParseException {
+            throws JsonFormat.ParseException, GenomicsDBException {
         String existingCallsetsJSON = GenomicsDBUtils.readEntireFile(callsetMapJSONFilePath);
         GenomicsDBCallsetsMapProto.CallsetMappingPB.Builder callsetMapBuilder =
                 newCallsetMapPB.toBuilder();
@@ -250,7 +250,7 @@ public interface CallSetMapExtensions {
     default void checkDuplicateCallsetsForIncrementalImport(
             final String existingCallsetsJSON,
             final Map<String, URI> inputSampleNameToPath) 
-            throws JsonFormat.ParseException {
+            throws JsonFormat.ParseException, GenomicsDBException {
         // create PB from existing json string to iterate through it
         // maybe better to use some json library here since we just need to 
         // iterate through the existing callset
