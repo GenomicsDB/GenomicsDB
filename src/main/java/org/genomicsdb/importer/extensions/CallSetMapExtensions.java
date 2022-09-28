@@ -13,8 +13,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.*;
 
-import static com.googlecode.protobuf.format.JsonFormat.*;
-
 public interface CallSetMapExtensions {
     /**
      * Creates a sorted list of callsets and generates unique TileDB
@@ -229,8 +227,8 @@ public interface CallSetMapExtensions {
     default GenomicsDBCallsetsMapProto.CallsetMappingPB mergeCallsetsForIncrementalImport(
             final String callsetMapJSONFilePath,
             final Map<String, URI> inputSampleNameToPath,
-            final GenomicsDBCallsetsMapProto.CallsetMappingPB newCallsetMapPB) 
-            throws JsonFormat.ParseException {
+            final GenomicsDBCallsetsMapProto.CallsetMappingPB newCallsetMapPB)
+            throws JsonFormat.ParseException, GenomicsDBException {
         String existingCallsetsJSON = GenomicsDBUtils.readEntireFile(callsetMapJSONFilePath);
         GenomicsDBCallsetsMapProto.CallsetMappingPB.Builder callsetMapBuilder =
                 newCallsetMapPB.toBuilder();
@@ -248,8 +246,6 @@ public interface CallSetMapExtensions {
      * @param existingCallsetsJSON json string with existing callset
      * @param inputSampleNameToPath    map from sample name to VCF/BCF file path
      * @throws JsonFormat.ParseException when there is an error parsing callset jsons
-     * @throws GenomicsDBException when duplicate samples are found between existing
-     * and new callsets
      */
     default void checkDuplicateCallsetsForIncrementalImport(
             final String existingCallsetsJSON,

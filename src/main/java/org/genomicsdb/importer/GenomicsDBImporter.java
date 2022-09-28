@@ -22,19 +22,14 @@
 
 package org.genomicsdb.importer;
 
-import htsjdk.samtools.util.CloseableIterator;
+import com.googlecode.protobuf.format.JsonFormat;
 import htsjdk.samtools.util.RuntimeIOException;
-import htsjdk.tribble.AbstractFeatureReader;
 import htsjdk.tribble.FeatureReader;
-import htsjdk.tribble.readers.LineIterator;
-import htsjdk.tribble.readers.PositionalBufferedStream;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFHeader;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
 import org.genomicsdb.Constants;
 import org.genomicsdb.GenomicsDBLibLoader;
 import org.genomicsdb.exception.GenomicsDBException;
@@ -44,7 +39,6 @@ import org.genomicsdb.importer.extensions.VidMapExtensions;
 import org.genomicsdb.importer.model.ChromosomeInterval;
 import org.genomicsdb.importer.model.SampleInfo;
 import org.genomicsdb.model.*;
-
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -54,12 +48,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,12 +56,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.genomicsdb.GenomicsDBUtils.createTileDBWorkspace;
-import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBFragments;
-import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBArrays;
-import static org.genomicsdb.GenomicsDBUtils.deleteFile;
-import static org.genomicsdb.GenomicsDBUtils.writeToFile;
-import static org.genomicsdb.GenomicsDBUtils.getMaxValidRowIndex;
+import static org.genomicsdb.GenomicsDBUtils.*;
 
 /**
  * Java wrapper for vcf2genomicsdb - imports VCFs into GenomicsDB.
@@ -196,10 +180,10 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
      *
      * @param config Parallel import configuration
      * @throws FileNotFoundException when files could not be read/written
-     * @throws com.googlecode.protobuf.format.JsonFormat.ParseException when existing callset jsons are invalid. incremental case
+     * @throws JsonFormat.ParseException when existing callset jsons are invalid. incremental case
      */
-    public GenomicsDBImporter(final ImportConfig config) throws FileNotFoundException, 
-            com.googlecode.protobuf.format.JsonFormat.ParseException {
+    public GenomicsDBImporter(final ImportConfig config) throws FileNotFoundException,
+            JsonFormat.ParseException, GenomicsDBException {
         this.config = config;
         this.config.setImportConfiguration(addExplicitValuesToImportConfiguration(config));
         long lbRowIdx = this.config.getImportConfiguration().hasLbCallsetRowIdx()
@@ -406,7 +390,7 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
      * @param loaderJSONFile GenomicsDB loader JSON configuration file
      * @param rank           Rank of this process (TileDB/GenomicsDB partition idx)
      */
-    private void initialize(String loaderJSONFile, int rank) {
+    private void initialize(String loaderJSONFile, int rank) throws GenomicsDBException{
         mLoaderJSONFile = loaderJSONFile;
         mRank = rank;
         //Initialize C++ module
@@ -926,7 +910,6 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
      * Coalesce contigs into fewer GenomicsDB partitions
      *
      * @param partitions Approximate number of partitions to coalesce into
-     * @throws GenomicsDBException Coalescing contigs into partitions fails
      */
     public void coalesceContigsIntoNumPartitions(final int partitions)
             throws GenomicsDBException {
