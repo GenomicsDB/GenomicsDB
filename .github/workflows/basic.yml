@@ -76,7 +76,7 @@ jobs:
           ~/awssdk-install
           ~/gcssdk-install
           ~/protobuf-install/${{env.PROTOBUF_VERSION}}
-        key: ${{matrix.os}}-cache-prereqs-v5
+        key: ${{matrix.os}}-cache-prereqs-v6
 
     # TODO: See https://github.com/actions/cache/pull/285 using platform-independent "pip cache dir"
     - name: Cache Python artifacts for Ubuntu 
