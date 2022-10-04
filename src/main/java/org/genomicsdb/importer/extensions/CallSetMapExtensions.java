@@ -227,7 +227,7 @@ public interface CallSetMapExtensions {
     default GenomicsDBCallsetsMapProto.CallsetMappingPB mergeCallsetsForIncrementalImport(
             final String callsetMapJSONFilePath,
             final Map<String, URI> inputSampleNameToPath,
-            final GenomicsDBCallsetsMapProto.CallsetMappingPB newCallsetMapPB) 
+            final GenomicsDBCallsetsMapProto.CallsetMappingPB newCallsetMapPB)
             throws JsonFormat.ParseException, GenomicsDBException {
         String existingCallsetsJSON = GenomicsDBUtils.readEntireFile(callsetMapJSONFilePath);
         GenomicsDBCallsetsMapProto.CallsetMappingPB.Builder callsetMapBuilder =

@@ -117,7 +117,7 @@ public interface JsonFileExtensions {
      * @throws JsonFormat.ParseException when there is an error parsing existing vid json
      */
     default GenomicsDBVidMapProto.VidMappingPB generateVidMapFromFile(final String vidFile)
-            throws JsonFormat.ParseException, GenomicsDBException {
+           throws JsonFormat.ParseException, GenomicsDBException {
       String existingVidJson = GenomicsDBUtils.readEntireFile(vidFile);
       GenomicsDBVidMapProto.VidMappingPB.Builder vidMapBuilder =
               GenomicsDBVidMapProto.VidMappingPB.newBuilder();
