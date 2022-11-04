@@ -123,7 +123,7 @@ EOF
 }
 
 # create_query_json
-#    (Optional) $1 reference file, only necessary when producing vcfs
+#    (Optional) $1 additional json entries
 create_query_json() {
   QUERY_JSON=$TEMP_DIR/query_json_$RANDOM
   cat > $QUERY_JSON  << EOF
@@ -143,7 +143,7 @@ create_query_json() {
 EOF
   if [[ $# -ge 1 ]]; then
     cat >> $QUERY_JSON  << EOF
-    "reference_genome" : "$1",
+    $1,
 EOF
   fi
   cat >> $QUERY_JSON << EOF
@@ -327,19 +327,34 @@ run_command "gt_mpi_gather -A "non-existent-array" $WORKSPACE/loader.json -j $QU
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-calls"
 
+# Test bypass of intersecting intervals phase in the genomicsdb iterators
+START=$(date -u +%s)
+run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+END=$(date -u +%s)
+DIFF=$(($END-$START))
+create_query_json "\"bypass_intersecting_intervals_phase\": true"
+START=$(date -u +%s)
+run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+END=$(date -u +%s)
+DIFF_WITH_BYPASS_INTERSECTING_INTERVALS_PHASE=$(($END-$START))
+if [ $DIFF -lt $DIFF_WITH_BYPASS_INTERSECTING_INTERVALS_PHASE ]; then
+  echo "Bypass intersecting intervals phase took longer than the normal two pass iterator"
+  STATUS=1
+fi
+
 # Fail if there is no reference genome file specified
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF" ERR
 
 # Fail if the reference genome is pointing to a non-existent file
-create_query_json "non-exisitent-reference-genome"
+create_query_json "\"reference_genome\" : non-exisitent-reference-genome"
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF" ERR
 
 # Fail if the reference genome cannot be parsed by htslib for any reason
-create_query_json "$WORKSPACE/loader.json"
+create_query_json "\"reference_genome\" : $WORKSPACE/loader.json"
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF" ERR
 
 # Run with valid reference genome successfully
-create_query_json $REFERENCE_GENOME
+create_query_json "\"reference_genome\" : \"$REFERENCE_GENOME\""
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF"
 
 # Test consolidate_genomicsdb_array and gt_mpi_gather after consolidation

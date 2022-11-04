@@ -212,6 +212,10 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
   m_produce_GT_with_min_PL_value_for_spanning_deletions =
     export_config->has_produce_gt_with_min_pl_value_for_spanning_deletions()
     ? export_config->produce_gt_with_min_pl_value_for_spanning_deletions() : false;
+  //Bypass the first intersecting interval phase and use just the simple traversal mode for a fast
+  //fuzzy search if that is acceptable
+  m_bypass_intersecting_intervals_phase =
+      export_config->has_bypass_intersecting_intervals_phase() ? export_config->bypass_intersecting_intervals_phase() : false;
   //Enable Shared PosixFS Optimizations in TileDB
   m_enable_shared_posixfs_optimizations = export_config->has_enable_shared_posixfs_optimizations()
     ? export_config->enable_shared_posixfs_optimizations() : false;
