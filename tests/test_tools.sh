@@ -152,6 +152,35 @@ EOF
 EOF
 }
 
+# create_query_json with two intervals
+#    (Optional) $1 additional json entries
+create_query_json_with_two_intervals() {
+  QUERY_JSON=$TEMP_DIR/query_json_$RANDOM
+  cat > $QUERY_JSON  << EOF
+{
+    "workspace": "$WORKSPACE",
+    "generate_array_name_from_partition_bounds": true,
+    "query_contig_intervals": [
+        {"contig": "1", "begin": 1, "end":100 },
+        {"contig": "1", "begin": 17385 }],
+    "query_row_ranges": [{
+        "range_list": [{
+            "low" : 0,
+            "high": 3
+        }]
+     }],
+EOF
+  if [[ $# -ge 1 ]]; then
+    cat >> $QUERY_JSON  << EOF
+    $1,
+EOF
+  fi
+  cat >> $QUERY_JSON << EOF
+    "attributes" : [ "REF", "ALT", "BaseQRankSum", "MQ", "RAW_MQ", "MQ0", "ClippingRankSum", "MQRankSum", "ReadPosRankSum", "DP", "GT", "GQ", "SB", "AD", "PL", "DP_FORMAT", "MIN_DP", "PID", "PGT" ]
+}
+EOF
+}
+
 # run_command
 #    $1 : command to be executed
 #    $2 : optional - 0(default) if command should return successfully
@@ -177,6 +206,13 @@ run_command() {
     cat $TEMP_DIR/output
     die "command '`echo $1`' returned $retval unexpectedly"
   fi
+}
+
+time_command() {
+  START=$(date -u +%s%N)
+  run_command "$@"
+  END=$(date -u +%s%N)
+  TIME=$(($END-$START))
 }
 
 ERR=1
@@ -328,17 +364,23 @@ run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-calls"
 
 # Test bypass of intersecting intervals phase in the genomicsdb iterators
-START=$(date -u +%s)
-run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
-END=$(date -u +%s)
-DIFF=$(($END-$START))
+time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+DIFF=$TIME
 create_query_json "\"bypass_intersecting_intervals_phase\": true"
-START=$(date -u +%s)
-run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
-END=$(date -u +%s)
-DIFF_WITH_BYPASS_INTERSECTING_INTERVALS_PHASE=$(($END-$START))
-if [ $DIFF -lt $DIFF_WITH_BYPASS_INTERSECTING_INTERVALS_PHASE ]; then
+time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+if [ $DIFF -lt $TIME ]; then
   echo "Bypass intersecting intervals phase took longer than the normal two pass iterator"
+  STATUS=1
+fi
+
+# Test bypass of intersecting intervals phase in the genomicsds iterators with two intervals
+create_query_json_with_two_intervals
+time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+DIFF=$TIME
+create_query_json_with_two_intervals "\"bypass_intersecting_intervals_phase\": true"
+time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+if [ $DIFF -lt $TIME ]; then
+  echo "Bypass intersecting intervals phase for two intervals took longer than the normal two pass iterator"
   STATUS=1
 fi
 
