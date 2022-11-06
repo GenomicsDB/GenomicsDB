@@ -209,9 +209,9 @@ run_command() {
 }
 
 time_command() {
-  START=$(date -u +%s%N)
+  START=$(date -u +%s)
   run_command "$@"
-  END=$(date -u +%s%N)
+  END=$(date -u +%s)
   TIME=$(($END-$START))
 }
 
