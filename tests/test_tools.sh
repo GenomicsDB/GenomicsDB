@@ -209,9 +209,14 @@ run_command() {
 }
 
 time_command() {
-  START=$(date -u +%s)
+  if [[ $(uname) == "Darwin" ]]; then
+    DT="date -u +%s"
+  else
+    DT="date -u +%s%N"
+  fi
+  START=$($DT)
   run_command "$@"
-  END=$(date -u +%s)
+  END=$($DT)
   TIME=$(($END-$START))
 }
 

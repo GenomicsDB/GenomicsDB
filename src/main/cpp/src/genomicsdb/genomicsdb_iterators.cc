@@ -195,11 +195,8 @@ void SingleCellTileDBIterator::begin_new_query_column_interval(TileDB_CTX* tiled
           return;
         }
       }
-      if (m_query_config->bypass_intersecting_intervals_phase()) {
-        m_in_simple_traversal_mode = true;
-      } else {
-        m_in_find_intersecting_intervals_mode = true;
-      }
+      m_in_simple_traversal_mode = m_query_config->bypass_intersecting_intervals_phase();
+      m_in_find_intersecting_intervals_mode = !m_query_config->bypass_intersecting_intervals_phase();
     }
     auto smallest_row_idx_in_array = m_query_config->get_smallest_row_idx_in_array();
     //Range of the query
