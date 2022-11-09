@@ -152,17 +152,16 @@ EOF
 EOF
 }
 
-# create_query_json with two intervals
-#    (Optional) $1 additional json entries
-create_query_json_with_two_intervals() {
+# create_query_json with intervals
+#    $1 is the query interval specification
+#    (Optional) $2 additional json entries
+create_query_json_with_intervals() {
   QUERY_JSON=$TEMP_DIR/query_json_$RANDOM
   cat > $QUERY_JSON  << EOF
 {
     "workspace": "$WORKSPACE",
     "generate_array_name_from_partition_bounds": true,
-    "query_contig_intervals": [
-        {"contig": "1", "begin": 1, "end":100 },
-        {"contig": "1", "begin": 17385 }],
+    $1,
     "query_row_ranges": [{
         "range_list": [{
             "low" : 0,
@@ -170,13 +169,13 @@ create_query_json_with_two_intervals() {
         }]
      }],
 EOF
-  if [[ $# -ge 1 ]]; then
+  if [[ $# -ge 2 ]]; then
     cat >> $QUERY_JSON  << EOF
-    $1,
+    $2,
 EOF
   fi
   cat >> $QUERY_JSON << EOF
-    "attributes" : [ "REF", "ALT", "BaseQRankSum", "MQ", "RAW_MQ", "MQ0", "ClippingRankSum", "MQRankSum", "ReadPosRankSum", "DP", "GT", "GQ", "SB", "AD", "PL", "DP_FORMAT", "MIN_DP", "PID", "PGT" ]
+    "attributes" : [ "REF", "ALT", "BaseQRankSum", "MQ", "RAW_MQ", "MQ0", "ClippingRankSum", "MQRankSum", "ReadPosRankSum", "DP", "GT", "GQ", "SB", "AD", "PL", "DP_FORMAT", "MIN_DP", "PGT" ]
 }
 EOF
 }
@@ -220,6 +219,7 @@ time_command() {
   TIME=$(($END-$START))
 }
 
+OK=0
 ERR=1
 
 # Sanity Checks for Tools
@@ -368,35 +368,68 @@ run_command "gt_mpi_gather -A "non-existent-array" $WORKSPACE/loader.json -j $QU
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-calls"
 
+# Diff results from two gt_mpi_gather invocations
+# $1 Results from 1st invocation
+# $2 Results from 2nd invocation
+# $3 Expected Result(OK or ERR)
+# $4 Error Message
+diff_gt_mpi_gather_output() {
+  sed "1 d" $1 > $1.cut
+  sed -i '/MD5/d' $1.cut
+  sed "1 d" $2 > $2.cut
+  sed -i '/MD5/d' $2.cut
+  DIFF_RESULT=$(diff $1.cut $2.cut)
+  if [[ ! -z  $DIFF_RESULT && $3 == OK ]]; then
+    echo "gt_mpi_gather results differ : $4"
+    echo "First output:"
+    cat $1.cut
+    echo "Second output:"
+    cat $2.cut
+    STATUS=1
+  elif [[ -z $DIFF_RESULT && $3 == ERR ]]; then
+    echo "gt_mpi_gather results should differ but were identical : $4"
+    STATUS=1
+  fi
+}
+
+# $1 : intervals
+test_bypass_intersecting_intervals_phase() {
+  create_query_json_with_intervals "$1"
+  time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+  DIFF=$TIME
+  mv -f $TEMP_DIR/output $TEMP_DIR/output.without_bypass
+  create_query_json_with_intervals "$1" "\"bypass_intersecting_intervals_phase\": true"
+  time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+  if [ $DIFF -lt $TIME ]; then
+    echo "Bypass intersecting intervals phase took longer than the normal two pass iterator"
+    STATUS=1
+  fi
+}
+
 # Test bypass of intersecting intervals phase in the genomicsdb iterators
-time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
-DIFF=$TIME
-create_query_json "\"bypass_intersecting_intervals_phase\": true"
-time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
-if [ $DIFF -lt $TIME ]; then
-  echo "Bypass intersecting intervals phase took longer than the normal two pass iterator"
-  STATUS=1
-fi
+INTERVALS="\"query_contig_intervals\": [{\"contig\": \"1\", \"begin\": 1, \"end\":100 }]"
+test_bypass_intersecting_intervals_phase "$INTERVALS"
+diff_gt_mpi_gather_output $TEMP_DIR/output.without_bypass $TEMP_DIR/output OK "Setting bypass intersecting intervals should not affect gt_mpi_gather for $INTERVALS for t0.vcf.gz"
 
 # Test bypass of intersecting intervals phase in the genomicsds iterators with two intervals
-create_query_json_with_two_intervals
-time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
-DIFF=$TIME
-create_query_json_with_two_intervals "\"bypass_intersecting_intervals_phase\": true"
-time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
-if [ $DIFF -lt $TIME ]; then
-  echo "Bypass intersecting intervals phase for two intervals took longer than the normal two pass iterator"
-  STATUS=1
-fi
+INTERVALS="\"query_contig_intervals\": [{\"contig\": \"1\", \"begin\": 1, \"end\":100 }, {\"contig\": \"1\", \"begin\": 17385 }]"
+test_bypass_intersecting_intervals_phase "$INTERVALS"
+diff_gt_mpi_gather_output $TEMP_DIR/output.without_bypass $TEMP_DIR/output OK "Setting bypass intersecting intervals should not affect gt_mpi_gather for $INTERVALS for t0.vcf.gz"
 
-# Fail if there is no reference genome file specified
-run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF" ERR
+# Test bypass of intersecting intervals phase missing indels not in the query region
+create_sample_list t6_asa.vcf.gz
+run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o"
+run_command "vcf2genomicsdb $WORKSPACE/loader.json"
+INTERVALS="\"query_contig_intervals\": [{\"contig\": \"1\", \"begin\": 8029501 }]"
+test_bypass_intersecting_intervals_phase "$INTERVALS"
+diff_gt_mpi_gather_output $TEMP_DIR/output.without_bypass $TEMP_DIR/output ERR "Setting bypass intersecting intervals should cause gt_mpi_gather to be different for $INTERVALS for t6_asa.vcf.gz"
 
-# Fail if the reference genome is pointing to a non-existent file
-create_query_json "\"reference_genome\" : non-exisitent-reference-genome"
-run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF" ERR
 
 # Fail if the reference genome cannot be parsed by htslib for any reason
+create_sample_list t0.vcf.gz
+run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o"
+run_command "vcf2genomicsdb $WORKSPACE/loader.json"
+
 create_query_json "\"reference_genome\" : $WORKSPACE/loader.json"
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF" ERR
 
@@ -405,22 +438,12 @@ create_query_json "\"reference_genome\" : \"$REFERENCE_GENOME\""
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF"
 
 # Test consolidate_genomicsdb_array and gt_mpi_gather after consolidation
-diff_gt_output() {
-  sed "1 d" $1 > $1.cut
-  sed "1 d" $2 > $2.cut
-  DIFF_RESULT=$(diff $1.cut $2.cut)
-  if [[ ! -z  $DIFF_RESULT ]]; then
-     echo "gt_mpi_gather results for Test $3 differ after consolidation"
-     STATUS=1
-  fi
-}
-
 run_consolidation_and_check_results() {
   run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
   mv -f $TEMP_DIR/output $TEMP_DIR/output.no.consolidation
   run_command "$1"
   run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
-  diff_gt_output  $TEMP_DIR/output.no.consolidation $TEMP_DIR/output $2
+  diff_gt_mpi_gather_output  $TEMP_DIR/output.no.consolidation $TEMP_DIR/output $2 OK "After consolidation"
 }
 
 ARRAY="1\$1\$249250621"
