@@ -375,9 +375,9 @@ run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-call
 # $4 Error Message
 diff_gt_mpi_gather_output() {
   sed "1 d" $1 > $1.cut
-  sed -i '/MD5/d' $1.cut
+  sed -i -e '/MD5/d' $1.cut
   sed "1 d" $2 > $2.cut
-  sed -i '/MD5/d' $2.cut
+  sed -i -e '/MD5/d' $2.cut
   DIFF_RESULT=$(diff $1.cut $2.cut)
   if [[ ! -z  $DIFF_RESULT && $3 == OK ]]; then
     echo "gt_mpi_gather results differ : $4"
