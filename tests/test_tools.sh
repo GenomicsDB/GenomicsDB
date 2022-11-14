@@ -395,35 +395,51 @@ diff_gt_mpi_gather_output() {
 # $1 : intervals
 test_bypass_intersecting_intervals_phase() {
   create_query_json_with_intervals "$1"
-  time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+  time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-calls"
   DIFF=$TIME
   mv -f $TEMP_DIR/output $TEMP_DIR/output.without_bypass
   create_query_json_with_intervals "$1" "\"bypass_intersecting_intervals_phase\": true"
-  time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
+  time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-calls"
   if [ $DIFF -lt $TIME ]; then
     echo "Bypass intersecting intervals phase took longer than the normal two pass iterator"
     STATUS=1
   fi
 }
 
-# Test bypass of intersecting intervals phase in the genomicsdb iterators
+# Test bypass of intersecting intervals phase in the genomicsdb iterators with no output
 INTERVALS="\"query_contig_intervals\": [{\"contig\": \"1\", \"begin\": 1, \"end\":100 }]"
 test_bypass_intersecting_intervals_phase "$INTERVALS"
 diff_gt_mpi_gather_output $TEMP_DIR/output.without_bypass $TEMP_DIR/output OK "Setting bypass intersecting intervals should not affect gt_mpi_gather for $INTERVALS for t0.vcf.gz"
 
-# Test bypass of intersecting intervals phase in the genomicsds iterators with two intervals
-INTERVALS="\"query_contig_intervals\": [{\"contig\": \"1\", \"begin\": 1, \"end\":100 }, {\"contig\": \"1\", \"begin\": 17385 }]"
+# Test bypass of intersecting intervals phase in the genomicsdb iterators
+INTERVALS="\"query_contig_intervals\": [{\"contig\": \"1\", \"begin\": 1, \"end\":12142 }]"
 test_bypass_intersecting_intervals_phase "$INTERVALS"
 diff_gt_mpi_gather_output $TEMP_DIR/output.without_bypass $TEMP_DIR/output OK "Setting bypass intersecting intervals should not affect gt_mpi_gather for $INTERVALS for t0.vcf.gz"
 
-# Test bypass of intersecting intervals phase missing indels not in the query region
+# Test bypass of intersecting intervals phase in the genomicsds iterators with two intervals
+INTERVALS="\"query_contig_intervals\": [{\"contig\": \"1\", \"begin\": 1, \"end\":12142 }, {\"contig\": \"1\", \"begin\": 17385 }]"
+test_bypass_intersecting_intervals_phase "$INTERVALS"
+diff_gt_mpi_gather_output $TEMP_DIR/output.without_bypass $TEMP_DIR/output OK "Setting bypass intersecting intervals should not affect gt_mpi_gather for $INTERVALS for t0.vcf.gz"
+
+# Test bypass of intersecting intervals phase with indels
 create_sample_list t6_asa.vcf.gz
 run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o"
 run_command "vcf2genomicsdb $WORKSPACE/loader.json"
+
+# Test bypass of intersecting intervals phase with indels with query interval encompassing entire indel
+INTERVALS="\"query_contig_intervals\": [{\"contig\": \"1\", \"begin\": 8029500, \"end\": 8029510 }]"
+test_bypass_intersecting_intervals_phase "$INTERVALS"
+diff_gt_mpi_gather_output $TEMP_DIR/output.without_bypass $TEMP_DIR/output OK "Setting bypass intersecting intervals should not affect gt_mpi_gather results to be different for $INTERVALS for t6_asa.vcf.gz as the entire indel is included in the query interval"
+
+# Test bypass of intersecting intervals phase with indels with query interval overlapping one position in the indel
 INTERVALS="\"query_contig_intervals\": [{\"contig\": \"1\", \"begin\": 8029501 }]"
 test_bypass_intersecting_intervals_phase "$INTERVALS"
-diff_gt_mpi_gather_output $TEMP_DIR/output.without_bypass $TEMP_DIR/output ERR "Setting bypass intersecting intervals should cause gt_mpi_gather to be different for $INTERVALS for t6_asa.vcf.gz"
+diff_gt_mpi_gather_output $TEMP_DIR/output.without_bypass $TEMP_DIR/output ERR "Setting bypass intersecting intervals should cause gt_mpi_gather to be different for $INTERVALS for t6_asa.vcf.gz as the start of the indel is not included in the query interval"
 
+# Test bypass of intersecting intervals phase with indels with query interval overlapping start of indel
+INTERVALS="\"query_contig_intervals\": [{\"contig\": \"1\", \"begin\": 8029500, \"end\": 8029501 }]"
+test_bypass_intersecting_intervals_phase "$INTERVALS"
+diff_gt_mpi_gather_output $TEMP_DIR/output.without_bypass $TEMP_DIR/output OK "Setting bypass intersecting intervals should not affect gt_mpi_gather results to be different for $INTERVALS for t6_asa.vcf.gz as the start of the indel is included in the query interval"
 
 # Fail if the reference genome cannot be parsed by htslib for any reason
 create_sample_list t0.vcf.gz
