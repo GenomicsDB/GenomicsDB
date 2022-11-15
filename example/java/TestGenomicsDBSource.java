@@ -39,6 +39,7 @@ import org.genomicsdb.spark.GenomicsDBSchemaFactory;
 import org.genomicsdb.spark.GenomicsDBVidSchema;
 
 import java.io.*;
+import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -129,7 +130,12 @@ public final class TestGenomicsDBSource implements JsonFileExtensions {
         GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
     
     String jsonString = GenomicsDBUtils.readEntireFile(file);
-    JsonFormat.merge(jsonString, loader);
+    try {
+      new JsonFormat().merge(new ByteArrayInputStream(jsonString.getBytes()), loader);
+    } catch (IOException e) {
+      System.err.println(String.format("Could not get Json format for file %s", file));
+      System.exit(1);
+    }
 
     GenomicsDBVidMapProto.VidMappingPB.Builder vBuilder = 
         GenomicsDBVidMapProto.VidMappingPB.newBuilder();

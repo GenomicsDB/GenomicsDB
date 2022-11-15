@@ -63,7 +63,7 @@ option(DISABLE_OPENMP "Disable OpenMP")
 set(HTSLIB_INSTALL_DIR "" CACHE PATH "Path to htslib install directory")
 
 #Sync the GENOMICSDB_PROTOBUF_VERSION with protobuf.version in pom.xml!
-set(GENOMICSDB_PROTOBUF_VERSION "3.19.4" CACHE STRING "Version of Google Protocol Buffer library")
+set(GENOMICSDB_PROTOBUF_VERSION "3.21.7" CACHE STRING "Version of Google Protocol Buffer library")
 set(PROTOBUF_ROOT_DIR "$ENV{HOME}/protobuf-install/${GENOMICSDB_PROTOBUF_VERSION}" CACHE PATH "Path to installed protobuf")
 set(PROTOBUF_URL "https://github.com/protocolbuffers/protobuf/archive/v${GENOMICSDB_PROTOBUF_VERSION}.zip" CACHE STRING "URL to protobuf github release")
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
@@ -100,6 +100,14 @@ message(STATUS "CMAKE_BUILD_TYPE=" ${CMAKE_BUILD_TYPE})
 
 set(USE_HDFS True CACHE BOOL "Enables HDFS support")
 set(BUILD_FOR_ARCH "" CACHE STRING "Arch for which to build - values passed to -march= option for gcc")
+
+# The DOWNLOAD_EXTRACT_TIMESTAMP option to the ExternalProject_Add() command is used to explicitly specify
+# how timestamps should be handled. The default behavior is to set the timestamps of extracted contents to
+# the time of extraction.
+# https://cmake.org/cmake/help/latest/policy/CMP0135.html#policy:CMP0135
+if(POLICY CMP0135)
+  cmake_policy(SET CMP0135 NEW)
+endif()
 
 #See https://cmake.org/Wiki/CMake_RPATH_handling#Common_questions
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH True)

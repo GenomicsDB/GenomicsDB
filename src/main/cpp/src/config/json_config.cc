@@ -640,7 +640,10 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
   //when producing GT, use the min PL value GT for spanning deletions
   m_produce_GT_with_min_PL_value_for_spanning_deletions = (json_doc.HasMember("produce_GT_with_min_PL_value_for_spanning_deletions")
       && json_doc["produce_GT_with_min_PL_value_for_spanning_deletions"].GetBool());
-
+  //Bypass the first intersecting interval phase and use just the simple traversal mode for a fast
+  //fuzzy search if that is acceptable
+  m_bypass_intersecting_intervals_phase = (json_doc.HasMember("bypass_intersecting_intervals_phase")
+      && json_doc["bypass_intersecting_intervals_phase"].GetBool());
   //Shared posixfs(e.g. NFS/Lustre) optimizations - passed via storage manager
   set_config_field(json_doc, "enable_shared_posixfs_optimizations", m_enable_shared_posixfs_optimizations);
 }
