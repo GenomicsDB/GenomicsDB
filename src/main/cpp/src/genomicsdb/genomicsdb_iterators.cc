@@ -177,9 +177,11 @@ void SingleCellTileDBIterator::begin_new_query_column_interval(TileDB_CTX* tiled
     std::vector<const char*>* attribute_names) {
   do {
     //This can happen iff in the previous iteration intersecting intervals were searched OR
-    //full array scan is requested and this is the first time a read is being performed
+    //full array scan is requested and this is the first time a read is being performed OR
+    //if only a single pass simple traversal is desired
     if (m_in_find_intersecting_intervals_mode
-        || (m_first_read_from_TileDB && (m_query_config->get_num_column_intervals() == 0u)))
+        || (m_first_read_from_TileDB && (m_query_config->get_num_column_intervals() == 0u
+                                         || m_query_config->bypass_intersecting_intervals_phase())))
       move_into_simple_traversal_mode();
     else {
       reset_for_next_query_interval();
@@ -193,7 +195,8 @@ void SingleCellTileDBIterator::begin_new_query_column_interval(TileDB_CTX* tiled
           return;
         }
       }
-      m_in_find_intersecting_intervals_mode = true;
+      m_in_simple_traversal_mode = m_query_config->bypass_intersecting_intervals_phase();
+      m_in_find_intersecting_intervals_mode = !m_query_config->bypass_intersecting_intervals_phase();
     }
     auto smallest_row_idx_in_array = m_query_config->get_smallest_row_idx_in_array();
     //Range of the query
@@ -204,8 +207,9 @@ void SingleCellTileDBIterator::begin_new_query_column_interval(TileDB_CTX* tiled
     if (m_query_config->get_num_column_intervals() > 0u) {
       assert(m_query_column_interval_idx < m_query_config->get_num_column_intervals());
       query_range[2] = m_query_config->get_column_begin(m_query_column_interval_idx);
-      if (m_in_simple_traversal_mode)
+      if (m_in_simple_traversal_mode) {
         query_range[3] = m_query_config->get_column_end(m_query_column_interval_idx);
+      }
     }
     auto status = -1;
     if (m_tiledb_array == 0) {

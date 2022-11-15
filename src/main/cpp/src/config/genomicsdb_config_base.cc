@@ -48,6 +48,7 @@ GenomicsDBConfigBase::GenomicsDBConfigBase() {
     m_index_output_VCF = false;
     m_sites_only_query = false;
     m_produce_GT_with_min_PL_value_for_spanning_deletions = false;
+    m_bypass_intersecting_intervals_phase = false;
     //Lower and upper bounds of callset row idx to import in this invocation
     m_lb_callset_row_idx = 0;
     m_ub_callset_row_idx = INT64_MAX-1;
