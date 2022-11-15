@@ -170,7 +170,7 @@ def run_cmd(cmd, expected_to_pass, errstring='Sanity check : ', tmpdir=None, pri
             sys.stderr.write(errstring+ ' -- failed command -- '+cmd+'\n')
             if(not dont_capture_output):
                 sys.stderr.write('STDOUT:\n')
-                sys.stderr.write(stdout_stringi.decode('utf-8'))
+                sys.stderr.write(stdout_string.decode('utf-8'))
                 sys.stderr.write('STDERR:\n')
                 sys.stderr.write(stderr_string.decode('utf-8'))
         if(expected_to_pass):

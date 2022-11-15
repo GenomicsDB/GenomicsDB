@@ -68,26 +68,32 @@ jobs:
         echo $JAVA_LINUX/bin >> $GITHUB_PATH
 
     - name: Cache built prerequisites
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           ${{env.PREREQS_INSTALL_DIR}}
-          ~/.m2/repository
           ~/awssdk-install
           ~/gcssdk-install
           ~/protobuf-install/${{env.PROTOBUF_VERSION}}
-        key: ${{matrix.os}}-cache-prereqs-v6
+        key: ${{matrix.os}}-cache-prereqs-v7
+
+   - name: Cache Java artifacts
+     uses: actions/cache@v3
+     with:
+        path: ~/.m2/repository
+        key: ${{matrix.os}}-cache-m2-repo-${{matrix.java}}-v1
+
 
     # TODO: See https://github.com/actions/cache/pull/285 using platform-independent "pip cache dir"
     - name: Cache Python artifacts for Ubuntu 
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       if: startsWith(matrix.os, 'ubuntu')
       with:
         path: ~/.cache/pip
         key: ${{matrix.os}}-pip-${{matrix.python-version}}-v1
 
     - name: Cache Python artifacts for MacOS
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       if: startsWith(matrix.os, 'macos')
       with:
         path: ~/Library/Caches/pip
@@ -95,7 +101,7 @@ jobs:
 
     - name: Cache Distributed FileSystems
       if: matrix.type == 'hdfs'
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
         key: dfs-${{env.HADOOP_VER}}-v2
