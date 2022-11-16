@@ -42,7 +42,6 @@ jobs:
     env: 
       OS_TYPE: ${{matrix.os}} 
       JAVA_VER: ${{matrix.java}}
-      JAVA_LINUX: /usr/lib/jvm/java-1.${{matrix.java}}.0-openjdk-amd64/
       
     runs-on: ${{matrix.os}}
 
@@ -120,14 +119,7 @@ jobs:
       working-directory:  ${{github.workspace}}
       run: |
         source $GITHUB_WORKSPACE/.github/scripts/install_hadoop.sh
-        echo "***JAVA_HOME=$JAVA_HOME"
-        ls -l $JAVA_HOME
-        readlink -f $JAVA_HOME
-        echo "***javac="
-        readlink -f $(which javac)
-        echo "***DONE"
-        JAVAC_PATH=$(which javac)
-        echo JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+        # Spark needs JAVA_HOME to be the jdk path
         JAVA_HOME==$(dirname $(dirname $(readlink -f $(which javac)))) SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
       env:
         INSTALL_DIR: ${{runner.workspace}}
@@ -144,10 +136,6 @@ jobs:
           GENOMICSDB_MAVEN_PROFILE=java11
         fi
         source $PREREQS_ENV
-        if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
-          JAVA_HOME=$JAVA_LINUX
-          echo $JAVA_LINUX/bin >> $GITHUB_PATH
-        fi
         # java tests take a very long time to run on MacOS, so limit running the tests to PRs and master/develop branches
         BRANCH=${GITHUB_REF##*/}
         if [[ ${{matrix.os}} != macos* || ${GITHUB_REF##*/} == master || ${GITHUB_REF##*/} == develop || $GITHUB_BASE_REF == master || $GITHUB_BASE_REF == develop ]]; then
@@ -162,10 +150,6 @@ jobs:
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       shell: bash
       run: |
-        if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
-          export JAVA_HOME=$JAVA_LINUX
-          echo $JAVA_LINUX/bin >> $GITHUB_PATH
-        fi
         source $PREREQS_ENV
         make -j4
         make install
@@ -175,10 +159,6 @@ jobs:
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       if: matrix.type == 'basic'
       run: |
-        if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
-          export JAVA_HOME=$JAVA_LINUX
-          echo $JAVA_LINUX/bin >> $GITHUB_PATH
-        fi
         python -m pip install --upgrade pip
         python -m pip install jsondiff
         make test ARGS=-V
@@ -188,10 +168,14 @@ jobs:
       shell: bash
       working-directory:  ${{github.workspace}}
       run: |
-        JAVA_HOME=$JAVA_LINUX
-        source $SPARK_ENV
         python -m pip install --upgrade pip
         python -m pip install jsondiff
+        # Spark needs JAVA_HOME to be the jdk path
+        JAVA_HOME==$(dirname $(dirname $(readlink -f $(which javac))))
+        echo "***SPARK_ENV contents"
+        cat $SPARK_ENV
+        eco "***SPARK_ENV DONE"
+        source $SPARK_ENV
         python tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $CMAKE_INSTALL_PREFIX local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $GITHUB_WORKSPACE/tests Coverage
         $GITHUB_WORKSPACE/.github/scripts/test_hdfs_htslib_support.sh
 
