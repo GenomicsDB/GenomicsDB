@@ -121,6 +121,8 @@ jobs:
       run: |
         source $GITHUB_WORKSPACE/.github/scripts/install_hadoop.sh
         echo "***JAVA_HOME=$JAVA_HOME"
+        ls -l $JAVA_HOME
+        echo "***listing /usr/lib/jvm"
         ls -l /usr/lib/jvm/*
         echo "***DONE"
         SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
