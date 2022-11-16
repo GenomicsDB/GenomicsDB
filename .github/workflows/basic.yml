@@ -15,7 +15,7 @@ env:
   SPARK_ENV: ${{github.workspace}}/spark_env.sh
   HADOOP_ENV: ${{github.workspace}}/hadoop_env.sh
   PREREQS_INSTALL_DIR: ${{github.workspace}}/prereqs
-  PROTOBUF_VERSION: 3.21.7
+  PROTOBUF_VERSION: 3.19.4
   CMAKE_INSTALL_PREFIX: ${{github.workspace}}/install
   GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
   GENOMICSDB_RELEASE_VERSION: x.y.z.test
@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest,macos-latest]
+        os: [ubuntu-latest,macos-11]
         type: [basic]
         java: [8,11]
         include:
@@ -39,11 +39,11 @@ jobs:
             #  type: hdfs
             #  java: 11
 
-    env:
-      OS_TYPE: ${{matrix.os}}
+    env: 
+      OS_TYPE: ${{matrix.os}} 
       JAVA_VER: ${{matrix.java}}
       JAVA_LINUX: /usr/lib/jvm/java-1.${{matrix.java}}.0-openjdk-amd64/
-
+      
     runs-on: ${{matrix.os}}
 
     steps:
@@ -55,13 +55,13 @@ jobs:
 
     - uses: actions/setup-java@v1
       if:  startsWith(matrix.os, 'macos')
-      with:
+      with: 
         java-version: ${{matrix.java}}
 
     - name: Install Java, set path
       if: startsWith(matrix.os, 'ubuntu')
       shell: bash
-      run: |
+      run: | 
         sudo add-apt-repository -y ppa:openjdk-r/ppa
         sudo apt update -qq
         sudo apt install -yq openjdk-${{matrix.java}}-jdk
@@ -75,29 +75,28 @@ jobs:
           ~/awssdk-install
           ~/gcssdk-install
           ~/protobuf-install/${{env.PROTOBUF_VERSION}}
-        key: ${{matrix.os}}-cache-prereqs-v7
+        key: ${{runner.os}}-cache-prereqs-v8
 
-   - name: Cache Java artifacts
-     uses: actions/cache@v2
-     with:
-        path: ~/.m2/repository
-        key: ${{matrix.os}}-cache-m2-repo-${{matrix.java}}-v1
-
+    - name: Cache maven repository
+      uses: actions/cache@v2
+      with:
+        path:  ~/.m2/repository
+        key: ${{runner.os}}-cache-maven-${{matrix.java}}-${{ hashFiles('**/pom.xml') }}
 
     # TODO: See https://github.com/actions/cache/pull/285 using platform-independent "pip cache dir"
-    - name: Cache Python artifacts for Ubuntu
+    - name: Cache Python artifacts for Ubuntu 
       uses: actions/cache@v2
       if: startsWith(matrix.os, 'ubuntu')
       with:
         path: ~/.cache/pip
-        key: ${{matrix.os}}-pip-${{matrix.python-version}}-v1
+        key: ${{runner.os}}-pip-${{matrix.python-version}}-v1
 
     - name: Cache Python artifacts for MacOS
       uses: actions/cache@v2
       if: startsWith(matrix.os, 'macos')
       with:
         path: ~/Library/Caches/pip
-        key: ${{matrix.os}}-pip-${{matrix.python-version}}-v1
+        key: ${{runner.os}}-pip-${{matrix.python-version}}-v1
 
     - name: Cache Distributed FileSystems
       if: matrix.type == 'hdfs'
