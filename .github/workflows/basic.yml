@@ -56,7 +56,8 @@ jobs:
     - uses: actions/setup-java@v2
       with: 
         java-version: ${{matrix.java}}
-        distribution: adopt-hotspot
+        distribution: temurin
+        java-package: jdk
 
     - name: Cache built prerequisites
       uses: actions/cache@v2
