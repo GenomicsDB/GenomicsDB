@@ -124,7 +124,7 @@ jobs:
         ls -l $JAVA_HOME
         readlink -f $JAVA_HOME
         echo "***javac="
-        readlink -f `which javac"
+        readlink -f $(which javac)
         echo "***DONE"
         JAVAC_PATH=$(which javac)
         echo JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
