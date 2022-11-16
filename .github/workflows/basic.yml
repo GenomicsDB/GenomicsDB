@@ -122,10 +122,13 @@ jobs:
         source $GITHUB_WORKSPACE/.github/scripts/install_hadoop.sh
         echo "***JAVA_HOME=$JAVA_HOME"
         ls -l $JAVA_HOME
-        echo "***listing /usr/lib/jvm"
-        ls -l /usr/lib/jvm/*
+        readlink -f $JAVA_HOME
+        echo "***javac="
+        readlink -f `which javac"
         echo "***DONE"
-        SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
+        JAVAC_PATH=$(which javac)
+        echo JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac))))
+        JAVA_HOME==$(dirname $(dirname $(readlink -f $(which javac)))) SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
       env:
         INSTALL_DIR: ${{runner.workspace}}
 
