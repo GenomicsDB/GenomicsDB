@@ -19,7 +19,7 @@ env:
   CMAKE_INSTALL_PREFIX: ${{github.workspace}}/install
   GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
   GENOMICSDB_RELEASE_VERSION: x.y.z.test
-  HADOOP_VER: 3.2.2
+  HADOOP_VER: 3.2.4
   SPARK_VER: 3.0.1
   SPARK_HADOOP_VER: 2.7
 
@@ -28,11 +28,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-18.04,macos-11]
+        os: [ubuntu-20.04,macos-11]
         type: [basic]
         java: [8,11]
         include:
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             type: hdfs
             java: 8
             #- os: ubuntu-18.04
@@ -42,70 +42,46 @@ jobs:
     env: 
       OS_TYPE: ${{matrix.os}} 
       JAVA_VER: ${{matrix.java}}
-      JAVA_LINUX: /usr/lib/jvm/java-1.${{matrix.java}}.0-openjdk-amd64/
       
     runs-on: ${{matrix.os}}
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v4
       with:
-        python-version: 3.6
+        python-version: 3.9
+        cache: 'pip'
 
-    - uses: actions/setup-java@v1
-      if:  startsWith(matrix.os, 'macos')
+    - uses: actions/setup-java@v3
       with: 
         java-version: ${{matrix.java}}
-
-    - name: Install Java, set path
-      if: startsWith(matrix.os, 'ubuntu')
-      shell: bash
-      run: | 
-        sudo add-apt-repository -y ppa:openjdk-r/ppa
-        sudo apt update -qq
-        sudo apt install -yq openjdk-${{matrix.java}}-jdk
-        echo $JAVA_LINUX/bin >> $GITHUB_PATH
+        distribution: temurin
+        java-package: jdk
+        cache: maven
 
     - name: Cache built prerequisites
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: |
           ${{env.PREREQS_INSTALL_DIR}}
-          ~/.m2/repository
           ~/awssdk-install
           ~/gcssdk-install
           ~/protobuf-install/${{env.PROTOBUF_VERSION}}
-        key: ${{matrix.os}}-cache-prereqs-v6
-
-    # TODO: See https://github.com/actions/cache/pull/285 using platform-independent "pip cache dir"
-    - name: Cache Python artifacts for Ubuntu 
-      uses: actions/cache@v2
-      if: startsWith(matrix.os, 'ubuntu')
-      with:
-        path: ~/.cache/pip
-        key: ${{matrix.os}}-pip-${{matrix.python-version}}-v1
-
-    - name: Cache Python artifacts for MacOS
-      uses: actions/cache@v2
-      if: startsWith(matrix.os, 'macos')
-      with:
-        path: ~/Library/Caches/pip
-        key: ${{matrix.os}}-pip-${{matrix.python-version}}-v1
+        key: ${{matrix.os}}-cache-prereqs-${{env.PROTOBUF_VERSION}}-v1
 
     - name: Cache Distributed FileSystems
       if: matrix.type == 'hdfs'
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
-        key: dfs-${{env.HADOOP_VER}}-v2
+        key: ${{matrix.os}}-dfs-${{env.HADOOP_VER}}
 
     - name: Install Prerequisites
       shell: bash
       working-directory: ${{github.workspace}}/scripts/prereqs
       run: |
         $GITHUB_WORKSPACE/.github/scripts/cleanup_hosts.sh
-        echo "matrix.os = ${{matrix.os}}"
         if [[ ${{matrix.os}} == macos* ]]; then
           echo "Installing Prerequistes for MacOS..."
           INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
@@ -123,7 +99,8 @@ jobs:
       working-directory:  ${{github.workspace}}
       run: |
         source $GITHUB_WORKSPACE/.github/scripts/install_hadoop.sh
-        JAVA_HOME=$JAVA_LINUX SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
+        # Spark needs JAVA_HOME to be the jdk path
+        JAVA_HOME==$(dirname $(dirname $(readlink -f $(which javac)))) SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
       env:
         INSTALL_DIR: ${{runner.workspace}}
 
@@ -139,10 +116,6 @@ jobs:
           GENOMICSDB_MAVEN_PROFILE=java11
         fi
         source $PREREQS_ENV
-        if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
-          JAVA_HOME=$JAVA_LINUX
-          echo $JAVA_LINUX/bin >> $GITHUB_PATH
-        fi
         # java tests take a very long time to run on MacOS, so limit running the tests to PRs and master/develop branches
         BRANCH=${GITHUB_REF##*/}
         if [[ ${{matrix.os}} != macos* || ${GITHUB_REF##*/} == master || ${GITHUB_REF##*/} == develop || $GITHUB_BASE_REF == master || $GITHUB_BASE_REF == develop ]]; then
@@ -157,10 +130,6 @@ jobs:
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       shell: bash
       run: |
-        if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
-          export JAVA_HOME=$JAVA_LINUX
-          echo $JAVA_LINUX/bin >> $GITHUB_PATH
-        fi
         source $PREREQS_ENV
         make -j4
         make install
@@ -170,10 +139,6 @@ jobs:
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       if: matrix.type == 'basic'
       run: |
-        if [[ $OS_TYPE == 'ubuntu-18.04' ]]; then
-          export JAVA_HOME=$JAVA_LINUX
-          echo $JAVA_LINUX/bin >> $GITHUB_PATH
-        fi
         python -m pip install --upgrade pip
         python -m pip install jsondiff
         make test ARGS=-V
@@ -183,12 +148,11 @@ jobs:
       shell: bash
       working-directory:  ${{github.workspace}}
       run: |
-        JAVA_HOME=$JAVA_LINUX
-        source $SPARK_ENV
         python -m pip install --upgrade pip
         python -m pip install jsondiff
+        source $SPARK_ENV
         python tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $CMAKE_INSTALL_PREFIX local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $GITHUB_WORKSPACE/tests Coverage
         $GITHUB_WORKSPACE/.github/scripts/test_hdfs_htslib_support.sh
 
     - name: Upload Coverage to CodeCov
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
