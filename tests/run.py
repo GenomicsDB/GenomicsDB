@@ -175,7 +175,7 @@ def run_cmd(cmd, expected_to_pass, errstring='Sanity check : ', tmpdir=None, pri
                 sys.stderr.write(stderr_string.decode('utf-8'))
         if(expected_to_pass):
             cleanup_and_exit(None, -1)
-    return (is_success, stdout_string.decode('utf-8'), stderr_string.decode('utf-8'))
+    return (is_success, stdout_string, stderr_string)
 
 def get_file_content_and_md5sum(filename):
     with open(filename, 'rb') as fptr:
