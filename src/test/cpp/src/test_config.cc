@@ -127,6 +127,7 @@ TEST_CASE("Check configuration with json file", "[basic_config_check]") {
   CHECK(query_config_from_file.produce_GT_field() == false);
   CHECK(query_config_from_file.produce_FILTER_field() ==  false);
   CHECK(query_config_from_file.sites_only_query() == false);
+  CHECK(query_config_from_file.bypass_intersecting_intervals_phase() == false);
   CHECK(query_config_from_file.index_output_VCF() ==  false);
   CHECK(query_config_from_file.produce_GT_with_min_PL_value_for_spanning_deletions() == false);
   CHECK(query_config_from_file.get_vid_mapper().is_initialized() ==  true);
@@ -187,6 +188,7 @@ TEST_CASE("Compare configuration with json file and string", "[compare_json_type
   CHECK(query_config_from_file.produce_GT_field() == query_config_from_str.produce_GT_field());
   CHECK(query_config_from_file.produce_FILTER_field() ==  query_config_from_str.produce_FILTER_field());
   CHECK(query_config_from_file.sites_only_query() == query_config_from_str.sites_only_query());
+  CHECK(query_config_from_file.bypass_intersecting_intervals_phase() == query_config_from_str.bypass_intersecting_intervals_phase());
   CHECK(query_config_from_file.index_output_VCF() == query_config_from_str.index_output_VCF());
   CHECK(query_config_from_file.produce_GT_with_min_PL_value_for_spanning_deletions() == query_config_from_str.produce_GT_with_min_PL_value_for_spanning_deletions());
   CHECK(query_config_from_file.get_vid_mapper().is_initialized() == query_config_from_str.get_vid_mapper().is_initialized());

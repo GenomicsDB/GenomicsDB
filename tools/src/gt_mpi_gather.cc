@@ -451,6 +451,8 @@ void print_usage() {
             << "\t\t Optional, if array is specified in any of the json config files\n"
             << "\t \e[1m--print-calls\e[0m\n"
             << "\t\t Optional, prints VariantCalls in a JSON format\n"
+            << "\t \e[1m--print-AC\e[0m\n"
+            << "\t\t Optional, computes and prints Allele Counts for the matched SNVs and MNVs in the query\n"
             << "\t \e[1m--print-csv\e[0m\n"
             << "\t\t Optional, outputs CSV with the fields and the order of CSV lines determined by the query attributes\n"
             << "\t \e[1m--produce-bgen\e[0m\n"

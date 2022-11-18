@@ -101,7 +101,8 @@ message ExportConfiguration {
   optional uint32 segment_size = 26;
   optional uint32 combined_vcf_records_buffer_size_limit = 27;
   optional bool enable_shared_posixfs_optimizations = 28;
-  optional SparkConfig spark_config = 29;
-  repeated AnnotationSource annotation_source = 30;
-  optional uint32 annotation_buffer_size = 31 [default = 10240];
+  optional bool bypass_intersecting_intervals_phase = 29;
+  optional SparkConfig spark_config = 30;
+  repeated AnnotationSource annotation_source = 31;
+  optional uint32 annotation_buffer_size = 32 [default = 10240];
 }
