@@ -72,6 +72,9 @@ set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf 
 set(USE_LIBCSV False CACHE BOOL "Disable library components that import data from csv files")
 set(LIBCSV_DIR "" CACHE PATH "Path to libcsv header and library")
 
+#Testing
+option(DISABLE_TESTING "Disable testing of builds") 
+
 #Profiling
 option(DO_PROFILING "Collect some stats during execution - doesn't add much overhead")
 option(COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW "Counting #cells traversed in columnar iterator")
@@ -116,7 +119,9 @@ if(APPLE)
   set(CMAKE_FIND_FRAMEWORK LAST CACHE STRING "Try to find frameworks on Mac OS X last")
 endif()
 
-enable_testing()
+if(NOT DISABLE_TESTING)
+  enable_testing()
+endif()
 
 #Platform check modules
 include(CheckIncludeFileCXX)
