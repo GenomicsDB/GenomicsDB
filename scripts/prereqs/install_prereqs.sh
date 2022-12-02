@@ -24,13 +24,15 @@
 set -e
 
 # Arguments to the script
-#  $1 - BUILD_DISTRIBUTABLE_LIBRARY, if true will build/install OpenSSL/CURL/UUID/Intel zlib libs
-#  $2 - 'full' if build prerequisites should be installed, 'release' if only runtime prerequisites should be installed
+#  $1 - 'full' if build prerequisites should be installed, 'release' if only runtime prerequisites should be installed
 
 OPENSSL_VERSION=1.1.1o
 MAVEN_VERSION=3.6.3
 CURL_VERSION=7.83.1
 UUID_VERSION=1.0.3
+
+# BUILD_DISTRIBUTABLE_LIBRARY, if true will build/install OpenSSL/CURL/UUID/Intel zlib libs
+BUILD_DISTRIBUTABLE_LIBRARY=${BUILD_DISTRIBUTABLE_LIBRARY:-false}
 
 # Check for the following overriding env variables
 #    $INSTALL_PREFIX allows for dependencies maven/protobuf/etc. that are built to be installed to $INSTALL_PREFIX for user installs
@@ -54,8 +56,6 @@ if [ -f $PREREQS_ENV ]; then
   rm -f $PREREQS_ENV
 fi
 touch $PREREQS_ENV
-
-BUILD_DISTRIBUTABLE_LIBRARY=${1:-false}
 
 if [[ `uname` == "Darwin" && $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
   export MACOSX_DEPLOYMENT_TARGET=10.13
