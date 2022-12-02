@@ -13,7 +13,7 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ master, develop, ng_codeql_1 ]
+    branches: [ master, develop ]
     paths:
       - '**/CMakeLists.txt'
       - 'pom.xml'
@@ -76,7 +76,9 @@ jobs:
           ~/protobuf-install
         key: ubuntu-codeql-cache-prereqs-v1
 
-    - run: |
+    - name: Build GenomicsDB
+      shell: bash
+      run: |
         $GITHUB_WORKSPACE/.github/scripts/cleanup_hosts.sh
         echo "Install Prerequisites for Linux.."
         pushd $GITHUB_WORKSPACE/scripts/prereqs
