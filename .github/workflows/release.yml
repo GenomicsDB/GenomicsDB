@@ -24,17 +24,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Cache built prerequisites
-        uses: actions/cache@v2
-        with:
-          path: |
-            ${{env.PREREQS_INSTALL_DIR}}
-            ~/.m2/repository
-            ~/awssdk-install
-            ~/gcssdk-install
-            ~/protobuf-install/${{env.PROTOBUF_VERSION}}
-          key: ${{matrix.os}}-cache-prereqs-v5
-
       - name: Set version number
         run: echo VERSION_NUMBER=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
 
