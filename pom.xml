@@ -63,7 +63,7 @@
     <spark.sql.artifactid>spark-sql_${scala.main}</spark.sql.artifactid>
     <spark.exclude.packages>org.genomicsdb.spark.v2</spark.exclude.packages>
     <spark.exclude.files>**/org/genomicsdb/spark/v2/**.java</spark.exclude.files>
-    <htsjdk.version>2.23.0</htsjdk.version>
+    <htsjdk.version>3.0.1</htsjdk.version>
     <json.simple.version>[1.1.1,)</json.simple.version>
     <log4j.version>[2.17.0,)</log4j.version>
     <!-- Sync the protobuf.version with GENOMICSDB_PROTOBUF_VERSION in CMakeLists.txt -->
