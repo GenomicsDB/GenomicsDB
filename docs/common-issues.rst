@@ -12,11 +12,7 @@ Common Issues
 
 .. ------------------------------
 
-2.  If you are using GenomicsDB version < 0.8.0, you cannot move/copy the GenomicsDB workspace/array directory arbitrarily after loading. If you do copy/move files to a different machine, ensure that the absolute path of the workspace/array directory is the same as that on the machine on which data is loaded/imported. This limitation is removed in version 0.8.0.
-
-.. ------------------------------
-
-3.  I have prepared my JSON files correctly, yet I get an exception with the following message:
+2.  I have prepared my JSON files correctly, yet I get an exception with the following message:
     
     .. code-block:: none 
 
@@ -35,7 +31,7 @@ Common Issues
 
 .. ------------------------------
 
-4.  I get an exception with the following message:
+3.  I get an exception with the following message:
 
     .. code-block:: none  
 
@@ -49,7 +45,7 @@ Common Issues
 
 .. ------------------------------
 
-5.  I have both *row_partitions* and *column_partitions* in my loader JSON file and I get an exception message:
+4.  I have both *row_partitions* and *column_partitions* in my loader JSON file and I get an exception message:
 
     .. code-block:: none  
 
@@ -62,7 +58,7 @@ Common Issues
 
 .. ------------------------------
 
-6.  I have setup all my JSON files correctly, but the import program finishes almost immediately without importing any data from my VCFs:
+5.  I have setup all my JSON files correctly, but the import program finishes almost immediately without importing any data from my VCFs:
 
     There could be many reasons, but here are the common issues we have seen users running into:
 
@@ -70,7 +66,7 @@ Common Issues
 
 .. ------------------------------
 
-7.  I have setup all my JSON files correctly, but the import program doesn't load data for some of the samples:
+6.  I have setup all my JSON files correctly, but the import program doesn't load data for some of the samples:
   
     There could be many reasons, but here are the common issues we have seen users running into:
 
@@ -83,7 +79,7 @@ Common Issues
 
 .. ------------------------------
 
-8.  I see an incorrect cell order found error as:
+7.  I see an incorrect cell order found error as:
 
     .. code-block:: bash
 
@@ -111,7 +107,7 @@ Common Issues
 
 .. ------------------------------
 
-9.  I see an error message:
+8.  I see an error message:
 
     .. code-block:: none  
 

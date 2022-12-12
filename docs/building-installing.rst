@@ -29,57 +29,33 @@ The script *install_prereqs.sh* is meant to work with Docker, but should work on
 
 Docker
 *******************************
-To build and install GenomicsDB using Docker, specify the following *optional* build arguments
+Docker images for GenomicsDB are published to GitHub Container Registry. This `page`_ shows the image versions available. Below we show some examples of using the docker image to interact with GenomicsDB executables.
 
-.. list-table::
-   :widths: 50 25 
-   :header-rows: 1
+.. _page
 
-   * - Build Argument
-     - Default
-   * - os=ubuntu:trusty|centos:7|<linux_base:ver>
-     - centos:7
-   * - user=<user_name>
-     - genomicsdb
-   * - branch=master|develop|<any_branch>
-     - master
-   * - install_dir=<my_install_dir>
-     - /usr/local
-   * - distributable_jar=true|false
-     - false
-   * - enable_bindings=java
-     - none
-
-  
+ 
 Examples:
 
-.. code-block:: bash
-
-    docker build --build-arg os=ubuntu:trusty --build-arg branch=develop --build-arg install_dir=/home/$USER -t genomicsdb:build . 
-
-
-To run and enter the bash shell:
+To ingest vcfs from `/path/to/vcfs` to `/path/to/workspace` (both paths refer to paths on the host machine)
 
 .. code-block:: bash
 
-    # Use the -t argument value used with docker build ...
-    docker run -it genomicsdb:build
+    host> docker run -v /path/to/vcfs:/opt/vcfs -v /path/to/where/workspace/should/be/created:/opt/workspace_parent -u $( id -u $USER ):$( id -g $USER ) -it ghcr.io/genomicsdb/genomicsdb:v1.4.4
+    docker> vcf2genomicsdb_init -w /opt/workspace_parent/workspace -S /path/to/vcfs -n 0
+    docker> vcf2genomicsdb /opt/workspace_parent/loader.json
 
 
-To build and copy all built artifacts from the docker image:
+To query a GenomicsDB workspace, and return the results as a VCF/gVCF:
 
 .. code-block:: bash
 
-    export docker_os=centos
-    export docker_repo=genomicsdb
-    export docker_tag=`date "+%Y-%m-%d-%H:%M:%S"`
-    docker build --build-arg os=$docker_os --build-arg install_dir=/tmp/artifacts -t $docker_repo:$docker_tag .
-    docker create -it --name genomicsdb $docker_repo:$docker_tag bash
-    docker cp genomicsdb:/tmp/artifacts $docker_os
-    docker rm -fv genomicsdb
-
+    host> docker run -v /path/to/workspace:/opt/workspace -u $( id -u $USER ):$( id -g $USER ) -it ghcr.io/genomicsdb/genomicsdb:v1.4.4
+    # run with no arguments for help
+    docker> gt_mpi_gather
+    # Create a query.json file based on help
+    docker> gt_mpi_gather -j /path/to/query.json --produce-Broad-GVCF
 
 
 CLI Tools
 *******************************
-The CLI tools are compiled using *cmake* during the build process and placed in <build-dir>/tools.
+The CLI tools are compiled during the build process and placed in <build-dir>/tools.

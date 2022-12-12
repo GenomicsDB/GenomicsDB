@@ -46,10 +46,8 @@ Optional field(s):
 
 * *query_row_ranges* : Similar to *query_column_ranges* but for rows. If this field is omitted, all rows are included in the query.
 
-* *vid_mapping_file* and *callset_mapping_file* (type: string or list of strings): Paths to JSON files specifying the :ref:`vid mapping <Import / ETL>` and :ref:`callset mapping <Import / ETL>`. Note that this feature is available since commit `f92c02e56`_.
+* *vid_mapping_file* and *callset_mapping_file* (type: string or list of strings): Paths to JSON files specifying the :ref:`vid mapping <Import / ETL>` and :ref:`callset mapping <Import / ETL>`.
 
-  .. _f92c02e56: (https://github.com/Intel-HLS/GenomicsDB/commit/f92c02e5684b5eb33484eee6aba1a07ca640b4ee)
-  
   These two fields are optional because a user might specify them in the loader JSON while creating an array and pass the loader JSON to the query tool(s) (see below). This allows the user to write many different query JSON files without repeating the information.
 
   If the *vid_mapping_file* and/or *callset_mapping_file* are specified in both the loader and query JSON files and passed to the query tool(s), then the parameter value in the query JSON gets precedence.
@@ -100,7 +98,7 @@ Java
 .. _Maven Central: https://mvnrepository.com/artifact/org.genomicsdb/genomicsdb
 
 
-* Add GenomicsDB to your maven project with the following snippet:
+* Add GenomicsDB to your maven project with the following snippet (update the version, if necessary):
 
 .. code-block:: java
 
@@ -108,7 +106,7 @@ Java
    <dependency>
       <groupId>org.genomicsdb</groupId>
       <artifactId>genomicsdb</artifactId>
-      <version>1.3.0</version>
+      <version>1.4.4</version>
    </dependency>
 
 

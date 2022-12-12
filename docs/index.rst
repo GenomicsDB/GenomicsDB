@@ -25,7 +25,7 @@
    :maxdepth: 3
    :caption: Examples
    
-   examples/notebooks
+   examples/notebooks/python.ipynb
    examples/import-examples
    examples/gatk
 
