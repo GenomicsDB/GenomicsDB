@@ -3,7 +3,7 @@
 
 | Master | Develop |
 | --- | --- |
-| [![Travis](https://travis-ci.org/GenomicsDB/GenomicsDB.svg?branch=master)](https://travis-ci.org/GenomicsDB/GenomicsDB) | [![Travis](https://travis-ci.org/GenomicsDB/GenomicsDB.svg?branch=develop)](https://travis-ci.org/GenomicsDB/GenomicsDB?branch=develop) |
+| [![actions](https://github.com/GenomicsDB/GenomicsDB/workflows/build/badge.svg?branch=master)](https://github.com/GenomicsDB/GenomicsDB/actions?query=branch%3Amaster) | [![actions](https://github.com/GenomicsDB/GenomicsDB/workflows/build/badge.svg?branch=develop)](https://github.com/GenomicsDB/GenomicsDB/actions?query=branch%3Adevelop) |
 | [![codecov](https://codecov.io/gh/GenomicsDB/GenomicsDB/branch/master/graph/badge.svg)](https://codecov.io/gh/GenomicsDB/GenomicsDB) | [![codecov](https://codecov.io/gh/GenomicsDB/GenomicsDB/branch/develop/graph/badge.svg)](https://codecov.io/gh/GenomicsDB/GenomicsDB/branch/develop) |
 
 GenomicsDB, originally from [Intel Health and Lifesciences](https://github.com/Intel-HLS/GenomicsDB), is built on top of a fork of [htslib](https://github.com/samtools/htslib) and a tile-based array storage system for importing, querying and transforming variant data. Variant data is sparse by nature (sparse relative to the whole genome) and using sparse array data stores is a perfect fit for storing such data. GenomicsDB is a highly performant scalable data storage written in C++ for importing, querying and transforming genomic variant data.
@@ -20,4 +20,26 @@ GenomicsDB is packaged into [gatk4](https://software.broadinstitute.org/gatk/doc
 The GenomicsDB documentation for users is hosted as a Github wiki:
 https://github.com/GenomicsDB/GenomicsDB/wiki
 
-GenomicsDB is open source and all participation is welcome. Please read the [guidelines](contrib/README.md) to help with contributions.
+## External Contributions
+GenomicsDB is open source and all participation is welcome.
+GenomicsDB is released under the MIT License and all external
+contributors are expected to grant an MIT License for their contributions.
+
+### Checklist before creating Pull Request
+Please ensure that the code is well documented in Javadoc style for Java/Scala. For C/C++ code, roughly adhere to [Google C++ Style](https://google.github.io/styleguide/cppguide.html) for consistency/readabilty.
+
+```
+Use spaces instead of tabs.
+Use 2 spaces for indenting.
+Add brackets even for one line blocks e.g. 
+        if (x>0)
+           do_foo();
+ should ideally be 
+       if (x>0) {
+         do_foo();
+       }
+Pad header e.g.
+        if(x>0) should be if (x>0)
+        while(x>0) should be while (x>0)
+One half indent for class modifiers.
+```

@@ -25,6 +25,7 @@
 #include <ctype.h>
 #include <cstdlib>
 #include <cstdio>
+#include "genomicsdb_logger.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw ProtoBufBasedVidMapperException(#X);
 
@@ -167,9 +168,7 @@ int VidMapper::parse_contigs_from_vidmap(
     contig_name = vid_map_protobuf->contigs(contig_idx).name();
 
     if (m_contig_name_to_idx.find(contig_name) != m_contig_name_to_idx.end()) {
-      std::cerr << "Contig/chromosome name "
-                << contig_name
-                << " appears more than once in vid map\n";
+      logger.warn("Contig/chromosome name {} appears more than once in vid map", contig_name);
       duplicate_contigs_exist = true;
       continue;
     }
@@ -223,18 +222,12 @@ int VidMapper::parse_contigs_from_vidmap(
     if (last_contig_idx >= 0) {
       const auto& last_contig_info = m_contig_idx_to_info[last_contig_idx];
       if (contig_info.m_tiledb_column_offset <= last_contig_end_column) {
-        std::cerr << "Contig/chromosome "
-                  << contig_info.m_name
-                  << " begins at TileDB column "
-                  << contig_info.m_tiledb_column_offset
-                  << " and intersects with contig/chromosome "
-                  << last_contig_info.m_name
-                  << " that spans columns ["
-                  << last_contig_info.m_tiledb_column_offset
-                  << ", "
-                  << last_contig_info.m_tiledb_column_offset +
-                  last_contig_info.m_length-1
-                  << "]" << "\n";
+        logger.info("Contig/chromosome {} begins at TileDB column {} and intersects with contig/chromosome {} that spans columns [{}, {}]",
+                     contig_info.m_name,
+                     contig_info.m_tiledb_column_offset,
+                     last_contig_info.m_name,
+                     last_contig_info.m_tiledb_column_offset,
+                     last_contig_info.m_tiledb_column_offset + last_contig_info.m_length-1);
         overlapping_contigs_exist = true;
       }
     }
@@ -262,9 +255,7 @@ int VidMapper::parse_infofields_from_vidmap(
        ++pb_field_idx) {
     const auto& field_name = vid_map_protobuf->fields(pb_field_idx).name();
     if (m_field_name_to_idx.find(field_name) != m_field_name_to_idx.end()) {
-      std::cerr << "Duplicate field name "
-                << field_name
-                << " found in vid map\n";
+      logger.warn("Duplicate field name {} found in vid map", field_name);
       duplicate_fields_exist = true;
       continue;
     }
@@ -368,6 +359,9 @@ int VidMapper::parse_infofields_from_vidmap(
         ref.m_length_descriptor.set_vcf_delimiter(i,
             vid_map_protobuf->fields(pb_field_idx).vcf_delimiter(i).c_str());
     }
+    ref.m_disable_remap_missing_with_non_ref = 
+      vid_map_protobuf->fields(pb_field_idx).has_disable_remap_missing_with_non_ref() ?
+      vid_map_protobuf->fields(pb_field_idx).disable_remap_missing_with_non_ref() : false;
 
     ++field_idx;
     flatten_field(field_idx, field_idx-1);

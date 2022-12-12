@@ -5,7 +5,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2019-2020 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2020,2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -36,6 +36,8 @@
 #include "genomicsdb_exception.h"
 
 #include <map>
+#include <set>
+#include <fstream>
 #include <memory>
 #include <sstream>
 #include <stdint.h>
@@ -43,6 +45,7 @@
 #include <typeindex>
 #include <typeinfo>
 #include <vector>
+#include <functional>
 
 // Override project visibility set to hidden for api
 #if (defined __GNUC__ && __GNUC__ >= 4) || defined __INTEL_COMPILER
@@ -52,11 +55,6 @@
 #endif
 
 GENOMICSDB_EXPORT std::string genomicsdb_version();
-
-#define ALLELE_SEPARATOR '|'
-#define NON_REF_VARIANT "&"
-#define NON_REF "<NON_REF>"
-#define ALT "ALT"
 
 typedef std::pair<uint64_t, uint64_t> interval_t;
 
@@ -70,27 +68,54 @@ typedef struct genomic_interval_t {
 } genomic_interval_t;
 
 typedef struct genomic_field_type_t {
-  std::type_index type_idx = std::type_index(typeid(char));
+  enum genomicsdb_basic_type {INT32, FLOAT, CHAR, STRING, UNKNOWN};
+  genomicsdb_basic_type type_idx = CHAR;
+
+  //std::type_index type_idx = std::type_index(typeid(char));
   bool is_fixed_num_elements = true;
   size_t num_elements;
   size_t num_dimensions;
-  genomic_field_type_t(std::type_index type_idx, bool is_fixed_num_elements, size_t num_elements, size_t num_dimensions) {
+  bool contains_phase_info;
+  genomic_field_type_t(std::type_index type_idx, bool is_fixed_num_elements, size_t num_elements, size_t num_dimensions, bool contains_phase_info) {
+    this->type_idx = type_index_to_basic_type(type_idx);
+    this->is_fixed_num_elements = is_fixed_num_elements;
+    this->num_elements = num_elements;
+    this->num_dimensions = num_dimensions;
+    this->contains_phase_info = contains_phase_info;
+  }
+  genomic_field_type_t(genomicsdb_basic_type type_idx, bool is_fixed_num_elements, size_t num_elements, size_t num_dimensions, bool contains_phase_info) {
     this->type_idx = type_idx;
     this->is_fixed_num_elements = is_fixed_num_elements;
     this->num_elements = num_elements;
     this->num_dimensions = num_dimensions;
+    this->contains_phase_info = contains_phase_info;
   }
   inline bool is_int() const {
-    return type_idx == std::type_index(typeid(int));
+    return type_idx == INT32;
   }
   inline bool is_float() const {
-    return type_idx == std::type_index(typeid(float));
+    return type_idx == FLOAT;
   }
   inline bool is_char() const {
-    return (type_idx == std::type_index(typeid(char))) && is_fixed_num_elements;
+    return type_idx == CHAR && is_fixed_num_elements;
   }
   inline bool is_string() const {
-    return (type_idx == std::type_index(typeid(char))) && !is_fixed_num_elements;
+    return type_idx == CHAR && !is_fixed_num_elements;
+  }
+  inline bool is_cppstring() const {
+    return type_idx == STRING;
+  }
+  inline bool contains_phase_information() const {
+    return contains_phase_info;
+  }
+  static inline genomicsdb_basic_type type_index_to_basic_type(std::type_index ti) {
+    if(ti == std::type_index(typeid(int)))
+      return INT32;
+    if(ti == std::type_index(typeid(float)))
+      return FLOAT;
+    if(ti == std::type_index(typeid(char)))
+      return CHAR;
+    return UNKNOWN;
   }
 } genomic_field_type_t;
 
@@ -103,31 +128,35 @@ typedef struct genomic_field_t {
     this->ptr = ptr;
     this->num_elements = num_elements;
   }
+  size_t get_num_elements() const {
+    return num_elements;
+  }
+  inline void check_offset(uint64_t offset) const {
+     if (offset >= num_elements) {
+       throw GenomicsDBException("Genomic Field="+name+" offset="+std::to_string(offset)+" greater than number of elements");
+    }
+  }
   inline int int_value_at(uint64_t offset) const {
+    check_offset(offset);
     return *(reinterpret_cast<int *>(const_cast<void *>(ptr)) + offset);
   }
   inline float float_value_at(uint64_t offset) const {
+    check_offset(offset);
     return *(reinterpret_cast<float *>(const_cast<void *>(ptr)) + offset);
   }
   inline char char_value_at(uint64_t offset) const {
+    check_offset(offset);
     return *(reinterpret_cast<char *>(const_cast<void *>(ptr)) + offset);
   }
   inline std::string str_value() const {
     return std::string(reinterpret_cast<const char *>(ptr)).substr(0, num_elements);
   }
-  std::string recombine_str_value(char delim=ALLELE_SEPARATOR, std::string separator=", ") const {
-    std::stringstream ss(str_value());
-    std::string output;
-    std::string item;
-    while (std::getline(ss, item, delim)){
-      if (item.compare(NON_REF_VARIANT) == 0) {
-        output.empty()?output=NON_REF:output=output+separator+NON_REF;
-      } else {
-        output.empty()?output=item:output=output+separator+item;
-      }
-    }
-    return "[" + output+"]";
+  inline std::string cpp_str_value_at(uint64_t offset) const {
+    check_offset(offset);
+    return *(reinterpret_cast<std::string *>(const_cast<void *>(ptr)) + offset);
   }
+  GENOMICSDB_EXPORT std::string recombine_ALT_value(const genomic_field_type_t& field_type, std::string separator=", ") const;
+  GENOMICSDB_EXPORT std::string combine_GT_vector(const genomic_field_type_t& field_type) const;
   std::string to_string(uint64_t offset, const genomic_field_type_t& field_type) const {
     if (field_type.is_int()) {
       return std::to_string(int_value_at(offset));
@@ -135,28 +164,32 @@ typedef struct genomic_field_t {
       return std::to_string(float_value_at(offset));
     } else if (field_type.is_char()) {
       return std::to_string(char_value_at(offset));
+    } else if(field_type.is_cppstring()) {
+      return cpp_str_value_at(offset);
     } else {
       return "";
     }
   }
   std::string to_string(const genomic_field_type_t& field_type, std::string separator=", ") const {
     if (field_type.is_string()) {
-      if (name.compare(ALT) == 0) {
-        return recombine_str_value();
+      if (name.compare("ALT") == 0) {
+        return recombine_ALT_value(field_type);
       }
       return str_value();
-    }
-    if (num_elements == 1) {
+    } else if (num_elements == 1) {
       return to_string(0, field_type);
-    }
-    std::string output("["); 
-    for (auto i=0ul; i<num_elements; i++) {
-      output = output + to_string(i, field_type);
-      if (i<num_elements-1) {
-        output = output + separator;
+    } else if (name.compare("GT") == 0) {
+      return combine_GT_vector(field_type);
+    } else {
+      std::string output;
+      for (auto i=0ul; i<num_elements; i++) {
+        output = output + to_string(i, field_type);
+        if (i<num_elements-1) {
+          output = output + separator;
+        }
       }
+      return "[" + output + "]";
     }
-    return output + "]";
   }
 } genomic_field_t;
 
@@ -209,6 +242,11 @@ class GenomicsDBResults {
 typedef GenomicsDBResults<genomicsdb_variant_t> GenomicsDBVariants;
 typedef GenomicsDBResults<genomicsdb_variant_call_t> GenomicsDBVariantCalls;
 
+// Forward Declarations for keeping Variant* classes opaque
+class Variant;
+class VariantCall;
+class VariantQueryConfig;
+
 class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
  public:
   GenomicsDBVariantCallProcessor() {};
@@ -234,10 +272,28 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
   std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
 };
 
-// Forward Declarations for keeping Variant* classes opaque
-class Variant;
-class VariantCall;
-class VariantQueryConfig;
+class GENOMICSDB_EXPORT GenomicsDBVariantProcessor {
+ public:
+  GenomicsDBVariantProcessor() {};
+  ~GenomicsDBVariantProcessor() {};
+  void initialize(std::map<std::string, genomic_field_type_t> genomic_field_types) {
+     m_genomic_field_types = std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types));
+  }
+  const std::shared_ptr<std::map<std::string, genomic_field_type_t>> get_genomic_field_types() const {
+    return m_genomic_field_types;
+  }
+  const genomic_field_type_t get_genomic_field_type(const std::string& name) const {
+    if (m_genomic_field_types->find(name) != m_genomic_field_types->end()) {
+      return m_genomic_field_types->at(name);
+    } else {
+      throw GenomicsDBException("Genomic Field="+name+" does not seem to have an associated type");
+    }
+  }
+  virtual void process(const Variant& variant) = 0;
+  void process(const std::vector<Variant>& variants);
+ private:
+  std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
+};
 
 /**
  * Experimental Query Interface to GenomicsDB for Arrays partitioned by columns
@@ -247,12 +303,13 @@ class VariantQueryConfig;
  */
 class GenomicsDB {
  public:
+  enum GENOMICSDB_EXPORT query_config_type_t { JSON_FILE=0, JSON_STRING=1, PROTOBUF_BINARY_STRING=2 };
+
   /**
    * Constructor to the GenomicsDB Query API
    *   workspace
    *   callset_mapping_file
    *   vid_mapping_file
-   *   reference_genome
    *   attributes, optional 
    *   segment_size, optional
    * Throws GenomicsDBException
@@ -260,23 +317,25 @@ class GenomicsDB {
   GENOMICSDB_EXPORT GenomicsDB(const std::string& workspace,
              const std::string& callset_mapping_file,
              const std::string& vid_mapping_file,
-             const std::string& reference_genome,
              const std::vector<std::string>attributes = ALL_ATTRIBUTES,
              const uint64_t segment_size = DEFAULT_SEGMENT_SIZE);
 
   /**
    * Constructor to the GenomicsDB Query API with configuration json files
-   *   query_config_json_file
-   *   loader_config_json_file, optional
+   *   query_configuration - describe the query configuration in either a JSON file or string
+   *   query_configuration_type - type of query configuration, could be a JSON_FILE or JSON_STRING
+   *   loader_config_json_file, optional - describe the loader configuration in a JSON file.
+   *           If a configuration key exists in both the query and the loader configuration, the query
+   *           configuration takes precedence
    *   concurrency_rank, optional - if greater than 0, 
    *           the constraints(workspace, array, column and row ranges) are surmised
-   *           using the rank as an index into their corresponding vectors.
+   *           using the rank as an index into their corresponding vectors
    * Throws GenomicsDBException
    */
-  GENOMICSDB_EXPORT GenomicsDB(const std::string& query_config_json_file,
-             const std::string& loader_config_json_file = std::string(),
-             const int concurrency_rank=0);
-
+  GENOMICSDB_EXPORT GenomicsDB(const std::string& query_configuration,
+                               const query_config_type_t query_configuration_type = JSON_FILE,
+                               const std::string& loader_configuration_json_file = std::string(),
+                               const int concurrency_rank=0);
   /**
    * Destructor
    */
@@ -334,16 +393,57 @@ class GenomicsDB {
    */
   GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls(GenomicsDBVariantCallProcessor& processor);
 
+  /**
+   * Generate multi-sample vcf files from GenomicsDB in the Broad GVCF format for given array constrained by
+   *  column/row ranges
+   *       - see https://gatk.broadinstitute.org/hc/en-us/articles/360035531812-GVCF-Genomic-Variant-Call-Format
+   */
   GENOMICSDB_EXPORT void generate_vcf(const std::string& array,
                                  genomicsdb_ranges_t column_ranges,
                                  genomicsdb_ranges_t row_ranges,
+                                 const std::string& reference_genome,
+                                 const std::string& vcf_header = "vcf_header.vcf",
                                  const std::string& output = "",
                                  const std::string& output_format = "",
                                  bool overwrite = false);
 
+  /**
+   * Generate multi-sample vcf files from GenomicsDB in the Broad GVCF format using set configuration. This
+   *  method is useful with parallelism paradigms (MPI, Intel TBB)
+   *       - see https://gatk.broadinstitute.org/hc/en-us/articles/360035531812-GVCF-Genomic-Variant-Call-Format
+   */
   GENOMICSDB_EXPORT void generate_vcf(const std::string& output = "",
                                       const std::string& output_format = "",
                                       bool overwrite = false);
+
+  /**
+   * Generate plink files from GenomicsDB for given array constrained by column/row ranges and given format to
+   * generate plink .ped and .map files. The output files are named <output_prefix>.ped and <output_prefix>.map
+   * respectively.
+   */
+  GENOMICSDB_EXPORT void generate_plink(const std::string& array,
+                                        genomicsdb_ranges_t column_ranges,
+                                        genomicsdb_ranges_t row_ranges,
+                                        unsigned char format = 7,
+                                        int compression = 1,
+                                        bool one_pass = false,
+                                        bool verbose = false,
+                                        double progress_interval = -1,
+                                        const std::string& output_prefix = "output",
+                                        const std::string& fam_list = "");
+
+ /**
+   * Generate plink files from GenomicsDB for given format to generate plink .ped and .map files. The output
+   * files are named <output_prefix>.ped and <output_prefix>.map
+   * respectively. This method is useful with parallelism paradigms (MPI, Intel TBB).
+   */
+  GENOMICSDB_EXPORT void generate_plink(unsigned char format = 7,
+                                        int compression = 1,
+                                        bool one_pass = false,
+                                        bool verbose = false,
+                                        double progress_interval = -1,
+                                        const std::string& output_prefix = "output",
+                                        const std::string& fam_list = "");
 
   /**
    * Utility template functions to extract information from Variant and VariantCall classes
@@ -364,6 +464,9 @@ class GenomicsDB {
  private:
   std::vector<Variant>*  query_variants(const std::string& array,
                                         VariantQueryConfig *query_config);
+  void query_variants(const std::string& array,
+                      VariantQueryConfig* query_config,
+                      GenomicsDBVariantProcessor& proc);
   std::vector<VariantCall>* query_variant_calls(const std::string& array,
                                                 VariantQueryConfig *query_config,
                                                 GenomicsDBVariantCallProcessor& processor);
@@ -373,11 +476,13 @@ class GenomicsDB {
                     const std::string& output_format,
                     bool overwrite);
 
+ private:
   VariantQueryConfig* get_query_config_for(const std::string& array);
 
   void* m_storage_manager = nullptr; // Pointer to VariantStorageManager instance
   void* m_vid_mapper = nullptr;      // Pointer to VidMapper instance
   void* m_query_config = nullptr;    // Pointer to a base VariantQueryConfig instance
+  void *m_annotation_service = nullptr; // Pointer to AnnotationService instance
 
   int m_concurrency_rank = 0;
 
@@ -403,5 +508,7 @@ GENOMICSDB_EXPORT const genomicsdb_variant_call_t* GenomicsDBResults<genomicsdb_
 template<>
 GENOMICSDB_EXPORT void GenomicsDBResults<genomicsdb_variant_call_t>::free();
 
+template<class VariantOrVariantCall>
+std::vector<genomic_field_t> get_genomic_fields_for(const std::string& array, const VariantOrVariantCall* variant_or_variant_call, VariantQueryConfig* query_config);
 
 #endif /* GENOMICSDB_H */

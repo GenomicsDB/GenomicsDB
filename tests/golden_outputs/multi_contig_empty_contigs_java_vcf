@@ -1,0 +1,1113 @@
+##fileformat=VCFv4.2
+##ALT=<ID=NON_REF,Description="Represents any possible alternative allele at this location">
+##FILTER=<ID=LowQual,Description="Low quality">
+##FILTER=<ID=PASS,Description="All filters passed">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth (reads with MQ=255 or with bad mates are filtered)">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=MIN_DP,Number=1,Type=Integer,Description="Minimum DP observed within the GVCF block">
+##FORMAT=<ID=PGT,Number=1,Type=String,Description="Physical phasing haplotype information, describing how the alternate alleles are phased in relation to one another">
+##FORMAT=<ID=PID,Number=1,Type=String,Description="Physical phasing ID information, where each unique ID within a given sample (but not across samples) connects records within a phasing group">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##FORMAT=<ID=SB,Number=4,Type=Integer,Description="Per-sample component statistics which comprise the Fisher's Exact Test to detect strand bias.">
+##GATKCommandLine=<ID=HaplotypeCaller,Version=3.1-1-g07a4bf8,Date="Fri Apr 04 09:42:24 EDT 2014",Epoch=1396618944211,CommandLineOptions="analysis_type=HaplotypeCaller input_file=[/seq/external-data/1kg/GBR/exome/HG00141/HG00141.bam] showFullBamList=false read_buffer_size=null phone_home=AWS gatk_key=null tag=NA read_filter=[] intervals=[/seq/picardtemp3/seq/sample_vcf/1kg_GBR/Exome/Homo_sapiens_assembly19/7d4759a5-8e11-324c-8d3a-cc375e53e06c/scattered/temp_0001_of_10/scattered.intervals] excludeIntervals=null interval_set_rule=UNION interval_merging=ALL interval_padding=0 reference_sequence=/seq/references/Homo_sapiens_assembly19/v1/Homo_sapiens_assembly19.fasta nonDeterministicRandomSeed=false disableDithering=false maxRuntime=-1 maxRuntimeUnits=MINUTES downsampling_type=BY_SAMPLE downsample_to_fraction=null downsample_to_coverage=250 baq=OFF baqGapOpenPenalty=40.0 fix_misencoded_quality_scores=false allow_potentially_misencoded_quality_scores=false useOriginalQualities=false defaultBaseQualities=-1 performanceLog=null BQSR=null quantize_quals=0 disable_indel_quals=false emit_original_quals=false preserve_qscores_less_than=6 globalQScorePrior=-1.0 validation_strictness=SILENT remove_program_records=false keep_program_records=false sample_rename_mapping_file=null unsafe=null disable_auto_index_creation_and_locking_when_reading_rods=true num_threads=1 num_cpu_threads_per_data_thread=1 num_io_threads=0 monitorThreadEfficiency=false num_bam_file_handles=null read_group_black_list=null pedigree=[] pedigreeString=[] pedigreeValidationType=STRICT allow_intervals_with_unindexed_bam=false generateShadowBCF=false variant_index_type=LINEAR variant_index_parameter=128000 logging_level=INFO log_to_file=null help=false version=false likelihoodCalculationEngine=PairHMM heterogeneousKmerSizeResolution=COMBO_MIN graphOutput=null bamOutput=null bam_compression=null disable_bam_indexing=null generate_md5=null simplifyBAM=null bamWriterType=CALLED_HAPLOTYPES dbsnp=(RodBinding name= source=UNBOUND) dontTrimActiveRegions=false maxDiscARExtension=25 maxGGAARExtension=300 paddingAroundIndels=150 paddingAroundSNPs=20 comp=[] annotation=[ClippingRankSumTest, DepthPerSampleHC, StrandBiasBySample] excludeAnnotation=[SpanningDeletions, TandemRepeatAnnotator, ChromosomeCounts, FisherStrand, QualByDepth] heterozygosity=0.001 indel_heterozygosity=1.25E-4 genotyping_mode=DISCOVERY standard_min_confidence_threshold_for_calling=-0.0 standard_min_confidence_threshold_for_emitting=-0.0 alleles=(RodBinding name= source=UNBOUND) max_alternate_alleles=3 input_prior=[] contamination_fraction_to_filter=0.019 contamination_fraction_per_sample_file=null p_nonref_model=EXACT_INDEPENDENT exactcallslog=null kmerSize=[10, 25] dontIncreaseKmerSizesForCycles=false numPruningSamples=1 recoverDanglingHeads=false dontRecoverDanglingTails=false consensus=false emitRefConfidence=GVCF GVCFGQBands=[5, 20, 60] indelSizeToEliminateInRefModel=10 min_base_quality_score=10 minPruning=3 gcpHMM=10 includeUmappedReads=false useAllelesTrigger=false useFilteredReadsForAnnotations=false phredScaledGlobalReadMismappingRate=45 maxNumHaplotypesInPopulation=200 mergeVariantsViaLD=false pair_hmm_implementation=VECTOR_LOGLESS_CACHING keepRG=null justDetermineActiveRegions=false dontGenotype=false errorCorrectKmers=false debug=false debugGraphTransformations=false dontUseSoftClippedBases=false captureAssemblyFailureBAM=false allowCyclesInKmerGraphToGeneratePaths=false noFpga=false errorCorrectReads=false kmerLengthForReadErrorCorrection=25 minObservationsForKmerToBeSolid=20 pcr_indel_model=CONSERVATIVE activityProfileOut=null activeRegionOut=null activeRegionIn=null activeRegionExtension=null forceActive=false activeRegionMaxSize=null bandPassSigma=null min_mapping_quality_score=20 filter_reads_with_N_cigar=false filter_mismatching_base_and_quals=false filter_bases_not_stored=false">
+##GVCFBlock=minGQ=0(inclusive),maxGQ=5(exclusive)
+##GVCFBlock=minGQ=20(inclusive),maxGQ=60(exclusive)
+##GVCFBlock=minGQ=5(inclusive),maxGQ=20(exclusive)
+##GVCFBlock=minGQ=60(inclusive),maxGQ=2147483647(exclusive)
+##INFO=<ID=AN,Number=1,Type=Integer,Description="AN">
+##INFO=<ID=BaseQRankSum,Number=1,Type=Float,Description="Z-score from Wilcoxon rank sum test of Alt Vs. Ref base qualities">
+##INFO=<ID=ClippingRankSum,Number=1,Type=Float,Description="Z-score From Wilcoxon rank sum test of Alt vs. Ref number of hard clipped bases">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Approximate read depth; some reads may have been filtered">
+##INFO=<ID=DS,Number=0,Type=Flag,Description="Were any of the samples downsampled?">
+##INFO=<ID=END,Number=1,Type=Integer,Description="Stop position of the interval">
+##INFO=<ID=HaplotypeScore,Number=1,Type=Float,Description="Consistency of the site with at most two segregating haplotypes">
+##INFO=<ID=InbreedingCoeff,Number=1,Type=Float,Description="Inbreeding coefficient as estimated from the genotype likelihoods per-sample when compared against the Hardy-Weinberg expectation">
+##INFO=<ID=MLEAC,Number=A,Type=Integer,Description="Maximum likelihood expectation (MLE) for the allele counts (not necessarily the same as the AC), for each ALT allele, in the same order as listed">
+##INFO=<ID=MLEAF,Number=A,Type=Float,Description="Maximum likelihood expectation (MLE) for the allele frequency (not necessarily the same as the AF), for each ALT allele, in the same order as listed">
+##INFO=<ID=MQ,Number=1,Type=Float,Description="RMS Mapping Quality">
+##INFO=<ID=MQ0,Number=1,Type=Integer,Description="Total Mapping Quality Zero Reads">
+##INFO=<ID=MQRankSum,Number=1,Type=Float,Description="Z-score From Wilcoxon rank sum test of Alt vs. Ref read mapping qualities">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="NS">
+##INFO=<ID=RAW_MQ,Number=1,Type=Float,Description="Raw data for RMS Mapping Quality">
+##INFO=<ID=ReadPosRankSum,Number=1,Type=Float,Description="Z-score from Wilcoxon rank sum test of Alt vs. Ref read position bias">
+##INFO=<ID=SB,Number=1,Type=Float,Description="SB">
+##contig=<ID=scaffold_3121,length=2043>
+##contig=<ID=scaffold_3427,length=2622>
+##contig=<ID=scaffold_3213,length=1653>
+##contig=<ID=scaffold_3050,length=2317>
+##contig=<ID=scaffold_3381,length=1181>
+##contig=<ID=scaffold_3472,length=1331>
+##contig=<ID=scaffold_2907,length=2749>
+##contig=<ID=scaffold_3046,length=2329>
+##contig=<ID=scaffold_3412,length=2813>
+##contig=<ID=scaffold_3304,length=1992>
+##contig=<ID=scaffold_3332,length=1283>
+##contig=<ID=scaffold_3326,length=2466>
+##contig=<ID=scaffold_3230,length=1594>
+##contig=<ID=scaffold_3160,length=1884>
+##contig=<ID=scaffold_3403,length=2418>
+##contig=<ID=scaffold_2851,length=2950>
+##contig=<ID=scaffold_3416,length=1094>
+##contig=<ID=scaffold_3340,length=2888>
+##contig=<ID=scaffold_2911,length=2734>
+##contig=<ID=scaffold_3442,length=1032>
+##contig=<ID=scaffold_3681,length=1022>
+##contig=<ID=scaffold_2889,length=2826>
+##contig=<ID=scaffold_3305,length=1337>
+##contig=<ID=scaffold_3335,length=1924>
+##contig=<ID=scaffold_3316,length=1314>
+##contig=<ID=scaffold_3126,length=2028>
+##contig=<ID=scaffold_3363,length=1230>
+##contig=<ID=scaffold_2844,length=2966>
+##contig=<ID=scaffold_3388,length=1155>
+##contig=<ID=scaffold_3285,length=2448>
+##contig=<ID=scaffold_2968,length=2573>
+##contig=<ID=scaffold_3074,length=2965>
+##contig=<ID=scaffold_3436,length=2815>
+##contig=<ID=scaffold_3289,length=2781>
+##contig=<ID=scaffold_3264,length=1441>
+##contig=<ID=scaffold_2919,length=2717>
+##contig=<ID=scaffold_3422,length=2139>
+##contig=<ID=scaffold_3393,length=1141>
+##contig=<ID=scaffold_3387,length=1156>
+##contig=<ID=scaffold_3453,length=1003>
+##contig=<ID=scaffold_3171,length=1840>
+##contig=<ID=scaffold_3372,length=1208>
+##contig=<ID=scaffold_3389,length=1153>
+##contig=<ID=scaffold_3259,length=1665>
+##contig=<ID=scaffold_2930,length=2674>
+##contig=<ID=scaffold_3129,length=2114>
+##contig=<ID=scaffold_3044,length=2336>
+##contig=<ID=scaffold_3147,length=2230>
+##contig=<ID=scaffold_2885,length=2936>
+##contig=<ID=scaffold_3452,length=1858>
+##contig=<ID=scaffold_3202,length=2247>
+##contig=<ID=scaffold_3263,length=1970>
+##contig=<ID=scaffold_3354,length=2537>
+##contig=<ID=scaffold_3134,length=2599>
+##contig=<ID=scaffold_3255,length=2564>
+##contig=<ID=scaffold_3320,length=2574>
+##contig=<ID=scaffold_3523,length=1130>
+##contig=<ID=scaffold_3432,length=1048>
+##contig=<ID=scaffold_3239,length=1965>
+##contig=<ID=scaffold_3206,length=1669>
+##contig=<ID=scaffold_3437,length=1040>
+##contig=<ID=scaffold_2922,length=2707>
+##contig=<ID=scaffold_3136,length=2710>
+##contig=<ID=scaffold_3292,length=1613>
+##contig=<ID=scaffold_3391,length=1147>
+##contig=<ID=scaffold_3061,length=2903>
+##contig=<ID=scaffold_3250,length=1485>
+##contig=<ID=scaffold_3226,length=1920>
+##contig=<ID=scaffold_2857,length=2929>
+##contig=<ID=scaffold_3528,length=2635>
+##contig=<ID=scaffold_3325,length=1298>
+##contig=<ID=scaffold_3296,length=1362>
+##contig=<ID=scaffold_3298,length=2443>
+##contig=<ID=scaffold_2924,length=2704>
+##contig=<ID=scaffold_3157,length=1898>
+##contig=<ID=scaffold_2855,length=2931>
+##contig=<ID=scaffold_3275,length=1417>
+##contig=<ID=scaffold_3007,length=2593>
+##contig=<ID=scaffold_3306,length=1470>
+##contig=<ID=scaffold_3179,length=2709>
+##contig=<ID=scaffold_3060,length=2290>
+##contig=<ID=scaffold_3222,length=1606>
+##contig=<ID=scaffold_3648,length=2796>
+##contig=<ID=scaffold_3005,length=2485>
+##contig=<ID=scaffold_3020,length=2530>
+##contig=<ID=scaffold_3194,length=2061>
+##contig=<ID=scaffold_3328,length=1293>
+##contig=<ID=scaffold_3251,length=2376>
+##contig=<ID=scaffold_3547,length=1702>
+##contig=<ID=scaffold_3342,length=2686>
+##contig=<ID=scaffold_3139,length=1964>
+##contig=<ID=scaffold_3262,length=1448>
+##contig=<ID=scaffold_3210,length=1863>
+##contig=<ID=scaffold_2981,length=2544>
+##contig=<ID=scaffold_2933,length=2669>
+##contig=<ID=scaffold_3056,length=2299>
+##contig=<ID=scaffold_3413,length=1105>
+##contig=<ID=scaffold_3064,length=2391>
+##contig=<ID=scaffold_3353,length=1243>
+##contig=<ID=scaffold_2913,length=2832>
+##contig=<ID=scaffold_3445,length=1028>
+##contig=<ID=scaffold_3374,length=1200>
+##contig=<ID=scaffold_3214,length=1641>
+##contig=<ID=scaffold_3423,length=1189>
+##contig=<ID=scaffold_3095,length=2137>
+##contig=<ID=scaffold_2965,length=2576>
+##contig=<ID=scaffold_3357,length=1239>
+##contig=<ID=scaffold_3021,length=2419>
+##contig=<ID=scaffold_3228,length=1597>
+##contig=<ID=scaffold_3300,length=2080>
+##contig=<ID=scaffold_3042,length=2357>
+##contig=<ID=scaffold_3312,length=1324>
+##contig=<ID=scaffold_3537,length=1011>
+##contig=<ID=scaffold_3058,length=2824>
+##contig=<ID=scaffold_3425,length=1075>
+##contig=<ID=scaffold_3431,length=1055>
+##contig=<ID=scaffold_3368,length=1220>
+##contig=<ID=scaffold_2951,length=2618>
+##contig=<ID=scaffold_3356,length=2921>
+##contig=<ID=scaffold_3116,length=2637>
+##contig=<ID=scaffold_3257,length=1463>
+##contig=<ID=scaffold_3478,length=2690>
+##contig=<ID=scaffold_3068,length=2254>
+##contig=<ID=scaffold_3008,length=2908>
+##contig=<ID=scaffold_2893,length=2797>
+##contig=<ID=scaffold_3088,length=2159>
+##contig=<ID=scaffold_3269,length=1431>
+##contig=<ID=scaffold_3245,length=2263>
+##contig=<ID=scaffold_3190,length=1726>
+##contig=<ID=scaffold_3054,length=2300>
+##contig=<ID=scaffold_3383,length=1162>
+##contig=<ID=scaffold_3346,length=1260>
+##contig=<ID=scaffold_3223,length=1705>
+##contig=<ID=scaffold_3446,length=1027>
+##contig=<ID=scaffold_3370,length=2985>
+##contig=<ID=scaffold_3252,length=1483>
+##contig=<ID=scaffold_3053,length=2603>
+##contig=<ID=scaffold_3100,length=2123>
+##contig=<ID=scaffold_2838,length=2988>
+##contig=<ID=scaffold_3272,length=1426>
+##contig=<ID=scaffold_3384,length=2287>
+##contig=<ID=scaffold_2868,length=2983>
+##contig=<ID=scaffold_3398,length=1131>
+##contig=<ID=scaffold_3107,length=2869>
+##contig=<ID=scaffold_3014,length=2633>
+##contig=<ID=scaffold_3364,length=2412>
+##contig=<ID=scaffold_2987,length=2534>
+##contig=<ID=scaffold_3191,length=2934>
+##contig=<ID=scaffold_3076,length=2214>
+##contig=<ID=scaffold_3246,length=1501>
+##contig=<ID=scaffold_3011,length=2971>
+##contig=<ID=scaffold_3348,length=1258>
+##contig=<ID=scaffold_3231,length=1591>
+##contig=<ID=scaffold_3448,length=1020>
+##contig=<ID=scaffold_3360,length=1235>
+##contig=<ID=scaffold_3352,length=2879>
+##contig=<ID=scaffold_3294,length=1369>
+##contig=<ID=scaffold_2853,length=2935>
+##contig=<ID=scaffold_3024,length=2408>
+##contig=<ID=scaffold_3426,length=1074>
+##contig=<ID=scaffold_3379,length=1639>
+##contig=<ID=scaffold_3440,length=1034>
+##contig=<ID=scaffold_3550,length=1938>
+##contig=<ID=scaffold_2879,length=2846>
+##contig=<ID=scaffold_3362,length=1482>
+##contig=<ID=scaffold_3236,length=1544>
+##reference=file:///seq/references/Homo_sapiens_assembly19/v1/Homo_sapiens_assembly19.fasta
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	P717
+scaffold_3381	128	.	T	C	.	.	DP=39	GT:AD:DP	0/1:16,9:25
+scaffold_3381	153	.	C	T	.	.	DP=40	GT:AD:DP	0/1:15,13:28
+scaffold_3381	158	.	A	G	.	.	DP=40	GT:AD:DP	0/1:11,17:28
+scaffold_3381	159	.	T	C	.	.	DP=40	GT:AD:DP	0/1:10,18:28
+scaffold_3381	170	.	C	T	.	.	DP=44	GT:AD:DP	1/1:1,28:29
+scaffold_3381	196	.	A	G	.	.	DP=38	GT:AD:DP	0/1:16,10:26
+scaffold_3381	205	.	A	G	.	.	DP=32	GT:AD:DP	0/1:9,13:22
+scaffold_3381	207	.	A	G	.	.	DP=31	GT:AD:DP	0/1:7,11:18
+scaffold_3381	216	.	G	A	.	.	DP=18	GT:AD:DP	0/1:8,4:12
+scaffold_3381	228	.	G	A	.	.	DP=9	GT:AD:DP	1/1:0,5:5
+scaffold_3381	631	.	C	T	.	.	DP=9	GT:AD:DP	1/1:0,6:6
+scaffold_3381	655	.	G	A	.	.	DP=8	GT:AD:DP	1/1:0,8:8
+scaffold_3381	677	.	A	T	.	.	DP=9	GT:AD:DP	1/1:0,6:6
+scaffold_2907	799	.	T	A	.	.	DP=37	GT:AD:DP	1/1:2,23:25
+scaffold_2907	807	.	A	T	.	.	DP=39	GT:AD:DP	1/1:2,24:26
+scaffold_2907	1052	.	A	T	.	.	DP=13	GT:AD:DP	0/1:4,6:10
+scaffold_2907	1159	.	T	A	.	.	DP=10	GT:AD:DP	1/1:1,5:6
+scaffold_3160	183	.	C	T	.	.	DP=14	GT:AD:DP	1/1:0,5:5
+scaffold_3160	227	.	T	C	.	.	DP=20	GT:AD:DP	0/1:5,10:15
+scaffold_3160	258	.	T	G	.	.	DP=21	GT:AD:DP	1/1:0,19:19
+scaffold_3160	261	.	A	G	.	.	DP=21	GT:AD:DP	0/1:6,13:19
+scaffold_3160	268	.	A	G	.	.	DP=21	GT:AD:DP	1/1:0,19:19
+scaffold_3160	290	.	T	C	.	.	DP=20	GT:AD:DP	1/1:0,18:18
+scaffold_3160	292	.	C	T	.	.	DP=19	GT:AD:DP	1/1:0,18:18
+scaffold_3160	320	.	C	T	.	.	DP=20	GT:AD:DP	1/1:0,14:14
+scaffold_3160	353	.	C	T	.	.	DP=18	GT:AD:DP	1/1:0,13:14
+scaffold_3160	356	.	G	A	.	.	DP=18	GT:AD:DP	1/1:1,13:14
+scaffold_3160	358	.	C	T	.	.	DP=18	GT:AD:DP	1/1:0,14:14
+scaffold_3160	373	.	A	G	.	.	DP=20	GT:AD:DP	0/1:1,12:13
+scaffold_3160	398	.	A	C	.	.	DP=24	GT:AD:DP	0/1:4,11:15
+scaffold_3160	438	.	G	A	.	.	DP=15	GT:AD:DP	1/1:0,10:10
+scaffold_3160	440	.	C	T	.	.	DP=15	GT:AD:DP	1/1:1,8:10
+scaffold_3160	455	.	T	A	.	.	DP=12	GT:AD:DP	1/1:0,9:10
+scaffold_3160	1107	.	A	T	.	.	DP=8	GT:AD:DP	0/1:3,4:7
+scaffold_3160	1112	.	T	A	.	.	DP=9	GT:AD:DP	1/1:0,8:8
+scaffold_3160	1125	.	T	C	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_3160	1140	.	T	G	.	.	DP=9	GT:AD:DP	1/1:1,8:9
+scaffold_3160	1141	.	T	C	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_3160	1149	.	C	T	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_3160	1167	.	T	C	.	.	DP=13	GT:AD:DP	0/1:5,7:12
+scaffold_3160	1191	.	G	A	.	.	DP=12	GT:AD:DP	0/1:3,8:11
+scaffold_3160	1192	.	G	A	.	.	DP=12	GT:AD:DP	0/1:8,2:10
+scaffold_3160	1195	.	C	T	.	.	DP=11	GT:AD:DP	0/1:2,7:9
+scaffold_3160	1205	.	T	C	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_3160	1215	.	T	C	.	.	DP=8	GT:AD:DP	1/1:0,7:7
+scaffold_3160	1216	.	C	T	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_3160	1217	.	A	G	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_3160	1223	.	G	A	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_3160	1226	.	A	G	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_3160	1236	.	G	A	.	.	DP=8	GT:AD:DP	1/1:0,7:7
+scaffold_3160	1254	.	A	C	.	.	DP=8	GT:AD:DP	1/1:0,7:7
+scaffold_3160	1299	.	T	C	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_3160	1317	.	A	G	.	.	DP=15	GT:AD:DP	1/1:1,11:14
+scaffold_3160	1344	.	T	A	.	.	DP=15	GT:AD:DP	1/1:0,15:15
+scaffold_3160	1349	.	G	A	.	.	DP=16	GT:AD:DP	1/1:3,12:15
+scaffold_3160	1354	.	A	T	.	.	DP=16	GT:AD:DP	0/1:7,8:15
+scaffold_3160	1356	.	A	T	.	.	DP=16	GT:AD:DP	1/1:3,12:15
+scaffold_3160	1357	.	C	T	.	.	DP=16	GT:AD:DP	1/1:0,14:15
+scaffold_3160	1362	.	A	G	.	.	DP=16	GT:AD:DP	1/1:0,13:14
+scaffold_3160	1364	.	A	G	.	.	DP=16	GT:AD:DP	0/1:7,8:15
+scaffold_3160	1365	.	T	C	.	.	DP=16	GT:AD:DP	0/1:6,9:15
+scaffold_3160	1403	.	G	A	.	.	DP=14	GT:AD:DP	0/1:2,8:10
+scaffold_3160	1410	.	G	A	.	.	DP=9	GT:AD:DP	1/1:0,6:6
+scaffold_3160	1585	.	C	G	.	.	DP=5;NS=1	GT:AD:DP	1/1:0,5:5
+scaffold_3160	1606	.	A	G	.	.	DP=11	GT:AD:DP	1/1:0,10:10
+scaffold_3160	1613	.	C	T	.	.	DP=11	GT:AD:DP	1/1:0,11:11
+scaffold_3160	1634	.	A	T	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_3160	1653	.	A	G	.	.	DP=14	GT:AD:DP	1/1:0,14:14
+scaffold_3160	1654	.	A	T	.	.	DP=14	GT:AD:DP	1/1:0,14:14
+scaffold_3160	1687	.	C	A	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_3160	1701	.	C	T	.	.	DP=11	GT:AD:DP	1/1:0,5:5
+scaffold_3416	289	.	G	T	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2911	509	.	T	A	.	.	DP=13	GT:AD:DP	1/1:0,12:12
+scaffold_2911	532	.	T	C	.	.	DP=14	GT:AD:DP	1/1:0,14:14
+scaffold_2911	543	.	C	G	.	.	DP=14	GT:AD:DP	0/1:8,5:13
+scaffold_2911	559	.	A	G	.	.	DP=13	GT:AD:DP	0/1:4,9:13
+scaffold_2911	573	.	A	C	.	.	DP=13	GT:AD:DP	0/1:4,9:13
+scaffold_2911	604	.	T	C	.	.	DP=11	GT:AD:DP	1/1:0,5:5
+scaffold_2911	654	.	T	A	.	.	DP=18	GT:AD:DP	1/1:0,8:8
+scaffold_2911	700	.	T	C	.	.	DP=25	GT:AD:DP	1/1:0,18:18
+scaffold_2911	718	.	T	C	.	.	DP=22	GT:AD:DP	1/1:0,18:18
+scaffold_2911	746	.	T	C	.	.	DP=14	GT:AD:DP	0/1:5,8:13
+scaffold_2911	757	.	T	A	.	.	DP=11	GT:AD:DP	1/1:0,9:9
+scaffold_2911	1033	.	C	T	.	.	DP=5;NS=1	GT:AD:DP	1/1:0,5:5
+scaffold_2911	1042	.	A	G	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_2911	1043	.	G	A	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_2911	1052	.	T	C	.	.	DP=8	GT:AD:DP	1/1:0,6:6
+scaffold_2911	1053	.	A	C	.	.	DP=8	GT:AD:DP	1/1:0,6:6
+scaffold_2911	1061	.	G	A	.	.	DP=8	GT:AD:DP	1/1:0,7:7
+scaffold_2911	1071	.	C	T	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2911	1076	.	C	T	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2911	1083	.	G	A	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2911	1085	.	C	T	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2911	1089	.	T	C	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2911	1090	.	T	A	.	.	DP=9	GT:AD:DP	1/1:0,7:7
+scaffold_2911	1096	.	A	G	.	.	DP=11	GT:AD:DP	1/1:0,10:10
+scaffold_2911	1120	.	A	G	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2911	1135	.	A	G	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2911	1153	.	A	G	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2911	1163	.	T	C	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2911	1164	.	A	C	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2911	1167	.	A	G	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2911	1172	.	G	A	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2911	1175	.	T	C	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2911	1540	.	C	T	.	.	DP=7	GT:AD:DP	0/1:2,5:7
+scaffold_2911	1545	.	T	C	.	.	DP=7	GT:AD:DP	0/1:2,4:6
+scaffold_2911	1550	.	C	T	.	.	DP=6	GT:AD:DP	1/1:1,5:6
+scaffold_2911	1554	.	G	A	.	.	DP=6	GT:AD:DP	1/1:1,5:6
+scaffold_2911	1564	.	T	C	.	.	DP=12	GT:AD:DP	1/1:2,6:8
+scaffold_2911	1565	.	T	C	.	.	DP=12	GT:AD:DP	1/1:0,11:11
+scaffold_2911	1577	.	G	A	.	.	DP=16	GT:AD:DP	1/1:1,14:15
+scaffold_2911	1580	.	T	G	.	.	DP=18	GT:AD:DP	0/1:2,10:16
+scaffold_2911	1613	.	T	C	.	.	DP=21	GT:AD:DP	1/1:3,17:20
+scaffold_2911	1662	.	T	A	.	.	DP=12	GT:AD:DP	1/1:1,9:10
+scaffold_2911	1897	.	G	A	.	.	DP=7	GT:AD:DP	1/1:0,6:7
+scaffold_2911	1923	.	A	G	.	.	DP=7	GT:AD:DP	1/1:1,6:7
+scaffold_2911	2030	.	C	G	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2911	2043	.	T	C	.	.	DP=11	GT:AD:DP	0/1:5,6:11
+scaffold_2911	2045	.	A	C	.	.	DP=13	GT:AD:DP	1/1:0,11:11
+scaffold_2911	2058	.	T	C	.	.	DP=23	GT:AD:DP	0/1:13,10:23
+scaffold_2911	2073	.	T	G	.	.	DP=23	GT:AD:DP	1/1:0,18:23
+scaffold_2911	2084	.	T	G	.	.	DP=23	GT:AD:DP	0/1:13,10:23
+scaffold_2911	2088	.	T	C	.	.	DP=23	GT:AD:DP	0/1:10,13:23
+scaffold_2911	2092	.	G	A	.	.	DP=23	GT:AD:DP	1/1:0,23:23
+scaffold_2911	2105	.	T	C	.	.	DP=23	GT:AD:DP	1/1:0,21:21
+scaffold_2911	2126	.	C	T	.	.	DP=15	GT:AD:DP	1/1:0,15:15
+scaffold_2911	2640	.	T	C	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_2911	2644	.	G	A	.	.	DP=10	GT:AD:DP	1/1:0,8:8
+scaffold_2911	2675	.	T	C	.	.	DP=7	GT:AD:DP	1/1:0,5:5
+scaffold_3442	205	.	A	G	.	.	DP=12	GT:AD:DP	1/1:0,9:9
+scaffold_3442	217	.	T	C	.	.	DP=12	GT:AD:DP	1/1:0,10:10
+scaffold_3442	225	.	C	G	.	.	DP=13	GT:AD:DP	1/1:0,12:12
+scaffold_3442	226	.	C	T	.	.	DP=13	GT:AD:DP	1/1:0,11:11
+scaffold_3442	233	.	A	T	.	.	DP=13	GT:AD:DP	1/1:0,12:12
+scaffold_3442	240	.	C	T	.	.	DP=14	GT:AD:DP	1/1:0,13:13
+scaffold_3442	251	.	A	G	.	.	DP=17	GT:AD:DP	1/1:0,14:14
+scaffold_3442	298	.	G	A	.	.	DP=9	GT:AD:DP	1/1:0,7:7
+scaffold_3442	432	.	G	A	.	.	DP=9	GT:AD:DP	1/1:0,5:5
+scaffold_3442	433	.	G	C	.	.	DP=9	GT:AD:DP	1/1:0,5:5
+scaffold_3442	452	.	C	A	.	.	DP=9	GT:AD:DP	1/1:0,5:5
+scaffold_3442	454	.	C	T	.	.	DP=9	GT:AD:DP	1/1:0,5:5
+scaffold_3442	898	.	G	A	.	.	DP=11	GT:AD:DP	1/1:0,11:11
+scaffold_3442	919	.	G	A	.	.	DP=11	GT:AD:DP	0/1:6,5:11
+scaffold_3442	925	.	C	T	.	.	DP=11	GT:AD:DP	0/1:6,5:11
+scaffold_3442	928	.	C	T	.	.	DP=11	GT:AD:DP	0/1:5,4:9
+scaffold_3442	936	.	T	C	.	.	DP=9	GT:AD:DP	0/1:4,5:9
+scaffold_3442	950	.	T	A	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_3442	968	.	C	T	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2889	467	.	A	G	.	.	DP=8	GT:AD:DP	1/1:0,6:6
+scaffold_2889	473	.	A	G	.	.	DP=11	GT:AD:DP	0/1:4,4:8
+scaffold_2889	478	.	C	A	.	.	DP=12	GT:AD:DP	1/1:0,11:11
+scaffold_2889	505	.	C	A	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2889	506	.	T	C	.	.	DP=15	GT:AD:DP	1/1:0,14:14
+scaffold_2889	508	.	C	A	.	.	DP=15	GT:AD:DP	1/1:0,15:15
+scaffold_2889	511	.	T	A	.	.	DP=15	GT:AD:DP	1/1:0,15:15
+scaffold_2889	512	.	T	C	.	.	DP=15	GT:AD:DP	1/1:0,15:15
+scaffold_2889	515	.	G	C	.	.	DP=16	GT:AD:DP	1/1:0,15:15
+scaffold_2889	527	.	A	G	.	.	DP=20	GT:AD:DP	1/1:0,20:20
+scaffold_2889	545	.	G	C	.	.	DP=19	GT:AD:DP	0/1:5,14:19
+scaffold_2889	560	.	T	C	.	.	DP=20	GT:AD:DP	1/1:0,19:19
+scaffold_2889	588	.	G	A	.	.	DP=14	GT:AD:DP	1/1:0,14:14
+scaffold_2889	596	.	A	G	.	.	DP=14	GT:AD:DP	1/1:0,13:13
+scaffold_2889	607	.	A	C	.	.	DP=12	GT:AD:DP	0/1:3,9:12
+scaffold_2889	610	.	T	C	.	.	DP=12	GT:AD:DP	1/1:0,11:11
+scaffold_2889	622	.	A	G	.	.	DP=8	GT:AD:DP	0/1:3,4:7
+scaffold_2889	625	.	T	A	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2889	1012	.	T	C	.	.	DP=8	GT:AD:DP	1/1:0,7:7
+scaffold_2889	1015	.	C	T	.	.	DP=8	GT:AD:DP	1/1:0,8:8
+scaffold_2889	1016	.	G	A	.	.	DP=8	GT:AD:DP	1/1:0,8:8
+scaffold_2889	1019	.	A	G	.	.	DP=8	GT:AD:DP	1/1:0,8:8
+scaffold_2889	1035	.	T	C	.	.	DP=9	GT:AD:DP	1/1:0,8:8
+scaffold_2889	1039	.	C	G	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2889	1043	.	G	A	.	.	DP=11	GT:AD:DP	1/1:0,9:9
+scaffold_2889	1044	.	C	T	.	.	DP=11	GT:AD:DP	1/1:0,9:9
+scaffold_2889	1050	.	T	C	.	.	DP=11	GT:AD:DP	1/1:0,11:11
+scaffold_2889	1068	.	C	T	.	.	DP=12	GT:AD:DP	1/1:0,12:12
+scaffold_2889	1078	.	A	G	.	.	DP=12	GT:AD:DP	1/1:0,8:8
+scaffold_2889	1095	.	C	A	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_2889	1105	.	C	T	.	.	DP=13	GT:AD:DP	1/1:0,8:8
+scaffold_2889	1127	.	G	A	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_2889	1132	.	G	A	.	.	DP=12	GT:AD:DP	1/1:0,12:12
+scaffold_2889	1144	.	C	T	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_2889	1168	.	A	C	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2889	1169	.	C	T	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2889	1171	.	A	G	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2889	1174	.	G	A	.	.	DP=9	GT:AD:DP	1/1:0,8:8
+scaffold_2889	1289	.	C	A	.	.	DP=5;NS=1	GT:AD:DP	1/1:0,5:5
+scaffold_2889	1316	.	T	A	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2889	1317	.	T	A	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_2889	1318	.	T	A	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_2889	1319	.	T	A	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_2889	1328	.	A	G	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2889	1363	.	G	A	.	.	DP=22	GT:AD:DP	1/1:3,18:21
+scaffold_2889	1406	.	C	T	.	.	DP=37	GT:AD:DP	1/1:0,34:34
+scaffold_2889	1407	.	T	A	.	.	DP=36	GT:AD:DP	1/1:0,27:35
+scaffold_2889	1428	.	T	G	.	.	DP=42	GT:AD:DP	1/1:0,40:40
+scaffold_2889	1429	.	A	G	.	.	DP=42	GT:AD:DP	1/1:0,39:39
+scaffold_2889	1471	.	T	C	.	.	DP=38	GT:AD:DP	1/1:0,35:35
+scaffold_2889	1498	.	A	C	.	.	DP=28	GT:AD:DP	1/1:0,26:26
+scaffold_2889	1503	.	A	C	.	.	DP=27	GT:AD:DP	1/1:0,23:23
+scaffold_2889	1508	.	C	A	.	.	DP=25	GT:AD:DP	0/1:15,7:22
+scaffold_2889	1770	.	A	G	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2889	1777	.	A	G	.	.	DP=11	GT:AD:DP	1/1:0,9:9
+scaffold_2889	1784	.	T	C	.	.	DP=16	GT:AD:DP	1/1:0,14:14
+scaffold_2889	1830	.	T	A	.	.	DP=24	GT:AD:DP	0/1:15,6:21
+scaffold_2889	1846	.	C	A	.	.	DP=26	GT:AD:DP	1/1:0,25:25
+scaffold_2889	1854	.	A	G	.	.	DP=30	GT:AD:DP	1/1:0,28:28
+scaffold_2889	1855	.	T	A	.	.	DP=30	GT:AD:DP	1/1:0,28:28
+scaffold_2889	1894	.	C	G	.	.	DP=27	GT:AD:DP	1/1:0,26:26
+scaffold_2889	1912	.	T	G	.	.	DP=24	GT:AD:DP	1/1:0,20:20
+scaffold_2889	1940	.	C	A	.	.	DP=16	GT:AD:DP	0/1:5,5:11
+scaffold_2889	1944	.	T	C	.	.	DP=21	GT:AD:DP	0/1:6,7:13
+scaffold_2889	1949	.	G	A	.	.	DP=5;NS=1	GT:AD:DP	1/1:0,5:5
+scaffold_2889	1974	.	A	T	.	.	DP=18	GT:AD:DP	1/1:0,7:7
+scaffold_2889	1989	.	T	C	.	.	DP=19	GT:AD:DP	1/1:0,7:7
+scaffold_2889	2015	.	A	G	.	.	DP=16	GT:AD:DP	1/1:0,6:6
+scaffold_2889	2021	.	G	C	.	.	DP=16	GT:AD:DP	1/1:0,6:6
+scaffold_3363	1171	.	A	G	.	.	DP=8	GT:AD:DP	1/1:0,7:7
+scaffold_3363	1174	.	C	A	.	.	DP=8	GT:AD:DP	1/1:0,6:6
+scaffold_2844	774	.	C	G	.	.	DP=11	GT:AD:DP	0/1:5,5:10
+scaffold_2844	779	.	A	T	.	.	DP=12	GT:AD:DP	1/1:0,11:11
+scaffold_2844	780	.	C	A	.	.	DP=12	GT:AD:DP	0/1:6,5:11
+scaffold_2844	790	.	A	G	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_2844	811	.	T	A	.	.	DP=12	GT:AD:DP	0/1:7,5:12
+scaffold_2844	974	.	C	A	.	.	DP=17	GT:AD:DP	1/1:2,10:12
+scaffold_2844	985	.	G	A	.	.	DP=19	GT:AD:DP	1/1:0,13:13
+scaffold_2844	1016	.	A	G	.	.	DP=19	GT:AD:DP	1/1:0,11:11
+scaffold_2844	1045	.	A	G	.	.	DP=6;NS=1	GT:AD:DP	1/1:0,6:6
+scaffold_2844	1683	.	A	G	.	.	DP=9	GT:AD:DP	0/1:2,6:8
+scaffold_2844	1741	.	T	A	.	.	DP=7	GT:AD:DP	1/1:1,6:7
+scaffold_2844	1742	.	G	A	.	.	DP=7	GT:AD:DP	0/1:4,3:7
+scaffold_2844	1761	.	G	A	.	.	DP=7	GT:AD:DP	1/1:1,5:6
+scaffold_2844	1910	.	C	T	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2844	1916	.	T	A	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2844	1920	.	C	T	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2844	1928	.	G	C	.	.	DP=7	GT:AD:DP	1/1:0,5:5
+scaffold_2844	1932	.	T	C	.	.	DP=7	GT:AD:DP	1/1:0,5:5
+scaffold_2844	1933	.	A	G	.	.	DP=7	GT:AD:DP	1/1:0,5:5
+scaffold_2844	1969	.	G	A	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_2844	1972	.	G	T	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_2844	1979	.	A	C	.	.	DP=9	GT:AD:DP	0/1:5,4:9
+scaffold_2844	1984	.	A	G	.	.	DP=9	GT:AD:DP	0/1:5,4:9
+scaffold_2844	2004	.	T	A	.	.	DP=9	GT:AD:DP	0/1:3,4:7
+scaffold_2844	2184	.	C	T	.	.	DP=15	GT:AD:DP	0/1:7,5:12
+scaffold_2844	2189	.	T	C	.	.	DP=15	GT:AD:DP	0/1:7,5:12
+scaffold_2844	2190	.	T	C	.	.	DP=15	GT:AD:DP	0/1:7,4:11
+scaffold_2844	2200	.	A	T	.	.	DP=16	GT:AD:DP	0/1:8,4:12
+scaffold_2844	2203	.	C	A	.	.	DP=16	GT:AD:DP	0/1:8,5:13
+scaffold_2844	2208	.	T	C	.	.	DP=16	GT:AD:DP	0/1:7,5:12
+scaffold_2844	2209	.	A	T	.	.	DP=16	GT:AD:DP	0/1:7,5:12
+scaffold_2844	2218	.	T	C	.	.	DP=16	GT:AD:DP	0/1:5,8:13
+scaffold_2844	2233	.	C	T	.	.	DP=15	GT:AD:DP	0/1:8,4:12
+scaffold_2844	2249	.	A	T	.	.	DP=17	GT:AD:DP	0/1:8,5:13
+scaffold_2844	2252	.	A	C	.	.	DP=17	GT:AD:DP	0/1:8,5:13
+scaffold_2844	2253	.	C	T	.	.	DP=16	GT:AD:DP	0/1:8,5:13
+scaffold_2968	52	.	T	A	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2968	53	.	G	A	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2968	91	.	T	A	.	.	DP=14	GT:AD:DP	1/1:0,14:14
+scaffold_2968	109	.	T	C	.	.	DP=15	GT:AD:DP	1/1:0,15:15
+scaffold_2968	110	.	C	A	.	.	DP=17	GT:AD:DP	1/1:0,14:14
+scaffold_2968	117	.	T	C	.	.	DP=21	GT:AD:DP	1/1:0,20:20
+scaffold_2968	138	.	A	T	.	.	DP=24	GT:AD:DP	0/1:7,13:20
+scaffold_2968	163	.	A	G	.	.	DP=17	GT:AD:DP	1/1:1,12:13
+scaffold_2968	176	.	G	A	.	.	DP=11	GT:AD:DP	0/1:6,4:10
+scaffold_2968	177	.	G	A	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_2968	178	.	A	C	.	.	DP=10	GT:AD:DP	1/1:1,9:10
+scaffold_2968	199	.	T	C	.	.	DP=9	GT:AD:DP	0/1:5,4:9
+scaffold_2968	661	.	T	C	.	.	DP=9	GT:AD:DP	1/1:0,6:6
+scaffold_2968	679	.	A	T	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2968	680	.	G	T	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2968	689	.	T	C	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2968	711	.	A	T	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2968	1511	.	A	G	.	.	DP=15	GT:AD:DP	1/1:0,13:13
+scaffold_2968	1552	.	T	C	.	.	DP=9	GT:AD:DP	0/1:2,3:5
+scaffold_2968	2126	.	C	A	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2968	2135	.	C	T	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2968	2143	.	T	C	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2968	2144	.	C	A	.	.	DP=5	GT:AD:DP	0/1:2,3:5
+scaffold_3074	255	.	G	A	.	.	DP=9	GT:AD:DP	1/1:0,5:5
+scaffold_3074	259	.	A	G	.	.	DP=10	GT:AD:DP	1/1:1,8:9
+scaffold_3074	275	.	G	C	.	.	DP=17	GT:AD:DP	1/1:0,17:17
+scaffold_3074	285	.	C	G	.	.	DP=22	GT:AD:DP	1/1:1,16:17
+scaffold_3074	295	.	G	A	.	.	DP=26	GT:AD:DP	1/1:1,16:17
+scaffold_3074	298	.	G	C	.	.	DP=27	GT:AD:DP	0/1:7,11:18
+scaffold_3074	299	.	A	C	.	.	DP=28	GT:AD:DP	1/1:1,16:17
+scaffold_3074	320	.	T	C	.	.	DP=43	GT:AD:DP	0/1:2,16:18
+scaffold_3074	345	.	T	C	.	.	DP=62	GT:AD:DP	0/1:5,8:13
+scaffold_3074	349	.	G	A	.	.	DP=63	GT:AD:DP	1/1:1,12:13
+scaffold_3074	635	.	G	A	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_3074	636	.	A	T	.	.	DP=6	GT:AD:DP	1/1:1,5:6
+scaffold_3074	639	.	G	A	.	.	DP=6	GT:AD:DP	1/1:1,5:6
+scaffold_3074	671	.	T	C	.	.	DP=10	GT:AD:DP	0/1:3,5:9
+scaffold_3074	676	.	T	A	.	.	DP=10	GT:AD:DP	0/1:4,5:9
+scaffold_3074	683	.	A	G	.	.	DP=11	GT:AD:DP	1/1:1,8:9
+scaffold_3074	688	.	C	G	.	.	DP=11	GT:AD:DP	0/1:4,5:9
+scaffold_3074	760	.	A	C	.	.	DP=19	GT:AD:DP	0/1:9,7:17
+scaffold_3074	767	.	A	T	.	.	DP=16	GT:AD:DP	0/1:5,10:15
+scaffold_3074	847	.	A	T	.	.	DP=8	GT:AD:DP	1/1:0,5:5
+scaffold_3074	2057	.	T	A	.	.	DP=7	GT:AD:DP	0/1:2,5:7
+scaffold_3074	2066	.	T	G	.	.	DP=13	GT:AD:DP	1/1:0,9:10
+scaffold_3074	2111	.	G	A	.	.	DP=42	GT:AD:DP	0/1:10,14:24
+scaffold_3074	2117	.	G	A	.	.	DP=42	GT:AD:DP	1/1:0,23:23
+scaffold_3074	2152	.	A	T	.	.	DP=45	GT:AD:DP	0/1:4,15:19
+scaffold_3074	2157	.	T	C	.	.	DP=43	GT:AD:DP	0/1:2,13:17
+scaffold_2919	58	.	G	A	.	.	AN=2;BaseQRankSum=-1.92;DP=26;HaplotypeScore=8.6339;MQ=51.44;MQRankSum=1.868;ReadPosRankSum=-2.595	GT:AD:GQ:PL:DP	0/1:15,11:88:88,0,222:26
+scaffold_2919	113	.	G	A	.	.	DP=12	GT:AD:DP	1/1:2,4:6
+scaffold_2919	116	.	C	T	.	.	DP=12	GT:AD:DP	0/1:4,2:6
+scaffold_2919	119	.	T	C	.	.	DP=12	GT:AD:DP	0/1:3,3:6
+scaffold_2919	122	.	C	T	.	.	DP=12	GT:AD:DP	1/1:1,5:6
+scaffold_2919	150	.	A	G	.	.	DP=13	GT:AD:DP	1/1:2,5:7
+scaffold_2919	200	.	C	T	.	.	DP=12	GT:AD:DP	1/1:1,8:9
+scaffold_2919	202	.	G	A	.	.	DP=13	GT:AD:DP	0/1:1,5:8
+scaffold_2919	206	.	C	T	.	.	DP=14	GT:AD:DP	0/1:4,7:11
+scaffold_2919	207	.	C	T	.	.	DP=15	GT:AD:DP	0/1:6,6:12
+scaffold_2919	208	.	G	A	.	.	DP=15	GT:AD:DP	0/1:7,5:12
+scaffold_2919	218	.	C	T	.	.	DP=15	GT:AD:DP	1/1:2,11:14
+scaffold_2919	219	.	C	T	.	.	DP=15	GT:AD:DP	1/1:0,14:14
+scaffold_2919	221	.	C	T	.	.	DP=15	GT:AD:DP	1/1:2,12:14
+scaffold_2919	225	.	C	T	.	.	DP=17	GT:AD:DP	1/1:3,11:14
+scaffold_2919	232	.	C	T	.	.	DP=17	GT:AD:DP	0/1:8,7:15
+scaffold_2919	237	.	C	T	.	.	DP=16	GT:AD:DP	1/1:0,13:13
+scaffold_2919	257	.	T	C	.	.	DP=20	GT:AD:DP	0/1:12,5:17
+scaffold_2919	259	.	T	C	.	.	DP=20	GT:AD:DP	0/1:12,5:17
+scaffold_2919	260	.	C	T	.	.	DP=20	GT:AD:DP	1/1:0,17:17
+scaffold_2919	265	.	T	C	.	.	DP=23	GT:AD:DP	1/1:0,18:18
+scaffold_2919	316	.	G	A	.	.	DP=27	GT:AD:DP	1/1:0,17:17
+scaffold_2919	320	.	G	A	.	.	DP=30	GT:AD:DP	0/1:2,13:16
+scaffold_2919	371	.	G	A	.	.	DP=23	GT:AD:DP	0/1:1,6:7
+scaffold_2919	374	.	T	C	.	.	DP=24	GT:AD:DP	1/1:0,7:7
+scaffold_2919	473	.	C	T	.	.	DP=18	GT:AD:DP	1/1:0,10:10
+scaffold_2919	474	.	A	G	.	.	DP=31	GT:AD:DP	0/1:1,11:12
+scaffold_2919	521	.	T	C	.	.	DP=22	GT:AD:DP	1/1:0,16:19
+scaffold_2919	532	.	C	T	.	.	DP=21	GT:AD:DP	0/1:4,15:19
+scaffold_2919	535	.	C	T	.	.	DP=21	GT:AD:DP	0/1:3,15:18
+scaffold_2919	567	.	T	C	.	.	DP=15	GT:AD:DP	1/1:0,12:12
+scaffold_2919	636	.	C	T	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2919	640	.	T	A	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2919	645	.	G	A	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2919	652	.	C	T	.	.	DP=9	GT:AD:DP	1/1:0,6:6
+scaffold_2919	659	.	C	T	.	.	DP=12	GT:AD:DP	0/1:2,5:7
+scaffold_2919	666	.	G	A	.	.	DP=12	GT:AD:DP	0/1:2,5:7
+scaffold_2919	673	.	C	A	.	.	DP=13	GT:AD:DP	1/1:0,7:7
+scaffold_2919	692	.	T	C	.	.	DP=18	GT:AD:DP	1/1:0,6:6
+scaffold_2919	718	.	A	T	.	.	DP=19	GT:AD:DP	1/1:0,5:5
+scaffold_2919	730	.	T	C	.	.	DP=19	GT:AD:DP	0/1:3,2:5
+scaffold_2919	877	.	G	T	.	.	DP=7	GT:AD:DP	0/1:2,5:7
+scaffold_2919	891	.	G	A	.	.	DP=8	GT:AD:DP	0/1:2,6:8
+scaffold_2919	908	.	A	G	.	.	DP=16	GT:AD:DP	1/1:0,15:15
+scaffold_2919	923	.	A	G	.	.	DP=20	GT:AD:DP	1/1:0,18:18
+scaffold_2919	945	.	C	T	.	.	DP=20	GT:AD:DP	0/1:8,8:16
+scaffold_2919	956	.	A	G	.	.	DP=18	GT:AD:DP	0/1:9,8:17
+scaffold_2919	957	.	C	T	.	.	DP=18	GT:AD:DP	1/1:1,17:18
+scaffold_2919	960	.	C	T	.	.	DP=18	GT:AD:DP	1/1:0,18:18
+scaffold_2919	962	.	C	T	.	.	DP=18	GT:AD:DP	1/1:1,17:18
+scaffold_2919	983	.	A	C	.	.	DP=21	GT:AD:DP	0/1:11,9:20
+scaffold_2919	985	.	G	A	.	.	DP=10;NS=1	GT:AD:DP	1/1:0,10:10
+scaffold_2919	988	.	C	T	.	.	DP=21	GT:AD:DP	0/1:11,10:21
+scaffold_2919	1002	.	A	G	.	.	DP=20	GT:AD:DP	0/1:8,11:19
+scaffold_2919	1009	.	G	A	.	.	DP=21	GT:AD:DP	1/1:0,19:19
+scaffold_2919	1033	.	C	T	.	.	DP=18	GT:AD:DP	0/1:7,10:17
+scaffold_2919	1041	.	T	C	.	.	DP=16	GT:AD:DP	0/1:9,5:14
+scaffold_2919	1042	.	T	G	.	.	DP=14	GT:AD:DP	1/1:0,14:14
+scaffold_2919	1044	.	A	T	.	.	DP=14	GT:AD:DP	1/1:0,14:14
+scaffold_2919	1045	.	T	A	.	.	DP=14	GT:AD:DP	1/1:0,13:13
+scaffold_2919	1048	.	G	A	.	.	DP=14	GT:AD:DP	1/1:0,14:14
+scaffold_2919	1067	.	G	A	.	.	DP=17	GT:AD:DP	1/1:0,13:13
+scaffold_2919	1076	.	G	A	.	.	DP=15	GT:AD:DP	1/1:0,14:14
+scaffold_2919	1094	.	A	G	.	.	DP=14	GT:AD:DP	1/1:0,9:9
+scaffold_2919	1107	.	G	A	.	.	DP=9	GT:AD:DP	1/1:0,5:5
+scaffold_2919	1482	.	G	A	.	.	DP=22	GT:AD:DP	0/1:4,6:10
+scaffold_2919	1571	.	T	C	.	.	DP=12	GT:AD:DP	1/1:0,7:8
+scaffold_2919	2388	.	T	G	.	.	DP=12	GT:AD:DP	1/1:0,7:8
+scaffold_2919	2396	.	T	A	.	.	DP=16	GT:AD:DP	1/1:1,7:10
+scaffold_2919	2398	.	A	T	.	.	DP=16	GT:AD:DP	0/1:3,8:11
+scaffold_2919	2421	.	A	T	.	.	DP=25	GT:AD:DP	0/1:3,13:16
+scaffold_2919	2427	.	C	T	.	.	DP=27	GT:AD:DP	0/1:5,13:18
+scaffold_2919	2445	.	T	C	.	.	DP=30	GT:AD:DP	0/1:11,7:18
+scaffold_2919	2488	.	A	C	.	.	DP=24	GT:AD:DP	0/1:7,6:14
+scaffold_2919	2635	.	A	G	.	.	DP=32	GT:AD:DP	1/1:2,21:24
+scaffold_2919	2637	.	C	T	.	.	DP=31	GT:AD:DP	0/1:15,9:24
+scaffold_2919	2640	.	T	C	.	.	DP=31	GT:AD:DP	0/1:12,11:23
+scaffold_2919	2642	.	T	C	.	.	DP=31	GT:AD:DP	0/1:5,16:21
+scaffold_3259	1649	.	G	T	.	.	AN=2;BaseQRankSum=-1.827;DP=57;HaplotypeScore=49.491;MQ=21.77;MQRankSum=0.576;ReadPosRankSum=-0.375	GT:AD:GQ:PL:DP	1/1:4,51:17:240,17,0:57
+scaffold_2930	127	.	G	T	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2930	142	.	A	G	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2930	150	.	T	G	.	.	DP=11	GT:AD:DP	1/1:0,11:11
+scaffold_2930	169	.	G	C	.	.	DP=15	GT:AD:DP	1/1:0,11:11
+scaffold_2930	184	.	A	G	.	.	DP=15	GT:AD:DP	1/1:0,14:14
+scaffold_2930	195	.	C	T	.	.	DP=19	GT:AD:DP	0/1:13,4:17
+scaffold_2930	212	.	T	G	.	.	DP=28	GT:AD:DP	1/1:0,25:25
+scaffold_2930	229	.	A	G	.	.	DP=37	GT:AD:DP	0/1:21,14:35
+scaffold_2930	260	.	A	T	.	.	DP=47	GT:AD:DP	1/1:0,44:44
+scaffold_2930	276	.	C	G	.	.	DP=50	GT:AD:DP	0/1:33,16:49
+scaffold_2930	284	.	T	C,G	.	.	AN=2;DP=66;HaplotypeScore=0.7887;MQ=59.21	GT:AD:GQ:PL:DP	1/2:0,44,22:99:952,345,264,607,0,556:66
+scaffold_2930	289	.	T	G	.	.	DP=62	GT:AD:DP	0/1:37,19:56
+scaffold_2930	313	.	T	G	.	.	DP=56	GT:AD:DP	0/1:18,34:52
+scaffold_2930	315	.	A	T	.	.	DP=59	GT:AD:DP	0/1:32,16:48
+scaffold_2930	327	.	C	T	.	.	DP=54	GT:AD:DP	1/1:0,49:49
+scaffold_2930	330	.	T	C	.	.	DP=52	GT:AD:DP	0/1:30,17:47
+scaffold_2930	333	.	T	A	.	.	DP=49	GT:AD:DP	1/1:0,43:43
+scaffold_2930	338	.	A	T	.	.	DP=45	GT:AD:DP	0/1:30,14:44
+scaffold_2930	339	.	A	G	.	.	DP=45	GT:AD:DP	0/1:30,15:45
+scaffold_2930	343	del_scaffold_2930_343	AT	A	.	.	DP=47;SB=0	GT:AD:DP	1/1:3,41:47
+scaffold_2930	344	del_scaffold_2930_343	T	*	.	.	DP=47	GT:AD:DP	1/1:3,41:47
+scaffold_2930	350	.	T	G	.	.	DP=48	GT:AD:DP	1/1:1,44:46
+scaffold_2930	354	.	T	G	.	.	DP=48	GT:AD:DP	0/1:15,29:44
+scaffold_2930	355	.	A	G	.	.	DP=48	GT:AD:DP	0/1:28,15:44
+scaffold_2930	356	.	T	C	.	.	DP=36	GT:AD:DP	1/1:0,26:31
+scaffold_2930	376	.	T	G	.	.	DP=44	GT:AD:DP	0/1:23,15:38
+scaffold_2930	380	.	T	C	.	.	DP=40	GT:AD:DP	1/1:0,35:35
+scaffold_2930	441	.	C	T	.	.	DP=9	GT:AD:DP	1/1:0,8:8
+scaffold_2930	454	.	C	A	.	.	DP=5;NS=1	GT:AD:DP	1/1:0,5:5
+scaffold_2930	474	.	A	G	.	.	DP=7	GT:AD:DP	1/1:0,6:7
+scaffold_2930	477	.	A	G	.	.	DP=8	GT:AD:DP	1/1:0,6:6
+scaffold_2930	482	.	C	G	.	.	DP=10	GT:AD:DP	1/1:0,6:7
+scaffold_2930	484	.	G	T	.	.	DP=12	GT:AD:DP	1/1:0,6:7
+scaffold_2930	511	.	C	A	.	.	DP=22	GT:AD:DP	0/1:12,6:18
+scaffold_2930	599	.	A	G	.	.	DP=60	GT:AD:DP	0/1:38,19:57
+scaffold_2930	624	.	A	T	.	.	DP=59	GT:AD:DP	0/1:37,19:56
+scaffold_2930	649	.	A	G	.	.	DP=52	GT:AD:DP	0/1:13,34:47
+scaffold_2930	663	.	A	C	.	.	DP=43	GT:AD:DP	1/1:0,43:43
+scaffold_2930	695	.	G	A	.	.	DP=46	GT:AD:DP	1/1:0,41:41
+scaffold_2930	709	.	T	C	.	.	DP=45	GT:AD:DP	0/1:20,20:40
+scaffold_2930	734	.	G	A	.	.	DP=34	GT:AD:DP	1/1:0,33:33
+scaffold_2930	743	.	C	A	.	.	DP=30	GT:AD:DP	0/1:14,12:26
+scaffold_2930	746	.	A	G	.	.	DP=26	GT:AD:DP	1/1:0,24:24
+scaffold_2930	750	.	T	C	.	.	DP=24	GT:AD:DP	1/1:0,24:24
+scaffold_2930	757	.	G	A	.	.	DP=24	GT:AD:DP	1/1:0,19:24
+scaffold_2930	766	.	G	A	.	.	DP=25	GT:AD:DP	1/1:0,25:25
+scaffold_2930	791	.	C	T	.	.	DP=11	GT:AD:DP	1/1:0,7:7
+scaffold_2930	1093	.	C	T	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2930	1892	.	G	A	.	.	DP=7	GT:AD:DP	1/1:1,6:7
+scaffold_2930	1898	.	C	A	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2930	1906	.	T	C	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2930	1907	.	G	A	.	.	DP=7	GT:AD:DP	1/1:1,6:7
+scaffold_2930	1908	.	A	T	.	.	DP=7	GT:AD:DP	1/1:1,6:7
+scaffold_2930	1924	.	A	T	.	.	DP=12	GT:AD:DP	0/1:3,9:12
+scaffold_2930	1926	.	A	C	.	.	DP=12	GT:AD:DP	0/1:3,9:12
+scaffold_2930	1964	.	C	A	.	.	DP=16	GT:AD:DP	0/1:4,12:16
+scaffold_2930	1978	.	A	G	.	.	DP=15	GT:AD:DP	1/1:0,11:11
+scaffold_2930	1994	.	T	C	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_2930	2019	.	C	T	.	.	DP=8	GT:AD:DP	1/1:0,7:7
+scaffold_2930	2024	.	G	A	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_2930	2028	.	C	A	.	.	DP=7	GT:AD:DP	1/1:0,5:5
+scaffold_2930	2058	.	T	C	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2930	2067	.	T	C	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2930	2068	.	A	C	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2930	2085	.	A	G	.	.	DP=8	GT:AD:DP	0/1:2,5:7
+scaffold_2930	2100	.	C	A	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2930	2121	.	T	A	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_3044	1758	.	T	A	.	.	DP=7	GT:AD:DP	1/1:1,5:6
+scaffold_2885	225	.	G	T	.	.	DP=12	GT:AD:DP	1/1:0,8:8
+scaffold_2885	238	.	G	T	.	.	DP=12	GT:AD:DP	1/1:0,8:8
+scaffold_2885	245	.	G	A	.	.	DP=10	GT:AD:DP	1/1:0,8:8
+scaffold_2885	250	.	A	C	.	.	DP=8	GT:AD:DP	1/1:0,8:8
+scaffold_2885	255	.	C	T	.	.	DP=9	GT:AD:DP	1/1:0,8:8
+scaffold_2885	256	.	C	T	.	.	DP=9	GT:AD:DP	1/1:0,8:8
+scaffold_2885	294	.	T	C	.	.	DP=11	GT:AD:DP	1/1:0,7:7
+scaffold_2885	481	.	G	C	.	.	DP=16	GT:AD:DP	1/1:0,8:8
+scaffold_2885	489	.	A	G	.	.	DP=18	GT:AD:DP	0/1:1,8:9
+scaffold_2885	510	.	G	T	.	.	DP=19	GT:AD:DP	1/1:0,10:11
+scaffold_2885	542	.	C	T	.	.	DP=14	GT:AD:DP	1/1:0,12:12
+scaffold_2885	555	.	A	T	.	.	DP=11	GT:AD:DP	1/1:0,11:11
+scaffold_2885	561	.	C	A	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_2885	578	.	T	A	.	.	DP=7	GT:AD:DP	0/1:2,4:6
+scaffold_2885	618	.	G	T	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2885	622	.	T	C	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2885	1157	.	G	A	.	.	DP=16	GT:AD:DP	0/1:9,6:15
+scaffold_2885	1167	.	T	C	.	.	DP=16	GT:AD:DP	1/1:0,16:16
+scaffold_2885	1180	.	A	T	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_2885	1181	.	A	T	.	.	DP=10	GT:AD:DP	1/1:0,8:8
+scaffold_2885	1185	.	T	A	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_2885	1188	.	T	A	.	.	DP=11	GT:AD:DP	1/1:0,9:9
+scaffold_2885	1191	.	T	A	.	.	DP=11	GT:AD:DP	1/1:0,9:9
+scaffold_2885	1214	.	C	T	.	.	DP=17	GT:AD:DP	0/1:9,6:15
+scaffold_2885	1227	.	G	A	.	.	DP=14	GT:AD:DP	0/1:6,5:11
+scaffold_2885	1480	.	T	A	.	.	DP=15	GT:AD:DP	0/1:1,6:7
+scaffold_2885	1481	.	A	C	.	.	DP=15	GT:AD:DP	0/1:1,6:7
+scaffold_2885	1541	.	T	C	.	.	DP=14	GT:AD:DP	1/1:0,12:12
+scaffold_2885	1546	.	G	A	.	.	DP=12	GT:AD:DP	1/1:0,12:12
+scaffold_2885	1548	.	A	T	.	.	DP=12	GT:AD:DP	1/1:0,10:10
+scaffold_2885	1572	.	G	A	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2885	1577	.	T	C	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_2885	1659	.	T	C	.	.	DP=10	GT:AD:DP	0/1:3,6:9
+scaffold_2885	1665	.	G	A	.	.	DP=12	GT:AD:DP	0/1:4,7:11
+scaffold_2885	1689	.	T	G	.	.	DP=13	GT:AD:DP	0/1:7,5:12
+scaffold_2885	1729	.	T	C	.	.	DP=21	GT:AD:DP	0/1:12,6:18
+scaffold_2885	1735	.	A	G	.	.	DP=23	GT:AD:DP	1/1:0,21:21
+scaffold_2885	1747	.	A	G	.	.	DP=25	GT:AD:DP	0/1:13,7:20
+scaffold_2885	1776	.	G	A	.	.	DP=25	GT:AD:DP	1/1:0,15:15
+scaffold_2885	1782	.	T	C	.	.	DP=26	GT:AD:DP	1/1:0,16:16
+scaffold_2885	1804	.	C	G	.	.	DP=24	GT:AD:DP	0/1:8,6:14
+scaffold_2885	1818	.	G	T	.	.	DP=21	GT:AD:DP	0/1:5,3:8
+scaffold_2885	1824	.	A	T	.	.	DP=22	GT:AD:DP	1/1:0,7:7
+scaffold_3263	413	.	T	A	.	.	DP=51	GT:AD:DP	1/1:2,29:31
+scaffold_3263	420	.	A	C	.	.	DP=68	GT:AD:DP	1/1:3,60:63
+scaffold_3263	457	.	G	A	.	.	DP=29	GT:AD:DP	0/1:8,19:27
+scaffold_3263	463	.	C	A	.	.	DP=86	GT:AD:DP	1/1:2,78:80
+scaffold_3263	492	.	T	C	.	.	DP=70	GT:AD:DP	0/1:11,34:49
+scaffold_3263	502	.	T	A	.	.	DP=69	GT:AD:DP	0/1:27,17:44
+scaffold_3263	532	.	C	T	.	.	DP=34	GT:AD:DP	1/1:0,21:21
+scaffold_3263	536	.	C	T	.	.	DP=33	GT:AD:DP	0/1:9,12:21
+scaffold_3134	1408	.	C	G	.	.	DP=10	GT:AD:DP	1/1:0,5:6
+scaffold_3432	459	.	T	C	.	.	DP=10	GT:AD:DP	1/1:0,8:8
+scaffold_3432	477	.	G	A	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_3432	488	.	G	A	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_3432	491	.	G	A	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_3432	492	.	A	T	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_3432	497	.	C	T	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_3239	1730	.	T	C	.	.	DP=12	GT:AD:DP	0/1:3,3:6
+scaffold_2857	61	.	T	C	.	.	DP=17	GT:AD:DP	1/1:0,14:14
+scaffold_2857	165	.	G	A	.	.	DP=39	GT:AD:DP	1/1:0,18:18
+scaffold_2857	175	.	A	G	.	.	DP=40	GT:AD:DP	0/1:10,8:18
+scaffold_2855	362	.	A	C	.	.	DP=8	GT:AD:DP	1/1:1,5:6
+scaffold_3275	68	.	T	C	.	.	DP=18	GT:AD:DP	1/1:1,8:9
+scaffold_3275	76	.	C	T	.	.	DP=18	GT:AD:DP	0/1:2,8:10
+scaffold_3328	178	.	C	A	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_3328	179	.	T	G	.	.	DP=7	GT:AD:DP	0/1:1,5:6
+scaffold_3328	241	.	A	T	.	.	DP=41	GT:AD:DP	0/1:12,13:25
+scaffold_3328	245	.	C	T	.	.	DP=41	GT:AD:DP	1/1:1,25:26
+scaffold_3262	195	.	A	T	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_3262	228	.	G	A	.	.	DP=12	GT:AD:DP	1/1:0,11:11
+scaffold_3262	272	.	C	T	.	.	DP=17	GT:AD:DP	1/1:0,14:14
+scaffold_3262	306	.	A	G	.	.	DP=33	GT:AD:DP	0/1:14,18:32
+scaffold_3262	351	.	T	C	.	.	DP=37	GT:AD:DP	0/1:11,24:35
+scaffold_3262	359	.	T	C	.	.	DP=33	GT:AD:DP	0/1:23,10:33
+scaffold_3262	372	.	T	C	.	.	DP=30	GT:AD:DP	1/1:0,28:28
+scaffold_3262	387	.	A	T	.	.	DP=21	GT:AD:DP	0/1:9,7:16
+scaffold_3262	696	.	A	C	.	.	DP=25	GT:AD:DP	1/1:0,9:9
+scaffold_3262	699	.	G	T	.	.	DP=25	GT:AD:DP	1/1:0,9:9
+scaffold_3262	703	.	T	A	.	.	DP=25	GT:AD:DP	0/1:5,4:9
+scaffold_3262	704	.	A	T	.	.	DP=26	GT:AD:DP	0/1:5,3:8
+scaffold_3262	706	.	A	G	.	.	DP=26	GT:AD:DP	0/1:6,3:9
+scaffold_3262	721	.	T	G	.	.	DP=22	GT:AD:DP	0/1:7,5:12
+scaffold_3262	743	.	C	A	.	.	DP=24	GT:AD:DP	1/1:0,14:14
+scaffold_3262	756	.	G	T	.	.	DP=26	GT:AD:DP	1/1:0,14:14
+scaffold_3262	761	.	C	G	.	.	DP=24	GT:AD:DP	0/1:7,6:13
+scaffold_3262	781	.	A	T	.	.	DP=34	GT:AD:DP	1/1:0,12:12
+scaffold_3262	806	.	T	G	.	.	DP=47	GT:AD:DP	1/1:0,26:26
+scaffold_3262	815	.	C	T	.	.	DP=48	GT:AD:DP	1/1:0,29:29
+scaffold_3262	900	.	T	G	.	.	DP=38	GT:AD:DP	1/1:0,29:29
+scaffold_3262	1023	.	G	A	.	.	DP=10	GT:AD:DP	1/1:0,5:5
+scaffold_3262	1054	.	A	G	.	.	DP=10	GT:AD:DP	1/1:0,5:5
+scaffold_3262	1295	.	G	T	.	.	DP=35	GT:AD:DP	1/1:0,12:12
+scaffold_3262	1310	.	G	A	.	.	DP=34	GT:AD:DP	0/1:3,9:12
+scaffold_3262	1325	.	T	A	.	.	DP=28	GT:AD:DP	1/1:3,7:10
+scaffold_2933	89	.	T	C	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_2933	91	.	G	A	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_2933	99	.	T	C	.	.	DP=13	GT:AD:DP	1/1:2,11:13
+scaffold_2933	102	.	T	A	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_2933	104	.	A	G	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_2933	105	.	A	G	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_2933	113	.	G	T	.	.	DP=13	GT:AD:DP	1/1:2,10:12
+scaffold_2933	118	.	C	T	.	.	DP=12	GT:AD:DP	1/1:0,12:12
+scaffold_2933	135	.	A	C	.	.	DP=10	GT:AD:DP	0/1:4,6:10
+scaffold_2933	148	.	A	G	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2933	150	.	G	C	.	.	DP=9	GT:AD:DP	0/1:4,4:8
+scaffold_2933	1070	.	C	G	.	.	DP=5;NS=1	GT:AD:DP	1/1:0,5:5
+scaffold_2933	1083	.	A	G	.	.	DP=17	GT:AD:DP	0/1:8,8:16
+scaffold_2933	1085	.	A	T	.	.	DP=19	GT:AD:DP	0/1:8,8:16
+scaffold_2933	1091	.	T	A	.	.	DP=21	GT:AD:DP	0/1:11,8:19
+scaffold_2933	1124	.	G	A	.	.	DP=27	GT:AD:DP	0/1:13,14:27
+scaffold_2933	1126	.	G	T	.	.	DP=27	GT:AD:DP	0/1:13,14:27
+scaffold_2933	1128	.	A	C	.	.	DP=27	GT:AD:DP	0/1:14,13:27
+scaffold_2933	1131	.	G	T	.	.	DP=27	GT:AD:DP	0/1:14,13:27
+scaffold_2933	1132	.	T	G	.	.	DP=27	GT:AD:DP	0/1:14,13:27
+scaffold_2933	1133	.	G	A	.	.	DP=27	GT:AD:DP	0/1:14,13:27
+scaffold_2933	1134	.	T	A	.	.	DP=27	GT:AD:DP	1/1:0,27:27
+scaffold_2933	1177	.	A	G	.	.	DP=24	GT:AD:DP	1/1:0,21:21
+scaffold_2933	1185	.	C	T	.	.	DP=20	GT:AD:DP	0/1:8,9:17
+scaffold_2933	1187	.	A	G	.	.	DP=18	GT:AD:DP	0/1:8,8:16
+scaffold_2933	1197	.	T	C	.	.	DP=19	GT:AD:DP	0/1:6,9:15
+scaffold_2933	1201	.	A	T	.	.	DP=18	GT:AD:DP	1/1:0,14:14
+scaffold_2933	1203	.	T	A	.	.	DP=18	GT:AD:DP	0/1:6,9:15
+scaffold_2933	1223	.	A	T	.	.	DP=23	GT:AD:DP	0/1:10,11:21
+scaffold_2933	1232	.	C	A	.	.	DP=26	GT:AD:DP	0/1:10,13:23
+scaffold_2933	1241	.	A	G	.	.	DP=23	GT:AD:DP	0/1:11,9:20
+scaffold_2933	1243	.	T	G	.	.	DP=23	GT:AD:DP	0/1:10,9:19
+scaffold_2933	1244	.	T	C	.	.	DP=23	GT:AD:DP	0/1:9,9:18
+scaffold_2933	1268	.	C	T	.	.	DP=18	GT:AD:DP	0/1:8,7:15
+scaffold_2933	1271	.	G	T	.	.	DP=17	GT:AD:DP	0/1:6,8:14
+scaffold_2933	1273	.	A	G	.	.	DP=16	GT:AD:DP	0/1:6,8:14
+scaffold_2933	1438	.	G	A	.	.	DP=33	GT:AD:DP	1/1:1,30:31
+scaffold_2933	1448	.	A	T	.	.	DP=38	GT:AD:DP	0/1:12,24:36
+scaffold_2933	1452	.	G	A	.	.	DP=39	GT:AD:DP	1/1:0,38:38
+scaffold_2933	1476	.	C	T	.	.	DP=54	GT:AD:DP	1/1:0,52:52
+scaffold_2933	1495	.	T	C	.	.	DP=56	GT:AD:DP	0/1:17,38:55
+scaffold_2933	1497	.	A	G	.	.	DP=58	GT:AD:DP	1/1:11,42:53
+scaffold_2933	1533	.	G	A	.	.	DP=44	GT:AD:DP	0/1:18,24:42
+scaffold_2933	1558	.	T	G	.	.	DP=17	GT:AD:DP	0/1:7,3:10
+scaffold_2933	1563	.	G	C	.	.	DP=21	GT:AD:DP	1/1:3,16:19
+scaffold_2933	1573	.	A	T	.	.	DP=17	GT:AD:DP	1/1:3,13:16
+scaffold_2933	2185	.	A	G	.	.	DP=10	GT:AD:DP	0/1:5,5:10
+scaffold_2933	2190	.	T	C	.	.	DP=10	GT:AD:DP	0/1:2,7:9
+scaffold_2933	2210	.	C	A	.	.	DP=9	GT:AD:DP	0/1:4,5:9
+scaffold_2933	2223	.	A	G	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_3353	323	.	T	C	.	.	DP=29	GT:AD:DP	1/1:1,24:25
+scaffold_3353	328	.	A	T	.	.	DP=29	GT:AD:DP	1/1:0,25:25
+scaffold_3353	348	.	A	C	.	.	DP=20	GT:AD:DP	0/1:6,11:17
+scaffold_3353	349	.	A	G	.	.	DP=20	GT:AD:DP	0/1:9,9:18
+scaffold_3353	350	.	T	A	.	.	DP=20	GT:AD:DP	0/1:7,11:18
+scaffold_3353	356	.	T	A	.	.	DP=19	GT:AD:DP	1/1:2,13:15
+scaffold_3353	962	.	T	C	.	.	DP=16	GT:AD:DP	1/1:1,9:10
+scaffold_3353	967	.	A	T	.	.	DP=17	GT:AD:DP	0/1:6,5:11
+scaffold_2913	701	.	T	A	.	.	DP=13	GT:AD:DP	0/1:4,7:11
+scaffold_2913	702	.	A	G	.	.	DP=13	GT:AD:DP	1/1:0,11:11
+scaffold_2913	2186	.	A	T	.	.	DP=15	GT:AD:DP	1/1:0,8:8
+scaffold_2913	2328	.	C	T	.	.	DP=28	GT:AD:DP	1/1:0,21:22
+scaffold_2913	2375	.	A	T	.	.	DP=23	GT:AD:DP	1/1:0,18:18
+scaffold_2913	2477	.	A	G	.	.	DP=6	GT:AD:DP	1/1:1,5:6
+scaffold_2913	2493	.	G	T	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_2913	2494	.	T	G	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_2913	2515	.	T	G	.	.	DP=46	GT:AD:DP	0/1:16,22:38
+scaffold_2913	2516	.	T	A	.	.	DP=46	GT:AD:DP	0/1:15,24:39
+scaffold_2913	2520	.	C	A	.	.	DP=51	GT:AD:DP	0/1:24,13:40
+scaffold_3214	85	.	G	A	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_3214	93	.	G	A	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_3214	102	.	G	A	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_3214	111	.	A	G	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_3214	585	.	G	A	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_3214	588	.	T	A	.	.	DP=5	GT:AD:DP	1/1:1,4:5
+scaffold_3214	1163	.	G	T	.	.	DP=18	GT:AD:DP	1/1:0,9:9
+scaffold_3214	1179	.	C	A	.	.	DP=23	GT:AD:DP	0/1:10,5:15
+scaffold_3214	1181	.	A	G	.	.	DP=23	GT:AD:DP	1/1:1,15:16
+scaffold_3214	1191	.	A	G	.	.	DP=26	GT:AD:DP	1/1:1,17:19
+scaffold_3214	1194	.	A	T	.	.	DP=27	GT:AD:DP	1/1:1,17:18
+scaffold_3214	1233	.	A	T	.	.	DP=33	GT:AD:DP	1/1:1,32:33
+scaffold_3214	1234	.	A	C	.	.	DP=33	GT:AD:DP	1/1:0,33:33
+scaffold_3214	1254	.	G	A	.	.	DP=25	GT:AD:DP	1/1:0,24:24
+scaffold_3214	1265	.	T	A	.	.	DP=18	GT:AD:DP	1/1:1,17:18
+scaffold_3214	1293	.	A	G	.	.	DP=14	GT:AD:DP	0/1:3,7:10
+scaffold_2965	415	.	T	G	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_3228	407	.	A	G	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_3228	409	.	A	G	.	.	DP=8	GT:AD:DP	1/1:0,6:6
+scaffold_3228	437	.	A	G	.	.	DP=13	GT:AD:DP	0/1:3,6:9
+scaffold_3228	440	.	T	G	.	.	DP=13	GT:AD:DP	1/1:0,9:9
+scaffold_3228	443	.	G	A	.	.	DP=16	GT:AD:DP	0/1:1,8:9
+scaffold_3228	459	.	C	T	.	.	DP=26	GT:AD:DP	0/1:8,7:16
+scaffold_3228	467	.	C	T	.	.	DP=36	GT:AD:DP	1/1:2,23:25
+scaffold_3228	664	.	T	A	.	.	DP=24	GT:AD:DP	0/1:9,6:15
+scaffold_3228	668	.	T	C	.	.	DP=31	GT:AD:DP	1/1:0,21:21
+scaffold_3228	1259	.	T	C	.	.	DP=40	GT:AD:DP	0/1:13,11:24
+scaffold_3228	1264	.	C	T	.	.	DP=38	GT:AD:DP	1/1:0,24:24
+scaffold_3228	1271	.	T	C	.	.	DP=43	GT:AD:DP	0/1:15,11:26
+scaffold_3228	1273	.	G	A	.	.	DP=45	GT:AD:DP	0/1:16,11:27
+scaffold_3425	61	.	A	G	.	.	DP=13	GT:AD:DP	1/1:0,10:10
+scaffold_3257	765	.	G	A	.	.	DP=18	GT:AD:DP	0/1:8,9:17
+scaffold_3257	766	.	T	G	.	.	DP=18	GT:AD:DP	0/1:9,8:17
+scaffold_3257	779	.	G	T	.	.	DP=22	GT:AD:DP	1/1:0,19:19
+scaffold_3257	782	.	C	T	.	.	DP=22	GT:AD:DP	1/1:0,22:22
+scaffold_3257	829	.	T	C	.	.	DP=17	GT:AD:DP	1/1:0,15:15
+scaffold_3257	835	.	C	T	.	.	DP=15	GT:AD:DP	1/1:0,14:14
+scaffold_3257	836	.	T	C	.	.	DP=15	GT:AD:DP	0/1:8,6:14
+scaffold_3257	930	.	C	A	.	.	DP=24	GT:AD:DP	0/1:4,4:8
+scaffold_3257	944	.	G	A	.	.	DP=27	GT:AD:DP	1/1:0,17:17
+scaffold_3257	955	.	T	A	.	.	DP=30	GT:AD:DP	0/1:8,11:19
+scaffold_3257	962	.	C	T	.	.	DP=31	GT:AD:DP	1/1:0,19:19
+scaffold_3257	968	.	A	G	.	.	DP=31	GT:AD:DP	0/1:12,8:20
+scaffold_3257	975	.	T	G	.	.	DP=35	GT:AD:DP	1/1:0,22:22
+scaffold_3257	1011	.	T	C	.	.	DP=32	GT:AD:DP	0/1:12,14:26
+scaffold_3257	1057	.	T	C	.	.	DP=15	GT:AD:DP	1/1:0,9:9
+scaffold_3257	1066	.	A	G	.	.	DP=14	GT:AD:DP	0/1:3,6:9
+scaffold_3257	1199	.	T	C	.	.	DP=19	GT:AD:DP	0/1:2,5:7
+scaffold_3257	1202	.	T	G	.	.	DP=18	GT:AD:DP	1/1:0,7:7
+scaffold_3257	1203	.	T	C	.	.	DP=16	GT:AD:DP	0/1:2,5:7
+scaffold_3257	1214	.	G	A	.	.	DP=12	GT:AD:DP	0/1:2,5:7
+scaffold_3257	1232	.	A	T	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_3257	1239	.	T	A	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_3068	468	.	A	G	.	.	DP=18	GT:AD:DP	0/1:3,6:9
+scaffold_3068	477	.	T	C	.	.	DP=19	GT:AD:DP	0/1:1,7:8
+scaffold_3068	1130	.	A	T	.	.	DP=19	GT:AD:DP	0/1:3,7:10
+scaffold_3068	1168	.	A	G	.	.	DP=40	GT:AD:DP	0/1:15,7:23
+scaffold_3068	1207	.	A	G	.	.	DP=44	GT:AD:DP	0/1:9,10:19
+scaffold_3068	1218	.	T	C	.	.	DP=44	GT:AD:DP	0/1:9,11:20
+scaffold_3068	1230	.	A	G	.	.	DP=45	GT:AD:DP	0/1:6,11:17
+scaffold_3068	1242	.	G	T	.	.	DP=45	GT:AD:DP	0/1:5,20:25
+scaffold_3068	1259	.	G	A	.	.	DP=30	GT:AD:DP	0/1:1,14:15
+scaffold_3068	1267	.	T	C	.	.	DP=30	GT:AD:DP	0/1:3,10:13
+scaffold_3068	1283	.	A	G	.	.	DP=21	GT:AD:DP	0/1:6,9:15
+scaffold_3068	1302	.	A	G	.	.	DP=20	GT:AD:DP	1/1:0,15:15
+scaffold_3068	1310	.	G	A	.	.	DP=17	GT:AD:DP	1/1:0,13:13
+scaffold_3068	1316	.	T	C	.	.	DP=17	GT:AD:DP	1/1:0,13:13
+scaffold_3245	459	.	G	A	.	.	DP=40	GT:AD:DP	0/1:4,11:15
+scaffold_3245	1795	.	C	A	.	.	DP=11	GT:AD:DP	1/1:0,6:6
+scaffold_3346	370	.	C	T	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_3346	376	.	A	G	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_3346	391	.	A	T	.	.	DP=11	GT:AD:DP	1/1:0,7:7
+scaffold_3346	417	.	G	A	.	.	DP=21	GT:AD:DP	0/1:5,2:7
+scaffold_3346	444	.	G	A	.	.	DP=22	GT:AD:DP	0/1:1,5:6
+scaffold_3346	457	.	A	G	.	.	DP=22	GT:AD:DP	0/1:1,5:6
+scaffold_3346	462	.	C	T	.	.	DP=22	GT:AD:DP	0/1:1,5:6
+scaffold_3346	481	.	C	A	.	.	DP=23	GT:AD:DP	0/1:2,5:7
+scaffold_3346	523	.	C	T	.	.	DP=20	GT:AD:DP	1/1:0,12:12
+scaffold_3346	532	.	G	A	.	.	DP=16	GT:AD:DP	0/1:8,5:13
+scaffold_3346	535	.	A	G	.	.	DP=16	GT:AD:DP	1/1:0,14:14
+scaffold_3346	544	.	C	T	.	.	DP=18	GT:AD:DP	0/1:8,8:16
+scaffold_3346	554	.	A	G	.	.	DP=18	GT:AD:DP	0/1:9,8:17
+scaffold_3346	564	.	G	A	.	.	DP=18	GT:AD:DP	0/1:8,9:17
+scaffold_3346	567	.	A	G	.	.	DP=17	GT:AD:DP	1/1:0,16:16
+scaffold_3346	568	.	G	A	.	.	DP=17	GT:AD:DP	1/1:0,16:16
+scaffold_3346	610	.	G	C	.	.	DP=12	GT:AD:DP	1/1:0,9:9
+scaffold_3346	611	.	G	T	.	.	DP=12	GT:AD:DP	1/1:1,9:11
+scaffold_3346	641	.	G	T	.	.	DP=5;NS=1	GT:AD:DP	1/1:0,5:5
+scaffold_3346	915	.	T	C	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_3346	928	.	A	C	.	.	DP=9	GT:AD:DP	1/1:0,7:7
+scaffold_3346	951	.	G	A	.	.	DP=11	GT:AD:DP	1/1:0,6:6
+scaffold_3346	955	.	A	T	.	.	DP=9	GT:AD:DP	1/1:0,6:6
+scaffold_3346	956	.	A	G	.	.	DP=9	GT:AD:DP	1/1:0,6:6
+scaffold_3346	969	.	C	A	.	.	DP=9	GT:AD:DP	1/1:0,6:6
+scaffold_3346	975	.	T	C	.	.	DP=10	GT:AD:DP	1/1:0,7:7
+scaffold_3346	996	.	G	T	.	.	DP=11	GT:AD:DP	1/1:0,8:8
+scaffold_3346	1033	.	A	G	.	.	DP=13	GT:AD:DP	1/1:0,12:12
+scaffold_3346	1039	.	C	T	.	.	DP=12	GT:AD:DP	1/1:0,11:11
+scaffold_3346	1046	.	A	G	.	.	DP=11	GT:AD:DP	1/1:0,11:11
+scaffold_3346	1048	.	G	A	.	.	DP=11	GT:AD:DP	1/1:0,11:11
+scaffold_3346	1049	.	T	A	.	.	DP=11	GT:AD:DP	1/1:0,11:11
+scaffold_3346	1076	.	G	A	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_3346	1077	.	A	G	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_3346	1080	.	T	A	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_3346	1083	.	C	T	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_3346	1085	.	G	A	.	.	DP=9	GT:AD:DP	1/1:0,8:8
+scaffold_3446	760	.	T	C	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_3446	767	.	A	T	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_3446	769	.	T	G	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_3446	781	.	T	A	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_3446	790	.	A	G	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_3446	797	.	T	C	.	.	DP=8	GT:AD:DP	1/1:0,6:6
+scaffold_3446	803	.	A	T	.	.	DP=9	GT:AD:DP	1/1:0,8:8
+scaffold_3446	804	.	T	C	.	.	DP=9	GT:AD:DP	0/1:2,6:8
+scaffold_3446	842	.	T	C	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2838	1021	.	A	T	.	.	DP=7	GT:AD:DP	1/1:1,6:7
+scaffold_2838	1067	.	C	A	.	.	DP=7	GT:AD:DP	1/1:1,6:7
+scaffold_2838	1091	.	C	T	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2868	1838	.	T	C	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2868	1843	.	A	G	.	.	DP=10	GT:AD:DP	1/1:0,5:5
+scaffold_2868	2089	.	C	T	.	.	AN=2;BaseQRankSum=1.526;DP=101;HaplotypeScore=10.5738;MQ=20.22;MQRankSum=2.178;ReadPosRankSum=0.222	GT:AD:GQ:PL:DP	1/1:18,82:68:649,68,0:101
+scaffold_2987	391	.	T	G	.	.	DP=79	GT:AD:DP	1/1:0,45:52
+scaffold_2987	427	.	T	C	.	.	DP=73	GT:AD:DP	1/1:10,50:60
+scaffold_2987	437	.	T	C	.	.	DP=69	GT:AD:DP	0/1:33,27:60
+scaffold_2987	462	.	G	A	.	.	DP=59	GT:AD:DP	1/1:0,53:53
+scaffold_2987	488	.	A	C	.	.	DP=63	GT:AD:DP	1/1:0,54:54
+scaffold_2987	512	.	A	T	.	.	DP=51	GT:AD:DP	0/1:15,33:48
+scaffold_2987	515	.	C	A	.	.	DP=51	GT:AD:DP	0/1:15,32:48
+scaffold_2987	536	.	A	C	.	.	DP=52	GT:AD:DP	0/1:18,33:51
+scaffold_2987	556	.	T	C	.	.	DP=54	GT:AD:DP	0/1:17,30:47
+scaffold_2987	559	.	T	C	.	.	DP=51	GT:AD:DP	0/1:19,30:49
+scaffold_2987	564	del_scaffold_2987_564	CCTAT	C	.	.	DP=46;SB=0	GT:AD:DP	0/1:17,25:46
+scaffold_2987	565	del_scaffold_2987_564	C	*	.	.	DP=46	GT:AD:DP	0/1:17,25:46
+scaffold_2987	566	del_scaffold_2987_564	T	*	.	.	DP=46	GT:AD:DP	0/1:17,25:46
+scaffold_2987	567	del_scaffold_2987_564	A	*	.	.	DP=46	GT:AD:DP	0/1:17,25:46
+scaffold_2987	568	del_scaffold_2987_564	T	*	.	.	DP=46	GT:AD:DP	0/1:17,25:46
+scaffold_2987	577	.	C	T	.	.	DP=35	GT:AD:DP	0/1:20,13:33
+scaffold_2987	593	.	A	T	.	.	DP=26	GT:AD:DP	1/1:0,26:26
+scaffold_2987	598	.	A	G	.	.	DP=26	GT:AD:DP	1/1:0,26:26
+scaffold_2987	611	.	G	A	.	.	DP=23	GT:AD:DP	0/1:8,13:22
+scaffold_2987	612	.	T	C	.	.	DP=18	GT:AD:DP	0/1:7,7:17
+scaffold_2987	760	.	C	A	.	.	DP=9	GT:AD:DP	1/1:0,8:8
+scaffold_2987	770	.	A	G	.	.	DP=9	GT:AD:DP	1/1:0,8:8
+scaffold_2987	781	.	G	A	.	.	DP=8	GT:AD:DP	1/1:0,8:8
+scaffold_2987	782	.	T	C	.	.	DP=8	GT:AD:DP	1/1:0,8:8
+scaffold_2987	796	.	G	T	.	.	DP=8	GT:AD:DP	1/1:0,8:8
+scaffold_2987	926	.	G	T	.	.	DP=8	GT:AD:DP	1/1:0,7:7
+scaffold_2987	953	.	G	T	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_2987	956	.	T	G	.	.	DP=10	GT:AD:DP	0/1:3,6:9
+scaffold_2987	957	.	C	T	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_2987	985	.	G	A	.	.	DP=20	GT:AD:DP	1/1:0,19:19
+scaffold_2987	997	.	T	C	.	.	DP=23	GT:AD:DP	0/1:12,8:20
+scaffold_2987	1007	.	C	T	.	.	DP=27	GT:AD:DP	1/1:1,23:24
+scaffold_2987	1015	.	C	T	.	.	DP=27	GT:AD:DP	0/1:12,13:25
+scaffold_2987	1022	.	G	T	.	.	DP=25	GT:AD:DP	1/1:1,20:21
+scaffold_2987	1031	.	G	A	.	.	DP=22	GT:AD:DP	0/1:12,10:22
+scaffold_2987	1036	.	A	T	.	.	DP=24	GT:AD:DP	0/1:12,10:22
+scaffold_2987	1044	.	C	T	.	.	DP=26	GT:AD:DP	0/1:12,13:25
+scaffold_2987	1048	.	G	A	.	.	DP=26	GT:AD:DP	1/1:1,25:26
+scaffold_2987	1070	.	C	T	.	.	DP=25	GT:AD:DP	1/1:1,20:21
+scaffold_2987	1095	.	G	A	.	.	DP=21	GT:AD:DP	0/1:8,10:18
+scaffold_2987	1107	.	C	T	.	.	DP=16	GT:AD:DP	1/1:0,16:16
+scaffold_2987	1112	.	A	G	.	.	DP=16	GT:AD:DP	1/1:0,15:15
+scaffold_2987	1125	.	G	A	.	.	DP=14	GT:AD:DP	1/1:0,14:14
+scaffold_2987	1131	.	A	G	.	.	DP=14	GT:AD:DP	1/1:0,13:13
+scaffold_2987	1137	.	T	C	.	.	DP=13	GT:AD:DP	0/1:7,5:12
+scaffold_2987	1138	.	T	C	.	.	DP=12	GT:AD:DP	0/1:5,6:11
+scaffold_2987	1141	.	G	A	.	.	DP=12	GT:AD:DP	0/1:5,5:10
+scaffold_2987	1145	.	T	C	.	.	DP=11	GT:AD:DP	1/1:0,11:11
+scaffold_2987	1149	.	C	A	.	.	DP=11	GT:AD:DP	1/1:0,10:10
+scaffold_2987	1171	.	G	A	.	.	DP=11	GT:AD:DP	0/1:3,6:9
+scaffold_2987	1172	.	C	T	.	.	DP=11	GT:AD:DP	1/1:0,9:9
+scaffold_2987	1177	.	G	A	.	.	DP=11	GT:AD:DP	1/1:0,9:9
+scaffold_2987	1179	.	T	A	.	.	DP=10	GT:AD:DP	1/1:0,8:8
+scaffold_2987	1186	.	G	A	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_2987	1188	.	T	C	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_2987	1213	.	C	T	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_2987	1214	.	T	C	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_2987	1221	.	C	T	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2987	1232	.	C	T	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2987	1251	.	A	G	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2987	1399	.	C	G	.	.	DP=9	GT:AD:DP	1/1:0,9:9
+scaffold_2987	1407	.	T	C	.	.	DP=9	GT:AD:DP	1/1:0,8:8
+scaffold_2987	1440	.	G	C	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2987	1476	.	A	G	.	.	DP=5;NS=1	GT:AD:DP	1/1:0,5:5
+scaffold_2987	1498	.	G	T	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2987	1509	.	T	A	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2987	1510	.	G	A	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2987	1511	.	G	A	.	.	DP=6	GT:AD:DP	1/1:0,5:5
+scaffold_2987	1521	.	C	T	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_2987	1527	.	A	C	.	.	DP=8	GT:AD:DP	1/1:0,7:7
+scaffold_2987	1536	.	T	C	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_2987	1538	.	G	A	.	.	DP=11	GT:AD:DP	1/1:0,9:9
+scaffold_2987	1539	.	G	T	.	.	DP=11	GT:AD:DP	1/1:0,10:10
+scaffold_2987	1561	.	C	T	.	.	DP=13	GT:AD:DP	1/1:1,10:11
+scaffold_2987	1573	.	G	A	.	.	DP=10	GT:AD:DP	1/1:1,7:8
+scaffold_2987	1575	.	G	A	.	.	DP=10	GT:AD:DP	1/1:0,8:8
+scaffold_2987	1580	.	G	A	.	.	DP=9	GT:AD:DP	1/1:0,8:8
+scaffold_2987	1596	.	G	A	.	.	DP=11	GT:AD:DP	1/1:0,10:10
+scaffold_2987	1622	.	A	T	.	.	DP=11	GT:AD:DP	1/1:0,9:9
+scaffold_2987	1637	.	A	T	.	.	DP=11	GT:AD:DP	1/1:0,8:8
+scaffold_2987	1648	.	G	A	.	.	DP=11	GT:AD:DP	1/1:0,8:8
+scaffold_2987	1672	.	T	C	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_2987	1673	.	T	A	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_2987	1675	.	C	T	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_2987	1979	.	G	A	.	.	DP=6;NS=1	GT:AD:DP	1/1:0,6:6
+scaffold_2987	1980	.	T	A	.	.	DP=7;NS=1	GT:AD:DP	1/1:0,7:7
+scaffold_2987	1992	.	A	G	.	.	DP=11	GT:AD:DP	1/1:0,10:10
+scaffold_2987	2013	.	G	A	.	.	DP=14	GT:AD:DP	1/1:0,14:14
+scaffold_2987	2016	.	C	T	.	.	DP=14	GT:AD:DP	1/1:0,14:14
+scaffold_2987	2030	.	T	C	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_2987	2032	.	T	A	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_2987	2034	.	C	A	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_2987	2043	.	T	C	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_2987	2072	.	C	T	.	.	DP=19	GT:AD:DP	1/1:0,16:16
+scaffold_2987	2102	.	G	A	.	.	DP=17	GT:AD:DP	1/1:0,16:16
+scaffold_2987	2110	.	T	C	.	.	DP=15	GT:AD:DP	1/1:0,15:15
+scaffold_2987	2115	.	C	T	.	.	DP=17	GT:AD:DP	1/1:0,15:15
+scaffold_2987	2116	.	T	C	.	.	DP=18	GT:AD:DP	1/1:0,15:16
+scaffold_2987	2122	.	T	C	.	.	DP=19	GT:AD:DP	1/1:0,19:19
+scaffold_2987	2166	.	T	C	.	.	DP=19	GT:AD:DP	0/1:4,12:16
+scaffold_2987	2185	.	T	C	.	.	DP=16	GT:AD:DP	0/1:4,11:15
+scaffold_2987	2187	.	A	G	.	.	DP=16	GT:AD:DP	0/1:4,11:15
+scaffold_2987	2207	.	G	A	.	.	DP=15	GT:AD:DP	1/1:2,12:14
+scaffold_2987	2222	.	G	A	.	.	DP=11	GT:AD:DP	0/1:2,5:7
+scaffold_2853	55	.	A	G	.	.	DP=7	GT:AD:DP	1/1:1,6:7
+scaffold_2853	88	.	T	A	.	.	DP=7	GT:AD:DP	1/1:1,6:7
+scaffold_2853	231	.	G	A	.	.	DP=5	GT:AD:DP	1/1:0,5:5
+scaffold_2853	249	.	T	C	.	.	DP=6	GT:AD:DP	1/1:1,4:5
+scaffold_2853	256	.	A	T	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_2853	1251	.	A	T	.	.	DP=11	GT:AD:DP	1/1:0,7:7
+scaffold_2853	1277	.	T	C	.	.	DP=10	GT:AD:DP	1/1:0,9:9
+scaffold_2853	1296	.	C	T	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_2853	1308	.	G	A	.	.	DP=6	GT:AD:DP	1/1:0,6:6
+scaffold_2853	2034	.	G	A	.	.	DP=8	GT:AD:DP	0/1:1,6:7
+scaffold_2853	2053	.	A	C	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_2853	2086	.	T	C	.	.	DP=16	GT:AD:DP	1/1:1,11:12
+scaffold_2853	2117	.	A	G	.	.	DP=19	GT:AD:DP	1/1:3,14:17
+scaffold_2853	2142	.	C	T	.	.	DP=19	GT:AD:DP	0/1:10,7:17
+scaffold_2853	2171	.	C	T	.	.	DP=23	GT:AD:DP	1/1:0,22:22
+scaffold_2853	2189	.	C	A	.	.	DP=21	GT:AD:DP	1/1:1,17:20
+scaffold_2853	2206	.	G	A	.	.	DP=14	GT:AD:DP	1/1:1,12:13
+scaffold_2853	2210	.	T	C	.	.	DP=13	GT:AD:DP	1/1:0,13:13
+scaffold_2853	2212	.	A	T	.	.	DP=13	GT:AD:DP	1/1:1,12:13
+scaffold_2853	2244	.	G	A	.	.	DP=9	GT:AD:DP	1/1:1,8:9
+scaffold_2853	2350	.	T	A	.	.	DP=7	GT:AD:DP	1/1:0,6:6
+scaffold_2853	2359	.	G	A	.	.	DP=11	GT:AD:DP	1/1:0,8:8
+scaffold_2853	2370	.	G	A	.	.	DP=11	GT:AD:DP	1/1:0,11:11
+scaffold_2853	2389	.	T	C	.	.	DP=12	GT:AD:DP	1/1:0,10:10
+scaffold_2853	2394	.	G	A	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_2853	2395	.	T	C	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_2853	2403	.	A	G	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_2853	2417	.	T	C	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_2853	2420	.	C	T	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_2853	2685	.	C	T	.	.	DP=12	GT:AD:DP	1/1:1,5:6
+scaffold_2853	2687	.	A	G	.	.	DP=13	GT:AD:DP	1/1:1,6:7
+scaffold_2853	2701	.	C	T	.	.	DP=20	GT:AD:DP	0/1:4,8:12
+scaffold_2853	2705	.	G	A	.	.	DP=20	GT:AD:DP	0/1:4,9:13
+scaffold_2853	2707	.	G	A	.	.	DP=21	GT:AD:DP	0/1:4,8:12
+scaffold_2853	2708	.	C	T	.	.	DP=21	GT:AD:DP	0/1:4,9:13
+scaffold_2853	2715	.	G	A	.	.	DP=22	GT:AD:DP	0/1:10,5:15
+scaffold_2853	2726	.	T	C	.	.	DP=24	GT:AD:DP	0/1:10,5:15
+scaffold_2853	2738	.	G	A	.	.	DP=25	GT:AD:DP	0/1:9,7:16
+scaffold_2853	2740	.	C	A	.	.	DP=25	GT:AD:DP	0/1:8,9:17
+scaffold_2853	2760	.	A	G	.	.	DP=17	GT:AD:DP	0/1:9,7:16
+scaffold_2853	2804	.	G	A	.	.	DP=7	GT:AD:DP	1/1:1,5:6
+scaffold_2853	2805	.	G	A	.	.	DP=7	GT:AD:DP	1/1:1,5:6
+scaffold_3362	1184	.	T	G	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_3362	1185	.	G	A	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_3236	582	.	G	A	.	.	DP=9	GT:AD:DP	0/1:3,5:8
+scaffold_3236	584	.	A	G	.	.	DP=12	GT:AD:DP	1/1:0,9:9
+scaffold_3236	586	.	A	T	.	.	DP=12	GT:AD:DP	1/1:0,9:9
+scaffold_3236	619	.	A	G	.	.	DP=18	GT:AD:DP	1/1:0,17:17
+scaffold_3236	649	.	T	C	.	.	DP=15	GT:AD:DP	1/1:0,11:11
+scaffold_3236	667	.	T	A	.	.	DP=21	GT:AD:DP	1/1:0,19:19
+scaffold_3236	700	.	A	T	.	.	DP=20	GT:AD:DP	0/1:12,7:19
+scaffold_3236	701	.	T	A	.	.	DP=20	GT:AD:DP	0/1:7,12:19
+scaffold_3236	715	.	T	A	.	.	DP=17	GT:AD:DP	0/1:11,5:16
+scaffold_3236	717	.	C	G	.	.	DP=17	GT:AD:DP	1/1:0,15:15
+scaffold_3236	721	.	G	T	.	.	DP=15	GT:AD:DP	1/1:0,15:15
+scaffold_3236	728	.	T	G	.	.	DP=15	GT:AD:DP	0/1:5,10:15
+scaffold_3236	731	.	T	C	.	.	DP=15	GT:AD:DP	0/1:5,10:15
+scaffold_3236	733	.	C	T	.	.	DP=15	GT:AD:DP	1/1:0,15:15
+scaffold_3236	757	.	T	G	.	.	DP=7	GT:AD:DP	1/1:0,7:7
+scaffold_3236	761	.	A	G	.	.	DP=7	GT:AD:DP	1/1:0,5:5
+scaffold_3236	1320	.	A	G	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_3236	1322	.	C	T	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_3236	1354	.	C	A	.	.	DP=10	GT:AD:DP	1/1:1,9:10
+scaffold_3236	1357	.	A	T	.	.	DP=10	GT:AD:DP	1/1:0,9:10
+scaffold_3236	1360	.	A	G	.	.	DP=10	GT:AD:DP	1/1:1,9:10
+scaffold_3236	1371	.	C	T	.	.	DP=10	GT:AD:DP	1/1:1,9:10
+scaffold_3236	1373	.	C	T	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_3236	1374	.	T	C	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_3236	1378	.	T	C	.	.	DP=10	GT:AD:DP	1/1:0,10:10
+scaffold_3236	1399	.	C	T	.	.	DP=10	GT:AD:DP	1/1:0,9:9

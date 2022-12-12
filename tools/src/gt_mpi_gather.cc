@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2019 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -19,7 +19,7 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+ **/
 
 #include <iostream>
 #include <string>
@@ -30,6 +30,9 @@
 #include "query_variants.h"
 #include "broad_combined_gvcf.h"
 #include "vid_mapper_pb.h"
+#include "genomicsdb.h"
+#include "tiledb.h"
+#include "tiledb_utils.h"
 
 #ifdef USE_BIGMPI
 #include "bigmpi.h"
@@ -37,6 +40,10 @@
 
 #ifdef USE_GPERFTOOLS
 #include "gperftools/profiler.h"
+#endif
+
+#ifdef USE_GPERFTOOLS_HEAP
+#include "gperftools/heap-profiler.h"
 #endif
 
 //#define VERBOSE 1
@@ -47,9 +54,21 @@ enum ArgsEnum {
   ARGS_IDX_PRODUCE_HISTOGRAM,
   ARGS_IDX_PRINT_CALLS,
   ARGS_IDX_PRINT_CSV,
+  ARGS_IDX_BGEN,
+  ARGS_IDX_BGEN_COMPRESSION,
+  ARGS_IDX_BGEN_VERBOSE,
+  ARGS_IDX_BED,
+  ARGS_IDX_TPED,
+  ARGS_IDX_PLINK,
+  ARGS_IDX_PLINK_PREFIX,
+  ARGS_IDX_PLINK_ONE_PASS,
+  ARGS_IDX_FAM_LIST,
+  ARGS_IDX_PROG,
   ARGS_IDX_VERSION,
   ARGS_IDX_PRODUCE_INTERESTING_POSITIONS,
-  ARGS_IDX_PRINT_ALT_ALLELE_COUNTS
+  ARGS_IDX_PRINT_ALT_ALLELE_COUNTS,
+  ARGS_IDX_COLUMNAR_GVCF,
+  ARGS_IDX_GVCF_PROFILE
 };
 
 enum CommandsEnum {
@@ -58,12 +77,15 @@ enum CommandsEnum {
   COMMAND_PRODUCE_HISTOGRAM,
   COMMAND_PRINT_CALLS,
   COMMAND_PRINT_CSV,
-  COMMAND_PRINT_ALT_ALLELE_COUNTS
+  COMMAND_PLINK,
+  COMMAND_PRINT_ALT_ALLELE_COUNTS,
+  COMMAND_COLUMNAR_GVCF
 };
 
 enum ProduceBroadGVCFSubOperation {
   PRODUCE_BROAD_GVCF_PRODUCE_GVCF=0,
   PRODUCE_BROAD_GVCF_PRODUCE_INTERESTING_POSITIONS,
+  PRODUCE_BROAD_GVCF_COUNT_LINES,
   PRODUCE_BROAD_GVCF_UNKNOWN
 };
 
@@ -320,7 +342,10 @@ void scan_and_produce_Broad_GVCF(const VariantQueryProcessor& qp, const VariantQ
     op_ptr = new BroadCombinedGVCFOperator(vcf_adapter, id_mapper, query_config);
     break;
   case ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_PRODUCE_INTERESTING_POSITIONS:
-    op_ptr = new InterestingLocationsPrinter(std::cout);
+    op_ptr = new InterestingLocationsPrinter(std::cout, query_config);
+    break;
+  case ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_COUNT_LINES:
+    op_ptr = new ProfilerOperator(&id_mapper, &query_config);
     break;
   default:
     throw VariantOperationException(std::string("Unknown gvcf sub-operation type: ")
@@ -342,7 +367,28 @@ void scan_and_produce_Broad_GVCF(const VariantQueryProcessor& qp, const VariantQ
   }
   timer.stop();
   timer.print(std::string("Total scan_and_produce_Broad_GVCF time")+" for rank "+std::to_string(my_world_mpi_rank), std::cerr);
+  if(sub_operation_type == ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_COUNT_LINES)
+    std::cerr << "Count "<< dynamic_cast<ProfilerOperator*>(op_ptr)->get_value() << "\n";
   delete op_ptr;
+}
+
+void iterate_columnar_gvcf(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, int command_idx,
+    int sub_operation_type, VCFAdapter& vcf_adapter) {
+  switch(sub_operation_type) {
+    case ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_PRODUCE_GVCF:
+      {
+        BroadCombinedGVCFOperator op(vcf_adapter, query_config.get_vid_mapper(), query_config, false, true, false);
+        qp.iterate_over_gvcf_entries(qp.get_array_descriptor(), query_config, op, true);
+        break;
+      }
+    default:
+      {
+        ProfilerOperator counter;
+        qp.iterate_over_gvcf_entries(qp.get_array_descriptor(), query_config, counter, true);
+        std::cerr << "Counter "<<counter.get_value() << "\n";
+        break;
+      }
+  }
 }
 
 void print_calls(const VariantQueryProcessor& qp, const VariantQueryConfig& query_config, int command_idx, const VidMapper& id_mapper) {
@@ -382,7 +428,7 @@ void produce_column_histogram(const VariantQueryProcessor& qp, const VariantQuer
   for (auto val : num_equi_load_bins)
     histogram_op.equi_partition_and_print_bins(val);
 }
-
+  
 void print_usage() {
   std::cout << "Usage: gt_mpi_gather [options]\n"
             << "where options include:\n"
@@ -395,6 +441,7 @@ void print_usage() {
             << "\t\t\t   \"query_column_ranges\" : [ [ [0, 100 ], 500 ] ],\n"
             << "\t\t\t   \"query_row_ranges\" : [ [ [0, 2 ] ],\n"
             << "\t\t\t   \"vid_mapping_file\" : \"/tests/inputs/vid.json\",\n"
+	    << "\t\t\t   \"callset_mapping_file\": \"/tests/inputs/callset_mapping.json\",\n"
             << "\t\t\t   \"query_attributes\" : [ \"REF\", \"ALT\", \"BaseQRankSum\", \"MQ\", \"MQ0\", \"ClippingRankSum\", \"MQRankSum\", \"ReadPosRankSum\", \"DP\", \"GT\", \"GQ\", \"SB\", \"AD\", \"PL\", \"DP_FORMAT\", \"MIN_DP\" ] }\n"
             << "\t \e[1m--loader-json-config\e[0m=<loader json file>, \e[1m-l\e[0m <loader json file>\n"
             << "\t\t Optional, if vid_mapping_file and callset_mapping_file fields are specified in the query json file\n"
@@ -404,8 +451,36 @@ void print_usage() {
             << "\t\t Optional, if array is specified in any of the json config files\n"
             << "\t \e[1m--print-calls\e[0m\n"
             << "\t\t Optional, prints VariantCalls in a JSON format\n"
+            << "\t \e[1m--print-AC\e[0m\n"
+            << "\t\t Optional, computes and prints Allele Counts for the matched SNVs and MNVs in the query\n"
             << "\t \e[1m--print-csv\e[0m\n"
             << "\t\t Optional, outputs CSV with the fields and the order of CSV lines determined by the query attributes\n"
+            << "\t \e[1m--produce-bgen\e[0m\n"
+            << "\t\t Optional, outputs .bgen v1.2\n"
+            << "\t\t \e[1m--bgen-compression=<type>\e[0m\n"
+            << "\t\t\t Optional, used with \e[1m--produce-bgen\e[0m, specify the compression method used for the probability data storage\n"
+            << "\t\t\t 0 - no compression, 1 - gzip (default), 2 - z standard\n"
+            << "\t\t \e[1m--bgen-verbose\e[0m\n"
+            << "\t\t\t Optional, used with \e[1m--produce-bgen\e[0m, when specified will log various issues with GL/PL fields\n"
+            << "\t \e[1m--produce-bed\e[0m\n"
+            << "\t\t Optional, outputs plink1.9 .bed, .bim, and .fam file\n"
+            << "\t \e[1m--produce-tped\e[0m\n"
+            << "\t\t Optional, outputs plink1.9 .tped and .fam files\n"
+            << "\t \e[1m--produce-plink\e[0m\n"
+            << "\t\t Optional, equivalent to \e[1m--produce-bgen\e[0m, \e[1m--produce-bed\e[0m, and \e[1m--produce-tped\e[0m\n"
+            << "\t\t \e[1m--plink-prefix=<prefix>\e[0m\n"
+            << "\t\t\t Optional, used with \e[1m--produce-bgen\e[0m, \e[1m--produce-bed\e[0m, \e[1m--produce-tped\e[0m, and \e[1m--produce-plink\e[0m\n"
+            << "\t\t\t When specified, all files generated by these options will be named <prefix>.filetype. When this option is omitted <prefix> defaults to \"output\"\n"
+            << "\t\t \e[1m--fam-list=<filename>\e[0m\n"
+            << "\t\t\t Optional, used with \e[1m--produce-bed\e[0m and \e[1m--produce-tped\e[0m\n"
+            << "\t\t\t Takes a file containing the names of .fam files to include this information in the generated .fam file. The output .fam file will only contain samples found by the query.\n"
+            << "\t\t\t The within-family id (second column) values of the .fam files should match the sample names in GenomicsDB to be correctly associated\n"
+            << "\t\t \e[1m--progress\e[0m[=interval]\n"
+            << "\t\t\t Optional, Show query progress (currently implemented for: \e[1m--produce-bgen\e[0m, \e[1m--produce-bed\e[0m, \e[1m--produce-tped\e[0m, and \e[1m--produce-plink\e[0m\n"
+            << "\t\t\t specify minimum amount of time between progress messages\n"
+            << "\t\t\t where <interval> is a floating point number. Default units are seconds, explicitly specify seconds, minutes, or hours by appending s, m, or h to the end of the number\n"
+            << "\t\t \e[1m--plink-one-pass\e[0m\n"
+            << "\t\t\t Optional, produce plink files with only one pass, using samples from callset. Improves runtime, but will include samples in query range without any data.\n"
             << "\t \e[1m--produce-Broad-GVCF\e[0m\n"
             << "\t\t Optional, produces combined gVCF from the GenomicsDB data constrained by the query configuration\n"
             << "\t\t \e[1m--output-format\e[0m=<output_format>, \e[1m-O\e[0m <output_format>\n"
@@ -463,9 +538,21 @@ int main(int argc, char *argv[]) {
     {"produce-histogram",0,0,ARGS_IDX_PRODUCE_HISTOGRAM},
     {"print-calls",0,0,ARGS_IDX_PRINT_CALLS},
     {"print-csv",0,0,ARGS_IDX_PRINT_CSV},
+    {"produce-bgen", 0, 0, ARGS_IDX_BGEN},
+    {"bgen-compression", 1, 0, ARGS_IDX_BGEN_COMPRESSION},
+    {"bgen-verbose", 0, 0, ARGS_IDX_BGEN_VERBOSE},
+    {"produce-bed", 0, 0, ARGS_IDX_BED},
+    {"produce-tped", 0, 0, ARGS_IDX_TPED},
+    {"produce-plink", 0, 0, ARGS_IDX_PLINK},
+    {"plink-prefix",1,0,ARGS_IDX_PLINK_PREFIX},
+    {"plink-one-pass", 0, 0, ARGS_IDX_PLINK_ONE_PASS},
+    {"progress",2,0, ARGS_IDX_PROG},
+    {"fam-list", 1, 0, ARGS_IDX_FAM_LIST},
     {"print-AC",0,0,ARGS_IDX_PRINT_ALT_ALLELE_COUNTS},
     {"array",1,0,'A'},
     {"version",0,0,ARGS_IDX_VERSION},
+    {"columnar-gvcf",0,0,ARGS_IDX_COLUMNAR_GVCF},
+    {"gvcf-profile",0,0,ARGS_IDX_GVCF_PROFILE},
     {"help",0,0,'h'},
     {0,0,0,0},
   };
@@ -482,6 +569,14 @@ int main(int argc, char *argv[]) {
   size_t segment_size = 10u*1024u*1024u; //in bytes = 10MB
   auto segment_size_set_in_command_line = false;
   auto sub_operation_type = ProduceBroadGVCFSubOperation::PRODUCE_BROAD_GVCF_UNKNOWN;
+  auto use_columnar_iterator = false;
+  std::string plink_prefix = "output";
+  unsigned char plink_formats = 0;
+  bool one_pass = false;
+  bool bgen_verbose = false;
+  std::string fam_list = "";
+  double progress_interval = -1;
+  int bgen_compression = 1;
   while ((c=getopt_long(argc, argv, "j:l:w:A:p:O:s:r:h", long_options, NULL)) >= 0) {
     switch (c) {
     case 'p':
@@ -511,9 +606,16 @@ int main(int argc, char *argv[]) {
       command_idx = COMMAND_PRODUCE_BROAD_GVCF;
       sub_operation_type = PRODUCE_BROAD_GVCF_PRODUCE_GVCF;
       break;
+    case ARGS_IDX_COLUMNAR_GVCF:
+      use_columnar_iterator = true;
+      break;
     case ARGS_IDX_PRODUCE_INTERESTING_POSITIONS:
       command_idx = COMMAND_PRODUCE_BROAD_GVCF;
       sub_operation_type = PRODUCE_BROAD_GVCF_PRODUCE_INTERESTING_POSITIONS;
+      break;
+    case ARGS_IDX_GVCF_PROFILE:
+      command_idx = COMMAND_PRODUCE_BROAD_GVCF;
+      sub_operation_type = PRODUCE_BROAD_GVCF_COUNT_LINES;
       break;
     case ARGS_IDX_PRODUCE_HISTOGRAM:
       command_idx = COMMAND_PRODUCE_HISTOGRAM;
@@ -526,6 +628,70 @@ int main(int argc, char *argv[]) {
       break;
     case ARGS_IDX_PRINT_CSV:
       command_idx = COMMAND_PRINT_CSV;
+      break;
+    case ARGS_IDX_BGEN:
+      command_idx = COMMAND_PLINK;
+      plink_formats = plink_formats | 1;
+      break;
+    case ARGS_IDX_BGEN_COMPRESSION:
+      if (optarg) {
+        try {
+          bgen_compression = std::stoi(std::string(optarg));
+          if(bgen_compression < 0 || bgen_compression > 2) {
+            bgen_compression = 1;
+          }
+        }
+        catch ( std::exception& e ) {
+        }
+      }
+      break;
+    case ARGS_IDX_BGEN_VERBOSE:
+      bgen_verbose = true;
+      break;
+    case ARGS_IDX_BED:
+      command_idx = COMMAND_PLINK;
+      plink_formats = plink_formats | 2;
+      break;
+    case ARGS_IDX_TPED:
+      command_idx = COMMAND_PLINK;
+      plink_formats = plink_formats | 4;
+      break;
+    case ARGS_IDX_PLINK:
+      command_idx = COMMAND_PLINK;
+      plink_formats = 7;
+      break;
+    case ARGS_IDX_PLINK_PREFIX:
+      if(optarg) {
+        plink_prefix = std::string(optarg);
+      }
+      break;
+    case ARGS_IDX_PLINK_ONE_PASS:
+      one_pass = true;
+      break;
+    case ARGS_IDX_PROG:
+      if (optarg) {
+        try {
+          int unit_multiplier = 1;
+          std::string optstring(optarg);
+          switch(optstring.back()){
+            case 's': optstring.pop_back(); break;
+            case 'm': unit_multiplier=60; optstring.pop_back(); break;
+            case 'h': unit_multiplier=3600; optstring.pop_back(); break;
+          }
+          progress_interval = (int)(std::stod(std::string(optarg)) * 1000 * unit_multiplier);
+        }
+        catch ( std::exception& e ) {
+          progress_interval = 5000;
+        }
+      }
+      else {
+        progress_interval = 5000;
+      }
+      break;
+    case ARGS_IDX_FAM_LIST:
+      if(optarg) {
+        fam_list = std::string(optarg);
+      }
       break;
     case ARGS_IDX_PRINT_ALT_ALLELE_COUNTS:
       command_idx = COMMAND_PRINT_ALT_ALLELE_COUNTS;
@@ -552,6 +718,10 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
+  if(use_columnar_iterator) {
+    command_idx = COMMAND_COLUMNAR_GVCF;
+  }
+
   int rc=0;
   try {
     //Use VariantQueryConfig to setup query info
@@ -569,21 +739,31 @@ int main(int argc, char *argv[]) {
     //Info from loader (if specified) is obtained before reading query JSON
     query_config.read_from_file(json_config_file, my_world_mpi_rank);
     //Discard intervals not part of this partition
-    if (!loader_json_config_file.empty())
+    if (!loader_json_config_file.empty()) {
       query_config.subset_query_column_ranges_based_on_partition(loader_config, my_world_mpi_rank);
+    }
     //Command line overrides
-    if (page_size > 0u)
+    if (page_size > 0u) {
       query_config.set_combined_vcf_records_buffer_size_limit(page_size);
+    }
     if (command_idx == COMMAND_PRODUCE_BROAD_GVCF) {
+      if (query_config.get_reference_genome().empty()) {
+        throw GenomicsDBConfigException("No reference genome specified in query config");
+      }
       query_config.set_vcf_output_format(output_format);
     }
     vcf_adapter.initialize(query_config);
     workspace = query_config.get_workspace(my_world_mpi_rank);
     array_name = query_config.get_array_name(my_world_mpi_rank);
     assert(!workspace.empty() && !array_name.empty());
+
 #ifdef USE_GPERFTOOLS
-    ProfilerStart("gprofile.log");
+    ProfilerStart("gt_mpi_gather.gperf.prof");
 #endif
+#ifdef USE_GPERFTOOLS_HEAP
+    HeapProfilerStart("gt_mpi_gather.gperf.heap");
+#endif
+
     segment_size = segment_size_set_in_command_line ? segment_size
         : query_config.get_segment_size();
 #if VERBOSE>0
@@ -595,7 +775,8 @@ int main(int argc, char *argv[]) {
     /*Create query processor*/
     VariantQueryProcessor qp(&sm, array_name, query_config.get_vid_mapper());
     auto require_alleles = ((command_idx == COMMAND_RANGE_QUERY)
-                            || (command_idx == COMMAND_PRODUCE_BROAD_GVCF));
+                            || (command_idx == COMMAND_PRODUCE_BROAD_GVCF)
+			    || (command_idx == COMMAND_COLUMNAR_GVCF));
     qp.do_query_bookkeeping(qp.get_array_schema(), query_config, query_config.get_vid_mapper(), require_alleles);
     switch (command_idx) {
       case COMMAND_RANGE_QUERY:
@@ -607,6 +788,9 @@ int main(int argc, char *argv[]) {
         scan_and_produce_Broad_GVCF(qp, query_config, vcf_adapter, query_config.get_vid_mapper(),
                                     sub_operation_type, my_world_mpi_rank, skip_query_on_root);
         break;
+      case COMMAND_COLUMNAR_GVCF:
+	iterate_columnar_gvcf(qp, query_config, command_idx, sub_operation_type, vcf_adapter);
+	break;
       case COMMAND_PRODUCE_HISTOGRAM:
         produce_column_histogram(qp, query_config, 100, std::vector<uint64_t>({ 128, 64, 32, 16, 8, 4, 2 }));
         break;
@@ -615,16 +799,23 @@ int main(int argc, char *argv[]) {
       case COMMAND_PRINT_ALT_ALLELE_COUNTS:
         print_calls(qp, query_config, command_idx, query_config.get_vid_mapper());
         break;
+      case COMMAND_PLINK:
+        GenomicsDB gdb(json_config_file, GenomicsDB::JSON_FILE, loader_json_config_file, my_world_mpi_rank);
+        gdb.generate_plink(plink_formats, bgen_compression, one_pass, bgen_verbose, progress_interval, plink_prefix, fam_list);
+        break;
     }
+#ifdef USE_GPERFTOOLS_HEAP
+    HeapProfilerStop();
+#endif
 #ifdef USE_GPERFTOOLS
     ProfilerStop();
 #endif
-
     sm.close_array(qp.get_array_descriptor());
     GenomicsDBProtoBufInitAndCleanup::shutdown_protobuf_library();
   } catch(const GenomicsDBConfigException& genomicsdb_ex) {
     std::cerr << genomicsdb_ex.what() << "\n";
     std::cerr << "Do the config files specified to gt_mpi_gather exist? Are they parseable as JSON?\n";
+    rc = -1;
   } catch (const std::exception& ex) {
     std::cerr << ex.what() << "\n";
     std::cerr << "Try running gt_mpi_gather --help for usage" << std::endl;

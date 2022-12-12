@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2020-2021 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -20,14 +21,20 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifdef HTSDIR
-
 #include "vcf2binary.h"
+
+#include "hfile_genomicsdb.h"
 #include "htslib/bgzf.h"
 #include "vcf_adapter.h"
 #include "genomicsdb_multid_vector_field.h"
+#include "genomicsdb_logger.h"
+
+#include <errno.h>
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCF2BinaryException(#X);
+
+extern int g_show_import_progress;
+extern int g_progress_interval;
 
 //INFO fields like DP, RAW_MQ - the combine operation is a sum
 //When dealing with multi-sample input VCFs, divide up the value of the field among the samples
@@ -60,8 +67,7 @@ void VCFReaderBase::initialize(const char* filename,
       for (auto j=0u; j<vcf_field_names[field_type_idx].size(); ++j)
         VCFAdapter::add_field_to_hdr_if_missing(m_hdr, id_mapper, vcf_field_names[field_type_idx][j], field_type_idx);
     } catch (const VCFAdapterException& e) {
-      std::cerr << "ERROR: conflicting field description in the vid JSON and the VCF header of file: "<<filename<<"\n";
-      throw e;
+      logger.fatal(e, "conflicting field description in the vid JSON and the VCF header of file: {}", filename);
     }
   }
 }
@@ -102,6 +108,7 @@ VCFReader::VCFReader()
   m_vcf_file_buffer.l = 0;
   m_vcf_file_buffer.m = 4096;    //4KB
   m_vcf_file_buffer.s = (char*)malloc(m_vcf_file_buffer.m*sizeof(char));
+  genomicsdb_htslib_plugin_initialize();
 }
 
 VCFReader::~VCFReader() {
@@ -155,8 +162,13 @@ void VCFReader::initialize(const char* filename,
 void VCFReader::add_reader() {
   assert(m_indexed_reader->nreaders == 0);      //no existing files are open
   assert(m_fptr == 0);  //normal file handle should be NULL
-  if (bcf_sr_add_reader(m_indexed_reader, m_name.c_str()) != 1)
-    throw VCF2BinaryException(std::string("Could not open file ")+m_name+" : " + bcf_sr_strerror(m_indexed_reader->errnum) + " (VCF/BCF files must be block compressed and indexed)");
+  errno = 0;
+  if (bcf_sr_add_reader(m_indexed_reader, m_name.c_str()) != 1) {
+    std::string errmsg =  (errno>0) ? logger.format(" errno={} ({})", errno, std::strerror(errno))
+        : " (VCF/BCF files must be block compressed and indexed)";
+    throw VCF2BinaryException(std::string("Could not open file ")+m_name+" : "
+                              + bcf_sr_strerror(m_indexed_reader->errnum) + errmsg);
+  }
   assert(m_hdr);
   auto tmp_hdr_ptr = bcf_sr_get_header(m_indexed_reader, 0);
   bcf_sr_get_header(m_indexed_reader, 0) = m_hdr;
@@ -388,6 +400,17 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
 }
 
 void VCF2Binary::initialize_column_partitions(const std::vector<ColumnRange>& partition_bounds) {
+  static int num_calls = 0;
+  ++num_calls;
+  static size_t tm = 0;
+  auto progress_bar = [&] () {
+    size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    if (now - g_progress_interval > tm && m_vid_mapper) {
+      logger.info("[STAGE 1 / 3] Reading {} / {} = {:.2f}%", num_calls, m_vid_mapper->get_num_callsets(), 100*(double)num_calls/m_vid_mapper->get_num_callsets());
+      tm = now;
+    }
+  };
+
   //Initialize reader, if needed
   if (!m_parallel_partitions) {
     auto vcf_reader_ptr = dynamic_cast<VCFReaderBase*>(m_base_reader_ptr);
@@ -397,6 +420,9 @@ void VCF2Binary::initialize_column_partitions(const std::vector<ColumnRange>& pa
   for (auto i=0u; i<partition_bounds.size(); ++i) {
     auto vcf_column_partition_ptr = dynamic_cast<VCFColumnPartition*>(m_base_partition_ptrs[i]);
     assert(vcf_column_partition_ptr);
+    if(g_show_import_progress) {
+      progress_bar();
+    }
     //If parallel partitions, each interval gets its own reader
     if (m_parallel_partitions) {
       auto vcf_reader_ptr = dynamic_cast<VCFReaderBase*>(vcf_column_partition_ptr->m_base_reader_ptr);
@@ -691,7 +717,7 @@ bool VCF2Binary::convert_field_to_tiledb(std::vector<uint8_t>& buffer, VCFColumn
   //However, flag fields have num_values == 1, but no value is returned in the buffer
   //#define DEBUG_VARIANT_CELL_OFFSETS
 #ifdef DEBUG_VARIANT_CELL_OFFSETS
-  std::cerr << field_name << " write_offset "<< buffer_offset << "\n";
+  logger.info("{} write_offset {}", field_name, buffer_offset);
 #endif
   if (num_values <= 0
       || (num_values == 1 && bcf_ht_type != BCF_HT_FLAG && is_bcf_missing_value<FieldType>(ptr[0]))) {
@@ -1113,7 +1139,9 @@ void VCF2Binary::write_partition_data(File2TileDBBinaryColumnPartitionBase& part
   //The second parameter is useful if the file handler is open, but the buffer was full in a previous call
   auto has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, m_close_file, false);
   while (has_data) {
-    bcf_write(vcf_partition.m_split_output_fptr, hdr, vcf_reader_ptr->get_line());
+    if (bcf_write(vcf_partition.m_split_output_fptr, hdr, vcf_reader_ptr->get_line())) {
+      logger.fatal(VCF2BinaryException("Error writing VCF data for partition"));
+    }
     has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, false, true);
   }
 }
@@ -1139,8 +1167,7 @@ void VCF2Binary::close_partition_output_file(File2TileDBBinaryColumnPartitionBas
   default:
     break; //do nothing
   }
-  if (status != 0)
-    std::cerr << "WARNING: indexing of partition file "<< vcf_partition.m_split_filename <<" failed\n";
+  if (status != 0) {
+    logger.warn(" indexing of partition file {} failed", vcf_partition.m_split_filename);
+  }
 }
-
-#endif //ifdef HTSDIR

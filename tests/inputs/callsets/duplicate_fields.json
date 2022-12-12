@@ -1,0 +1,9 @@
+{
+    "callsets" : {
+        "DUP1" : {
+            "row_idx" : 0,
+            "idx_in_file": 0,
+            "filename": "inputs/vcfs/duplicate_fields.vcf.gz"
+        }
+    }
+}

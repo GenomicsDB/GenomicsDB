@@ -1,6 +1,7 @@
 /*
  * The MIT License (MIT)
  * Copyright (c) 2018 Omics Data Automation Inc. and Intel Corporation
+ * Copyright (c) 2021 Omics Data Automation Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -23,6 +24,15 @@
 package org.genomicsdb;
 
 public class GenomicsDBUtils {
+
+    /**
+     * Get full version string of GenomicsDB
+     * @return version of GenomicsDB
+     */
+    public static String nativeLibraryVersion() {
+        return GenomicsDBUtilsJni.jniLibraryVersion();
+    }
+
     /**
      * Create TileDB workspace
      *
@@ -44,7 +54,7 @@ public class GenomicsDBUtils {
      * @return status 0 = OK
      */
     public static int writeToFile(final String filename, final String contents) {
-	return GenomicsDBUtilsJni.jniWriteToFile(filename, contents, (long)contents.length());
+        return GenomicsDBUtilsJni.jniWriteToFile(filename, contents, (long) contents.length());
     }
 
     /**
@@ -73,16 +83,15 @@ public class GenomicsDBUtils {
      */
     public static int deleteFile(final String filename) {
 	return GenomicsDBUtilsJni.jniDeleteFile(filename);
-    } 
+    }
 
     /**
-     * Consolidate TileDB array
-     *
-     * @param workspace path to workspace directory
-     * @param arrayName array name
+     * Delete directory
+     * @param dirname path to file
+     * @return status 0 = OK
      */
-    public static void consolidateTileDBArray(final String workspace, final String arrayName) {
-        GenomicsDBUtilsJni.jniConsolidateTileDBArray(workspace, arrayName);
+    public static int deleteDir(final String dirname) {
+        return GenomicsDBUtilsJni.jniDeleteDir(dirname);
     }
 
     /**
@@ -120,8 +129,34 @@ public class GenomicsDBUtils {
      * @return max valid row idx, -1 for error
      */
     public static int getMaxValidRowIndex(final String workspace, final String array) {
-	return GenomicsDBUtilsJni.jniGetMaxValidRowIndex(workspace, array);
+        return GenomicsDBUtilsJni.jniGetMaxValidRowIndex(workspace, array);
     } 
 
+    /**
+     * Get array column bounds
+     * @param workspace path to workspace
+     * @param array name of workspace
+     * @return array of length 2 with with [0] = min column, [1] = max column
+     */
+    public static long[] getArrayColumnBounds(final String workspace, final String array) {
+        return GenomicsDBUtilsJni.jniGetArrayColumnBounds(workspace, array);
+    }
+
+    /**
+     * The default behavior uses the GCS native SDK client for processing gs:// URI. This can be
+     * overridden to use the GCS HDFS Connector instead when the given option is true
+     * @param option = true allows use, otherwise disallow use of the GCS HDFS Connector.
+     */
+    public static void useGcsHdfsConnector(final boolean option) {
+        GenomicsDBUtilsJni.jniUseGcsHdfsConnector(option);
+    }
+
+    /**
+     * Check if the use GCS HDFS Connector option is set
+     * @return true if the use GCS HDFS Connector option is set
+     */
+    public static boolean isUseGcsHdfsConnectorSet() {
+        return GenomicsDBUtilsJni.jniIsUseGcsHdfsConnectorSet();
+    }
 }
 

@@ -25,14 +25,23 @@ import org.genomicsdb.importer.GenomicsDBImporter;
 import org.genomicsdb.model.CommandLineImportConfig;
 import org.json.simple.parser.ParseException;
 
+import java.util.Arrays;
 import java.io.IOException;
 
 public final class TestGenomicsDBImporterWithMergedVCFHeader {
 
-  public static void main(final String[] args) throws IOException, GenomicsDBException, ParseException, InterruptedException {
+  public static void main(String[] args) throws IOException, GenomicsDBException, ParseException, InterruptedException {
     CommandLineImportConfig config = new CommandLineImportConfig("TestGenomicsDBImporterWithMergedVCFHeader", args);
     GenomicsDBImporter importer = new GenomicsDBImporter(config);
-    importer.executeImport();
+    if (config.getNumberCoalesceContigs() > 0) {
+      importer.coalesceContigsIntoNumPartitions(config.getNumberCoalesceContigs());
+    }
+    if (config.getConsolidateOnlyThreads() >= 0) {
+      importer.doConsolidate(config.getConsolidateOnlyThreads());
+    }
+    else{
+      importer.executeImport();
+    }
   }
 
 }

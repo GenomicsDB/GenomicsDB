@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2018-2019 Omics Data Automation, Inc.
+ * Copyright (c) 2018-2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -30,11 +30,15 @@
 #include "json_config.h"
 #include <dirent.h>
 #include <uuid/uuid.h>
+#include "genomicsdb_logger.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VariantStorageManagerException(#X);
 #define METADATA_FILE_PREFIX "genomicsdb_meta"
-#define GET_OLD_METADATA_PATH(workspace, array) ((workspace)+'/'+(array)+'/' + METADATA_FILE_PREFIX + ".json")
-#define GET_METADATA_DIRECTORY(workspace, array) ((workspace)+'/'+(array)+"/genomicsdb_meta_dir")
+#define COLUMN_METADATA_FILENAME "genomicsdb_column_bounds.json"
+#define SLASHIFY(path) (path.back()!='/'?path+'/':path)
+#define GET_OLD_METADATA_PATH(workspace, array) (SLASHIFY(workspace) + SLASHIFY(array) + METADATA_FILE_PREFIX + ".json")
+#define GET_METADATA_DIRECTORY(workspace, array) (SLASHIFY(workspace) + SLASHIFY(array) +"genomicsdb_meta_dir/")
+
 bool is_genomicsdb_meta_file(const TileDB_CTX* tiledb_ctx, const std::string& filepath) {
   if (!filepath.empty() && filepath.back() != '/' && is_file(tiledb_ctx, filepath)) {
     std::size_t found = filepath.find_last_of("/");
@@ -62,11 +66,12 @@ VariantArrayCellIterator::VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const
 						   const std::string& array_path, const int64_t* range,
 						   const std::vector<int>& attribute_ids,
 						   const size_t buffer_size, const std::string& query_filter)
-  : m_num_queried_attributes(attribute_ids.size()), m_tiledb_ctx(tiledb_ctx),
-    m_variant_array_schema(&variant_array_schema), m_cell(variant_array_schema, attribute_ids)
+    : m_num_queried_attributes(attribute_ids.size()),
+      m_variant_array_schema(&variant_array_schema),
+      m_cell(variant_array_schema, attribute_ids)
 #ifdef DO_PROFILING
-  , m_tiledb_timer()
-  , m_tiledb_to_buffer_cell_timer()
+    , m_tiledb_timer()
+    , m_tiledb_to_buffer_cell_timer()
 #endif
 {
   m_buffers.clear();
@@ -106,8 +111,9 @@ VariantArrayCellIterator::VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const
                   &(m_buffer_sizes[0]),
                   query_filter.c_str());
   if (status != TILEDB_OK) {
-    throw VariantStorageManagerException(std::string("Error while initializing TileDB iterator")
-                                         +"\nTileDB error message : "+tiledb_errmsg);
+    logger.fatal(VariantStorageManagerException(
+        logger.format("Error while initializing TileDB iterator : {}",
+                      tiledb_errmsg)));
   }
 #ifdef DEBUG
   m_last_row = -1;
@@ -129,9 +135,9 @@ const BufferVariantCell& VariantArrayCellIterator::operator*() {
     auto status = tiledb_array_iterator_get_value(m_tiledb_array_iterator, i,
                   reinterpret_cast<const void**>(&field_ptr), &field_size);
     if (status != TILEDB_OK)
-      throw VariantStorageManagerException(std::string("Error while getting value from TileDB iterator")
-                                           +" for field with query index "+std::to_string(i)
-                                           +"\nTileDB error message : "+tiledb_errmsg);
+      logger.fatal(VariantStorageManagerException(
+          logger.format("Error while getting value from TileDB iterator for field with query index {} : {}",
+                        i, tiledb_errmsg)));
     m_cell.set_field_ptr_for_query_idx(i, field_ptr);
     m_cell.set_field_size_in_bytes(i, field_size);
   }
@@ -139,8 +145,9 @@ const BufferVariantCell& VariantArrayCellIterator::operator*() {
   auto status = tiledb_array_iterator_get_value(m_tiledb_array_iterator, m_num_queried_attributes,
                 reinterpret_cast<const void**>(&field_ptr), &field_size);
   if (status != TILEDB_OK)
-    throw VariantStorageManagerException(std::string("Error while getting coordinate value from TileDB iterator")
-                                         +"\nTileDB error message : "+tiledb_errmsg);
+      logger.fatal(VariantStorageManagerException(
+          logger.format("Error while getting coordinate value from TileDB iterator : {}",
+                        tiledb_errmsg)));
   assert(field_size == m_variant_array_schema->dim_size_in_bytes());
   auto coords_ptr = reinterpret_cast<const int64_t*>(field_ptr);
   m_cell.set_coordinates(coords_ptr[0], coords_ptr[1]);
@@ -252,8 +259,8 @@ void VariantArrayInfo::write_cell(const void* ptr) {
   if (overflow) {
     auto status = tiledb_array_write(m_tiledb_array, const_cast<const void**>(&(m_buffer_pointers[0])), &(m_buffer_offsets[0]));
     if (status != TILEDB_OK)
-      throw VariantStorageManagerException(std::string("Error while writing to TileDB array")
-                                           +"\nTileDB error message : "+tiledb_errmsg);
+      logger.fatal(VariantStorageManagerException(
+          logger.format("Error while writing to GenomicsDB array : {}", tiledb_errmsg)));
     memset(&(m_buffer_offsets[0]), 0, m_buffer_offsets.size()*sizeof(size_t));
   }
   buffer_idx = 0;
@@ -293,7 +300,7 @@ void VariantArrayInfo::write_cell(const void* ptr) {
   m_buffer_offsets[coords_buffer_idx] += coords_size;
 }
 
-int read_row_bounds_kernel(TileDB_CTX *ctx,
+int read_dim_bounds_kernel(TileDB_CTX *ctx,
                                               rapidjson::Document *json_doc, 
                                               char **buffer,
                                               const std::string& filepath) {
@@ -301,7 +308,7 @@ int read_row_bounds_kernel(TileDB_CTX *ctx,
   if (size > 0) {
     *buffer = (char *)malloc(size+1);
     if (!*buffer)
-      throw VariantStorageManagerException(std::string("Out-of-memory exception while allocating memory"));
+      logger.fatal(VariantStorageManagerException("Out-of-memory exception while allocating memory"));
     memset(*buffer, 0, size+1);
 
     if (read_file(ctx, filepath, 0, *buffer, size) ||
@@ -320,6 +327,27 @@ int read_row_bounds_kernel(TileDB_CTX *ctx,
   return -1;
 }
 
+int VariantArrayInfo::get_array_column_bounds(const std::string& workspace, const std::string& array, int64_t bounds[]) {
+  TileDB_CTX *ctx;
+  // initialize ctx, and ensure that we've an existing workspace
+  if (TileDBUtils::initialize_workspace(&ctx, workspace, false) != 1)
+    return -1;
+  auto column_filepath = GET_METADATA_DIRECTORY(workspace, array) + COLUMN_METADATA_FILENAME;
+  char *buffer;
+  rapidjson::Document json_doc;
+  if (read_dim_bounds_kernel(ctx, &json_doc, &buffer, column_filepath))
+    return -1;
+  bounds[0] = bounds[1] = 0;
+  if (json_doc.HasMember("min_column") && json_doc["min_column"].IsInt64() &&
+      json_doc.HasMember("max_column") && json_doc["max_column"].IsInt64()) {
+    bounds[0] = json_doc["min_column"].GetInt64();
+    bounds[1] = json_doc["max_column"].GetInt64();
+  }
+  free(buffer);
+
+  return 0;
+}
+
 int VariantArrayInfo::get_max_valid_row_idx(const std::string& workspace, const std::string& array) {
   TileDB_CTX *ctx;
   // initialize ctx, and ensure that we've an existing workspace
@@ -332,7 +360,7 @@ int VariantArrayInfo::get_max_valid_row_idx(const std::string& workspace, const 
     if (is_genomicsdb_meta_file(ctx, filepath)) {
       char *buffer;
       rapidjson::Document json_doc;
-      if (read_row_bounds_kernel(ctx, &json_doc, &buffer, filepath))
+      if (read_dim_bounds_kernel(ctx, &json_doc, &buffer, filepath))
         return -1;
       if (json_doc.HasMember("max_valid_row_idx_in_array") && json_doc["max_valid_row_idx_in_array"].IsInt64()
           && (max_valid_row_idx < json_doc["max_valid_row_idx_in_array"].GetInt64()))
@@ -363,7 +391,7 @@ int VariantArrayInfo::read_row_bounds_from_metadata(const std::string& filepath)
   if (is_genomicsdb_meta_file(m_tiledb_ctx, filepath)) {
     char *buffer;
     rapidjson::Document json_doc;
-    if (read_row_bounds_kernel(m_tiledb_ctx, &json_doc, &buffer, filepath))
+    if (read_dim_bounds_kernel(m_tiledb_ctx, &json_doc, &buffer, filepath))
       return -1;
 
     if (json_doc.HasMember("max_valid_row_idx_in_array") && json_doc["max_valid_row_idx_in_array"].IsInt64()
@@ -421,44 +449,47 @@ void VariantArrayInfo::update_row_bounds_in_array(
     uuid_generate(value);
     char uuid_str[40];
     uuid_unparse(value, uuid_str);
-    auto metadata_filepath = GET_METADATA_DIRECTORY(m_workspace, m_name)
-                             + '/' + METADATA_FILE_PREFIX
+    auto metadata_filepath = GET_METADATA_DIRECTORY(m_workspace, m_name) + METADATA_FILE_PREFIX
                              + '_' + uuid_str +  ".json";
 
     if (write_file(m_tiledb_ctx, metadata_filepath, buffer.GetString(), strlen(buffer.GetString()))) {
-      throw VariantStorageManagerException(std::string("Could not write to metadata file ")+metadata_filepath
-                                           +"\nTileDB error message : "+tiledb_errmsg);
+      logger.fatal(VariantStorageManagerException(
+          logger.format("Could not write to metadata file {} : {}", metadata_filepath, tiledb_errmsg)));
     };
 
     if (close_file(m_tiledb_ctx, metadata_filepath)) {
-      throw VariantStorageManagerException(std::string("Could not close after write to metadata file ")+metadata_filepath
-                                           +"\nTileDB error message : "+tiledb_errmsg);
+      logger.fatal(VariantStorageManagerException(
+          logger.format("Could not close after write to metadata file {} : {}",
+                        metadata_filepath, tiledb_errmsg)));
     }
   }
 }
 
-void VariantArrayInfo::close_array(const bool consolidate_tiledb_array) {
+void VariantArrayInfo::close_array(const bool consolidate_tiledb_array,
+                                   const size_t consolidate_buffer_size,
+                                   const int consolidation_batch_size) {
   auto coords_buffer_idx = m_buffers.size()-1u;
   if ((m_mode == TILEDB_ARRAY_WRITE || m_mode == TILEDB_ARRAY_WRITE_UNSORTED)) {
     //Flush cells in buffer
     if (m_buffer_offsets[coords_buffer_idx] > 0ull) {
       auto status = tiledb_array_write(m_tiledb_array, const_cast<const void**>(&(m_buffer_pointers[0])), &(m_buffer_offsets[0]));
       if (status != TILEDB_OK)
-        throw VariantStorageManagerException("Error while writing to array "+m_name
-                                             +"\nTileDB error message : "+tiledb_errmsg);
+        logger.fatal(VariantStorageManagerException(
+            logger.format("Error while writing to GenomicsDB array {} : {}", m_name, tiledb_errmsg)));
       memset(&(m_buffer_offsets[0]), 0, m_buffer_offsets.size()*sizeof(size_t));
     }
     auto sync_status = tiledb_array_sync(m_tiledb_array);
     if (sync_status != TILEDB_OK)
-      throw VariantStorageManagerException("Error while syncing array "+m_name+" to disk"
-                                           +"\nTileDB error message : "+tiledb_errmsg);
+      logger.fatal(VariantStorageManagerException(
+          logger.format("Error while syncing array {} to disk : {}", m_name, tiledb_errmsg)));
   }
   if (m_tiledb_array) {
     auto status = tiledb_array_finalize(m_tiledb_array);
     if (status != TILEDB_OK)
-      throw VariantStorageManagerException("Error while finalizing TileDB array "+m_name
-                                           +"\nTileDB error message : "+tiledb_errmsg);
+      logger.fatal(VariantStorageManagerException(
+          logger.format("Error while finalizing GenomicsDB array {} : {}", m_name, tiledb_errmsg)));
     if (consolidate_tiledb_array) {
+      logger.info("Consolidating GenomicsDB array {} in workspace {}",  m_name, m_workspace);
       //Consolidate metadb entries as well
       std::vector<std::string> files = get_files(m_tiledb_ctx, GET_METADATA_DIRECTORY(m_workspace, m_name));
       for (auto filepath : files) {
@@ -474,10 +505,11 @@ void VariantArrayInfo::close_array(const bool consolidate_tiledb_array) {
       auto max_valid_row_idx_in_array = m_max_valid_row_idx_in_array;
       m_max_valid_row_idx_in_array = -1;
       update_row_bounds_in_array(lb_row_idx, max_valid_row_idx_in_array);
-      auto status = tiledb_array_consolidate(m_tiledb_ctx, (m_workspace + '/' + m_name).c_str());
+      auto status = tiledb_array_consolidate(m_tiledb_ctx, (SLASHIFY(m_workspace) + m_name).c_str(),
+                                             consolidate_buffer_size, consolidation_batch_size);
       if (status != TILEDB_OK)
-        throw VariantStorageManagerException("Error while consolidating TileDB array "+m_name
-                                             +"\nTileDB error message : "+tiledb_errmsg);
+        logger.fatal(VariantStorageManagerException(
+            logger.format("Error while consolidating GenomicsDB array {} : {}", m_name, tiledb_errmsg)));
     }
   }
   m_tiledb_array = 0;
@@ -485,16 +517,24 @@ void VariantArrayInfo::close_array(const bool consolidate_tiledb_array) {
   m_mode = -1;
 }
 
+#define PRINT_TILEDB_ERRMSG strlen(tiledb_errmsg)?" : "+std::string(tiledb_errmsg):""
+
 //VariantStorageManager functions
 VariantStorageManager::VariantStorageManager(const std::string& workspace, const unsigned segment_size,
-    const bool disable_file_locking_in_tiledb) {
+    const bool enable_shared_posixfs_optimizations) {
   m_workspace = workspace;
   m_segment_size = segment_size;
+  m_tiledb_ctx = NULL;
 
-  if (TileDBUtils::initialize_workspace(&m_tiledb_ctx, workspace, false, disable_file_locking_in_tiledb) < 0 || m_tiledb_ctx == NULL) {
-    throw VariantStorageManagerException(std::string("Error while creating TileDB workspace ")
-                                         + workspace
-                                         +"\nTileDB error message : "+tiledb_errmsg);
+  // Variant StorageManager expects the workspace to already exist!
+  if (TileDBUtils::workspace_exists(m_workspace)) {
+    if (TileDBUtils::initialize_workspace(&m_tiledb_ctx, m_workspace, false, enable_shared_posixfs_optimizations) < 0 || m_tiledb_ctx == NULL) {
+      logger.fatal(VariantStorageManagerException(
+		     logger.format("Error while initializing workspace {}{}", workspace, PRINT_TILEDB_ERRMSG)));
+    }
+  } else {
+    logger.fatal(VariantStorageManagerException(
+                     logger.format("Workspace {} does not seem to exist{}", workspace, PRINT_TILEDB_ERRMSG)));
   }
 }
 
@@ -502,49 +542,57 @@ int VariantStorageManager::open_array(const std::string& array_name, const VidMa
   auto mode_iter = VariantStorageManager::m_mode_string_to_int.find(mode);
   VERIFY_OR_THROW(mode_iter != VariantStorageManager::m_mode_string_to_int.end() && "Unknown mode of opening an array");
   auto mode_int = (*mode_iter).second;
-  if (is_array(m_tiledb_ctx, m_workspace + '/' + array_name)) {
-    //Try to open the array
-    TileDB_Array* tiledb_array;
-    auto status = tiledb_array_init(
-                    m_tiledb_ctx,
-                    &tiledb_array,
-                    (m_workspace+'/'+array_name).c_str(),
-                    mode_int, NULL,
-                    0, 0);
-    if (status == TILEDB_OK && mode_int == TILEDB_ARRAY_READ && query_filter.size() != 0) {
-      status = tiledb_array_apply_filter(tiledb_array, query_filter.c_str());
-    }
-    if (status == TILEDB_OK) {
-      auto idx = m_open_arrays_info_vector.size();
-      //Schema
-      VariantArraySchema tmp_schema;
-      get_array_schema(array_name, &tmp_schema);
-      //Just to be safe
-      define_metadata_schema(&tmp_schema);
-      m_open_arrays_info_vector.emplace_back(idx, mode_int,
-                                             m_workspace, array_name,
-                                             vid_mapper, tmp_schema,
-                                             m_tiledb_ctx, tiledb_array,
-                                             m_segment_size);
-      return idx;
-    }
+
+  std::string array_path = SLASHIFY(m_workspace) + array_name;
+  if (mode_int == TILEDB_ARRAY_READ && !is_array(m_tiledb_ctx, array_path)) {
+    logger.error("Array {} in workspace {} does not seem to exist{}", array_name,  m_workspace, PRINT_TILEDB_ERRMSG);
+    return -1;
+  }
+
+  // Try to open the array
+  TileDB_Array* tiledb_array;
+  auto status = tiledb_array_init(m_tiledb_ctx, &tiledb_array, array_path.c_str(), mode_int, NULL, 0, 0);
+  if (status == TILEDB_OK && mode_int == TILEDB_ARRAY_READ && query_filter.size() != 0) {
+    status = tiledb_array_apply_filter(tiledb_array, query_filter.c_str());
+  }
+  if (status == TILEDB_OK) {
+    auto idx = m_open_arrays_info_vector.size();
+    // Schema
+    VariantArraySchema tmp_schema;
+    get_array_schema(array_name, &tmp_schema);
+    // Just to be safe
+    define_metadata_schema(&tmp_schema);
+    m_open_arrays_info_vector.emplace_back(idx, mode_int,
+					   m_workspace, array_name,
+					   vid_mapper, tmp_schema,
+					   m_tiledb_ctx, tiledb_array,
+					   m_segment_size);
+    return idx;
   }
   return -1;
 }
 
-void VariantStorageManager::close_array(const int ad, const bool consolidate_tiledb_array) {
+void VariantStorageManager::close_array(const int ad, const bool consolidate_tiledb_array,
+                                        const int consolidation_batch_size) {
   VERIFY_OR_THROW(static_cast<size_t>(ad) < m_open_arrays_info_vector.size() &&
                   m_open_arrays_info_vector[ad].get_array_name().length());
-  m_open_arrays_info_vector[ad].close_array(consolidate_tiledb_array);
+  m_open_arrays_info_vector[ad].close_array(consolidate_tiledb_array, m_segment_size, consolidation_batch_size);
 }
 
-int VariantStorageManager::define_array(const VariantArraySchema* variant_array_schema, const size_t num_cells_per_tile) {
+int VariantStorageManager::define_array(const VariantArraySchema* variant_array_schema,
+                                        const size_t num_cells_per_tile,
+                                        const bool disable_delta_encode_for_offsets,
+                                        const bool disable_delta_encode_for_coords,
+                                        const bool enable_bit_shuffle_gt,
+                                        const bool enable_lz4_compression_gt) {
   //Attribute attributes
   std::vector<const char*> attribute_names(variant_array_schema->attribute_num());
   std::vector<int> cell_val_num(variant_array_schema->attribute_num());
   std::vector<int> types(variant_array_schema->attribute_num()+1u);  //+1 for the co-ordinates
   std::vector<int> compression(variant_array_schema->attribute_num()+1u);  //+1 for the co-ordinates
   std::vector<int> compression_level(variant_array_schema->attribute_num()+1u); //+1 for the co-ordinates
+  std::vector<int> offset_compression(variant_array_schema->attribute_num(), 0); // for attributes with variable number of cells
+  std::vector<int> offset_compression_level(variant_array_schema->attribute_num(), 0); // for attributes with variable number of cells
 
   for (auto i=0ull; i<variant_array_schema->attribute_num(); ++i) {
     attribute_names[i] = variant_array_schema->attribute_name(i).c_str();
@@ -552,12 +600,41 @@ int VariantStorageManager::define_array(const VariantArraySchema* variant_array_
     types[i] = VariantFieldTypeUtil::get_tiledb_type_for_variant_field_type(variant_array_schema->type(i));
     compression[i] = variant_array_schema->compression(i);
     compression_level[i] = variant_array_schema->compression_level(i);
+
+    if (variant_array_schema->attribute_name(i)=="GT" && variant_array_schema->compression(i) 
+        && (enable_bit_shuffle_gt || enable_lz4_compression_gt)) {
+      if (enable_lz4_compression_gt) {
+        compression[i] = TILEDB_LZ4;
+      } else {
+        compression[i] = variant_array_schema->compression(i);
+      }
+      if (enable_bit_shuffle_gt) {
+        compression[i] = compression[i] | TILEDB_BIT_SHUFFLE;
+      }
+      compression_level[i] = variant_array_schema->compression_level(i);
+    } else {
+      compression[i] = variant_array_schema->compression(i);
+      compression_level[i] = variant_array_schema->compression_level(i);
+    }
+
+    if (cell_val_num[i] == TILEDB_VAR_NUM && variant_array_schema->compression(i) > TILEDB_NO_COMPRESSION) {
+      if (disable_delta_encode_for_offsets) {
+        offset_compression[i] = variant_array_schema->compression(i);
+        offset_compression_level[i] = variant_array_schema->compression_level(i);
+      } else {
+        offset_compression[i] = variant_array_schema->compression(i) | TILEDB_DELTA_ENCODE;
+        offset_compression_level[i] = variant_array_schema->compression_level(i);
+      }
+    }
   }
 
   //Co-ordinates
   types[variant_array_schema->attribute_num()] = VariantFieldTypeUtil::get_tiledb_type_for_variant_field_type(
         variant_array_schema->dim_type());
   compression[variant_array_schema->attribute_num()] = variant_array_schema->dim_compression_type();
+  if (compression[variant_array_schema->attribute_num()] && !disable_delta_encode_for_coords) {
+    compression[variant_array_schema->attribute_num()] |= TILEDB_DELTA_ENCODE;
+  }
   compression_level[variant_array_schema->attribute_num()] = variant_array_schema->dim_compression_level();
   std::vector<const char*> dim_names(variant_array_schema->dim_names().size());
   std::vector<int64_t> dim_domains(2u*dim_names.size());
@@ -574,7 +651,7 @@ int VariantStorageManager::define_array(const VariantArraySchema* variant_array_
     // The array schema struct
     &array_schema,
     // Array name
-    (m_workspace+'/'+variant_array_schema->array_name()).c_str(),
+    (SLASHIFY(m_workspace)+variant_array_schema->array_name()).c_str(),
     // Attributes
     &(attribute_names[0]),
     // Number of attributes
@@ -589,6 +666,10 @@ int VariantStorageManager::define_array(const VariantArraySchema* variant_array_
     &(compression[0]),
     // Compression Level
     &(compression_level[0]),
+    // Compression for offsets
+    &(offset_compression[0]),
+    // Compression level for offsets
+    &(offset_compression_level[0]),
     // Sparse array
     0,
     // Dimensions
@@ -619,7 +700,7 @@ int VariantStorageManager::define_array(const VariantArraySchema* variant_array_
 }
 
 void VariantStorageManager::delete_array(const std::string& array_name) {
-  if (is_array(m_tiledb_ctx, m_workspace + '/' + array_name)) {
+  if (is_array(m_tiledb_ctx, SLASHIFY(m_workspace) + array_name)) {
     if (is_file(m_tiledb_ctx, GET_OLD_METADATA_PATH(m_workspace, array_name)))
       delete_file(m_tiledb_ctx, GET_OLD_METADATA_PATH(m_workspace, array_name));
 
@@ -628,9 +709,9 @@ void VariantStorageManager::delete_array(const std::string& array_name) {
 
     auto status = tiledb_delete(m_tiledb_ctx, (m_workspace+"/"+array_name).c_str());
     if (status != TILEDB_OK)
-      throw VariantStorageManagerException(std::string("Error while deleting TileDB array ")
-                                           + (m_workspace+"/"+array_name)
-                                           + "\nTileDB error message : "+tiledb_errmsg);
+      logger.fatal(VariantStorageManagerException(
+          logger.format("Error while deleting GenomicsDB array {} : {}",
+                        m_workspace+"/"+array_name, tiledb_errmsg)));
   }
 }
 
@@ -641,8 +722,8 @@ int VariantStorageManager::define_metadata_schema(const VariantArraySchema* vari
     return TILEDB_OK;
   auto status = create_dir(m_tiledb_ctx, meta_dir);
   if (status != TILEDB_OK)
-    throw VariantStorageManagerException(std::string("Could not create GenomicsDB meta-data directory ")
-                                         + "\nTileDB error message : "+tiledb_errmsg);
+    logger.fatal(VariantStorageManagerException(
+        logger.format("Could not create GenomicsDB metadata directory : {}", tiledb_errmsg)));
   return TILEDB_OK;
 }
 
@@ -659,7 +740,7 @@ int VariantStorageManager::get_array_schema(const std::string& array_name, Varia
   // Get array schema
   TileDB_ArraySchema tiledb_array_schema;
   memset(&tiledb_array_schema, 0, sizeof(TileDB_ArraySchema));
-  auto status = tiledb_array_load_schema(m_tiledb_ctx, (m_workspace+'/'+array_name).c_str(),
+  auto status = tiledb_array_load_schema(m_tiledb_ctx, (SLASHIFY(m_workspace)+array_name).c_str(),
                                          &tiledb_array_schema);
   if (status != TILEDB_OK)
     return -1;
@@ -711,7 +792,7 @@ VariantArrayCellIterator* VariantStorageManager::begin(int ad, const int64_t* ra
   VERIFY_OR_THROW(static_cast<size_t>(ad) < m_open_arrays_info_vector.size() &&
                   m_open_arrays_info_vector[ad].get_array_name().length());
   auto& curr_elem = m_open_arrays_info_vector[ad];
-  return new VariantArrayCellIterator(m_tiledb_ctx, curr_elem.get_schema(), m_workspace+'/'+curr_elem.get_array_name(),
+  return new VariantArrayCellIterator(m_tiledb_ctx, curr_elem.get_schema(), SLASHIFY(m_workspace)+curr_elem.get_array_name(),
                                       range, attribute_ids, m_segment_size, query_filter);
 }
 
@@ -723,7 +804,19 @@ SingleCellTileDBIterator* VariantStorageManager::begin_columnar_iterator(
   return new SingleCellTileDBIterator(m_tiledb_ctx,
                                       use_common_array_object ? curr_elem.get_tiledb_array() : 0,
                                       curr_elem.get_vid_mapper(), curr_elem.get_schema(),
-                                      m_workspace+'/'+curr_elem.get_array_name(),
+                                      SLASHIFY(m_workspace)+curr_elem.get_array_name(),
+                                      query_config, m_segment_size);
+}
+
+GenomicsDBGVCFIterator* VariantStorageManager::begin_gvcf_iterator(
+  int ad, const VariantQueryConfig& query_config, const bool use_common_array_object) const {
+  VERIFY_OR_THROW(static_cast<size_t>(ad) < m_open_arrays_info_vector.size() &&
+                  m_open_arrays_info_vector[ad].get_array_name().length());
+  auto& curr_elem = m_open_arrays_info_vector[ad];
+  return new GenomicsDBGVCFIterator(m_tiledb_ctx,
+                                      use_common_array_object ? curr_elem.get_tiledb_array() : 0,
+                                      curr_elem.get_vid_mapper(), curr_elem.get_schema(),
+                                      SLASHIFY(m_workspace)+curr_elem.get_array_name(),
                                       query_config, m_segment_size);
 }
 
@@ -749,4 +842,31 @@ void VariantStorageManager::update_row_bounds_in_array(const int ad, const int64
   assert(static_cast<size_t>(ad) < m_open_arrays_info_vector.size() &&
          m_open_arrays_info_vector[ad].get_array_name().length());
   m_open_arrays_info_vector[ad].update_row_bounds_in_array(lb_row_idx, max_valid_row_idx_in_array);
+}
+
+void VariantStorageManager::write_column_bounds_to_array(const int ad, const int64_t min_column, const int64_t max_column) {
+  assert(static_cast<size_t>(ad) < m_open_arrays_info_vector.size() &&
+         m_open_arrays_info_vector[ad].get_array_name().length());
+  auto column_filepath = GET_METADATA_DIRECTORY(m_workspace, m_open_arrays_info_vector[ad].get_array_name())
+                         + COLUMN_METADATA_FILENAME;
+  if (!is_file(m_tiledb_ctx, column_filepath)) {
+    rapidjson::Document json_doc;
+    json_doc.SetObject();
+    json_doc.AddMember("min_column", min_column, json_doc.GetAllocator());
+    json_doc.AddMember("max_column", max_column, json_doc.GetAllocator());
+    rapidjson::StringBuffer buffer;
+    rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(buffer);
+    json_doc.Accept(writer);
+  
+    if (write_file(m_tiledb_ctx, column_filepath, buffer.GetString(), strlen(buffer.GetString()))) {
+      logger.fatal(VariantStorageManagerException(
+          logger.format("Could not write to column bounds file : {}", tiledb_errmsg)));
+    };
+  
+    if (close_file(m_tiledb_ctx, column_filepath)) {
+      logger.fatal(VariantStorageManagerException(
+          logger.format("Could not close after write to column bounds file\nTileDB error message : {}",
+                        tiledb_errmsg)));
+    }
+  }
 }

@@ -74,7 +74,13 @@ public class ImportConfig {
                                 Map<String, FeatureReader<VariantContext>>> sampleToReaderMapCreator,
                         final boolean incrementalImport) {
         this.setImportConfiguration(importConfiguration);
-        this.validateChromosomeIntervals();
+        // we don't need to validate intervals for incremental case since we
+        // read the interval/partition info from workspace. also allows incremental
+        // case to pass partition info as tiledb offsets (for the case when we coalesce
+        // contigs into fewer partitions)
+        if(!incrementalImport) {
+            this.validateChromosomeIntervals();
+        }
         this.setValidateSampleToReaderMap(validateSampleToReaderMap);
         this.setPassAsVcf(passAsVcf);
         this.setBatchSize(batchSize);

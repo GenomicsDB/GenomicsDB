@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2018-2019 Omics Data Automation, Inc.
+ * Copyright (c) 2018-2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,6 +26,7 @@
 #include "json_config.h"
 #include "genomicsdb_config_base.h"
 #include "known_field_info.h"
+#include "genomicsdb_logger.h"
 #include "tiledb.h"
 #include "tiledb_utils.h"
 #include "vcf.h"
@@ -231,7 +232,7 @@ void VidMapper::clear() {
   m_owner_idx_to_file_idx_vec.clear();
 }
 
-bool VidMapper::get_contig_location(int64_t query_position, std::string& contig_name, int64_t& contig_position) const {
+bool VidMapper::get_contig_info_for_location(int64_t query_position, const ContigInfo*& contig_info) const {
   int idx = -1;
   std::pair<int64_t, int> query_pair;
   query_pair.first = query_position;
@@ -259,11 +260,22 @@ bool VidMapper::get_contig_location(int64_t query_position, std::string& contig_
   auto contig_offset = m_contig_idx_to_info[idx].m_tiledb_column_offset;
   auto contig_length = m_contig_idx_to_info[idx].m_length;
   if ((query_position >= contig_offset) && (query_position < contig_offset+contig_length)) {
-    contig_name = m_contig_idx_to_info[idx].m_name;
-    contig_position = query_position - contig_offset;
+    contig_info = &(m_contig_idx_to_info[idx]);
     return true;
   }
   return false;
+}
+
+bool VidMapper::get_contig_location(int64_t query_position, std::string& contig_name, int64_t& contig_position) const {
+  const ContigInfo* ptr = 0;
+  auto status = get_contig_info_for_location(query_position, ptr);
+  if(status) {
+    contig_name = ptr->m_name;
+    contig_position = query_position - ptr->m_tiledb_column_offset;
+    return true;
+  }
+  else
+    return false;
 }
 
 bool VidMapper::get_next_contig_location(int64_t query_position, std::string& next_contig_name, int64_t& next_contig_offset) const {
@@ -332,6 +344,8 @@ void VidMapper::build_vcf_fields_vectors(std::vector<std::vector<std::string>>& 
 
 void VidMapper::build_tiledb_array_schema(VariantArraySchema*& array_schema, const std::string array_name,
     const bool compress_fields,
+    const int  compression_type,
+    const int  compression_level,
     const bool no_mandatory_VCF_fields)
 const {
   auto dim_names = std::vector<std::string>({"samples", "position"});
@@ -403,19 +417,18 @@ const {
   // Add type for coords
   types.push_back(std::type_index(typeid(int64_t)));
 
-  std::vector<int> compression;
-  std::vector<int> compression_level;
-  for (auto i=0u; i<types.size(); ++i) { // types contains entry for coords also
-    if (compress_fields) {
-      compression.push_back(TILEDB_GZIP);
-      compression_level.push_back(TILEDB_COMPRESSION_LEVEL_GZIP);
-    } else {
-      compression.push_back(TILEDB_NO_COMPRESSION);
-      compression_level.push_back(0);
-    }
+  std::vector<int> compression_types;
+  std::vector<int> compression_levels;
+  
+  if (compress_fields) {
+    compression_types = std::vector<int>(types.size(), compression_type);
+    compression_levels = std::vector<int>(types.size(), compression_level);
+  } else {
+    compression_types = std::vector<int>(types.size(), TILEDB_NO_COMPRESSION);
+    compression_levels = std::vector<int>(types.size(), 0);
   }
 
-  array_schema = new VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression, compression_level);
+  array_schema = new VariantArraySchema(array_name, attribute_names, dim_names, dim_domains, types, num_vals, compression_types, compression_levels);
 }
 
 void VidMapper::build_file_partitioning(const int partition_idx, const TileDBRowRange row_partition) {
@@ -468,7 +481,7 @@ void VidMapper::verify_file_partitioning() const {
   for (auto file_idx=0ull; file_idx<m_file_idx_to_info.size(); ++file_idx) {
     auto& file_info = m_file_idx_to_info[file_idx];
     if (file_info.m_owner_idx < 0) {
-      std::cerr << "File " << file_info.m_name << " is not assigned to any partition\n";
+      logger.info("File {}  is not assigned to any partition", file_info.m_name);
       unassigned_files = true;
     }
   }
@@ -754,8 +767,7 @@ void VidMapper::parse_string_length_descriptor(
         && static_cast<size_t>(num_chars_traversed) == length_value_str_length) //whole string is an integer
       length_descriptor.set_num_elements(length_dim_idx, length_value_int);
     else {
-      std::cerr << "WARNING: unknown length descriptor " << length_value_str
-                << " for field " << field_name  << " ; setting to 'VAR'\n";
+      logger.warn("unknown length descriptor {} for field {}; setting to 'VAR'", length_value_str, field_name);
       length_descriptor.set_length_descriptor(length_dim_idx, BCF_VL_VAR);
     }
   } else
@@ -960,7 +972,7 @@ void VidMapper::check_for_missing_row_indexes()
   auto missing_row_idxs_exist = false;
   for (auto row_idx=0ll; static_cast<size_t>(row_idx)<m_row_idx_to_info.size(); ++row_idx)
     if (!(m_row_idx_to_info[row_idx].m_is_initialized)) {
-      std::cerr << "Sample/callset information missing for row " << row_idx << "\n";
+      logger.warn("Sample/callset information missing for row {}", row_idx);
       missing_row_idxs_exist = true;
     }
   if (missing_row_idxs_exist)
@@ -1151,7 +1163,7 @@ void FileBasedVidMapper::common_constructor_initialization(
       } else
         contig_name = (*dict_iter).name.GetString();
       if (m_contig_name_to_idx.find(contig_name) != m_contig_name_to_idx.end()) {
-        std::cerr << (std::string("Duplicate contig/chromosome name ")+contig_name+" found in vid file "+filename) << "\n";
+        logger.warn("Duplicate contig/chromosome name {} found in vid file {}", contig_name, filename);
         duplicate_contigs_exist = true;
       } else {
         VERIFY_OR_THROW(contig_info_dict.HasMember("tiledb_column_offset") && contig_info_dict["tiledb_column_offset"].IsInt64());
@@ -1187,10 +1199,10 @@ void FileBasedVidMapper::common_constructor_initialization(
       if (last_contig_idx >= 0) {
         const auto& last_contig_info = m_contig_idx_to_info[last_contig_idx];
         if (contig_info.m_tiledb_column_offset <= last_contig_end_column) {
-          std::cerr << (std::string("Contig/chromosome ")+contig_info.m_name+" begins at TileDB column "
-                        +std::to_string(contig_info.m_tiledb_column_offset)+" and intersects with contig/chromosome "+last_contig_info.m_name
-                        +" that spans columns [ "+std::to_string(last_contig_info.m_tiledb_column_offset)+", "
-                        +std::to_string(last_contig_info.m_tiledb_column_offset+last_contig_info.m_length-1)+" ]") << "\n";
+          logger.info("Contig/chromosome {} begins at TileDB column {} and intersects with contig/chromosome {} that spans columns [ {}, {} ]",
+                      contig_info.m_name, contig_info.m_tiledb_column_offset, last_contig_info.m_name,
+                      last_contig_info.m_tiledb_column_offset,
+                      last_contig_info.m_tiledb_column_offset+last_contig_info.m_length-1);
           overlapping_contigs_exist = true;
         }
       }
@@ -1234,7 +1246,7 @@ void FileBasedVidMapper::common_constructor_initialization(
       } else
         field_name = (*dict_iter).name.GetString();
       if (m_field_name_to_idx.find(field_name) != m_field_name_to_idx.end()) {
-        std::cerr << (std::string("Duplicate field name ")+field_name+" found in vid attribute \"fields\"") << "\n";
+        logger.warn("Duplicate field name {} found in vid attribute \"fields\"", field_name);
         duplicate_fields_exist = true;
         //advance loop
       } else {
@@ -1302,6 +1314,12 @@ void FileBasedVidMapper::common_constructor_initialization(
                   vcf_delimiter_json_value[i].GetString());
             }
           }
+        }
+
+        if (field_info_dict.HasMember("disable_remap_missing_with_non_ref")) {
+          VERIFY_OR_THROW(field_info_dict["disable_remap_missing_with_non_ref"].IsBool());
+          m_field_idx_to_info[field_idx].set_disable_remap_missing_with_non_ref(
+            field_info_dict["disable_remap_missing_with_non_ref"].GetBool());
         }
         ++field_idx;
         flatten_field(field_idx, field_idx-1);

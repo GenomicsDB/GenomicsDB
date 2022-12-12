@@ -518,6 +518,7 @@ class VariantFieldALTData : public VariantFieldBase {
     }
     //Create copy for use in strtok
     char* tmp = strndup(ptr, num_elements);
+
     assert(strnlen(tmp, num_elements+1) == num_elements); //last element should be 0
     //Tokenize
     char* saveptr = 0;

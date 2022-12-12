@@ -23,11 +23,8 @@
 #include "variant_operations.h"
 #include "query_variants.h"
 #include "genomicsdb_multid_vector_field.h"
+#include "genomicsdb_logger.h"
 
-#ifndef HTSDIR
-uint32_t bcf_float_missing    = 0x7F800001;
-uint32_t bcf_float_vector_end = 0x7F800002;
-#endif
 fi_union bcf_float_missing_union = { .i = bcf_float_missing };
 fi_union bcf_float_vector_end_union = { .i = bcf_float_vector_end };
 
@@ -325,15 +322,15 @@ void SingleVariantOperatorBase::clear() {
   m_merged_alt_alleles.clear();
 }
 
-void SingleVariantOperatorBase::operate(Variant& variant, const VariantQueryConfig& query_config) {
+void SingleVariantOperatorBase::operate(Variant& variant) {
   m_merged_reference_allele.resize(0u);
   m_merged_alt_alleles.clear();
   //REF allele
-  VariantOperations::merge_reference_allele(variant, query_config, m_merged_reference_allele);
+  VariantOperations::merge_reference_allele(variant, *m_query_config, m_merged_reference_allele);
   //ALT alleles
   //set #rows to number of calls
   m_alleles_LUT.resize_luts_if_needed(variant.get_num_calls(), 10u);    //arbitrary non-0 second arg, will be resized correctly anyway
-  VariantOperations::merge_alt_alleles(variant, query_config, m_merged_reference_allele, m_alleles_LUT,
+  VariantOperations::merge_alt_alleles(variant, *m_query_config, m_merged_reference_allele, m_alleles_LUT,
                                        m_merged_alt_alleles, m_NON_REF_exists);
   //is pure reference block if REF is 1 char, and ALT contains only <NON_REF>
   m_is_reference_block_only = (m_merged_reference_allele.length() == 1u && m_merged_alt_alleles.size() == 1u &&
@@ -342,15 +339,15 @@ void SingleVariantOperatorBase::operate(Variant& variant, const VariantQueryConf
   m_remapping_needed = !m_is_reference_block_only;
 }
 
-void InterestingLocationsPrinter::operate(Variant& variant, const VariantQueryConfig& query_config) {
+void InterestingLocationsPrinter::operate(Variant& variant) {
   auto num_valid_calls = 0ull;
   auto num_ref_block_calls = 0ull;
   auto num_begin_at_position = 0ull;
   //Valid calls
   for (const auto& curr_call : variant) {
     ++num_valid_calls;
-    const auto& ref = get_known_field<VariantFieldString, true>(curr_call, query_config, GVCF_REF_IDX);
-    const auto&  alt_field = get_known_field<VariantFieldALTData, true>(curr_call, query_config, GVCF_ALT_IDX);
+    const auto& ref = get_known_field<VariantFieldString, true>(curr_call, *m_query_config, GVCF_REF_IDX);
+    const auto&  alt_field = get_known_field<VariantFieldALTData, true>(curr_call, *m_query_config, GVCF_ALT_IDX);
     if (ref->get().length() == 1u && alt_field->get().size() == 1u
         && alt_field->get()[0u].length() == 1u
         && alt_field->get()[0u][0u] == TILEDB_NON_REF_VARIANT_REPRESENTATION[0u])
@@ -363,8 +360,8 @@ void InterestingLocationsPrinter::operate(Variant& variant, const VariantQueryCo
 }
 
 //Dummy genotyping operator
-void DummyGenotypingOperator::operate(Variant& variant, const VariantQueryConfig& query_config) {
-  variant.set_query_config(&query_config);
+void DummyGenotypingOperator::operate(Variant& variant) {
+  variant.set_query_config(m_query_config);
   VariantOperations::do_dummy_genotyping(variant, *m_output_stream);
 }
 
@@ -372,7 +369,7 @@ void DummyGenotypingOperator::operate(Variant& variant, const VariantQueryConfig
 GA4GHOperator::GA4GHOperator(const VariantQueryConfig& query_config,
                              const VidMapper& vid_mapper,
 			     const bool skip_remapping_INFO_fields_with_sum_combine_operation)
-  : SingleVariantOperatorBase(&vid_mapper) {
+  : SingleVariantOperatorBase(&vid_mapper, &query_config) {
   m_GT_query_idx = UNDEFINED_ATTRIBUTE_IDX_VALUE;
   m_max_diploid_alt_alleles_that_can_be_genotyped =
     query_config.get_max_diploid_alt_alleles_that_can_be_genotyped();
@@ -535,14 +532,16 @@ bool GA4GHOperator::check_if_too_many_alleles_and_print_message(
     std::string contig_name;
     int64_t  contig_position = -1;
     auto contig_status = m_vid_mapper->get_contig_location(variant.get_column_begin(), contig_name, contig_position);
+    std::stringstream ss;
     if (contig_status)
-      std::cerr << "Chromosome "<<contig_name<<" position "<<contig_position+1<<" ("; //VCF contig coords are 1 based
-    std::cerr << "TileDB column "<<variant.get_column_begin();
+      ss << "Chromosome "<<contig_name<<" position "<<contig_position+1<<" ("; //VCF contig coords are 1 based
+    ss << "TileDB column "<<variant.get_column_begin();
     if (contig_status)
-      std::cerr << ")";
-    std::cerr << " has too many alleles in the combined VCF record : "<<num_merged_alleles-1
+      ss << ")";
+    ss << " has too many alleles in the combined VCF record : "<<num_merged_alleles-1
       << " : current limit : "<<m_max_diploid_alt_alleles_that_can_be_genotyped
       << ". Fields, such as  PL, with length equal to the number of genotypes will NOT be added for this location.\n";
+    logger.warn(ss.str());
     return true;
   }
   return false;
@@ -571,36 +570,40 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
       std::string callset_name;
       auto callset_status = m_vid_mapper->get_callset_name(
 	  orig_call.get_row_idx(), callset_name);
+      std::stringstream ss;
       if(callset_status)
-	std::cerr << "Sample/Callset "<<callset_name << "( ";
-      std::cerr << "TileDB row idx "<<orig_call.get_row_idx();
+	ss << "Sample/Callset "<<callset_name << "( ";
+      ss << "TileDB row idx "<<orig_call.get_row_idx();
       if(callset_status)
-	std::cerr << ")";
-      std::cerr << " at ";
+	ss << ")";
+      ss << " at ";
       if (contig_status)
-	std::cerr << "Chromosome "<<contig_name<<" position "<<contig_position+1<<" ("; //VCF contig coords are 1 based
-      std::cerr << "TileDB column "<<variant.get_column_begin();
+	ss << "Chromosome "<<contig_name<<" position "<<contig_position+1<<" ("; //VCF contig coords are 1 based
+      ss << "TileDB column "<<variant.get_column_begin();
       if (contig_status)
-	std::cerr << ")";
-      std::cerr << " has too many genotypes in the combined VCF record : ";
+	ss << ")";
+      ss << " has too many genotypes in the combined VCF record : ";
       auto num_genotypes = KnownFieldInfo::get_number_of_genotypes(num_merged_alleles-1u, curr_ploidy);
       if(num_genotypes == UINT64_MAX)
-	std::cerr << "<uint64_t overflow>";
+	ss << "<uint64_t overflow>";
       else
-	std::cerr << num_genotypes;
-      std::cerr  << " : current limit : "<<m_max_genotype_count
+	ss << num_genotypes;
+      ss  << " : current limit : "<<m_max_genotype_count
 	<< " (num_alleles, ploidy) = ("<<num_merged_alleles<< ", "<<curr_ploidy
 	<< "). Fields, such as  PL, with length equal to the number of genotypes will NOT be added \
 	for this sample for this location.\n";
+      logger.warn(ss.str());
       remapped_field->set_valid(false);
       return false; //no remapping done
     }
 
+    const auto vid_field_info = query_config.get_field_info_for_query_attribute_idx(query_field_idx);
+    auto remap_missing_with_non_ref = vid_field_info->remap_missing_with_non_ref();
     //Multi-D field
     if (query_config.get_length_descriptor_for_query_attribute_idx(query_field_idx).get_num_dimensions() > 1u)
       remap_allele_specific_annotations(orig_field, remapped_field,
 	  curr_call_idx_in_variant,
-	  m_alleles_LUT, num_merged_alleles, m_NON_REF_exists, curr_ploidy,
+	  m_alleles_LUT, num_merged_alleles, m_NON_REF_exists && remap_missing_with_non_ref, curr_ploidy,
 	  query_config, query_field_idx);
     else {
       unsigned num_merged_elements =
@@ -612,7 +615,7 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
       //Call remap function
       handler->remap_vector_data(
 	  orig_field, curr_call_idx_in_variant,
-	  m_alleles_LUT, num_merged_alleles, m_NON_REF_exists, curr_ploidy,
+	  m_alleles_LUT, num_merged_alleles, m_NON_REF_exists && remap_missing_with_non_ref, curr_ploidy,
 	  query_config.get_length_descriptor_for_query_attribute_idx(query_field_idx), num_merged_elements, remapper_variant);
     }
     return true;
@@ -620,13 +623,14 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
   return false;
 }
 
-void GA4GHOperator::operate(Variant& variant, const VariantQueryConfig& query_config) {
+void GA4GHOperator::operate(Variant& variant) {
   //Compute merged REF and ALT
-  SingleVariantOperatorBase::operate(variant, query_config);
+  SingleVariantOperatorBase::operate(variant);
   //Copy variant to m_remapped_variant - only simple elements, not all fields
   m_remapped_variant.deep_copy_simple_members(variant);
   //Setup code for re-ordering PL/AD etc field elements in m_remapped_variant
   const unsigned num_merged_alleles = m_merged_alt_alleles.size()+1u;        //+1 for REF allele
+  const VariantQueryConfig& query_config = *m_query_config;
   //Known fields that need to be re-mapped
   if (m_remapping_needed) {
     //if GT field is queried
@@ -645,8 +649,11 @@ void GA4GHOperator::operate(Variant& variant, const VariantQueryConfig& query_co
             variant.get_call(curr_call_idx_in_variant).get_field<VariantFieldPrimitiveVectorData<int>>(m_GT_query_idx)->get();
           auto& output_GT =
             remapped_call.get_field<VariantFieldPrimitiveVectorData<int>>(m_GT_query_idx)->get();
+          const auto vid_field_info = query_config.get_field_info_for_query_attribute_idx(m_GT_query_idx);
+          auto remap_missing_with_non_ref = vid_field_info->remap_missing_with_non_ref();
           VariantOperations::remap_GT_field(input_GT, output_GT, m_alleles_LUT, curr_call_idx_in_variant,
-                                            num_merged_alleles, m_NON_REF_exists, GT_length_descriptor);
+                                            num_merged_alleles, m_NON_REF_exists && remap_missing_with_non_ref,
+                                            GT_length_descriptor);
           m_ploidy[curr_call_idx_in_variant] = GT_length_descriptor.get_ploidy(input_GT.size());
         }
       }
@@ -769,7 +776,7 @@ void ColumnHistogramOperator::operate_on_columnar_cell(const GenomicsDBColumnarC
 
 bool ColumnHistogramOperator::equi_partition_and_print_bins(uint64_t num_bins, std::ostream& fptr) const {
   if (num_bins >= m_bin_counts_vector.size()) {
-    std::cerr << "Requested #equi bins is smaller than allocated bin counts vector, returning\n";
+    logger.info("Requested #equi bins is smaller than allocated bin counts vector, returning");
     return false;
   }
   auto total_count = 0ull;
@@ -985,15 +992,20 @@ void AlleleCountOperator::operate_on_columnar_cell(const GenomicsDBColumnarCell&
 //Normalize ALT before inserting into map
 //For example, if REF=TGG ALT=T,AGG  (deletion and SNV), then normalize the SNV to T->A
 void AlleleCountOperator::normalize_REF_ALT_pair(std::pair<std::string, std::string>& REF_ALT_pair) {
-  auto REF_length = REF_ALT_pair.first.length();
-  auto curr_ALT_length = REF_ALT_pair.second.length();
-  auto contains_deletion = (REF_length > 1u);
-  if (contains_deletion && curr_ALT_length) {
+  auto& REF = REF_ALT_pair.first;
+  auto& ALT = REF_ALT_pair.second;
+  const auto REF_length = REF.length();
+  const auto curr_ALT_length = ALT.length();
+  if (REF_length > 1u && curr_ALT_length) {
     auto REF_suffix_length = 0u;
-    if (VariantUtils::is_symbolic_allele(REF_ALT_pair.second))
-      REF_ALT_pair.first.resize(1u); //only store 1 bp for REF in case of symbolic alleles
+    if (VariantUtils::is_symbolic_allele(ALT))
+      REF.resize(1u); //only store 1 bp for REF in case of symbolic alleles
     else {
-      if (curr_ALT_length == REF_length) { //SNV
+      if(VariantUtils::is_MNV(REF, ALT)) {
+	//remove common bases at the end of the MNV and REF
+	for(int i=REF_length-1u;i>=0;--i)
+	  REF_suffix_length += (REF[i] == ALT[i]);
+      } else if (curr_ALT_length == REF_length) { //SNV
         //Last n-1 chars are same
         REF_suffix_length = REF_length-1u;
       } else if (curr_ALT_length > REF_length) { //insertion
@@ -1008,11 +1020,11 @@ void AlleleCountOperator::normalize_REF_ALT_pair(std::pair<std::string, std::str
         if (curr_ALT_length > 1u)
           REF_suffix_length = curr_ALT_length-1u;
       }
-      assert(REF_ALT_pair.first.substr(REF_length-REF_suffix_length, REF_suffix_length)
-             == REF_ALT_pair.second.substr(curr_ALT_length-REF_suffix_length, REF_suffix_length));
+      assert(REF.substr(REF_length-REF_suffix_length, REF_suffix_length)
+             == ALT.substr(curr_ALT_length-REF_suffix_length, REF_suffix_length));
       //Chop off suffix
-      REF_ALT_pair.first.resize(REF_length-REF_suffix_length);
-      REF_ALT_pair.second.resize(curr_ALT_length-REF_suffix_length);
+      REF.resize(REF_length-REF_suffix_length);
+      ALT.resize(curr_ALT_length-REF_suffix_length);
     }
   }
 }

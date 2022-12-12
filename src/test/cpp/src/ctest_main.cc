@@ -30,7 +30,10 @@
 #define CATCH_CONFIG_RUNNER
 #include <catch2/catch.hpp>
 
-std::string g_pb_query_json_file = "";
+std::string g_query_json_file = "";
+std::string g_loader_json_file = "";
+std::string g_golden_output_file = "";
+bool g_skip_GT_matching = false;
 
 int main( int argc, char* argv[] )
 {
@@ -40,9 +43,19 @@ int main( int argc, char* argv[] )
   using namespace Catch::clara;
   auto cli 
     = session.cli() // Get Catch's composite command line parser
-    | Opt( g_pb_query_json_file, "Protobuf query JSON file" ) // bind variable to a new option, with a hint string
-     ["--pb-query-json-file"]    // the option names it will respond to
-    ("Protobuf query JSON file");        // description string for the help output
+    | Opt( g_query_json_file, "Query JSON file" ) // bind variable to a new option, with a hint string
+     ["--query-json-file"]    // the option names it will respond to
+    ("Query JSON file")        // description string for the help output
+    | Opt(g_loader_json_file, "Loader JSON file")
+     ["--loader-json-file"]
+     ("Loader JSON file")
+    | Opt(g_golden_output_file, "Golden output file")
+     ["--golden-output-file"]
+     ("Golden output file")
+    | Opt(g_skip_GT_matching)
+     ["--skip-GT-matching"]
+     ("Skip GT matching")
+    ;
 
   // Now pass the new composite back to Catch so it uses that
   session.cli( cli ); 

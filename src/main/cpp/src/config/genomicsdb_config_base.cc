@@ -28,6 +28,8 @@
 #include <zlib.h>
 #include "genomicsdb_config_base.h"
 
+#include "genomicsdb_logger.h"
+
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X);
 
 std::unordered_map<std::string, bool> GenomicsDBConfigBase::m_vcf_output_format_to_is_bcf_flag =
@@ -46,12 +48,13 @@ GenomicsDBConfigBase::GenomicsDBConfigBase() {
     m_index_output_VCF = false;
     m_sites_only_query = false;
     m_produce_GT_with_min_PL_value_for_spanning_deletions = false;
+    m_bypass_intersecting_intervals_phase = false;
     //Lower and upper bounds of callset row idx to import in this invocation
     m_lb_callset_row_idx = 0;
     m_ub_callset_row_idx = INT64_MAX-1;
     m_segment_size = 10u*1024u*1024u; //10MiB default
     m_query_filter = "";
-    m_disable_file_locking_in_tiledb = false;
+    m_enable_shared_posixfs_optimizations = false;
     m_determine_sites_with_max_alleles = false;
     m_max_diploid_alt_alleles_that_can_be_genotyped = MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED;
     m_max_genotype_count = MAX_GENOTYPE_COUNT;
@@ -67,9 +70,10 @@ ColumnRange GenomicsDBConfigBase::verify_contig_position_and_get_tiledb_column_i
                                     +" queried for contig "+contig_info.m_name+" which is of length "
                                     +std::to_string(contig_info.m_length)+"; queried position is past end of contig");
   if (result.second > contig_info.m_length) {
-    std::cerr << "WARNING: position "+std::to_string(result.second)
-              +" queried for contig "+contig_info.m_name+" which is of length "
-              +std::to_string(contig_info.m_length)+"; queried interval is past end of contig, truncating to contig length";
+    logger.warn("WARNING: position {} queried for contig {} which is of length {}; queried interval is past end of contig, truncating to contig length",
+                 result.second,
+                 contig_info.m_name,
+                 contig_info.m_length);
     result.second = contig_info.m_length;
   }
   // Subtract 1 as TileDB is 0-based and genomics (VCF) is 1-based
@@ -186,7 +190,15 @@ GenomicsDBImportConfig::GenomicsDBImportConfig()
   m_segment_size = 10u*1024u*1024u; //10MiB default
   m_num_cells_per_tile = 1024u;
   m_fail_if_updating = false;
+
+  //Compression and Compression Filters(Delta Encode and Bit Shuffle)
+  m_tiledb_compression_type = TILEDB_GZIP; // some default
   m_tiledb_compression_level = Z_DEFAULT_COMPRESSION;
+  m_disable_delta_encode_offsets = false;
+  m_disable_delta_encode_coords = false;
+  m_enable_bit_shuffle_gt = false;
+  m_enable_lz4_compression_gt = false;
+
   m_consolidate_tiledb_array_after_load = false;
   m_discard_missing_GTs = false;
   m_no_mandatory_VCF_fields = false;
@@ -195,8 +207,7 @@ GenomicsDBImportConfig::GenomicsDBImportConfig()
 void GenomicsDBConfigBase::set_vcf_output_format(const std::string& output_format) {
   m_vcf_output_format = output_format;
   if (m_vcf_output_format_to_is_bcf_flag.find(output_format) == m_vcf_output_format_to_is_bcf_flag.end()) {
-    std::cerr << "INFO: Invalid BCF/VCF output format: " << output_format
-              <<", will output compressed VCF\n";
+    logger.error("Invalid BCF/VCF output format: {} , will output compressed VCF", output_format);
     m_vcf_output_format = "z";
   }
 }

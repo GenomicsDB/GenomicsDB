@@ -151,7 +151,7 @@ class VariantQueryProcessorScanState {
   void reset() {
     invalidate();
     m_done = false;
-    m_num_calls_with_deletions = 0;
+    m_num_calls_with_deletions_or_MNVs = 0;
     while (!m_end_pq.empty())
       m_end_pq.pop();
   }
@@ -161,10 +161,11 @@ class VariantQueryProcessorScanState {
   /*
    * Set state
    */
-  void set_scan_state(VariantArrayCellIterator* iter, const int64_t current_start_position, const uint64_t num_calls_with_deletions) {
+  void set_scan_state(VariantArrayCellIterator* iter, const int64_t current_start_position,
+      const uint64_t num_calls_with_deletions_or_MNVs) {
     m_iter = iter;
     m_current_start_position = current_start_position;
-    m_num_calls_with_deletions = num_calls_with_deletions;
+    m_num_calls_with_deletions_or_MNVs = num_calls_with_deletions_or_MNVs;
   }
   VariantCallEndPQ& get_end_pq() {
     return m_end_pq;
@@ -172,8 +173,8 @@ class VariantQueryProcessorScanState {
   Variant& get_variant() {
     return m_variant;
   }
-  uint64_t get_num_calls_with_deletions() const {
-    return m_num_calls_with_deletions;
+  uint64_t get_num_calls_with_deletions_or_MNVs() const {
+    return m_num_calls_with_deletions_or_MNVs;
   }
   void set_done(const bool val) {
     m_done = val;
@@ -189,7 +190,7 @@ class VariantQueryProcessorScanState {
   bool m_done;
   VariantArrayCellIterator* m_iter;
   int64_t m_current_start_position;
-  uint64_t m_num_calls_with_deletions;
+  uint64_t m_num_calls_with_deletions_or_MNVs;
   VariantCallEndPQ m_end_pq;
   Variant m_variant;
   GTProfileStats m_stats;
@@ -254,14 +255,23 @@ class VariantQueryProcessor {
                         const BufferVariantCell& cell,
                         VariantCallEndPQ& end_pq, std::vector<VariantCall*>& tmp_pq_buffer,
                         int64_t& current_start_position, int64_t& next_start_position,
-                        uint64_t& num_calls_with_deletions, bool handle_spanning_deletions,
+                        uint64_t& num_calls_with_deletions_or_MNVs, bool handle_spanning_deletions,
                         GTProfileStats* stats_ptr) const;
   /** Called by scan_and_operate to handle all ranges for given set of cells */
   void handle_gvcf_ranges(VariantCallEndPQ& end_pq,
                           const VariantQueryConfig& queryConfig, Variant& variant,
                           SingleVariantOperatorBase& variant_operator,
-                          int64_t& current_start_position, int64_t next_start_position, bool is_last_call, uint64_t& num_calls_with_deletions,
+                          int64_t& current_start_position, int64_t next_start_position, bool is_last_call,
+			  uint64_t& num_calls_with_deletions_or_MNVs,
                           GTProfileStats* stats_ptr) const;
+  /*
+   * Columnar version of scan_and_operate - WIP
+   */
+  void iterate_over_gvcf_entries(
+    const int ad,
+    const VariantQueryConfig& query_config,
+    SingleVariantOperatorBase& variant_operator,
+    const bool use_common_array_object) const;
   //while scan breaks up the intervals, iterate does not
   //@param use_common_array_object - VariantStorageManager invoked tiledb_array_init()
   //for the array once. If you wish to use that TileDB_Array object in your iterator, pass true
@@ -338,9 +348,7 @@ class VariantQueryProcessor {
   void gt_fill_row(
     Variant& variant, int64_t row, int64_t column, const VariantQueryConfig& query_config,
     const BufferVariantCell& cell, GTProfileStats* stats
-#ifdef DUPLICATE_CELL_AT_END
     , bool traverse_end_copies=false
-#endif
   ) const;
   /**
    * Initializes forward iterators for joint genotyping for column col.

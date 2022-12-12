@@ -316,6 +316,7 @@ class FieldInfo {
     m_element_index_in_tuple = 0u;
     m_element_size = 0u;
     m_parent_composite_field_idx = 0u;
+    m_disable_remap_missing_with_non_ref = false;
   }
   void set_info(const std::string& name, int idx) {
     m_name = name;
@@ -387,6 +388,12 @@ class FieldInfo {
     assert(is_flattened_field());
     return m_parent_composite_field_idx;
   }
+  void set_disable_remap_missing_with_non_ref(const bool val) {
+    m_disable_remap_missing_with_non_ref = val;
+  }
+  bool remap_missing_with_non_ref() const {
+    return !m_disable_remap_missing_with_non_ref;
+  }
   bool is_VCF_field_combine_operation_sum() const;
   //Public members
   std::string m_name;     //Unique per array schema
@@ -399,6 +406,7 @@ class FieldInfo {
   FieldLengthDescriptor m_length_descriptor;
   //Combine operation for VCF INFO fields
   int m_VCF_field_combine_operation;
+  bool m_disable_remap_missing_with_non_ref;
   //Multi-d vector fields - different types in TileDB/VCF/GenomicsDB
   void modify_field_type_if_multi_dim_field();
   void compute_element_size();
@@ -449,6 +457,11 @@ class VidMapper {
    * Returns true if valid contig found, false otherwise
    */
   bool get_contig_location(const int64_t position, std::string& contig_name, int64_t& contig_position) const;
+  /*
+   * Same as above, but returns ptr to ContigInfo object in this VidMapper object
+   * More efficient than the above function since it avoids reallocations and copies
+   */
+  bool get_contig_info_for_location(const int64_t position, const ContigInfo*& ptr) const;
   /*
    * Given a position in a flattened 'address' space [TileDB column idx], get the next contig_name and starting
    * location of the contig in the flattened space
@@ -721,6 +734,33 @@ class VidMapper {
       return 0;
     return &(get_field_info(field_idx));
   }
+  /*
+   * Given a field name and type, return FieldInfo ptr
+   * here name may be vcfname, so we'll try to append type
+   * If field is not found, return 0
+   */
+  inline const FieldInfo* get_field_info(const std::string& name, int field_type) const {
+    int field_idx = -1;
+    std::string suffix = "";
+    switch (field_type) {
+      case BCF_HL_FLT:
+        suffix = "_FILTER";
+        break;
+      case BCF_HL_INFO:
+        suffix = "_INFO";
+        break;
+      case BCF_HL_FMT:
+        suffix = "_FORMAT";
+        break;
+      default:
+        break;
+    }
+    auto status = get_global_field_idx(name+suffix, field_idx);
+    if (!status) {
+      return get_field_info(name);
+    }
+    return &(get_field_info(field_idx));
+  }
   const FieldInfo* get_flattened_field_info(const FieldInfo* field_info,
       const unsigned tuple_element_index) const;
   /*
@@ -729,6 +769,8 @@ class VidMapper {
   void build_vcf_fields_vectors(std::vector<std::vector<std::string>>& vcf_fields) const;
   void build_tiledb_array_schema(VariantArraySchema*& array_schema, const std::string array_name,
                                  const bool compress_fields,
+                                 const int  compression_type,
+                                 const int  compression_level,
                                  const bool no_mandatory_VCF_fields) const;
   /*
    * Get num contigs
@@ -806,6 +848,14 @@ class VidMapper {
   int parse_contigs_from_vidmap(const VidMappingPB* vidMapProto);
   int parse_infofields_from_vidmap(const VidMappingPB* vidMapProto);
 
+  //Static members - also used to construct annotation_source_t
+  static std::unordered_map<std::string, int> m_length_descriptor_string_to_int;
+  static std::unordered_map<std::string, std::type_index> m_typename_string_to_type_index;
+  static std::unordered_map<std::string, int> m_typename_string_to_bcf_ht_type;
+  
+  //INFO field combine operation
+  static std::unordered_map<std::string, int> m_INFO_field_operation_name_to_enum;
+
  protected:
   void add_mandatory_fields();
   void flatten_field(int& field_idx, const int original_field_idx);
@@ -836,12 +886,6 @@ class VidMapper {
   //owner idx to file_idx vector
   std::vector<std::vector<int64_t>> m_owner_idx_to_file_idx_vec;
   void sort_and_assign_local_file_idxs_for_partition(const int owner_idx);
-  //Static members
-  static std::unordered_map<std::string, int> m_length_descriptor_string_to_int;
-  static std::unordered_map<std::string, std::type_index> m_typename_string_to_type_index;
-  static std::unordered_map<std::string, int> m_typename_string_to_bcf_ht_type;
-  //INFO field combine operation
-  static std::unordered_map<std::string, int> m_INFO_field_operation_name_to_enum;
   //Max row idx in callset idx file
   int64_t m_max_callset_row_idx;
 };

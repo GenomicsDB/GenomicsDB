@@ -1,6 +1,6 @@
 /*
  * The MIT License (MIT)
- * Copyright (c) 2019 Omics Data Automation, Inc.
+ * Copyright (c) 2019, 2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -24,12 +24,14 @@ package org.genomicsdb.reader;
 
 import org.genomicsdb.GenomicsDBLibLoader;
 import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
+import java.io.Serializable;
 import java.util.*;
 
 public class GenomicsDBQuery {
 
-  static {
+    static {
     try {
       if (!GenomicsDBLibLoader.loadLibrary()) {
         throw new GenomicsDBException("Could not load genomicsdb native library");
@@ -44,7 +46,7 @@ public class GenomicsDBQuery {
     }
   }
 
-  public static class Pair {
+  public static class Pair implements Serializable {
     private long start;
     private long end;
     public Pair(long start, long end){
@@ -57,9 +59,14 @@ public class GenomicsDBQuery {
     public long getEnd(){
       return end;
     }
+
+    @Override
+    public String toString() {
+      return start+"-"+end;
+    }
   }
 
-  public static class VariantCall {
+  public static class VariantCall implements Serializable {
     long rowIndex;
     long colIndex;
     String sampleName;
@@ -92,9 +99,14 @@ public class GenomicsDBQuery {
     public Map<String, Object> getGenomicFields() {
       return genomicFields;
     }
+
+    @Override
+    public String toString() {
+      return "row="+rowIndex+" col="+colIndex+" "+sampleName+" "+contigName+":"+genomic_interval.toString()+" "+genomicFields;
+    }
   }
 
-  public static class Interval {
+  public static class Interval implements Serializable {
     Pair interval = null;
     List<VariantCall> calls = new ArrayList<>();
     Interval() {}
@@ -110,6 +122,10 @@ public class GenomicsDBQuery {
     public Pair getInterval() {
         return interval;
     }
+    @Override
+    public String toString() {
+      return interval.toString();
+    }
   }
 
   public String version() {
@@ -121,18 +137,16 @@ public class GenomicsDBQuery {
   public long connect(final String workspace,
                       final String vidMappingFile,
                       final String callsetMappingFile,
-                      final String referenceGenome,
                       final List<String> attributes) throws GenomicsDBException {
-    return connect(workspace, vidMappingFile, callsetMappingFile, referenceGenome, attributes, defaultSegmentSize);
+    return connect(workspace, vidMappingFile, callsetMappingFile, attributes, defaultSegmentSize);
   }
 
   public long connect(final String workspace,
                       final String vidMappingFile,
                       final String callsetMappingFile,
-                      final String referenceGenome,
                       final List<String> attributes,
                       final long segmentSize) throws GenomicsDBException {
-    return jniConnect(workspace, vidMappingFile, callsetMappingFile, referenceGenome, attributes, segmentSize);
+    return jniConnect(workspace, vidMappingFile, callsetMappingFile, attributes, segmentSize);
   }
 
   public long connectJSON(final String queryJSONFile) {
@@ -141,6 +155,14 @@ public class GenomicsDBQuery {
 
   public long connectJSON(final String queryJSONFile, final String loaderJSONFile) {
     return jniConnectJSON(queryJSONFile, loaderJSONFile);
+  }
+
+  public long connectExportConfiguration(GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration) {
+    return connectExportConfiguration(exportConfiguration, "");
+  }
+
+  public long connectExportConfiguration(GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration, final String loaderJSONFile) {
+    return jniConnectPBBinaryString(exportConfiguration.toByteArray(), loaderJSONFile);
   }
 
   public void disconnect(long handle) {
@@ -169,19 +191,23 @@ public class GenomicsDBQuery {
                           final String arrayName,
                           final List<Pair> columnRanges,
                           final List<Pair> rowRanges,
+                          final String referenceGenome,
+                          final String vcfHeader,
                           final String outputFilename,
                           final String outputFormat) {
-    jniGenerateVCF(handle, arrayName, columnRanges, rowRanges, outputFilename, outputFormat, false);
+    jniGenerateVCF(handle, arrayName, columnRanges, rowRanges, referenceGenome, vcfHeader, outputFilename, outputFormat, false);
   }
 
   public void generateVCF(long handle,
                           final String arrayName,
                           final List<Pair> columnRanges,
                           final List<Pair> rowRanges,
+                          final String referenceGenome,
+                          final String vcfHeader,
                           final String outputFilename,
                           final String outputFormat,
                           final boolean overwrite) {
-    jniGenerateVCF(handle, arrayName, columnRanges, rowRanges, outputFilename, outputFormat, overwrite);
+    jniGenerateVCF(handle, arrayName, columnRanges, rowRanges, referenceGenome, vcfHeader, outputFilename, outputFormat, overwrite);
   }
 
   public void generateVCF(long handle,
@@ -205,12 +231,14 @@ public class GenomicsDBQuery {
   private static native long jniConnect(final String workspace,
                                  final String vidMappingFile,
                                  final String callsetMappingFile,
-                                 final String referenceGenome,
                                  final List<String> attributes,
                                  final long segmentSize) throws GenomicsDBException;
 
   private static native long jniConnectJSON(final String queryJSONFile,
                                             final String loaderJSONFile);
+
+  private static native long jniConnectPBBinaryString(final byte[] pbBinaryString,
+                                                      final String loaderJSONFile);
 
   private static native void jniDisconnect(long handle);
 
@@ -223,6 +251,8 @@ public class GenomicsDBQuery {
                                             final String arrayName,
                                             final List<Pair> columnRanges,
                                             final List<Pair> rowRanges,
+                                            final String referenceGenome,
+                                            final String vcfHeader,
                                             final String outputFilename,
                                             final String outputFormat,
                                             final boolean overwrite);

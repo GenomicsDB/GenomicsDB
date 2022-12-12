@@ -4,7 +4,7 @@
 # The MIT License
 #
 # Copyright (c) 2016 MIT and Intel Corporation
-# Copyright (c) 2019 Omics Data Automation, Inc.
+# Copyright (c) 2019-2020 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -28,16 +28,31 @@
 # Once done this will define
 # TILEDB_FOUND - TileDB found
 
-set(TILEDB_VERBOSE True)
+# Update git submodule if necessary
+if((DEFINED TILEDB_SOURCE_DIR) AND (NOT "${TILEDB_SOURCE_DIR}" STREQUAL "") AND (NOT EXISTS "${TILEDB_SOURCE_DIR}/CMakeLists.txt"))
+  MESSAGE(STATUS "Installing submodule TileDB at ${CMAKE_SOURCE_DIR}/dependencies")
+  execute_process(
+    COMMAND git submodule update --recursive --init ${CMAKE_SOURCE_DIR}/dependencies/TileDB
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE submodule_update_exit_code)
+  if(NOT(submodule_update_exit_code EQUAL 0))
+    message(FATAL_ERROR "Failure to update git submodule TileDB")
+  endif()
+  set(TILEDB_SOURCE_DIR "${CMAKE_SOURCE_DIR}/dependencies/TileDB" CACHE PATH "Path to TileDB source directory" FORCE)
+endif()
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+  #TileDB c-api returns a tiledb_errmsg which is what GenomicsDB should rely on
+  set(TILEDB_VERBOSE FALSE CACHE BOOL "Suppress TileDB Verbosity for GenomicsDB" FORCE)
+endif()
 set(TILEDB_DISABLE_TESTING True)
 
 #Zlib
 find_package(ZLIB REQUIRED)
 
-#OpenSSL
-if(OPENSSL_PREFIX_DIR AND NOT OPENSSL_ROOT_DIR)
-    set(OPENSSL_ROOT_DIR "${OPENSSL_PREFIX_DIR}")
-endif()
+#ZStd
+set(ENABLE_ZSTD TRUE CACHE BOOL "Enable ZStd" FORCE)
+
 if(BUILD_DISTRIBUTABLE_LIBRARY)
     set(OPENSSL_USE_STATIC_LIBS True)
 endif()
@@ -61,7 +76,7 @@ if(TILEDB_SOURCE_DIR)
 
     find_path(TILEDB_INCLUDE_DIR NAMES tiledb.h HINTS "${TILEDB_SOURCE_DIR}/core/include/c_api")
     find_package_handle_standard_args(TileDB "Could not find TileDB headers ${DEFAULT_MSG}" TILEDB_INCLUDE_DIR)
-    add_subdirectory(${TILEDB_SOURCE_DIR} EXCLUDE_FROM_ALL)
+    add_subdirectory(${TILEDB_SOURCE_DIR} dependencies/TileDB EXCLUDE_FROM_ALL)
 else()
     find_path(TILEDB_INCLUDE_DIR NAMES "tiledb.h" HINTS "${TILEDB_INSTALL_DIR}/include")
     find_library(TILEDB_LIBRARY NAMES libtiledb.a tiledb HINTS "${TILEDB_INSTALL_DIR}" "${TILEDB_INSTALL_DIR}/lib64" "${TILEDB_INSTALL_DIR}/lib")

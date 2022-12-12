@@ -132,7 +132,6 @@ class VCF2TileDBLoaderConverterBase : public GenomicsDBImportConfig {
   std::vector<int64_t> m_owned_row_idx_vec;
 };
 
-#ifdef HTSDIR
 class VCF2TileDBConverter : public VCF2TileDBLoaderConverterBase {
  public:
   //If vid_mapper==0, build from scratch
@@ -211,7 +210,6 @@ class VCF2TileDBConverter : public VCF2TileDBLoaderConverterBase {
   //If standalone, points to owned exchanges, else must point to those owned by VCF2TileDBLoader
   std::vector<LoaderConverterMessageExchange*> m_exchanges;
 };
-#endif
 
 class CellPQElement {
  public:
@@ -291,14 +289,11 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
       if (op)
         delete op;
     clear();
-#ifdef HTSDIR
     if (m_converter)
       delete m_converter;
     m_converter = 0;
-#endif
   }
   void clear();
-#ifdef HTSDIR
   VCF2TileDBConverter* get_converter() {
     return m_converter;
   }
@@ -319,52 +314,33 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
    */
   void read_all(VCF2TileDBLoaderReadState& read_state);
   void finish_read_all(const VCF2TileDBLoaderReadState& read_state);
-#endif
   //For buffer streams
   size_t get_max_num_buffer_stream_identifiers() const {
-#ifdef HTSDIR
     return m_converter->get_max_num_buffer_stream_identifiers();
-#endif
   }
   /*
    * Get buffer stream identifiers that are exhausted - used by caller to provide more data
    */
   const std::vector<BufferStreamIdentifier>& get_exhausted_buffer_stream_identifiers() const {
-#ifdef HTSDIR
     return m_converter->get_exhausted_buffer_stream_identifiers();
-#endif
   }
   /*
    * Write to buffer stream
    */
   void write_data_to_buffer_stream(const int64_t buffer_stream_idx, const unsigned partition_idx, const uint8_t* data, const size_t num_bytes) {
-#ifdef HTSDIR
     return m_converter->write_data_to_buffer_stream(buffer_stream_idx, partition_idx, data, num_bytes);
-#endif
   }
   /*
    * Get the order value at which the given row idx appears
    */
   inline int64_t get_order_for_row_idx(const int64_t row_idx) const {
-#ifdef HTSDIR
     return m_standalone_converter_process ? row_idx : m_converter->get_order_for_row_idx(row_idx);
-#else
-    return row_idx;
-#endif
   }
   inline int64_t get_designated_row_idx_for_order(const int64_t order) const {
-#ifdef HTSDIR
     return m_standalone_converter_process ? order : m_converter->get_designated_row_idx_for_order(order);
-#else
-    return order;
-#endif
   }
   inline size_t get_num_order_values() const {
-#ifdef HTSDIR
     return m_standalone_converter_process ? m_num_callsets_owned : m_converter->get_num_order_values();
-#else
-    return m_num_callsets_owned;
-#endif
   }
   inline int64_t get_buffer_start_offset_for_row_idx(const int64_t row_idx) const {
     assert(get_order_for_row_idx(row_idx) >= 0 && get_order_for_row_idx(row_idx) < m_num_callsets_owned);
@@ -384,7 +360,10 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
   /*
    * Consolidate TileDB array
    */
-  static void consolidate_tiledb_array(const char* workspace, const char* array_name);
+  static void consolidate_tiledb_array(const char* workspace, const char* array_name,
+                                       const size_t buffer_size=TILEDB_CONSOLIDATION_BUFFER_SIZE,
+                                       const int batch_size=-1,
+                                       const bool enable_shared_posixfs_optimzations=false);
  private:
   void common_constructor_initialization(
     const std::string& config_filename,
@@ -394,10 +373,8 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
   void reserve_entries_in_circular_buffer(unsigned exchange_idx);
   void advance_write_idxs(unsigned exchange_idx);
   //Private members
-#ifdef HTSDIR
   //May be null
   VCF2TileDBConverter* m_converter;
-#endif
   //Circular buffer logic
   std::vector<CircularBufferController> m_order_idx_to_buffer_control;
   //Vector to be used in PQ for producing cells in column major order

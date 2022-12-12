@@ -23,8 +23,12 @@
 package org.genomicsdb.spark;
 
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
+import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
 import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.model.GenomicsDBImportConfiguration;
+import org.genomicsdb.spark.sources.GenomicsDBRecordReader;
 
 import htsjdk.tribble.Feature;
 import htsjdk.tribble.FeatureCodec;
@@ -47,8 +51,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
+
 public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
-  extends InputFormat<String, VCONTEXT> implements Configurable {
+  extends InputFormat<String, VCONTEXT> implements Configurable, JsonFileExtensions {
 
   private Configuration configuration;
   private GenomicsDBInput<GenomicsDBInputSplit> input;
@@ -65,13 +72,20 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
    * @throws FileNotFoundException  Thrown if creaing configuration object fails
    */
   @SuppressWarnings("unchecked")
+  @Override
   public List<InputSplit> getSplits(JobContext jobContext) throws FileNotFoundException {
 
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(configuration);
-    genomicsDBConfiguration.setLoaderJsonFile(
-      configuration.get(GenomicsDBConfiguration.LOADERJSON));
+    if (configuration.get(GenomicsDBConfiguration.LOADERPB) != null) {
+      genomicsDBConfiguration.setLoaderPB(
+        configuration.get(GenomicsDBConfiguration.LOADERPB));
+    }
+    else {
+      genomicsDBConfiguration.setLoaderJsonFile(
+        configuration.get(GenomicsDBConfiguration.LOADERJSON));
+    }
     if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
-      genomicsDBConfiguration.setQueryJsonFile(
+      genomicsDBConfiguration.setQueryPB(
         configuration.get(GenomicsDBConfiguration.QUERYPB));
     }
     else {
@@ -87,11 +101,72 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
     return (List)input.divideInput();
   }
 
+  private static String getJsonField(String filename, String attr) {
+    try (final FileReader reader = new FileReader(filename)) {
+      JSONParser parser = new JSONParser();
+      JSONObject objLoad = (JSONObject) parser.parse(reader);
+
+      return (String) objLoad.get(attr);
+    } catch (ParseException|IOException e) {
+      throw new GenomicsDBException("Error parsing loader file", e);
+    }
+  }
+
+  public static GenomicsDBExportConfiguration.ExportConfiguration getCallsetFromLoader(
+      GenomicsDBExportConfiguration.ExportConfiguration export, 
+      final String pbOrFile, final boolean isPB) throws InvalidProtocolBufferException {
+    GenomicsDBExportConfiguration.ExportConfiguration.Builder builder = export.toBuilder();
+
+    if (isPB) {
+      GenomicsDBImportConfiguration.ImportConfiguration loader = 
+          (GenomicsDBImportConfiguration.ImportConfiguration)
+          JsonFileExtensions.getProtobufFromBase64EncodedString(
+              GenomicsDBImportConfiguration.ImportConfiguration.newBuilder(),
+              pbOrFile);
+      if (loader.hasCallsetMapping()) {
+        builder.setCallsetMapping(loader.getCallsetMapping());
+      }
+      else {
+        builder.setCallsetMappingFile(loader.getCallsetMappingFile());
+      }
+    }
+    else {
+      builder.setCallsetMappingFile(getJsonField(pbOrFile, "callset_mapping_file"));
+    }
+
+    return builder.build();
+  }
+
+  public static GenomicsDBExportConfiguration.ExportConfiguration getVidFromLoader(
+      GenomicsDBExportConfiguration.ExportConfiguration export, 
+      final String pbOrFile, final boolean isPB) throws InvalidProtocolBufferException {
+    GenomicsDBExportConfiguration.ExportConfiguration.Builder builder = export.toBuilder();
+
+    if (isPB) {
+      GenomicsDBImportConfiguration.ImportConfiguration loader = 
+          (GenomicsDBImportConfiguration.ImportConfiguration)
+          JsonFileExtensions.getProtobufFromBase64EncodedString(
+              GenomicsDBImportConfiguration.ImportConfiguration.newBuilder(),
+              pbOrFile);
+      if (loader.hasVidMapping()) {
+        builder.setVidMapping(loader.getVidMapping());
+      }
+      else {
+        builder.setVidMappingFile(loader.getVidMappingFile());
+      }
+    }
+    else {
+      builder.setVidMappingFile(getJsonField(pbOrFile, "vid_mapping_file"));
+    }
+
+    return builder.build();
+  }
+
+  @Override
   public RecordReader<String, VCONTEXT>
     createRecordReader(InputSplit inputSplit, TaskAttemptContext taskAttemptContext)
       throws IOException, InterruptedException {
 
-    String loaderJson;
     String query;
 
     GenomicsDBFeatureReader<VCONTEXT, SOURCE> featureReader;
@@ -100,31 +175,18 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
 
     boolean isPB;
     if (taskAttemptContext != null) {
-      Configuration configuration = taskAttemptContext.getConfiguration();
-      loaderJson = configuration.get(GenomicsDBConfiguration.LOADERJSON);
-      if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
-        query = configuration.get(GenomicsDBConfiguration.QUERYPB);
-        isPB = true;
-      }
-      else {
-        query = configuration.get(GenomicsDBConfiguration.QUERYJSON);
-        isPB = false;
-      }
+      configuration = taskAttemptContext.getConfiguration();
     } else {
-      // If control comes here, means this method is called from
-      // GenomicsDBRDD. Hence, the configuration object must be
-      // set by setConf method, else this will lead to
-      // NullPointerException
       assert(configuration!=null);
-      loaderJson = configuration.get(GenomicsDBConfiguration.LOADERJSON);
-      if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
-        query = configuration.get(GenomicsDBConfiguration.QUERYPB);
-        isPB = true;
-      }
-      else {
-        query = configuration.get(GenomicsDBConfiguration.QUERYJSON);
-        isPB = false;
-      }
+    }
+    if (configuration.get(GenomicsDBConfiguration.QUERYPB) != null) {
+      query = configuration.get(GenomicsDBConfiguration.QUERYPB);
+      isPB = true;
+    }
+    else {
+      query = configuration.get(GenomicsDBConfiguration.QUERYJSON);
+      // query json is deprecated so we won't bother supporting loader pb in this case
+      isPB = false;
     }
 
     // Need to amend query file being passed in based on inputSplit
@@ -135,8 +197,22 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
               GenomicsDBInput.createTargetExportConfigurationPB(query, 
               gSplit.getPartitionInfo(),
               gSplit.getQueryInfoList(), isPB);
+
+      String pbOrFile;
+      if (configuration.get(GenomicsDBConfiguration.LOADERPB) != null) {
+        pbOrFile = configuration.get(GenomicsDBConfiguration.LOADERPB);
+      }
+      else{
+        pbOrFile = configuration.get(GenomicsDBConfiguration.LOADERJSON);
+      }
+      if (!(exportConfiguration.hasCallsetMapping() || exportConfiguration.hasCallsetMappingFile())) {
+        exportConfiguration = getCallsetFromLoader(exportConfiguration, pbOrFile, configuration.get(GenomicsDBConfiguration.LOADERPB) != null);
+      }
+      if (!(exportConfiguration.hasVidMapping() || exportConfiguration.hasVidMappingFile())) {
+        exportConfiguration = getVidFromLoader(exportConfiguration, pbOrFile, configuration.get(GenomicsDBConfiguration.LOADERPB) != null);
+      }
     }
-    catch (ParseException e) {
+    catch (ParseException | InvalidProtocolBufferException e) {
       e.printStackTrace();
       return null;
     }
@@ -147,7 +223,9 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
 
     //featureReader = new GenomicsDBFeatureReader<>(exportConfiguration,
     //        (FeatureCodec<VCONTEXT,SOURCE>) new BCF2Codec(), Optional.of(loaderJson));
-    featureReader = getGenomicsDBFeatureReader(exportConfiguration, loaderJson);
+    // using query pb so loader json is not needed for spark query
+    // we've ensured query pb will have callset/vid info
+    featureReader = getGenomicsDBFeatureReader(exportConfiguration, "");
     recordReader = new GenomicsDBRecordReader<>(featureReader);
     return recordReader;
   }
@@ -170,39 +248,6 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
 
   public GenomicsDBInputFormat(GenomicsDBConfiguration conf) {
     input = new GenomicsDBInput<>(conf, null, null, 1, Long.MAX_VALUE, GenomicsDBInputSplit.class);
-  }
-
-  /**
-   * Set the loader JSON file path
-   *
-   * @param jsonFile  Full qualified path of the loader JSON file
-   * @return  Returns the same object for forward function calls
-   */
-  public GenomicsDBInputFormat<VCONTEXT, SOURCE> setLoaderJsonFile(String jsonFile) {
-    input.getGenomicsDBConfiguration().setLoaderJsonFile(jsonFile);
-    return this;
-  }
-
-  /**
-   * Set the query JSON file path
-   * @param jsonFile  Full qualified path of the query JSON file
-   * @return  Returns the same object for forward function calls
-   */
-  public GenomicsDBInputFormat<VCONTEXT, SOURCE> setQueryJsonFile(String jsonFile) {
-    input.getGenomicsDBConfiguration().setQueryJsonFile(jsonFile);
-    return this;
-  }
-
-  /**
-   * Set the host file path
-   * @param hostFile  Full qualified path of the hosts file
-   * @return  Returns the same object for forward function calls
-   * @throws FileNotFoundException thrown if the hosts file is not found
-   */
-  public GenomicsDBInputFormat<VCONTEXT, SOURCE> setHostFile(String hostFile)
-      throws FileNotFoundException {
-    input.getGenomicsDBConfiguration().setHostFile(hostFile);
-    return this;
   }
 
   @Override

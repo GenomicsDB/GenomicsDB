@@ -30,9 +30,16 @@ include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})
 
 set(CPP_TEST_SOURCES
   src/ctest_main.cc
+  src/test_config.cc
   src/test_non_diploid_mapper.cc
   src/test_multid_vector.cc
   src/test_pb.cc
+  src/test_logger.cc
+  src/test_columnar_gvcf_iterator.cc
+  src/test_htslib_plugin.cc
+  src/test_alleles_combiner.cc
+  src/test_gt_remapper.cc
+  src/test_bgen.cc
   )
 
 if(LIBDBI_FOUND)
@@ -51,7 +58,14 @@ endfunction()
 
 add_executable(ctests ${CPP_TEST_SOURCES})
 target_link_libraries_for_GenomicsDB_tests(ctests)
-target_compile_definitions(ctests PRIVATE -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/")
+
+#test_bgen has to be fixed, until then...
+if(BUILD_DISTRIBUTABLE_LIBRARY OR BUILD_FOR_PYTHON)
+  set(INCLUDE_TEST_BGEN 0)
+else()
+  set(INCLUDE_TEST_BGEN 1)
+endif()
+target_compile_definitions(ctests PRIVATE -DINCLUDE_TEST_BGEN=${INCLUDE_TEST_BGEN} -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/" -DGENOMICSDB_TESTS_SRC_DIR="${CMAKE_SOURCE_DIR}/tests/")
 add_test(ctests ctests -d yes)
 
 add_executable(api_tests

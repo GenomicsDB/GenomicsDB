@@ -2,7 +2,7 @@
 
 #The MIT License (MIT)
 #Copyright (c) 2018 University of California, Los Angeles and Intel Corporation
-#Copyright (c) 2019 Omics Data Automation, Inc.
+#Copyright (c) 2019-2020 Omics Data Automation, Inc.
 
 #Permission is hereby granted, free of charge, to any person obtaining a copy of 
 #this software and associated documentation files (the "Software"), to deal in 
@@ -126,7 +126,10 @@ def create_loader_json(ws_dir, test_name, test_params_dict, col_part, test_dir):
     test_dict['column_partitions'] = col_part;
     for col_part in test_dict['column_partitions']:
         col_part["workspace"] = ws_dir;
-        col_part["array"] = test_name+col_part["array"];
+        if "array" in col_part:
+            col_part["array"] = test_name+col_part["array"];
+        else:
+            col_part["array_name"] = test_name+col_part["array_name"];
     test_dict["callset_mapping_file"] = test_params_dict['callset_mapping_file'];
     if('vid_mapping_file' in test_params_dict):
         test_dict['vid_mapping_file'] = test_params_dict['vid_mapping_file'];
@@ -160,18 +163,18 @@ def move_arrays_to_hdfs(ws_dir, namenode):
         sys.exit(-1);
 
 def get_file_content_and_md5sum(filename):
-    with open(filename, 'rb') as fptr:
+    with open(filename, 'r') as fptr:
         data = fptr.read();
         data_list = data.splitlines(True);
         data_list_filter = [k for k in data_list if not k.startswith('##')];
         data_filter = "".join(data_list_filter);
-        md5sum_hash_str = str(hashlib.md5(data_filter).hexdigest());
+        md5sum_hash_str = str(hashlib.md5(data_filter.encode('utf-8')).hexdigest());
 
         fptr.close();
         return (data_filter, md5sum_hash_str);
 
 def get_json_from_file(filename):
-    with open(filename, 'rb') as fptr:
+    with open(filename, 'r') as fptr:
         data = fptr.read();
         json_out = json.loads(data)
         fptr.close();
@@ -193,31 +196,101 @@ def cleanup_and_exit(namenode, tmpdir, exit_code):
             pid = subprocess.Popen('hadoop fs -rm -r '+namenode+'/home/hadoop/.tiledb/', shell=True, stdout=subprocess.PIPE);
     sys.exit(exit_code);
 
+def print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string):
+    sys.stderr.write('Stdout: '+stdout_string.decode('utf-8')+'\n')
+    sys.stderr.write('Stderr: '+stderr_string.decode('utf-8')+'\n')
+    cleanup_and_exit(namenode, tmpdir, -1)
+
+def substitute_placeholders(jsonfile, wsdir):
+    import fileinput
+    for line in fileinput.input(jsonfile, inplace=True):
+        print(line.replace("#WORKSPACE_DIR#", wsdir))
+    for line in fileinput.input(jsonfile, inplace=True):
+        print(line.replace("#TESTS_DIR#", os.getcwd()))
+
+def sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_version, spark_master, spark_deploy, namenode):
+    sys.stdout.write("Sanity testing Spark Bindings...")
+    import tarfile
+    sanity_test_dir = tmpdir+'/sanity_test'
+    tar = tarfile.open('inputs/sanity.test.gz', 'r:gz')
+    tar.extractall(path=sanity_test_dir)
+    loader_json = sanity_test_dir+'/t0_1_2.json'
+    query_json = sanity_test_dir+'/query.json'
+    querypb_json = sanity_test_dir+'/querypb.json'
+    substitute_placeholders(loader_json, sanity_test_dir)
+    substitute_placeholders(query_json, sanity_test_dir)
+    substitute_placeholders(querypb_json, sanity_test_dir)
+
+    # Expected exception when run without json files
+    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar'
+    pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_string, stderr_string = pid.communicate()
+    if(pid.returncode == 0):
+        sys.stderr.write('Spark Query : '+spark_cmd+'. Expected a failure, but the test succeeded\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+
+    output_string = "[row=0 col=12140 HG00141 1:12141-12295 {REF=C, DP_FORMAT=2, MIN_DP=0, ALT=[<NON_REF>], GQ=0, PL=[0, 0, 0], GT=0/0}, row=1 col=12144 HG01958 1:12145-12277 {REF=C, DP_FORMAT=3, MIN_DP=0, ALT=[<NON_REF>], GQ=0, PL=[0, 0, 0], GT=0/0}, row=0 col=17384 HG00141 1:17385-17385 {MQRankSum=-0.329000, AD=[58, 22, 17], MQ=31.719999, DP_FORMAT=80, ALT=[A, <NON_REF>], BaseQRankSum=-2.096000, GQ=99, PID=17385_G_A, ReadPosRankSum=0.005000, MQ0=8, GT=0/1, SB=[58, 0, 22, 0], RAW_MQ=5.500000, REF=G, ClippingRankSum=-1.859000, PL=[504, 0, 9807, 678, 1870, 2548], PGT=0|1}, row=1 col=17384 HG01958 1:17385-17385 {MQRankSum=-1.369000, AD=[0, 120, 37], MQ=29.820000, DP_FORMAT=120, ALT=[T, <NON_REF>], BaseQRankSum=-2.074000, GQ=99, PID=17385_G_T, ReadPosRankSum=-0.101000, DP=120, MQ0=3, GT=1/1, SB=[0, 0, 0, 0], RAW_MQ=2.500000, REF=G, ClippingRankSum=0.555000, PL=[3336, 358, 0, 4536, 958, 7349], PGT=0|1}, row=2 col=17384 HG01530 1:17385-17385 {MQRankSum=-0.432000, AD=[40, 36, 0], MQ=59.369999, DP_FORMAT=76, ALT=[A, <NON_REF>], BaseQRankSum=1.046000, GQ=99, ReadPosRankSum=2.055000, DP=76, MQ0=0, GT=0/1, SB=[9, 31, 13, 23], REF=G, ClippingRankSum=-2.242000, PL=[1018, 0, 1116, 1137, 1224, 2361]}]"
+
+    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+loader_json+' '+query_json
+    pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_string, stderr_string = pid.communicate()
+    if(pid.returncode != 0):
+        sys.stderr.write('Sanity test with query.json : '+spark_cmd+' failed\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+    if output_string not in stdout_string.decode('utf-8'):
+        sys.stderr.write('Expected output not found in sanity test with query.json\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+
+    spark_cmd = 'spark-submit --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M  --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --class org.genomicsdb.spark.api.GenomicsDBSparkBindings '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+loader_json+' '+querypb_json+' true'
+    pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_string, stderr_string = pid.communicate()
+    if(pid.returncode != 0):
+        sys.stderr.write('Sanity test with querypb.json : '+spark_cmd+' failed\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+    if output_string not in stdout_string.decode('utf-8'):
+        sys.stderr.write('Expected output not found in sanity test with querypb.json\n')
+        print_error_and_exit(namenode, tmpdir, stdout_string, stderr_string)
+
+    sys.stdout.write("Successful\n")
+
 def main():
     if(len(sys.argv) < 8):
-        sys.stderr.write('Usage: ./run_spark_hdfs.py <build_dir> <install_dir> <spark_master> <hdfs_namenode> <spark_deploy> <genomicsdb_version> <test_dir> [<build_type>]\n');
-        sys.stderr.write('   Optional Argument 8 - build_type=Release|Coverage|...\n')
-        sys.exit(-1);
-    exe_path = sys.argv[2]+os.path.sep+'bin';
-    spark_master = sys.argv[3];
-    namenode = sys.argv[4];
-    jar_dir = sys.argv[1]+os.path.sep+'target';
-    spark_deploy = sys.argv[5];
-    genomicsdb_version = sys.argv[6];
-    test_dir = sys.argv[7];
+        sys.stderr.write('Usage: ./run_spark_hdfs.py <build_dir> <install_dir> <spark_master> <hdfs_namenode> <spark_deploy> <genomicsdb_version> <test_dir> [<gdb_datasource> <build_type>]\n');
+        sys.stderr.write(' Optional Argument 8/9 - gdb_datasource / build_type=Release|Coverage|...\n')
+        sys.exit(-1)
+    exe_path = sys.argv[2]+os.path.sep+'bin'
+    lib_path = sys.argv[2]+os.path.sep+'lib'
+    spark_master = sys.argv[3]
+    namenode = sys.argv[4]
+    jar_dir = sys.argv[1]+os.path.sep+'target'
+    spark_deploy = sys.argv[5]
+    genomicsdb_version = sys.argv[6]
+    test_dir = sys.argv[7]
+    gdb_datasource = ""
     if (len(sys.argv) == 9):
-        build_type = sys.argv[8]
+      arg8 = sys.argv[8]
+      if (arg8.startswith("org.genomicsdb")):
+        gdb_datasource = arg8
+      else:
+        build_type = arg8
+    if (len(sys.argv) == 10):
+      gdb_datasource = sys.argv[8]
+      build_type = sys.argv[9]
     else:
         build_type = "default"
     #Switch to tests directory
     parent_dir=os.path.dirname(os.path.realpath(__file__))
     os.chdir(parent_dir)
-    hostfile_path=parent_dir+os.path.sep+'hostfile';
+    hostfile_path=parent_dir+os.path.sep+'hostfile'
     vid_path=parent_dir+os.path.sep;
-    template_vcf_header_path=parent_dir+os.path.sep+'inputs'+os.path.sep+'template_vcf_header.vcf';
+    template_vcf_header_path=parent_dir+os.path.sep+'inputs'+os.path.sep+'template_vcf_header.vcf'
     tmpdir = tempfile.mkdtemp()
-    ws_dir=tmpdir+os.path.sep+'ws';
+    ws_dir=tmpdir+os.path.sep+'ws'
+    #Explicitly create workspace as VariantStorageManager expects it to exist
+    create_workspace_cmd = exe_path+os.path.sep+'create_genomicsdb_workspace '+namenode+ws_dir
+    subprocess.run(create_workspace_cmd, shell=True, check=True)
     jacoco, jacoco_report_cmd = common.setup_jacoco(os.path.abspath(sys.argv[1]), build_type)
+    sanity_test_spark_bindings(tmpdir, lib_path, jar_dir, jacoco, genomicsdb_version, spark_master, spark_deploy, namenode)
     loader_tests = [
             { "name" : "t0_1_2", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
@@ -296,18 +369,17 @@ def main():
                     ]
             },
             { "name" : "t0_1_2_combined", 'golden_output' : 'golden_outputs/t0_1_2_combined',
-                'callset_mapping_file': 'inputs/callsets/t0_1_2_combined.json',
+                'callset_mapping_file': 'inputs/callsets/t0_1_2_combined_pb.json',
+		'vid_mapping_file': 'inputs/vid_pb.json',
                 "column_partitions": [
-                    [ {"begin": 0, "workspace":"/tmp/ws", "array": "test0"} ],
-                    [ {"begin": 0, "workspace":"/tmp/ws", "array": "test1"},
-                      {"begin": 10000, "workspace":"/tmp/ws", "array": "test2"}
-                       ],
-                    [ {"begin": 0, "workspace":"/tmp/ws", "array": "test3"},
-                      {"begin": 3000, "workspace":"/tmp/ws", "array": "test4"},
-                      {"begin": 6000, "workspace":"/tmp/ws", "array": "test5"},
-                      {"begin": 9000, "workspace":"/tmp/ws", "array": "test6"},
-                      {"begin": 12000, "workspace":"/tmp/ws", "array": "test7"}
-                       ]
+		    [ { "begin": { "tiledb_column": 0 }, "workspace":"/tmp/ws", "array_name": "test0",}],
+		    [ { "begin": { "tiledb_column": 0 }, "workspace":"/tmp/ws", "array_name": "test1",},
+		      { "begin": { "tiledb_column": 10000 }, "workspace":"/tmp/ws", "array_name": "test2",}],
+		    [ { "begin": { "tiledb_column": 0 }, "workspace":"/tmp/ws", "array_name": "test3",},
+		      { "begin": { "tiledb_column": 3000 }, "workspace":"/tmp/ws", "array_name": "test4",},
+		      { "begin": { "tiledb_column": 6000 }, "workspace":"/tmp/ws", "array_name": "test5",},
+		      { "begin": { "tiledb_column": 9000 }, "workspace":"/tmp/ws", "array_name": "test6",},
+		      { "begin": { "tiledb_column": 12000 }, "workspace":"/tmp/ws", "array_name": "test7",}],
                     ],
                 "query_params": [
                     { "query_column_ranges" : [0, 1000000], "golden_output": {
@@ -371,7 +443,7 @@ def main():
             if("://" in namenode):
                 test_loader_dict = add_hdfs_to_loader_json(test_loader_dict, namenode);
             loader_json_filename = tmpdir+os.path.sep+test_name+'-loader.json'
-            with open(loader_json_filename, 'wb') as fptr:
+            with open(loader_json_filename, 'w') as fptr:
                 json.dump(test_loader_dict, fptr, indent=4, separators=(',', ': '));
                 fptr.close();
             # invoke vcf2genomicsdb -r <rank> where <rank> goes from 0 to num partitions
@@ -385,12 +457,12 @@ def main():
                     sys.stderr.write('Loading failed for test: '+test_name+' rank '+str(i)+'\n');
                     sys.stderr.write('Loading command: '+etl_cmd+'\n');
                     sys.stderr.write('Loader file :'+str(test_loader_dict)+'\n');
-                    sys.stderr.write('Loading stdout: '+stdout_string+'\n');
-                    sys.stderr.write('Loading stderr: '+stderr_string+'\n');
+                    sys.stderr.write('Loading stdout: '+stdout_string.decode('utf-8')+'\n');
+                    sys.stderr.write('Loading stderr: '+stderr_string.decode('utf-8')+'\n');
                     cleanup_and_exit(namenode, tmpdir, -1);
                 else:
                     sys.stdout.write('Loading passed for test: '+test_name+' rank '+str(i)+'\n');
-            with open(loader_json_filename, 'wb') as fptr:
+            with open(loader_json_filename, 'w') as fptr:
                 json.dump(test_loader_dict, fptr, indent=4, separators=(',', ': '));
                 fptr.close();
             for query_param_dict in test_params_dict['query_params']:
@@ -400,12 +472,14 @@ def main():
                     test_query_dict = create_query_json(ws_dir, test_name, query_param_dict, test_dir)
                 test_query_dict['query_attributes'] = vcf_query_attributes_order;
                 query_json_filename = tmpdir+os.path.sep+test_name+'-query.json'
-                with open(query_json_filename, 'wb') as fptr:
+                with open(query_json_filename, 'w') as fptr:
                     json.dump(test_query_dict, fptr, indent=4, separators=(',', ': '));
                     fptr.close();
                 spark_cmd = 'spark-submit --class TestGenomicsDBSparkHDFS --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --template_vcf_header '+template_vcf_header_path+' --spark_master '+spark_master+' --jar_dir '+jar_dir;
                 if (test_name == "t6_7_8"):
                     spark_cmd = spark_cmd + ' --use-query-protobuf';
+                if (test_name == "t0_1_2_combined"):
+                  spark_cmd += ' --use-loader-protobuf';
                 if (test_name == "t0_overlapping"):
                     spark_cmd = spark_cmd + ' --hostfile ' + hostfile_path
                 pid = subprocess.Popen(spark_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
@@ -413,22 +487,22 @@ def main():
                 if(pid.returncode != 0):
                     sys.stderr.write('Query test: '+test_name+' with query file '+query_json_filename+' failed\n');
                     sys.stderr.write('Spark command was: '+spark_cmd+'\n');
-                    sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
-                    sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
+                    sys.stderr.write('Spark stdout was: '+stdout_string.decode('utf-8')+'\n');
+                    sys.stderr.write('Spark stderr was: '+stderr_string.decode('utf-8')+'\n');
                     sys.stderr.write('Query file was: '+json.dumps(test_query_dict)+'\n');
                     cleanup_and_exit(namenode, tmpdir, -1);
-                stdout_list = stdout_string.splitlines(True);
+                stdout_list = stdout_string.decode('utf-8').splitlines(True);
                 stdout_list_filter = [k for k in stdout_list if not k.startswith('##')];
                 stdout_filter = "".join(stdout_list_filter);
-                md5sum_hash_str = str(hashlib.md5(stdout_filter).hexdigest())
+                md5sum_hash_str = str(hashlib.md5(stdout_filter.encode('utf-8')).hexdigest())
                 if('golden_output' in query_param_dict and 'spark' in query_param_dict['golden_output']):
                     golden_stdout, golden_md5sum = get_file_content_and_md5sum(query_param_dict['golden_output']['spark']);
                     if(golden_md5sum != md5sum_hash_str):
                         sys.stdout.write('Mismatch in query test: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions\n');
                         print_diff(golden_stdout, stdout_filter);
                         sys.stderr.write('Spark command was: '+spark_cmd+'\n');
-                        sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
-                        sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
+                        sys.stderr.write('Spark stdout was: '+stdout_string.decode('utf-8')+'\n');
+                        sys.stderr.write('Spark stderr was: '+stderr_string.decode('utf-8')+'\n');
                         sys.stderr.write('Query file was: '+json.dumps(test_query_dict)+'\n');
                         cleanup_and_exit(namenode, tmpdir, -1);
                     else:
@@ -438,30 +512,34 @@ def main():
                     vid_path_final=vid_path+query_param_dict['vid_mapping_file'];
                 else:
                     vid_path_final=vid_path+"inputs"+os.path.sep+"vid.json";
-                spark_cmd_v2 = 'spark-submit --class TestGenomicsDBDataSourceV2 --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --vid '+vid_path_final+' --spark_master '+spark_master;
+                spark_cmd_v2 = 'spark-submit --class TestGenomicsDBSource --master '+spark_master+' --deploy-mode '+spark_deploy+' --total-executor-cores 1 --executor-memory 512M --conf "spark.yarn.executor.memoryOverhead=3700" --conf "spark.executor.extraJavaOptions='+jacoco+'" --conf "spark.driver.extraJavaOptions='+jacoco+'" --jars '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-allinone.jar '+jar_dir+'/genomicsdb-'+genomicsdb_version+'-examples.jar --loader '+loader_json_filename+' --query '+query_json_filename+' --vid '+vid_path_final+' --spark_master '+spark_master;
+                if (gdb_datasource != ""):
+                  spark_cmd_v2 += ' --gdb_datasource=' + gdb_datasource
                 if (test_name == "t6_7_8"):
                   spark_cmd_v2 = spark_cmd_v2 + ' --use-query-protobuf';
+                if (test_name == "t0_1_2_combined"):
+                  spark_cmd_v2 += ' --use-loader-protobuf';
                 if (test_name == "t0_overlapping"):
                     spark_cmd = spark_cmd_v2 + ' --hostfile ' + hostfile_path
                 pid = subprocess.Popen(spark_cmd_v2, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE);
                 stdout_string, stderr_string = pid.communicate()
                 if(pid.returncode != 0):
-                    sys.stderr.write('Query test V2: '+test_name+' with query file '+query_json_filename+' failed\n');
+                    sys.stderr.write('Query test GenomicsDBSource: '+test_name+' with query file '+query_json_filename+' failed\n');
                     sys.stderr.write('Spark command was: '+spark_cmd_v2+'\n');
-                    sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
-                    sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
+                    sys.stderr.write('Spark stdout was: '+stdout_string.decode('utf-8')+'\n');
+                    sys.stderr.write('Spark stderr was: '+stderr_string.decode('utf-8')+'\n');
                     sys.stderr.write('Query file was: '+json.dumps(test_query_dict)+'\n');
                     cleanup_and_exit(namenode, tmpdir, -1);
-                stdout_list = stdout_string.splitlines(True);
+                stdout_list = stdout_string.decode('utf-8').splitlines(True);
                 stdout_filter = "".join(stdout_list);
                 stdout_json = json.loads(stdout_filter);
                 if('golden_output' in query_param_dict and 'spark' in query_param_dict['golden_output']):
                     json_golden = get_json_from_file(query_param_dict['golden_output']['spark']+'_v2');
                     checkdiff = jsondiff.diff(stdout_json, json_golden);
                     if (not checkdiff):
-                        sys.stdout.write('Query test V2: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions passed\n');
+                        sys.stdout.write('Query test GenomicsDBSource: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions passed\n');
                     else:
-                        sys.stdout.write('Mismatch in query test V2: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions\n');
+                        sys.stdout.write('Mismatch in query test GenomicsDBSource: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions\n');
                         print(checkdiff);
                         sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
                         sys.stderr.write('Spark stderr was: '+stderr_string+'\n');

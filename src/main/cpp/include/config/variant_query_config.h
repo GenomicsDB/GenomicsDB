@@ -55,6 +55,60 @@ class UnknownQueryAttributeException : public std::exception {
   std::string msg_;
 };
 
+class interval_expander {
+  public:
+    struct interval {
+      // left of interval, right of interval, size of interval, size of all preceeding intervals
+      int64_t first, second, total_size_before;
+      interval(int64_t first = -1, int64_t second = -1, int64_t total_size_before = -1) : first(first), second(second), total_size_before(total_size_before) { }
+      bool operator<(const interval& r) const {
+        return first < r.first;
+      }
+      // number of rows in interval
+      inline int64_t size() const { return second - first + 1; }
+      inline int64_t span() const { return second - first; }
+      // total number of rows in interval and all preceeding
+      inline int64_t size_inclusive() const { return second - first + 1 + total_size_before; }
+      bool intersects(const interval& r) const {
+        return second >= r.first && first <= r.second;
+      }
+      // bounding interval/generalized intersection
+      interval operator+(const interval& r) const {
+        int64_t nfirst, nsecond;
+        nfirst = (first <= r.first ? first : r.first);
+        nsecond = (second >= r.second ? second : r.second);
+        return interval(nfirst, nsecond);
+      }
+    };
+    interval_expander(const std::vector<std::pair<int64_t, int64_t>>& vec = {}) {
+      update_rows(vec);
+    }
+
+    // merge new rows with existing
+    void update_rows(const std::vector<std::pair<int64_t, int64_t>>& vec);
+    // overwrite existing rows
+    void set_rows(const std::vector<std::pair<int64_t, int64_t>>& vec);
+    // makes sure all array rows to be queried are greater than or equal to lo
+    void clamp_low(int64_t lo);
+    // makes sure all array rows to be queried are greater than or equal to hi
+    void clamp_high(int64_t hi);
+    // sets total_size_before field of each interval in m_intervals
+    void index();
+    // check if array row is queried
+    bool is_queried_row(int64_t row) const;
+    // NOTE: triggers an assertion if row is out of bounds
+    int64_t get_array_row_from_query_row(int64_t row) const;
+    // equivalent to get_array_row_from_query_row
+    int64_t operator[](int64_t idx) const;
+    // NOTE: triggers an assertion if row is out of bounds
+    int64_t get_query_row_from_array_row(int64_t row) const;
+    void clear();
+    int64_t size() const;
+
+  private:
+    std::vector<interval> m_intervals;
+};
+
 class VariantQueryConfig : public GenomicsDBConfigBase {
  private:
   class VariantQueryFieldInfo {
@@ -85,7 +139,6 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
     m_query_attribute_name_to_query_idx.clear();
     m_query_rows.clear();
     m_query_column_intervals.clear();
-    m_array_row_idx_to_query_row_idx.clear();
   }
   /**
    * Function that specifies which attributes to query from each cell
@@ -235,27 +288,34 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   /*
    * Function that specifies which rows to query
    */
-  void set_rows_to_query(const std::vector<int64_t>& rowIdx);
+  void set_rows_to_query(const std::vector<std::pair<int64_t, int64_t>>& rowIntervals) {
+    m_query_rows.set_rows(rowIntervals);
+    m_query_all_rows = false;
+  }
+
+  /*
+   * Clamps all row intervals to between lo and hi
+   * Might result in no remaining row intervals
+   */ 
+  void clamp_query_rows(uint64_t lo, uint64_t hi) {
+    m_query_rows.clamp_low(lo);
+    m_query_rows.clamp_high(hi);
+  }
   /*
    * Used by QueryProcessor to set number of rows if all rows need to be queried.
    */
   void set_num_rows_in_array(uint64_t num_rows, const uint64_t smallest_row_idx) {
     m_num_rows_in_array = num_rows;
     m_smallest_row_idx = smallest_row_idx;
+    m_query_rows.clamp_low(m_smallest_row_idx);
+    m_query_rows.clamp_high(m_num_rows_in_array - 1); // 0 based
   }
   /*
-   * Initialize map between array row to query row
+   * Function that specifies which rows to query (discards old rows)
    */
-  void setup_array_row_idx_to_query_row_idx_map();
-  /*
-   * Function that specifies which rows to query and also updates
-   * m_array_row_idx_to_query_row_idx
-   * Pre-requisite: query bookkeeping should be done before calling this function
-   */
-  void update_rows_to_query(const std::vector<int64_t>& rowIdx);
+  void update_rows_to_query(const std::vector<std::pair<int64_t, int64_t>>& rowIntervals) { set_rows_to_query(rowIntervals); } // NOTE: interval_expander::update_rows retains old rows
   /*
    * Function that specifies all rows should be queried.
-   * m_array_row_idx_to_query_row_idx
    * Pre-requisite: query bookkeeping should be done before calling this function
    */
   void update_rows_to_query_to_all_rows();
@@ -265,12 +325,9 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   inline bool query_all_rows() const {
     return m_query_all_rows;
   }
-  inline const std::vector<int64_t>& get_rows_to_query() const {
-    return m_query_rows;
-  }
   /**
    * If all rows are queried, return m_num_rows_in_array (set by QueryProcessor)
-   * Else return size of m_query_rows vector
+   * Else return rows tracked by m_query_rows
    */
   inline uint64_t get_num_rows_to_query() const {
     /*Either query subset of rows (in m_query_rows) or set the variable m_num_rows_in_array correctly*/
@@ -296,17 +353,18 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
    * Index in m_query_rows for given array row idx
    */
   inline uint64_t get_query_row_idx_for_array_row_idx(int64_t row_idx) const {
-    assert(row_idx >= m_smallest_row_idx && (row_idx-m_smallest_row_idx) < static_cast<int64_t>(get_num_rows_in_array()));
-    if (m_query_all_rows)
-      return row_idx - m_smallest_row_idx;
-    assert((row_idx-m_smallest_row_idx) < static_cast<int64_t>(m_array_row_idx_to_query_row_idx.size()));
-    return m_array_row_idx_to_query_row_idx[row_idx-m_smallest_row_idx];
+    if(m_query_all_rows) {
+      auto retval = row_idx - m_smallest_row_idx;
+      assert(retval >= 0 && (uint64_t)retval < get_num_rows_to_query());
+      return retval;
+    }
+    return m_query_rows.get_query_row_from_array_row(row_idx);
   }
   /*
    * Check if this row is being queried or no
    */
   inline bool is_queried_array_row_idx(int64_t row_idx) const {
-    return m_query_all_rows ? true : (get_query_row_idx_for_array_row_idx(row_idx) != UNDEFINED_NUM_ROWS_VALUE);
+    return m_query_all_rows ? true : m_query_rows.is_queried_row(row_idx);
   }
   /*
    * Function that specifies which column ranges to query
@@ -340,15 +398,22 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
    */
   void read_from_file(const std::string& filename, const int rank=0);
   /*
+   * Read configuration from JSON string
+   */
+  void read_from_JSON_string(const std::string& str, const int rank=0);
+  /*
+   * Read configuration from protobuf based export configuration
+   */
+  void read_from_PB(const genomicsdb_pb::ExportConfiguration* export_config, const int rank=0);
+  /*
+   * Read configuration from bytes that can be parsed by protobuf's export configuration
+   */
+  void read_from_PB_binary_string(const std::string& str, const int rank=0);
+  /*
    * Validates and intializes variant query configuration. GenomicsDBConfigException is thrown on failed checks.
    */
   void validate(const int rank=0);
  private:
-  /*
-   * Function to invalid TileDB array row idx -> query row idx mapping
-   * @param all_rows if true, invalidates all mappings, else invalidates mapping for rows in m_query_rows only
-   */
-  void invalidate_array_row_idx_to_query_row_idx_map(bool all_rows);
   std::vector<VariantQueryFieldInfo> m_query_attributes_info_vec;
   //Map from query name to index in m_query_attributes_info_vec
   std::unordered_map<std::string, unsigned> m_query_attribute_name_to_query_idx;
@@ -360,15 +425,12 @@ class VariantQueryConfig : public GenomicsDBConfigBase {
   QueryIdxToKnownVariantFieldsEnumLUT m_query_idx_known_variant_field_enum_LUT;
   /*Rows to query*/
   bool m_query_all_rows;
-  /*vector of specific row idxs to query*/
-  std::vector<int64_t> m_query_rows;
-  /*vector mapping array row_idx to query row idx*/
-  std::vector<uint64_t> m_array_row_idx_to_query_row_idx;
   /*Set by query processor*/
   uint64_t m_num_rows_in_array;
   int64_t m_smallest_row_idx;
   /*Column ranges to query*/
   std::vector<ColumnRange> m_query_column_intervals;
+  interval_expander m_query_rows;
 };
 
 #endif

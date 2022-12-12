@@ -212,9 +212,13 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
   m_produce_GT_with_min_PL_value_for_spanning_deletions =
     export_config->has_produce_gt_with_min_pl_value_for_spanning_deletions()
     ? export_config->produce_gt_with_min_pl_value_for_spanning_deletions() : false;
-  //Disable file locking in TileDB
-  m_disable_file_locking_in_tiledb = export_config->has_disable_file_locking_in_tiledb()
-    ? export_config->disable_file_locking_in_tiledb() : false;
+  //Bypass the first intersecting interval phase and use just the simple traversal mode for a fast
+  //fuzzy search if that is acceptable
+  m_bypass_intersecting_intervals_phase =
+      export_config->has_bypass_intersecting_intervals_phase() ? export_config->bypass_intersecting_intervals_phase() : false;
+  //Enable Shared PosixFS Optimizations in TileDB
+  m_enable_shared_posixfs_optimizations = export_config->has_enable_shared_posixfs_optimizations()
+    ? export_config->enable_shared_posixfs_optimizations() : false;
 }
 
 void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(

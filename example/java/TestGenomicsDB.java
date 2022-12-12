@@ -39,6 +39,7 @@ import org.genomicsdb.importer.GenomicsDBImporter;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -55,7 +56,12 @@ public final class TestGenomicsDB
   private static GenomicsDBExportConfiguration.ExportConfiguration resolveExportConfigurationFromJsonString(String jsonString) throws JsonFormat.ParseException {
     GenomicsDBExportConfiguration.ExportConfiguration.Builder exportConfigurationBuilder =
             GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
-    JsonFormat.merge(jsonString, exportConfigurationBuilder);
+    try {
+      new JsonFormat().merge(new ByteArrayInputStream(jsonString.getBytes()), exportConfigurationBuilder);
+    } catch (IOException e) {
+      System.err.println(String.format("Could not resolve export for given json string: %s", e.getMessage()));
+      System.exit(1);
+    }
     return exportConfigurationBuilder.build();
   }
 

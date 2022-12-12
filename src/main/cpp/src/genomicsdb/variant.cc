@@ -39,11 +39,13 @@ bool GA4GHCallInfoToVariantIdx::find_or_insert(uint64_t begin, uint64_t end, con
     REF_iter = REF_map.insert(std::pair<std::string, ALTSetToVariantIdxTy>(REF, ALTSetToVariantIdxTy())).first;
   auto& ALT_map = (*REF_iter).second;
   std::set<std::string> ALT_set;
-  for (auto& ALT:ALT_vec)
+  for (auto& ALT:ALT_vec) {
     ALT_set.insert(ALT);
+  }
   auto ALT_iter = ALT_map.find(ALT_set);
-  if (ALT_iter == ALT_map.end())
+  if (ALT_iter == ALT_map.end()) {
     ALT_iter = ALT_map.insert(std::pair<std::set<std::string>, uint64_t>(ALT_set, variant_idx)).first;
+  }
   else {
     newly_inserted = false;
     variant_idx = (*ALT_iter).second;
@@ -57,6 +59,7 @@ bool GA4GHCallInfoToVariantIdx::find_or_insert(const VariantQueryConfig& query_c
     get_known_field_if_queried<VariantFieldString, true>(to_move_call, query_config, GVCF_REF_IDX);
   const auto* ALT_field_ptr =
     get_known_field_if_queried<VariantFieldALTData, true>(to_move_call, query_config, GVCF_ALT_IDX);
+
   bool newly_inserted = true;
   //Checking for identical REF, ALT etc
   if (REF_field_ptr && ALT_field_ptr) {
@@ -257,6 +260,7 @@ void VariantCall::reset_for_new_interval() {
   m_is_initialized = false;
   m_is_valid = false;
   m_contains_deletion = false;
+  m_contains_MNV = false;
   m_is_reference_block = false;
   //for(auto& ptr : m_fields)
   //ptr.reset(nullptr);
@@ -266,6 +270,7 @@ void VariantCall::copy_simple_members(const VariantCall& other) {
   m_is_valid = other.is_valid();
   m_is_initialized = other.is_initialized();
   m_contains_deletion = other.m_contains_deletion;
+  m_contains_MNV = other.m_contains_MNV;
   m_is_reference_block = other.m_is_reference_block;
   m_row_idx = other.get_row_idx();
   m_col_begin = other.m_col_begin;
@@ -299,8 +304,8 @@ void VariantCall::deep_copy_simple_members(const VariantCall& other) {
 
 void VariantCall::binary_serialize(std::vector<uint8_t>& buffer, uint64_t& offset) const {
   uint64_t add_size = 0ull;
-  //is_valid, is_initialized, contains_deletion, is_reference_block, row_idx, col_begin, col_end, num fields[unsigned]
-  add_size = 4*sizeof(bool) + 3*sizeof(uint64_t) + sizeof(unsigned);
+  //is_valid, is_initialized, contains_deletion, contains_MNV, is_reference_block, row_idx, col_begin, col_end, num fields[unsigned]
+  add_size = 5*sizeof(bool) + 3*sizeof(uint64_t) + sizeof(unsigned);
   RESIZE_BINARY_SERIALIZATION_BUFFER_IF_NEEDED(buffer, offset, add_size);
   //is_valid
   *(reinterpret_cast<bool*>(&(buffer[offset]))) = m_is_valid;
@@ -310,6 +315,9 @@ void VariantCall::binary_serialize(std::vector<uint8_t>& buffer, uint64_t& offse
   offset += sizeof(bool);
   //contains_deletion
   *(reinterpret_cast<bool*>(&(buffer[offset]))) = m_contains_deletion;
+  offset += sizeof(bool);
+  //contains_MNV
+  *(reinterpret_cast<bool*>(&(buffer[offset]))) = m_contains_MNV;
   offset += sizeof(bool);
   //is_reference_block
   *(reinterpret_cast<bool*>(&(buffer[offset]))) = m_is_reference_block;
@@ -341,7 +349,7 @@ void VariantCall::binary_serialize(std::vector<uint8_t>& buffer, uint64_t& offse
 
 void VariantCall::binary_deserialize_header(const std::vector<uint8_t>& buffer, uint64_t& offset) {
   //is_valid, is_initialized, contains_deletion, is_reference_block, row_idx, col_begin, col_end, num fields[unsigned]
-  assert(offset + 4*sizeof(bool) + 3*sizeof(uint64_t) + sizeof(unsigned) <= buffer.size());
+  assert(offset + 5*sizeof(bool) + 3*sizeof(uint64_t) + sizeof(unsigned) <= buffer.size());
   //is_valid
   m_is_valid = *(reinterpret_cast<const bool*>(&(buffer[offset])));
   offset += sizeof(bool);
@@ -350,6 +358,9 @@ void VariantCall::binary_deserialize_header(const std::vector<uint8_t>& buffer, 
   offset += sizeof(bool);
   //contains_deletion
   m_contains_deletion = *(reinterpret_cast<const bool*>(&(buffer[offset])));
+  offset += sizeof(bool);
+  //contains_MNV
+  m_contains_MNV = *(reinterpret_cast<const bool*>(&(buffer[offset])));
   offset += sizeof(bool);
   //is_reference_block
   m_is_reference_block = *(reinterpret_cast<const bool*>(&(buffer[offset])));
@@ -692,22 +703,12 @@ void Variant::get_column_sorted_call_idx_vec(std::vector<uint64_t>& query_row_id
 
 void Variant::move_calls_to_separate_variants(const VariantQueryConfig& query_config, std::vector<Variant>& variants,
     std::vector<uint64_t>& query_row_idx_in_order, GA4GHCallInfoToVariantIdx& call_info_2_variant, GA4GHPagingInfo* paging_info) {
-#ifdef DUPLICATE_CELL_AT_END
   get_column_sorted_call_idx_vec(query_row_idx_in_order);
-#else
-  if (query_row_idx_in_order.size() == 0u)
-    return;
-#endif
   uint64_t last_column_idx = paging_info ? paging_info->get_last_column() : 0u;
   auto num_last_column_variants_handled_after_curr_page = 0u;
   bool stop_inserting_new_variants = false;
-#ifdef DUPLICATE_CELL_AT_END
   //Sorted in column major order - so normal order
   for (auto i=0ull; i<query_row_idx_in_order.size(); ++i)
-#else
-  //Reverse order as gt_get_column uses reverse iterators
-  for (int64_t i=query_row_idx_in_order.size()-1; i>=0; --i)
-#endif
   {
     auto query_row_idx = query_row_idx_in_order[i];
     assert(query_row_idx < get_num_calls());
@@ -858,6 +859,7 @@ bool move_call_to_variant_vector(const VariantQueryConfig& query_config, Variant
     curr_variant.set_column_interval(to_move_call.get_column_begin(), to_move_call.get_column_end());
     curr_variant.add_call(std::move(to_move_call));
   }
+
   return newly_inserted;
 }
 

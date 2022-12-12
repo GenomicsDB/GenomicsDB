@@ -57,22 +57,26 @@
 
   <properties>
     <java.version>1.8</java.version>
-    <spark.version>2.4.0</spark.version>
-    <spark.core.artifactid>spark-core_2.11</spark.core.artifactid>
-    <spark.sql.artifactid>spark-sql_2.11</spark.sql.artifactid>
-    <htsjdk.version>2.9.1</htsjdk.version>
+    <scala.main>2.12</scala.main>
+    <spark.version>3.0.1</spark.version>
+    <spark.core.artifactid>spark-core_${scala.main}</spark.core.artifactid>
+    <spark.sql.artifactid>spark-sql_${scala.main}</spark.sql.artifactid>
+    <spark.exclude.packages>org.genomicsdb.spark.v2</spark.exclude.packages>
+    <spark.exclude.files>**/org/genomicsdb/spark/v2/**.java</spark.exclude.files>
+    <htsjdk.version>3.0.1</htsjdk.version>
     <json.simple.version>[1.1.1,)</json.simple.version>
-    <log4j.version>[2.13.0,)</log4j.version>
-    <protobuf.version>3.0.2</protobuf.version>
-    <protobuf_shade_version>com.google.protobufv3_0_2</protobuf_shade_version>
+    <log4j.version>[2.17.0,)</log4j.version>
+    <!-- Sync the protobuf.version with GENOMICSDB_PROTOBUF_VERSION in CMakeLists.txt -->
+    <protobuf.version>3.21.7</protobuf.version>
+    <protobuf_shade_version>org.genomicsdb.shaded.com.google.protobuf</protobuf_shade_version>
     <testng.version>6.10</testng.version>
     <gnu.getopt.version>1.0.13</gnu.getopt.version>
-    <surefire.plugin.version>2.20</surefire.plugin.version>
+    <surefire.plugin.version>2.22.2</surefire.plugin.version>
     <genomicsdb_source_directory>.</genomicsdb_source_directory>
     <genomicsdb_lib_directory>${genomicsdb_build_directory}/src/main</genomicsdb_lib_directory>
-    <genomicsdb_build_directory>${project.basedir}/target</genomicsdb_build_directory>
+    <genomicsdb_build_directory>${project.basedir}/build</genomicsdb_build_directory>
     <protobuf.input.directory>${genomicsdb_source_directory}/src/resources</protobuf.input.directory>
-    <protobuf.output.directory>${genomicsdb_build_directory}/../src/main/java</protobuf.output.directory>
+    <protobuf.output.directory>${genomicsdb_build_directory}/src/main/java</protobuf.output.directory>
     <test_source_directory>${genomicsdb_source_directory}/src/test/java</test_source_directory>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -89,6 +93,12 @@
       <groupId>org.apache.spark</groupId>
       <artifactId>${spark.sql.artifactid}</artifactId>
       <version>${spark.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.protobuf</groupId>
+          <artifactId>protobuf-java</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.github.samtools</groupId>
@@ -122,7 +132,7 @@
          using for JsonFormat.printToString-->
       <groupId>com.googlecode.protobuf-java-format</groupId>
       <artifactId>protobuf-java-format</artifactId>
-      <version>1.2</version>
+      <version>1.4</version>
     </dependency>
     <dependency>
       <groupId>org.testng</groupId>
@@ -154,28 +164,34 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>build-helper-maven-plugin</artifactId>
-          <version>1.8</version>
+          <version>3.3.0</version>
         </plugin>
       </plugins>
     </pluginManagement>
-
+    
     <plugins>
       <plugin>
         <inherited>true</inherited>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.6.0</version>
+        <version>3.8.1</version>
         <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
           <compilerArgs>
             <arg>-Xlint</arg>
           </compilerArgs>
+          <excludes>
+            <exclude>${spark.exclude.files}</exclude>
+          </excludes>
+          <testExcludes>
+            <testExclude>${spark.exclude.files}</testExclude>
+          </testExcludes>
         </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-antrun-plugin</artifactId>
-        <version>1.8</version>
+        <version>3.1.0</version>
         <executions>
           <execution>
             <id>unzip-test-artifacts</id>
@@ -186,6 +202,8 @@
                 <copy file="${test_source_directory}/../inputs/test.tgz" tofile="${genomicsdb_build_directory}/test/test.tar.gz" />
                 <gunzip src="${genomicsdb_build_directory}/test/test.tar.gz" />
                 <untar src="${genomicsdb_build_directory}/test/test.tar" dest="${genomicsdb_build_directory}/test/"/>
+                <replace file="${genomicsdb_build_directory}/test/inputs/query.json" token="inputs/" value="${genomicsdb_build_directory}/test/inputs/" />
+                <replace file="${genomicsdb_build_directory}/test/inputs/loader.json" token="inputs/" value="${genomicsdb_build_directory}/test/inputs/" />
               </target>
             </configuration>
             <goals>
@@ -200,7 +218,7 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.5</version>
+        <version>0.8.8</version>
         <executions>
           <!--
             Prepares the property pointing to the JaCoCo runtime agent which
@@ -259,12 +277,12 @@
       <plugin>
         <groupId>net.alchim31.maven</groupId>
         <artifactId>scala-maven-plugin</artifactId>
-        <version>3.2.0</version>
+        <version>4.4.0</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
-        <version>2.2.1</version>
+        <version>3.2.1</version>
         <executions>
           <execution>
             <id>attach-sources</id>
@@ -277,7 +295,7 @@
       <plugin> 
         <groupId>org.apache.maven.plugins</groupId> 
         <artifactId>maven-shade-plugin</artifactId>  
-        <version>3.2.1</version> 
+        <version>3.4.0</version>
         <executions> 
           <execution> 
             <phase>package</phase> 
@@ -291,6 +309,7 @@
               <filter>
                 <artifact>*:*</artifact>
                 <excludes>
+                  <exclude>module-info.class</exclude>
                   <exclude>META-INF/*.SF</exclude>
                   <exclude>META-INF/*.DSA</exclude>
                   <exclude>META-INF/*.RSA</exclude>
@@ -322,13 +341,14 @@
           <argLine>${surefireJacoco} ${surefireArgLine}</argLine>
           <systemPropertyVariables>
             <buildDirectory>${project.build.directory}</buildDirectory>
+            <log4j.configuration>file:${genomicsdb_source_directory}/src/resources/log4j.properties</log4j.configuration>
           </systemPropertyVariables>
         </configuration>
       </plugin>
       <plugin>
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest-maven-plugin</artifactId>
-        <version>1.0</version>
+        <version>2.1.0</version>
         <configuration>
           <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
           <junitxml>.</junitxml>
@@ -339,17 +359,18 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <version>2.10.4</version>
+        <version>3.4.1</version>
         <configuration>
           <show>private</show>
           <nohelp>true</nohelp>
           <source>8</source>
+          <excludePackageNames>${spark.exclude.packages}</excludePackageNames>
           <sourceFileExcludes>
-            <exclude>**/Coordinates.java</exclude>
-            <exclude>**/GenomicsDBVidMapProto.java</exclude>
-            <exclude>**/GenomicsDBCallsetsMapProto.java</exclude>
-            <exclude>**/GenomicsDBImportConfiguration.java</exclude>
-            <exclude>**/GenomicsDBExportConfiguration.java</exclude>
+            <sourceFileExclude>**/Coordinates.java</sourceFileExclude>
+            <sourceFileExclude>**/GenomicsDBVidMapProto.java</sourceFileExclude>
+            <sourceFileExclude>**/GenomicsDBCallsetsMapProto.java</sourceFileExclude>
+            <sourceFileExclude>**/GenomicsDBImportConfiguration.java</sourceFileExclude>
+            <sourceFileExclude>**/GenomicsDBExportConfiguration.java</sourceFileExclude>
           </sourceFileExcludes>
         </configuration>
         <executions>
@@ -364,7 +385,7 @@
       <plugin>
         <groupId>org.sonatype.plugins</groupId>
         <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>1.6.7</version>
+        <version>1.6.13</version>
         <extensions>true</extensions>
         <configuration>
           <serverId>ossrh</serverId>
@@ -375,7 +396,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-gpg-plugin</artifactId>
-        <version>1.5</version>
+        <version>3.0.1</version>
         <executions>
           <execution>
             <id>sign-artifacts</id>
@@ -386,28 +407,11 @@
             </execution>
         </executions>
       </plugin>
-    </plugins>
-  </build>
-
-  <profiles>
-    <profile>
-      <id>spark_core-2.10</id>
-      <properties>
-        <spark.core.artifactid>spark_core_2.10</spark.core.artifactid>
-      </properties>
-    </profile>
-    <profile>
-      <id>default_profile</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <build>
-        <plugins>
-          <!--Protobuf generation - adapted from http://vlkan.com/blog/post/2015/11/27/maven-protobuf/-->
-          <plugin>
+      <!-- previously in default profile, moving out to avoid duplicating for spark2 profile -->
+      <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-antrun-plugin</artifactId>
-            <version>1.8</version>
+            <version>3.1.0</version>
             <executions>
               <execution>
                 <id>exec-protoc</id>
@@ -457,8 +461,25 @@
               </execution>
             </executions>
           </plugin>
-        </plugins>
-      </build>
+
+    </plugins>
+  </build>
+  <profiles>
+    <profile>
+      <id>java11</id>
+      <properties>
+        <java.version>11</java.version>
+        <surefireArgLine>--illegal-access=permit -Djava.library.path=${project.basedir}/bin:${java.library.path}</surefireArgLine>
+      </properties>
+      </profile>  
+    <profile>
+      <id>spark2</id>
+      <properties>
+        <scala.main>2.11</scala.main>
+        <spark.version>2.4.0</spark.version>
+        <spark.exclude.packages>org.genomicsdb.spark.sources</spark.exclude.packages>
+        <spark.exclude.files>**/org/genomicsdb/spark/sources/*.java</spark.exclude.files>
+      </properties>  
     </profile>
   </profiles>
 </project>

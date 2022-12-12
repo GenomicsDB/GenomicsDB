@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2019 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2020 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -21,10 +21,9 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifdef HTSDIR
-
 #include "broad_combined_gvcf.h"
 #include "genomicsdb_multid_vector_field.h"
+#include "genomicsdb_logger.h"
 
 #ifdef DO_MEMORY_PROFILING
 #include "memory_measure.h"
@@ -51,7 +50,7 @@
 #define GET_HISTOGRAM_FIELD_HANDLER_PTR_FROM_TUPLE(X) (std::get<2>(X))
 
 //Static member
-const std::unordered_set<char> BroadCombinedGVCFOperator::m_legal_bases({'A', 'T', 'G', 'C'});
+const std::unordered_set<char> BroadCombinedGVCFOperator::m_legal_bases({'A', 'T', 'G', 'C', 'a', 't', 'g', 'c'});
 
 //Utility functions for encoding GT field
 template<bool phase_information_in_TileDB, bool produce_GT_field>
@@ -134,14 +133,17 @@ inline void encode_GT_vector<false, false>(int* inout_vec, const uint64_t input_
 
 BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, const VidMapper& id_mapper,
     const VariantQueryConfig& query_config,
-    const bool use_missing_values_only_not_vector_end)
-  : GA4GHOperator(query_config, id_mapper, true) {
+    const bool use_missing_values_only_not_vector_end,
+    const bool use_columnar_iterator,
+    const bool from_columnar_iterator_write_to_string)
+  : GA4GHOperator(query_config, id_mapper, true),
+    m_use_columnar_iterator(use_columnar_iterator),
+    m_vcf_writer_to_ostream(std::cout) {
   clear();
   if (!id_mapper.is_initialized())
     throw BroadCombinedGVCFException("Id mapper is not initialized");
   if (!id_mapper.is_callset_mapping_initialized())
     throw BroadCombinedGVCFException("Callset mapping in id mapper is not initialized");
-  m_query_config = &query_config;
   //Initialize VCF structs
   m_vcf_adapter = &vcf_adapter;
   m_vid_mapper = &id_mapper;
@@ -181,7 +183,7 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
         case VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_NONE:
           break;
         case VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_UNKNOWN_OPERATION:
-          std::cerr << "WARNING: No valid combination operation found for INFO field "<<field_info->m_vcf_name<<" - the field will NOT be part of INFO fields in the generated VCF records\n";
+          logger.info_once("No valid combination operation found for INFO field {}  - the field will NOT be part of INFO fields in the generated VCF records", field_info->m_vcf_name);
           break;
         case VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_HISTOGRAM_SUM: {
           m_INFO_fields_vec.emplace_back(MAKE_BCF_INFO_TUPLE(known_field_enum, i, field_info));
@@ -285,7 +287,9 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
       int line_length = 0;
       auto hrec = bcf_hdr_parse_line(m_vcf_hdr, contig_vcf_line.c_str(), &line_length);
       bcf_hdr_add_hrec(m_vcf_hdr, hrec);
-      bcf_hdr_sync(m_vcf_hdr);
+      if (bcf_hdr_sync(m_vcf_hdr)) {
+        logger.fatal(BroadCombinedGVCFException("Possible realloc() failure from bcf_hdr_sync() while adding missing contig names to template header"));
+      }
     }
   }
   //Get contig info for position 0, store curr contig in next_contig and call switch_contig function to do all the setup
@@ -307,7 +311,9 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
                                          +callset_name+" to the combined VCF/gVCF header");
     }
   }
-  bcf_hdr_sync(m_vcf_hdr);
+  if (bcf_hdr_sync(m_vcf_hdr)) {
+    logger.fatal(BroadCombinedGVCFException("Possible realloc() failure from bcf_hdr_sync() while adding samples to template header"));
+  }
   //Map from vid mapper field idx to hdr field idx
   m_global_field_idx_to_hdr_idx.resize(m_vid_mapper->get_num_fields(), -1);
   for (auto i=0u; i<m_vid_mapper->get_num_fields(); ++i) {
@@ -325,7 +331,8 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
   auto hdr_offset = bcf_hdr_deserialize(m_vcf_hdr, &(tmp_buffer[0u]), 0u, tmp_buffer.size(), 0);
   assert(hdr_offset > 0u);
   m_vcf_adapter->set_vcf_header(m_vcf_hdr);
-  m_vcf_adapter->print_header();
+  if(!use_columnar_iterator)
+    m_vcf_adapter->print_header();
   //vector of field pointers used for handling remapped fields when dealing with spanning deletions
   //Individual pointers will be allocated later
   m_spanning_deletions_remapped_fields.resize(m_remapped_fields_query_idxs.size());
@@ -352,6 +359,30 @@ BroadCombinedGVCFOperator::BroadCombinedGVCFOperator(VCFAdapter& vcf_adapter, co
 #endif
   m_bcf_record_size = 0ull;
   m_should_add_GQ_field = true; //always added in new version of CombineGVCFs
+  //Check if we need to use the columnar iterator
+  if(use_columnar_iterator) {
+    if(!GenomicsDBConfigBase::output_to_stdout(query_config.get_vcf_output_filename())) {
+      m_vcf_adapter->close_file();
+      m_vcf_output_fptr.open(query_config.get_vcf_output_filename());
+      m_vcf_writer_to_ostream = std::move(VCFWriterNoOverflow<std::ostream>(m_vcf_output_fptr));
+    }
+    else
+      m_vcf_writer_to_ostream = std::move(VCFWriterNoOverflow<std::ostream>(std::cout));
+    m_writer_type_enum = (from_columnar_iterator_write_to_string) ? VCFWRITER_ENUM::STL_STRING_NO_LIMIT
+      : VCFWRITER_ENUM::STL_OSTREAM_NO_LIMIT;
+    auto& string_buffer = from_columnar_iterator_write_to_string ? m_vcf_writer_to_string.get_string_buffer() : m_vcf_writer_to_ostream.get_string_buffer();
+    string_buffer.resize(4096u); //doesn't matter - some > 0 number
+    while(true) {
+      auto offset = bcf_hdr_serialize(vcf_adapter.get_vcf_header(), reinterpret_cast<uint8_t*>(&(string_buffer.at(0u))), 0u, string_buffer.size(),
+          0, 1);
+      if(offset > 0u) {
+        string_buffer.resize(offset);
+        break;
+      }
+      else
+        string_buffer.resize(2ull*string_buffer.size()+1u);
+    }
+  }
 }
 
 BroadCombinedGVCFOperator::~BroadCombinedGVCFOperator() {
@@ -363,6 +394,10 @@ BroadCombinedGVCFOperator::~BroadCombinedGVCFOperator() {
     }
   }
   bcf_destroy(m_bcf_out);
+  if(m_use_columnar_iterator)
+    m_vcf_writer_to_ostream.flush_buffer_if_flush_supported();
+  if(m_vcf_output_fptr.is_open() && !GenomicsDBConfigBase::output_to_stdout(m_query_config->get_vcf_output_filename()))
+    m_vcf_output_fptr.close();
   clear();
 #ifdef DO_PROFILING
   m_bcf_t_creation_timer.print("bcf_t creation time", std::cerr);
@@ -761,13 +796,13 @@ void BroadCombinedGVCFOperator::merge_ID_field(const Variant& variant, const uns
     m_ID_value.pop_back(); //delete last ';'
 }
 
-void BroadCombinedGVCFOperator::operate(Variant& variant, const VariantQueryConfig& query_config) {
+void BroadCombinedGVCFOperator::operate(Variant& variant) {
 #ifdef DO_PROFILING
   m_bcf_t_creation_timer.start();
 #endif
   //Handle spanning deletions - change ALT alleles in calls with deletions to *, <NON_REF>
-  handle_deletions(variant, query_config);
-  GA4GHOperator::operate(variant, query_config);
+  handle_deletions(variant);
+  GA4GHOperator::operate(variant);
   //Moved to new contig
   if (static_cast<int64_t>(m_remapped_variant.get_column_begin()) >= m_next_contig_begin_position) {
     std::string contig_name;
@@ -795,8 +830,7 @@ void BroadCombinedGVCFOperator::operate(Variant& variant, const VariantQueryConf
   if (m_query_config->is_defined_query_idx_for_known_field_enum(GVCF_ID_IDX)) {
     auto ID_query_idx = m_query_config->get_query_idx_for_known_field_enum(GVCF_ID_IDX);
     merge_ID_field(variant, ID_query_idx);
-    if (!m_ID_value.empty())
-      bcf_update_id(m_vcf_hdr, m_bcf_out, m_ID_value.c_str());
+    bcf_update_id(m_vcf_hdr, m_bcf_out, m_ID_value.empty() ? "." : m_ID_value.c_str());
   }
   m_bcf_record_size += m_ID_value.length();
   //GATK combined GVCF does not care about QUAL value
@@ -819,6 +853,8 @@ void BroadCombinedGVCFOperator::operate(Variant& variant, const VariantQueryConf
     ref_allele[0] = m_vcf_adapter->get_reference_base_at_position(m_curr_contig_name.c_str(), m_bcf_out->pos);
     if (BroadCombinedGVCFOperator::m_legal_bases.find(ref_allele[0]) == BroadCombinedGVCFOperator::m_legal_bases.end())
       ref_allele[0] = 'N';
+    else
+      ref_allele[0] = toupper(ref_allele[0]);
   }
   const auto& alt_alleles = dynamic_cast<VariantFieldALTData*>(m_remapped_variant.get_common_field(1u).get())->get();
   auto total_num_merged_alleles = alt_alleles.size() + 1u;      //+1 for REF
@@ -872,12 +908,11 @@ void BroadCombinedGVCFOperator::operate(Variant& variant, const VariantQueryConf
   statm_t mem_result;
   read_off_memory_status(mem_result);
   if (mem_result.resident >= m_next_memory_limit) {
-    std::cerr << "Crossed "<<m_next_memory_limit
-              << " memory used (bytes) " << mem_result.resident
-              <<" at contig "
-              << bcf_hdr_id2name(m_vcf_hdr, m_curr_contig_hdr_idx)
-              << " position " << m_bcf_out->pos+1
-              << "\n";
+    logger.info("Crossed {} memory used (bytes) {} at contig {} position {}",
+                 m_next_memory_limit,
+                 mem_result.resident,
+                 bcf_hdr_id2name(m_vcf_hdr, m_curr_contig_hdr_idx),
+                 m_bcf_out->pos+1);
     m_next_memory_limit = std::max<uint64_t>(m_next_memory_limit, mem_result.resident)
                           + 100*ONE_MB;
   }
@@ -893,7 +928,8 @@ void BroadCombinedGVCFOperator::switch_contig() {
 }
 
 //Modifies original Variant object
-void BroadCombinedGVCFOperator::handle_deletions(Variant& variant, const VariantQueryConfig& query_config) {
+void BroadCombinedGVCFOperator::handle_deletions(Variant& variant) {
+  const VariantQueryConfig& query_config = *m_query_config;
   //#merged alleles in spanning deletion can be at most 3 - REF,*,<NON_REF>; however, the #input alleles
   //can be much larger. LUT gets resized later
   m_reduced_alleles_LUT.resize_luts_if_needed(variant.get_num_calls(), 3u);
@@ -905,10 +941,10 @@ void BroadCombinedGVCFOperator::handle_deletions(Variant& variant, const Variant
   for (auto iter=variant.begin(), e=variant.end(); iter != e; ++iter) {
     auto& curr_call = *iter;
     auto curr_call_idx_in_variant = iter.get_call_idx_in_variant();
-    //Deletion and not handled as spanning deletion
+    //Deletion or MNV and not handled as spanning deletion
     //So replace the ALT with *,<NON_REF> and REF with "N"
     //Remap PL, AD fields
-    if (curr_call.contains_deletion() && variant.get_column_begin() > curr_call.get_column_begin()) {
+    if (curr_call.contains_deletion_or_MNV() && variant.get_column_begin() > curr_call.get_column_begin()) {
       auto& ref_allele = get_known_field<VariantFieldString, true>(curr_call, query_config, GVCF_REF_IDX)->get();
       auto& alt_alleles = get_known_field<VariantFieldALTData, true>(curr_call, query_config, GVCF_ALT_IDX)->get();
       assert(alt_alleles.size() > 0u);
@@ -948,7 +984,7 @@ void BroadCombinedGVCFOperator::handle_deletions(Variant& variant, const Variant
       m_spanning_deletion_current_genotype.resize(ploidy);
       for (auto i=0u; i<alt_alleles.size(); ++i) {
         auto allele_idx = i+1;  //+1 for REF
-        if (VariantUtils::is_deletion(ref_allele, alt_alleles[i])) {
+        if (VariantUtils::is_deletion_or_MNV(ref_allele, alt_alleles[i])) {
           if (lowest_deletion_allele_idx < 0) //uninitialized, assign to first deletion found
             lowest_deletion_allele_idx = allele_idx;
           if (PL_field_exists) {
@@ -1077,5 +1113,3 @@ bool BroadCombinedGVCFOperator::update_GT_to_correspond_to_min_PL_value(
   }
   return remap_GT_based_on_input_GT;
 }
-
-#endif //ifdef HTSDIR

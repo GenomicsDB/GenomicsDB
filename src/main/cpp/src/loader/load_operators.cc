@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2020, 2022 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,6 +27,7 @@
 #define ONE_GB (1024ull*1024ull*1024ull)
 
 #ifdef DO_MEMORY_PROFILING
+#include "genomicsdb_logger.h"
 #include "memory_measure.h"
 #endif
 
@@ -117,11 +119,11 @@ LoaderArrayWriter::LoaderArrayWriter(
   auto& id_mapper = m_import_config_ptr->get_vid_mapper();
   //Schema
   id_mapper.build_tiledb_array_schema(m_schema, array_name,
-                                      m_import_config_ptr->compress_tiledb_array(), m_import_config_ptr->no_mandatory_VCF_fields());
+                                      m_import_config_ptr->compress_tiledb_array(), m_import_config_ptr->get_tiledb_compression_type(), m_import_config_ptr->get_tiledb_compression_level(), m_import_config_ptr->no_mandatory_VCF_fields());
   //Storage manager
   size_t segment_size = m_import_config_ptr->get_segment_size();
   m_storage_manager = new VariantStorageManager(workspace, segment_size,
-      config.disable_file_locking_in_tiledb());
+       m_import_config_ptr->enable_shared_posixfs_optimizations());
   if (m_import_config_ptr->delete_and_create_tiledb_array())
     m_storage_manager->delete_array(array_name);
   //Open array in write mode
@@ -129,7 +131,12 @@ LoaderArrayWriter::LoaderArrayWriter(
   //Check if array already exists
   //Array does not exist - define it first
   if (m_array_descriptor < 0) {
-    if (m_storage_manager->define_array(m_schema, m_import_config_ptr->get_num_cells_per_tile()) != TILEDB_OK)
+    if (m_storage_manager->define_array(m_schema,
+                                        m_import_config_ptr->get_num_cells_per_tile(),
+                                        m_import_config_ptr->disable_delta_encode_offsets(),
+                                        m_import_config_ptr->disable_delta_encode_coords(),
+                                        m_import_config_ptr->enable_bit_shuffle_gt(),
+                                        m_import_config_ptr->enable_lz4_compression_gt()) != TILEDB_OK)
       throw LoadOperatorException(std::string("Could not define TileDB array")
                                   +"\nTileDB error message : "+tiledb_errmsg);
     //Open array in write mode
@@ -142,9 +149,11 @@ LoaderArrayWriter::LoaderArrayWriter(
                                 + "\nTileDB error message : "+tiledb_errmsg);
   m_storage_manager->update_row_bounds_in_array(m_array_descriptor, m_import_config_ptr->get_row_bounds().first,
       std::min(m_import_config_ptr->get_row_bounds().second, id_mapper.get_max_callset_row_idx()));
+  m_storage_manager->write_column_bounds_to_array(m_array_descriptor,
+      m_import_config_ptr->get_column_partition(m_partition_idx).first,
+      m_import_config_ptr->get_column_partition(m_partition_idx).second);
 }
 
-#ifdef DUPLICATE_CELL_AT_END
 void LoaderArrayWriter::write_top_element_to_disk() {
   //Copy not reference
   CellWrapper top_element = m_cell_wrapper_pq.top();
@@ -167,7 +176,6 @@ void LoaderArrayWriter::write_top_element_to_disk() {
   } else //no need to keep this cell anymore, free "heap"
     m_memory_manager.push(idx_in_vector);
 }
-#endif
 
 void LoaderArrayWriter::operate(const void* cell_ptr) {
   assert(m_storage_manager);
@@ -187,7 +195,6 @@ void LoaderArrayWriter::operate(const void* cell_ptr) {
     if (!m_crossed_column_partition_begin)      //still did not cross
       return;
   }
-#ifdef DUPLICATE_CELL_AT_END
   //Reason: the whole setup works only if the intervals for a given row/sample are non-overlapping. This
   //property must be enforced by the loader
   //We maintain the last END value seen for every row - if the new cell has a begin
@@ -265,23 +272,17 @@ void LoaderArrayWriter::operate(const void* cell_ptr) {
   m_cell_wrapper_pq.push(curr_cell_wrapper);
   //Update last END value seen
   m_last_end_position_for_row[row] = column_end;
-#else //ifdef DUPLICATE_CELL_AT_END
-  m_storage_manager->write_cell_sorted(m_array_descriptor, cell_ptr);
-#endif //ifdef DUPLICATE_CELL_AT_END
 }
 
 void LoaderArrayWriter::finish(const int64_t column_interval_end) {
   LoaderOperatorBase::finish(column_interval_end);
-#ifdef DUPLICATE_CELL_AT_END
   //some cells may be left in the PQ, write them to disk
   while (!m_cell_wrapper_pq.empty())
     write_top_element_to_disk();
-#endif
   if (m_storage_manager && m_array_descriptor >= 0)
     m_storage_manager->close_array(m_array_descriptor, m_import_config_ptr->consolidate_tiledb_array_after_load());
 }
 
-#ifdef HTSDIR
 LoaderCombinedGVCFOperator::LoaderCombinedGVCFOperator(const GenomicsDBImportConfig& config,
     int partition_idx)
   : LoaderOperatorBase(config,
@@ -291,7 +292,7 @@ LoaderCombinedGVCFOperator::LoaderCombinedGVCFOperator(const GenomicsDBImportCon
   //initialize arguments
   //initialize query processor
   m_import_config_ptr->get_vid_mapper().build_tiledb_array_schema(m_schema, "",
-      false, false);
+      false, 0, 0, false);
   m_query_processor = new VariantQueryProcessor(*m_schema, m_import_config_ptr->get_vid_mapper());
   //Initialize query config
   static_cast<GenomicsDBConfigBase&>(m_query_config) = static_cast<const GenomicsDBConfigBase&>(config);
@@ -379,7 +380,7 @@ void LoaderCombinedGVCFOperator::operate(const void* cell_ptr) {
   statm_t mem_result;
   read_off_memory_status(mem_result);
   if (mem_result.resident >= m_next_memory_limit) {
-    std::cerr << "Crossed "<<m_next_memory_limit<<" at position "<<column_begin<<"\n";
+    logger.info("Crossed {} at position {}", m_next_memory_limit, column_begin);
     m_next_memory_limit += ONE_GB;
   }
 #endif
@@ -405,7 +406,7 @@ void LoaderCombinedGVCFOperator::finish(const int64_t column_interval_end) {
     statm_t mem_result;
     read_off_memory_status(mem_result);
     if (mem_result.resident > m_next_memory_limit) {
-      std::cerr << "ENDING crossed "<<m_next_memory_limit<<"\n";
+      logger.info("ENDING crossed {}", m_next_memory_limit);
       m_next_memory_limit += ONE_GB;
     }
 #endif
@@ -413,5 +414,3 @@ void LoaderCombinedGVCFOperator::finish(const int64_t column_interval_end) {
     flush_output();
   }
 }
-
-#endif

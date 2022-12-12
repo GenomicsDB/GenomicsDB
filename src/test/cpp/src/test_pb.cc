@@ -25,8 +25,7 @@
 #include "json_config.h"
 #include "variant_query_config.h"
 #include "genomicsdb_export_config.pb.h"
-
-extern std::string g_pb_query_json_file;
+#include "test_common.h"
 
 void check_equal_query_config(const GenomicsDBConfigBase& json_config, const GenomicsDBConfigBase& pb_config) {
   CHECK(pb_config.get_workspace(0) == json_config.get_workspace(0));
@@ -49,7 +48,7 @@ void check_equal_query_config(const GenomicsDBConfigBase& json_config, const Gen
   CHECK(pb_config.index_output_VCF() == json_config.index_output_VCF());
   CHECK(pb_config.produce_GT_with_min_PL_value_for_spanning_deletions()
       == json_config.produce_GT_with_min_PL_value_for_spanning_deletions());
-  CHECK(pb_config.disable_file_locking_in_tiledb() == json_config.disable_file_locking_in_tiledb());
+  CHECK(pb_config.enable_shared_posixfs_optimizations() == json_config.enable_shared_posixfs_optimizations());
   CHECK(pb_config.get_query_filter() == json_config.get_query_filter());
   CHECK(pb_config.get_attributes() == json_config.get_attributes());
 }
@@ -93,6 +92,9 @@ void check_equal_vid_info_fields(const VidMapper& json, const VidMapper& pb) {
     }
     CHECK(pb_info->m_VCF_field_combine_operation ==
             json_info->m_VCF_field_combine_operation);
+
+    CHECK(pb_info->m_disable_remap_missing_with_non_ref ==
+            json_info->m_disable_remap_missing_with_non_ref);
   }
 }
 
@@ -118,11 +120,11 @@ void check_equal_vid_config(const VidMapper& json, const VidMapper& pb) {
 
 TEST_CASE("pb_query_config_test", "[protobuf_config]")
 {
-  if(!g_pb_query_json_file.empty()) {
+  if(!g_query_json_file.empty()) {
     GenomicsDBConfigBase json_config;
-    json_config.read_from_file(g_pb_query_json_file, 0);
+    json_config.read_from_file(g_query_json_file, 0);
     genomicsdb_pb::ExportConfiguration export_config;
-    GenomicsDBConfigBase::get_pb_from_json_file(&export_config, g_pb_query_json_file);
+    GenomicsDBConfigBase::get_pb_from_json_file(&export_config, g_query_json_file);
     CHECK(export_config.IsInitialized());
     GenomicsDBConfigBase pb_config;
     pb_config.read_from_PB(&export_config, 0);

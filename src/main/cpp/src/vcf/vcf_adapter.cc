@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2020-2021 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -18,22 +19,30 @@
  * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
-
-#ifdef HTSDIR
+ */
 
 #include "vcf_adapter.h"
-#include "vid_mapper.h"
+
+#include "genomicsdb_logger.h"
+#include "hfile_genomicsdb.h"
 #include "htslib/tbx.h"
 #include "tiledb_utils.h"
+#include "vid_mapper.h"
 
 //ReferenceGenomeInfo functions
 void ReferenceGenomeInfo::initialize(const std::string& reference_genome) {
-  m_reference_faidx = fai_load(reference_genome.c_str());
-  assert(m_reference_faidx);
-  m_reference_last_seq_read = "";
-  //buffer
-  m_buffer.resize(32768u+8);     //32KB
+  if (!reference_genome.empty()) {
+    if (!TileDBUtils::is_file(reference_genome)) {
+      throw VCFAdapterException(logger.format("Specified reference genome {} not found", reference_genome));
+    }
+    m_reference_faidx = fai_load(reference_genome.c_str());
+    if (!m_reference_faidx) {
+      throw VCFAdapterException(logger.format("Issues with opening reference genome {}", reference_genome));
+    }
+    m_reference_last_seq_read = "";
+    //buffer
+    m_buffer.resize(32768u+8);     //32KB
+  }
 }
 
 char ReferenceGenomeInfo::get_reference_base_at_position(const char* contig, const int64_t pos) {
@@ -54,7 +63,7 @@ char ReferenceGenomeInfo::get_reference_base_at_position(const char* contig, con
 
 //VCFAdapter functions
 bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id_mapper, const std::string& field_name, int field_type_idx) {
-  auto field_info_ptr = id_mapper->get_field_info(field_name);
+  auto field_info_ptr = id_mapper->get_field_info(field_name, field_type_idx);
   auto is_multid_vector_or_tuple_element_field = (
         (field_info_ptr != 0)
         && ((field_info_ptr->get_genomicsdb_type().get_num_elements_in_tuple() > 1u)
@@ -84,7 +93,9 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
     if (description_idx >= 0)
       description_value = hrec->vals[description_idx];
     bcf_hdr_remove(hdr, field_type_idx, field_name.c_str());
-    bcf_hdr_sync(hdr);
+    if (bcf_hdr_sync(hdr)) {
+      logger.fatal(VCFAdapterException("Possible realloc() failure from bcf_hdr_sync() while adding missing field to hdr"));
+    }
     field_exists_in_vcf_hdr = false;
     old_field_idx_before_deletion = field_idx;
   }
@@ -181,15 +192,17 @@ bool VCFAdapter::add_field_to_hdr_if_missing(bcf_hdr_t* hdr, const VidMapper* id
     int line_length = 0;
     auto hrec = bcf_hdr_parse_line(hdr, header_line.c_str(), &line_length);
     bcf_hdr_add_hrec(hdr, hrec);
-    bcf_hdr_sync(hdr);
+    if (bcf_hdr_sync(hdr)) {
+      logger.fatal(VCFAdapterException("Possible realloc() failure from bcf_hdr_sync() while adding missing field to hdr"));
+    }
 #ifdef DEBUG
     if (old_field_idx_before_deletion >= 0)
       assert(bcf_hdr_id2int(hdr, BCF_DT_ID, field_name.c_str()) == old_field_idx_before_deletion);
 #endif
     return true;
   } else {
-    const auto* field_info_ptr = id_mapper->get_field_info(field_name);
-    assert(field_info_ptr);
+    //const auto* field_info_ptr = id_mapper->get_field_info(field_name);
+    //assert(field_info_ptr);
     auto field_ht_type = bcf_hdr_id2type(hdr, field_type_idx, field_idx);
     //Don't bother doing any checks for the GT field
     if (field_name != "GT" && field_ht_type != BCF_HT_STR && field_type_idx != BCF_HL_FLT) {
@@ -251,6 +264,9 @@ VCFAdapter::VCFAdapter(bool open_output) {
   m_is_bcf = true;
   m_config_base_ptr = 0;
   m_output_VCF_index_type = VCFIndexType::VCF_INDEX_NONE;
+
+  // Register plugin for URI support for htslib via GenomicsDB
+  genomicsdb_htslib_plugin_initialize();
 }
 
 VCFAdapter::~VCFAdapter() {
@@ -270,8 +286,9 @@ VCFAdapter::~VCFAdapter() {
     default:
       break; //do nothing
     }
-    if (status != 0)
-      std::cerr << "WARNING: error in creating index for output file "<<m_config_base_ptr->get_vcf_output_filename()<<"\n";
+    if (status != 0) {
+      logger.warn("error in creating index for output file {}", m_config_base_ptr->get_vcf_output_filename());
+    }
   }
   m_output_fptr = 0;
 #ifdef DO_PROFILING
@@ -322,11 +339,9 @@ void VCFAdapter::initialize(const GenomicsDBConfigBase& config_base) {
   if (m_open_output) {
     m_output_fptr = bcf_open(output_filename.c_str(), ("w"+output_format).c_str());
     if (m_output_fptr == 0) {
-      std::cerr << "Cannot write to output file "<< output_filename << ", exiting\n";
-      exit(-1);
+      logger.fatal(VCFAdapterException(logger.format("Cannot write to output file {}", output_filename)));
     }
-    if (config_base.index_output_VCF() && !output_filename.empty()
-        && !(output_filename.length() == 1u && output_filename[0] == '-')) {
+    if (config_base.index_output_VCF() && !GenomicsDBConfigBase::output_to_stdout(output_filename)) {
       if (output_format == "z")
         m_output_VCF_index_type = VCFIndexType::VCF_INDEX_TBI;
       else {
@@ -336,8 +351,6 @@ void VCFAdapter::initialize(const GenomicsDBConfigBase& config_base) {
     }
   }
   //Reference genome
-  if (config_base.get_reference_genome().empty())
-    throw VCFAdapterException("No reference genome specified in query/import config");
   m_reference_genome_info.initialize(config_base.get_reference_genome());
   m_config_base_ptr = &config_base;
 }
@@ -346,20 +359,31 @@ bcf_hdr_t* VCFAdapter::initialize_default_header() {
   auto hdr = bcf_hdr_init("w");
   bcf_hdr_append(hdr, "##ALT=<ID=NON_REF,Description=\"Represents any possible alternative allele at this location\">");
   bcf_hdr_append(hdr, "##INFO=<ID=END,Number=1,Type=Integer,Description=\"Stop position of the interval\">");
-  bcf_hdr_sync(hdr);
+  if (bcf_hdr_sync(hdr)) {
+    logger.fatal(VCFAdapterException("Posssible realloc() failure from bcf_hdr_sync() while initializing default header"));
+  }
   return hdr;
 }
 
 void VCFAdapter::print_header() {
-  bcf_hdr_write(m_output_fptr, m_template_vcf_hdr);
+  if (bcf_hdr_write(m_output_fptr, m_template_vcf_hdr)) {
+    logger.fatal(VCFAdapterException("bcf_hdr_write() failed while printing header"));
+  }
 }
 
 void VCFAdapter::handoff_output_bcf_line(bcf1_t*& line, const size_t bcf_record_size) {
-  auto write_status = bcf_write(m_output_fptr, m_template_vcf_hdr, line);
-  if (write_status != 0)
-    throw VCFAdapterException(std::string("Failed to write VCF/BCF record at position ")
-                              +bcf_hdr_id2name(m_template_vcf_hdr, line->rid)+", "
-                              +std::to_string(line->pos+1));
+  if (bcf_write(m_output_fptr, m_template_vcf_hdr, line)) {
+    logger.fatal(VCFAdapterException(logger.format("Failed to write VCF/BCF record at position {}, {}",
+                                                   bcf_hdr_id2name(m_template_vcf_hdr, line->rid), line->pos+1)));
+  }
+}
+
+void VCFAdapter::close_file()
+{
+  if(m_open_output && m_output_fptr) {
+    bcf_close(m_output_fptr);
+  }
+  m_output_fptr = 0;
 }
 
 BufferedVCFAdapter::BufferedVCFAdapter(unsigned num_circular_buffers, unsigned max_num_entries)
@@ -467,9 +491,7 @@ void VCFSerializedBufferAdapter::handoff_output_bcf_line(bcf1_t*& line, const si
 void VCFSerializedBufferAdapter::initialize(const GenomicsDBConfigBase& config) {
   VCFAdapter::initialize(config);
   if (m_do_output)
-    m_write_fptr = (config.get_vcf_output_filename().empty() || config.get_vcf_output_filename() == "-")
+    m_write_fptr = GenomicsDBConfigBase::output_to_stdout(config.get_vcf_output_filename())
                    ? stdout
                    : fopen(config.get_vcf_output_filename().c_str(), "w");
 }
-
-#endif //ifdef HTSDIR

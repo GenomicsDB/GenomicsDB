@@ -3,7 +3,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2019-2020 Omics Data Automation, Inc.
+# Copyright (c) 2019-2020,2022 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,6 +27,9 @@
 set(GenomicsDB_library_sources 
     cpp/src/query_operations/variant_operations.cc
     cpp/src/query_operations/broad_combined_gvcf.cc
+    cpp/src/query_operations/variant_operations_columnar.cc
+    cpp/src/query_operations/broad_combined_gvcf_columnar.cc
+    cpp/src/query_operations/gt_remapper_gvcf_columnar_iterator.cc
     cpp/src/genomicsdb/variant_cell.cc
     cpp/src/genomicsdb/variant_storage_manager.cc
     cpp/src/genomicsdb/variant_field_data.cc
@@ -42,7 +45,6 @@ set(GenomicsDB_library_sources
     cpp/src/loader/genomicsdb_importer.cc
     cpp/src/loader/tiledb_loader_file_base.cc
     cpp/src/loader/tiledb_loader.cc
-    cpp/src/utils/command_line.cc
     cpp/src/utils/memory_measure.cc
     cpp/src/utils/histogram.cc
     cpp/src/utils/vid_mapper_pb.cc
@@ -51,14 +53,21 @@ set(GenomicsDB_library_sources
     cpp/src/utils/vid_mapper.cc
     cpp/src/utils/vid_mapper_sql.cc
     cpp/src/utils/timer.cc
+    cpp/src/utils/genomicsdb_logger.cc
+    cpp/src/utils/alleles_combiner_gvcf_columnar_iterator.cc
     cpp/src/vcf/vcf_adapter.cc
     cpp/src/vcf/genomicsdb_bcf_generator.cc
     cpp/src/vcf/vcf2binary.cc
+    cpp/src/vcf/hfile_genomicsdb.c
+    cpp/src/vcf/htslib_fs_adapter.cc
     cpp/src/config/variant_query_config.cc
     cpp/src/config/genomicsdb_config_base.cc
     cpp/src/config/json_config.cc
     cpp/src/config/pb_config.cc
+    cpp/src/api/annotation_service.cc
     cpp/src/api/genomicsdb.cc
+    cpp/src/api/genomicsdb_field.cc
+    cpp/src/api/genomicsdb_plink.cc
     )
 
 include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})
@@ -69,7 +78,11 @@ set(GenomicsDB_library_sources
 
 if(PROTOBUF_REGENERATE)
     #Must be set here - see https://cmake.org/cmake/help/v3.3/command/set_source_files_properties.html
-    set_source_files_properties(${PROTOBUF_GENERATED_CXX_SRCS} ${PROTOBUF_GENERATED_CXX_HDRS} PROPERTIES GENERATED True)
+    if(BUILD_FOR_PYTHON)
+      set_source_files_properties(${PROTOBUF_GENERATED_CXX_SRCS} ${PROTOBUF_GENERATED_CXX_HDRS} ${PROTOBUF_GENERATED_PYTHON_SRCS} PROPERTIES GENERATED True)
+    else()
+      set_source_files_properties(${PROTOBUF_GENERATED_CXX_SRCS} ${PROTOBUF_GENERATED_CXX_HDRS} PROPERTIES GENERATED True)
+    endif()
 endif()
 
 if(BUILD_JAVA)
@@ -115,3 +128,6 @@ endif()
 
 install(TARGETS genomicsdb tiledbgenomicsdb LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
 install(FILES cpp/include/api/genomicsdb.h  cpp/include/api/genomicsdb_exception.h DESTINATION include)
+if(BUILD_FOR_PYTHON)
+  install(FILES ${PROTOBUF_GENERATED_PYTHON_SRCS} DESTINATION genomicsdb/protobuf/python)
+endif()

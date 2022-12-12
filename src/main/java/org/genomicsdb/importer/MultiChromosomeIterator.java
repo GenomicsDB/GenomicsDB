@@ -24,7 +24,7 @@ package org.genomicsdb.importer;
 
 import org.genomicsdb.importer.model.ChromosomeInterval;
 import htsjdk.samtools.SAMSequenceDictionary;
-import htsjdk.tribble.AbstractFeatureReader;
+import htsjdk.tribble.FeatureReader;
 import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFHeader;
@@ -41,23 +41,21 @@ import java.util.NoSuchElementException;
  * is an Iterator over VariantContext for all the chromosome intervals in the
  * list
  *
- * @param <SOURCE> LineIterator for VCFs, PositionalBufferedStream for BCFs
  */
-class MultiChromosomeIterator<SOURCE> implements Iterator<VariantContext> {
+class MultiChromosomeIterator implements Iterator<VariantContext> {
     private ArrayList<ChromosomeInterval> chromosomeIntervals;
-    private AbstractFeatureReader<VariantContext, SOURCE> reader;
+    private FeatureReader<VariantContext> reader;
     private int idxInIntervalList = 0;
     private CloseableTribbleIterator<VariantContext> iterator = null;
 
     /**
      * Constructor
      *
-     * @param reader              AbstractFeatureReader over VariantContext objects -
-     *                            SOURCE can vary - BCF v/s VCF for example
+     * @param reader              FeatureReader over VariantContext objects
      * @param chromosomeIntervals chromosome intervals over which to iterate
      * @throws IOException when the reader's query method throws an IOException
      */
-    MultiChromosomeIterator(AbstractFeatureReader<VariantContext, SOURCE> reader, final List<ChromosomeInterval> chromosomeIntervals)
+    MultiChromosomeIterator(FeatureReader<VariantContext> reader, final List<ChromosomeInterval> chromosomeIntervals)
             throws IOException {
         this.reader = reader;
         this.chromosomeIntervals = new ArrayList<>();
@@ -66,8 +64,12 @@ class MultiChromosomeIterator<SOURCE> implements Iterator<VariantContext> {
         final SAMSequenceDictionary contigDictionary = header.getSequenceDictionary();
         for (ChromosomeInterval currInterval : chromosomeIntervals)
             if (contigDictionary.getSequenceIndex(currInterval.getContig()) != -1) this.chromosomeIntervals.add(currInterval);
-        if (this.chromosomeIntervals.size() > 0) {
-            ChromosomeInterval currInterval = this.chromosomeIntervals.get(0);
+        //move to next chromosome and iterate
+        //It's possible that the reader has no record for the first contig, but could have records
+        //for subsequent contigs
+        idxInIntervalList = 0;
+        while (idxInIntervalList < this.chromosomeIntervals.size() && !hasNext()) {
+            ChromosomeInterval currInterval = this.chromosomeIntervals.get(idxInIntervalList++);
             iterator = this.reader.query(currInterval.getContig(), currInterval.getStart(), currInterval.getEnd());
         }
     }
@@ -87,13 +89,10 @@ class MultiChromosomeIterator<SOURCE> implements Iterator<VariantContext> {
             //move to next chromosome and iterate
             //It's possible that the reader has no record for the next contig, but could have records
             //for subsequent contigs
-            for (idxInIntervalList = idxInIntervalList + 1; idxInIntervalList < chromosomeIntervals.size();
-                 ++idxInIntervalList) {
-                ChromosomeInterval currInterval = chromosomeIntervals.get(idxInIntervalList);
+            while (idxInIntervalList < chromosomeIntervals.size() && !iterator.hasNext()) {
+                ChromosomeInterval currInterval = chromosomeIntervals.get(idxInIntervalList++);
                 iterator = reader.query(currInterval.getContig(), currInterval.getStart(), currInterval.getEnd());
-                if (iterator.hasNext()) return returnValue;
             }
-            iterator = null;
             return returnValue;
         } catch (IOException e) {
             throw new NoSuchElementException("Caught IOException: " + e.getMessage());

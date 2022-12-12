@@ -1,40 +1,69 @@
-# Following the standard CMake FindProtobuf module
-# Determine compiler flags for protobuf
-# Once done this will define
-# PROTOBUF_LIBRARY_FOUND - protobuf found
+#
+# CMakeLists.txt
+#
+# The MIT License
+#
+# Copyright (c) 2019-2021 Omics Data Automation, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
 
-find_path(PROTOBUF_INCLUDE_DIRS NAMES google/protobuf/service.h PATHS "${PROTOBUF_INCLUDE_DIR}" "${PROTOBUF_LIBRARY}/include")
-if(PROTOBUF_STATIC_LINKING OR BUILD_DISTRIBUTABLE_LIBRARY)
-    find_library(PROTOBUF_LIBRARIES NAMES libprotobuf.a protobuf PATHS "${PROTOBUF_LIBRARY}" "${PROTOBUF_LIBRARY}/lib64" "${PROTOBUF_LIBRARY}/lib")
+add_custom_target(protobuf_ep)
+
+message(CHECK_START "Try finding Protobuf Library")
+
+if(PROTOBUF_ROOT_DIR)
+  set(PROTOBUF_PREFIX ${PROTOBUF_ROOT_DIR})
+elseif(DEFINED ENV{PROTOBUF_ROOT_DIR})
+  set(PROTOBUF_PREFIX $ENV{PROTOBUF_ROOT_DIR})
+endif()
+set(PROTOBUF_BIN_DIR ${PROTOBUF_PREFIX}/bin)
+set(PROTOBUF_LIB_DIR ${PROTOBUF_PREFIX}/${CMAKE_INSTALL_LIBDIR})
+set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_PREFIX}/include)
+
+if(EXISTS ${PROTOBUF_BIN_DIR}/protoc AND EXISTS ${PROTOBUF_LIB_DIR} AND EXISTS ${PROTOBUF_LIB_DIR} AND EXISTS ${PROTOBUF_INCLUDE_DIR})
+  find_package(Protobuf PATHS ${PROTOBUF_PREFIX})
+endif()
+
+if(NOT Protobuf_FOUND AND NOT PROTOBUF_PREFIX)
+  message(CHECK_FAIL "not found")
+  message(FATAL_ERROR "Try invoking cmake with -DPROTOBUF_ROOT_DIR=/path/to/protobuf or -DCMAKE_INSTALL_PREFIX=/path/to/protobuf or set environment variable PROTOBUF_ROOT_DIR before invoking cmake")
+elseif(Protobuf_FOUND)
+  message(CHECK_PASS "found ${Protobuf_VERSION}")
 else()
-    find_library(PROTOBUF_LIBRARIES NAMES protobuf PATHS "${PROTOBUF_LIBRARY}" "${PROTOBUF_LIBRARY}/lib64" "${PROTOBUF_LIBRARY}/lib")
-endif()
-include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Protobuf "Could not find Protobuf headers and/or libraries\n${DEFAULT_MSG}" PROTOBUF_INCLUDE_DIRS PROTOBUF_LIBRARIES)
-find_program(PROTOBUF_PROTOC_EXECUTABLE NAMES protoc PATHS "${PROTOBUF_PROTOC_EXECUTABLE}" "${PROTOBUF_LIBRARY}" "${PROTOBUF_LIBRARY}/bin")
-if(PROTOBUF_FOUND)
-    set(PROTOBUF_LIBRARY ${PROTOBUF_LIBRARIES})
-    set(PROTOBUF_INCLUDE_DIR ${PROTOBUF_INCLUDE_DIRS})
-endif()
-include(FindProtobuf)
-
-include(CheckCXXSourceCompiles)
-function(CHECK_IF_USING_PROTOBUF_V_3_0_0_BETA_1 FLAG_VAR_NAME)
-  set(PB_test_source
-    "
-    #include <google/protobuf/util/json_util.h>
-    int main() {
-      google::protobuf::util::JsonParseOptions parse_opt;
-      parse_opt.ignore_unknown_fields = true;
-      return 0;
-    }
-    "
+   # Try building from source
+  message(CHECK_PASS "not found, building Protobuf ${GENOMICSDB_PROTOBUF_VERSION} as an external project")
+  include(ExternalProject)
+  ExternalProject_Add(protobuf_build
+    PREFIX ${PROTOBUF_PREFIX}
+    URL ${PROTOBUF_URL}
+    SOURCE_SUBDIR cmake
+    CMAKE_ARGS
+    -Dprotobuf_BUILD_TESTS=OFF
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_INSTALL_PREFIX=${PROTOBUF_PREFIX}
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+    -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
     )
-  set(CMAKE_REQUIRED_INCLUDES ${PROTOBUF_INCLUDE_DIRS})
-  check_cxx_source_compiles("${PB_test_source}" PROTOBUF_V3_STABLE_FOUND)
-  if(PROTOBUF_V3_STABLE_FOUND)
-    set(${FLAG_VAR_NAME} False PARENT_SCOPE)
-  else()
-    set(${FLAG_VAR_NAME} True PARENT_SCOPE)
-  endif()
-endfunction()
+  add_dependencies(protobuf_ep protobuf_build)
+endif()
+
+set(PROTOBUF_PROTOC_EXECUTABLE ${PROTOBUF_BIN_DIR}/protoc)
+set(PROTOBUF_INCLUDE_DIRS ${PROTOBUF_INCLUDE_DIR})
+set(PROTOBUF_LIBRARIES ${PROTOBUF_LIB_DIR}/${CMAKE_STATIC_LIBRARY_PREFIX}protobuf${CMAKE_STATIC_LIBRARY_SUFFIX})

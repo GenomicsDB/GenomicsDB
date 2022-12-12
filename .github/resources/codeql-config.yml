@@ -1,0 +1,6 @@
+name: "CodeQL configuration"
+
+paths-ignore:
+  - 'dependencies/htslib/'
+  - 'src/test'
+  - 'tests'

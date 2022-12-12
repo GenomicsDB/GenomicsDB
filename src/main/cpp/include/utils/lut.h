@@ -74,7 +74,13 @@ class LUTBase {
     for (auto& vec : m_merged_2_inputs_lut)
       reset_vector(vec);
   }
-
+  inline void reset_luts_for_sample(const int64_t inputGVCFIdx) {
+    reset_inputs_2_merged_lut(inputGVCFIdx);
+    reset_merged_2_inputs_lut(inputGVCFIdx);
+  }
+  /**
+   * @brief: reset mapping for a specific input
+   */
   /*
    * @brief Add a valid mapping between input VCF and merged VCF
    * @note all parameters should be valid parameters, no lut_missing_value, use reset_() functions to invalidate existing mapping
@@ -278,7 +284,35 @@ class LUTBase {
   inline void set_input_idx_for_merged(int64_t inputGVCFIdx, int64_t inputIdx, int64_t mergedIdx) {
     set_lut_value(m_merged_2_inputs_lut, mergedIdx, inputGVCFIdx, inputIdx);
   }
-
+  //Reset LUTs for specific inputGVCFIdx
+  template <bool M = inputs_2_merged_LUT_is_input_ordered, typename std::enable_if<M>::type* = nullptr>
+  inline void reset_inputs_2_merged_lut(const int64_t inputGVCFIdx) {
+    assert(static_cast<size_t>(inputGVCFIdx) < m_inputs_2_merged_lut.size());
+    auto& vec = m_inputs_2_merged_lut[inputGVCFIdx];
+    for(auto i=0ull;i<vec.size();++i)
+      vec[i] = lut_missing_value;
+  }
+  template <bool M = inputs_2_merged_LUT_is_input_ordered, typename std::enable_if<!M>::type* = nullptr>
+  inline void reset_inputs_2_merged_lut(const int64_t inputGVCFIdx) {
+    for(auto i=0ull;i<m_inputs_2_merged_lut.size();++i) {
+      assert(static_cast<size_t>(inputGVCFIdx) < m_inputs_2_merged_lut[i].size());
+      m_inputs_2_merged_lut[i][inputGVCFIdx] = lut_missing_value;
+    }
+  }
+  template <bool M = merged_2_inputs_LUT_is_input_ordered, typename std::enable_if<M>::type* = nullptr>
+  inline void reset_merged_2_inputs_lut(const int64_t inputGVCFIdx) {
+    assert(static_cast<size_t>(inputGVCFIdx) < m_merged_2_inputs_lut.size());
+    auto& vec = m_merged_2_inputs_lut[inputGVCFIdx];
+    for(auto i=0ull;i<vec.size();++i)
+      vec[i] = lut_missing_value;
+  }
+  template <bool M = merged_2_inputs_LUT_is_input_ordered, typename std::enable_if<!M>::type* = nullptr>
+  inline void reset_merged_2_inputs_lut(const int64_t inputGVCFIdx) {
+    for(auto i=0ull;i<m_merged_2_inputs_lut.size();++i) {
+      assert(static_cast<size_t>(inputGVCFIdx) < m_merged_2_inputs_lut[i].size());
+      m_merged_2_inputs_lut[i][inputGVCFIdx] = lut_missing_value;
+    }
+  }
 };
 
 

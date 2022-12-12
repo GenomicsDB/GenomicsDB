@@ -4,16 +4,12 @@ import htsjdk.variant.vcf.*;
 
 import org.genomicsdb.importer.Constants;
 import org.genomicsdb.model.GenomicsDBVidMapProto;
-import org.genomicsdb.GenomicsDBUtils;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.Map;
 import java.util.HashMap;
-
-import static com.googlecode.protobuf.format.JsonFormat.*;
-import static org.genomicsdb.GenomicsDBUtils.readEntireFile;
 
 public interface VidMapExtensions {
 
@@ -241,24 +237,6 @@ public interface VidMapExtensions {
             }
         }
         return length;
-    }
-
-    /**
-     * Generate the ProtoBuf data structure for vid mapping
-     * from the existing vid file
-     *
-     * @param vidFile file with existing vid info
-     * @return a vid map containing all field names, lengths and types
-     * from the merged GVCF header. for incremental import case
-     * @throws ParseException when there is an error parsing existing vid json
-     */
-    default GenomicsDBVidMapProto.VidMappingPB generateVidMapFromFile(final String vidFile)
-        throws ParseException {
-        String existingVidJson = GenomicsDBUtils.readEntireFile(vidFile);
-        GenomicsDBVidMapProto.VidMappingPB.Builder vidMapBuilder = 
-                GenomicsDBVidMapProto.VidMappingPB.newBuilder();
-        merge(existingVidJson, vidMapBuilder);
-        return vidMapBuilder.build();
     }
 
     public static DuplicateVcfFieldNamesCheckResult checkForDuplicateVcfFieldNames(final String vcfFieldName,

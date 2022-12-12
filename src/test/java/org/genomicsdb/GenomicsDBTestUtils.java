@@ -26,6 +26,17 @@ import htsjdk.tribble.FeatureReader;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFCodec;
 import htsjdk.variant.vcf.VCFHeader;
+
+import org.genomicsdb.model.GenomicsDBCallsetsMapProto;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.model.GenomicsDBExportConfigurationSpec;
+import org.genomicsdb.model.GenomicsDBImportConfiguration;
+import org.genomicsdb.model.GenomicsDBVidMapProto;
+import org.genomicsdb.model.Coordinates.GenomicsDBColumn;
+import org.genomicsdb.model.Coordinates.GenomicsDBColumnInterval;
+import org.genomicsdb.model.Coordinates.GenomicsDBColumnOrInterval;
+import org.genomicsdb.model.Coordinates.TileDBColumnInterval;
+import org.genomicsdb.model.GenomicsDBExportConfiguration.GenomicsDBColumnOrIntervalList;
 import org.testng.annotations.DataProvider;
 
 import java.io.File;
@@ -33,6 +44,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Base64;
 
 public final class GenomicsDBTestUtils {
 
@@ -282,5 +294,73 @@ public final class GenomicsDBTestUtils {
     fH.close();
 
     return new Object[][] { { tmpQFile.getAbsolutePath(), tmpLFile.getAbsolutePath(), tmpHFile.getAbsolutePath() } };
+  }
+
+  // test query range bigger than query block size
+  @DataProvider(name="loaderQueryHostFilesTest6")
+  public static Object[][] loaderQueryHostFilesTest6() throws IOException {
+    String queryPreamble = "{\n\"workspace\": \"hdfs://tmp/ws\",\n\"array\": \"part\",\n \"query_block_size\":5000, \"query_block_size_margin\":1000,";
+    String loaderPreamble = "{\n\"row_based_partitioning\": false,\n\"column_partitions\" : [\n";
+    String loaderEpilogue = "\n],\n\"vid_mapping_file\" : \"tests/inputs/vid.json\"\n}";
+    String loaderPartEpilogue = "\"workspace\": \"hdfs://tmp/ws\", \"vcf_output_filename\": \"/tmp/test0.vcf.gz\"}";
+
+    String queryCol = "\"query_column_ranges\" : [ [ [ 9000, 24500]";
+    String loaderPart = "";
+    for(int i=0; i<3; i++) {
+       loaderPart += "{\"begin\": "+String.valueOf(i*10000)+", \"array\": \"part"+i+"\","+loaderPartEpilogue;
+       if (i<2) {
+         loaderPart += ",\n";
+       }
+    }
+    String query = queryPreamble + queryCol + " ] ]\n}"; 
+    String loader = loaderPreamble + loaderPart + loaderEpilogue;
+    File tmpQFile = File.createTempFile("query", ".json");
+    tmpQFile.deleteOnExit();
+    FileWriter fQ = new FileWriter(tmpQFile);
+    fQ.write(query);
+    fQ.close();
+    File tmpLFile = File.createTempFile("loader", ".json");
+    tmpLFile.deleteOnExit();
+    FileWriter fL = new FileWriter(tmpLFile);
+    fL.write(loader);
+    fL.close();
+    File tmpHFile = File.createTempFile("hostfile", "");
+    tmpHFile.deleteOnExit();
+    FileWriter fH = new FileWriter(tmpHFile);
+    fH.write("localhost");
+    fH.close();
+
+    return new Object[][] { { tmpQFile.getAbsolutePath(), tmpLFile.getAbsolutePath(), tmpHFile.getAbsolutePath() } };
+  }
+
+  @DataProvider(name="loaderQueryPB7")
+  public static Object[][] loaderQueryPB7() throws IOException {
+    GenomicsDBImportConfiguration.ImportConfiguration.Builder importBuilder = 
+        GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
+    importBuilder.setVidMappingFile("value");
+    importBuilder.setCallsetMappingFile("value");
+    importBuilder.setSizePerColumnPartition(10240);
+    for(int i=0; i<3; i++) {
+      GenomicsDBImportConfiguration.Partition.Builder pbuilder = importBuilder.addColumnPartitionsBuilder();
+      GenomicsDBColumn.Builder column = GenomicsDBColumn.newBuilder();
+      pbuilder.setBegin(column.setTiledbColumn(i*10000));
+      pbuilder.setWorkspace("/tmp/workspace");
+      pbuilder.setArrayName("array"+Integer.toString(i));
+    }
+
+    GenomicsDBExportConfiguration.ExportConfiguration.Builder exportBuilder = 
+        GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
+
+    exportBuilder.setWorkspace("/tmp/workspace");
+    exportBuilder.setArrayName("array0");
+    GenomicsDBColumnOrInterval.Builder qColumnBuilder = GenomicsDBColumnOrInterval.newBuilder();
+    TileDBColumnInterval.Builder tdbColumnBuilder = TileDBColumnInterval.newBuilder();
+    tdbColumnBuilder.setBegin(9000).setEnd(24500);
+    qColumnBuilder.setColumnInterval(GenomicsDBColumnInterval.newBuilder().setTiledbColumnInterval(tdbColumnBuilder));
+    exportBuilder.addQueryColumnRanges(GenomicsDBColumnOrIntervalList.newBuilder().addColumnOrIntervalList(qColumnBuilder));
+    exportBuilder.setSparkConfig(GenomicsDBExportConfiguration.SparkConfig.newBuilder().setQueryBlockSize(5000).setQueryBlockSizeMargin(1000));
+
+    return new Object[][] { { Base64.getEncoder().encodeToString(importBuilder.build().toByteArray()),
+                              Base64.getEncoder().encodeToString(exportBuilder.build().toByteArray())} };
   }
 }

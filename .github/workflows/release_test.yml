@@ -1,0 +1,63 @@
+name: Test release jar
+
+on:
+  workflow_call:
+    inputs:
+      release_artifact:
+        required: true
+        type: string
+
+jobs:
+  test-jar:
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest,macos-11]
+
+    runs-on: ${{matrix.os}}
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout TestGenomicsDBJar
+        uses: actions/checkout@v3
+        with:
+          repository: GenomicsDB/TestGenomicsDBJar
+          ref: ml_genomicsdb_release
+
+      - name: Set version number
+        run: |
+          echo VERSION_NUMBER=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
+          echo GENOMICSDB_VERSION=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
+
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+  
+      - name: Download release artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ${{ inputs.release_artifact }}
+
+      - name: Run smoke test
+        shell: bash
+        run: |
+          rm -f libtiledbgenomicsdb.*
+          mvn install:install-file -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
+            -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
+            -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom
+          ./test_genomicsdbjar.sh
+
+      - name: Checkout GATK
+        uses: actions/checkout@v3
+        with:
+          repository: broadinstitute/gatk
+          lfs: 'true'
+
+      - name: Try GATK integration test
+        shell: bash
+        run: |
+          ./gradlew installDist -Dgenomicsdb.version=${VERSION_NUMBER}
+          ./gradlew test --tests *GenomicsDB*

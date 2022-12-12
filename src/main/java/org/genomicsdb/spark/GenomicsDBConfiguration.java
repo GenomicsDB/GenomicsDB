@@ -27,20 +27,20 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
-
+import org.genomicsdb.importer.extensions.JsonFileExtensions;
 import org.genomicsdb.model.*;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.Serializable;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+
 import java.util.Iterator;
-import java.util.Base64;
 import java.lang.RuntimeException;
+import java.io.FileNotFoundException;
+
+import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * The configuration class enables users to use Java/Scala
@@ -48,7 +48,7 @@ import java.lang.RuntimeException;
  * Input parameters can be passed in as json files or 
  * base64 encoded protobuf byte data
  */
-public class GenomicsDBConfiguration extends Configuration implements Serializable {
+public class GenomicsDBConfiguration extends Configuration implements Serializable, JsonFileExtensions {
 
   public static final String LOADERJSON = "genomicsdb.input.loaderjsonfile";
   @Deprecated
@@ -71,6 +71,7 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   public GenomicsDBConfiguration() {
     super();
   }
+  
   public GenomicsDBConfiguration(Configuration configuration) throws FileNotFoundException {
     super(configuration);
   }
@@ -89,11 +90,50 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     }
   }
 
+  public GenomicsDBConfiguration(Map<String,String> options) throws RuntimeException{
+    setOptions(options);
+  }
+
+  public void setOptions(Map<String,String> options){
+    if(options.containsKey(LOADERPB)) {
+      this.setLoaderPB(options.get(LOADERPB));
+    }
+    else if(options.containsKey(LOADERJSON)) {
+      this.setLoaderJsonFile(options.get(LOADERJSON));
+    }
+    else {
+      throw new RuntimeException("Must specify either "+LOADERJSON+" or "+LOADERPB);
+    }
+    
+    if(options.containsKey(QUERYPB)) {
+      this.setQueryPB(options.get(QUERYPB));
+    }
+    else if(options.containsKey(QUERYJSON)) {
+      this.setQueryJsonFile(options.get(QUERYJSON));
+    }
+    else {
+      throw new RuntimeException("Must specify either "+QUERYJSON+" or "+QUERYPB);
+    }
+    
+    if(options.containsKey(MPIHOSTFILE)) {
+      try {
+        this.setHostFile(options.get(MPIHOSTFILE));
+      } catch (FileNotFoundException e) {
+        e.printStackTrace();
+      }
+    }
+  }
+
   // <String> left for backward compatibility to Java 7
   private ArrayList<String> hosts = new ArrayList<>();
 
   public GenomicsDBConfiguration setLoaderJsonFile(String path) {
     set(LOADERJSON, path);
+    return this;
+  }
+
+  public GenomicsDBConfiguration setLoaderPB(String path) {
+    set(LOADERPB, path);
     return this;
   }
 
@@ -106,6 +146,34 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   public GenomicsDBConfiguration setQueryPB(String pb) {
     set(QUERYPB, pb);
     return this;
+  }
+
+  public String getLoaderJsonFile() {
+    return get(LOADERJSON);
+  }
+
+  public String getLoaderPB() {
+    return get(LOADERPB);
+  }
+
+  public String getQueryJsonFile() {
+    return get(QUERYJSON);
+  }
+
+  public String getQueryPB() {
+    return get(QUERYPB);
+  }
+
+  public String getHostFile() {
+    return get(MPIHOSTFILE);
+  }
+
+  public Boolean hasProtoLoader(){
+    return this.get(LOADERPB) != null;
+  }
+
+  public Boolean hasProtoQuery(){
+    return this.get(QUERYPB) != null;
   }
 
   /**
@@ -193,6 +261,9 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
       long begin = (long)obj0.get("begin");
       workspace = (String)obj0.get("workspace");
       array = (String)obj0.get("array");
+      if (array == null) {
+        array = (String)obj0.get("array_name");
+      }
       vcf_output_filename = (String)obj0.get("vcf_output_filename");
       partitionInfoList.add(new GenomicsDBPartitionInfo(begin, workspace, array, vcf_output_filename));
     }
@@ -247,6 +318,13 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
   void populateListFromJson(String jsonType) 
 		  throws FileNotFoundException, IOException, ParseException {
     JSONParser parser = new JSONParser();
+    String filename = this.get(jsonType, "");
+    if (filename.isEmpty()) {
+      throw new IOException(String.format("No filename specified with type=%s in GenomicdDBConfiguration", jsonType));
+    }
+    if (!new File(filename).exists()) {
+      throw new IOException(String.format("Could not find file=%s associated with type=%s", filename, jsonType));
+    }
     FileReader jsonReader = new FileReader(get(jsonType));
     try {
       JSONObject obj = (JSONObject)parser.parse(jsonReader);
@@ -263,13 +341,12 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     }
   }
 
-  private void readColumnPartitionsPB(String pb) throws
-        com.google.protobuf.InvalidProtocolBufferException {
+  private void readColumnPartitionsPB(String pb) throws InvalidProtocolBufferException {
     GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder = 
              GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
-    byte[] pbDecoded = Base64.getDecoder().decode(pb);
-    importConfigurationBuilder.mergeFrom(pbDecoded);
-    GenomicsDBImportConfiguration.ImportConfiguration loaderPB = importConfigurationBuilder.build();
+    GenomicsDBImportConfiguration.ImportConfiguration loaderPB = 
+        (GenomicsDBImportConfiguration.ImportConfiguration)
+        JsonFileExtensions.getProtobufFromBase64EncodedString(importConfigurationBuilder, pb);
 
     if (partitionInfoList==null) {
       partitionInfoList = new ArrayList<>();
@@ -288,13 +365,12 @@ public class GenomicsDBConfiguration extends Configuration implements Serializab
     }
   }
 
-  private void readQueryRangesPB(String pb) throws 
-        com.google.protobuf.InvalidProtocolBufferException {
+  private void readQueryRangesPB(String pb) throws InvalidProtocolBufferException {
     GenomicsDBExportConfiguration.ExportConfiguration.Builder exportConfigurationBuilder = 
              GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
-    byte[] pbDecoded = Base64.getDecoder().decode(pb);
-    exportConfigurationBuilder.mergeFrom(pbDecoded);
-    GenomicsDBExportConfiguration.ExportConfiguration queryPB = exportConfigurationBuilder.build();
+    GenomicsDBExportConfiguration.ExportConfiguration queryPB = 
+        (GenomicsDBExportConfiguration.ExportConfiguration)
+        JsonFileExtensions.getProtobufFromBase64EncodedString(exportConfigurationBuilder, pb);
 
     if (queryInfoList==null) {
       queryInfoList = new ArrayList<>();
