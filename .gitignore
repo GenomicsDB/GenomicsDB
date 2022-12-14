@@ -46,3 +46,5 @@ TAGS
 
 #vs-code
 .vscode/*
+
+*/env/*
