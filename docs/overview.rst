@@ -1,6 +1,6 @@
 
 ###############################
-Overview (DOCUMENTATION WORK-IN-PROGRESS)
+Overview (DOCUMENTATION WIP)
 ###############################
 
 |License: MIT| 

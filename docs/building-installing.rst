@@ -31,7 +31,7 @@ Docker
 *******************************
 Docker images for GenomicsDB are published to GitHub Container Registry. This `page`_ shows the image versions available. Below we show some examples of using the docker image to interact with GenomicsDB executables.
 
-.. _page
+.. _page: https://github.com/GenomicsDB/GenomicsDB/pkgs/container/genomicsdb/versions
 
  
 Examples:

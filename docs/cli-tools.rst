@@ -17,6 +17,7 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
   .. code-block:: bash
 
     vcf2genomicsdb_init -w /path/to/workspace -s <list-of-sample-vcfs>
+
 .. ------------------------------
 
 .. _CLI Tools vcf2genomicsdb:
@@ -30,6 +31,7 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
   .. code-block:: bash
 
     vcf2genomicsdb <loader-json.json>
+
 .. ------------------------------
 
 .. _CLI Tools gt-mpi-gather: 
@@ -46,7 +48,7 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
 
 .. ------------------------------
 
-.. _CLI Tools create_genomicsdb_workspace
+.. _CLI Tools create_genomicsdb_workspace:
 
 * create_genomicsdb_workspace
 
@@ -60,7 +62,7 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
 
 .. ------------------------------
 
-.. _CLI Tools consolidate_genomicsdb_array
+.. _CLI Tools consolidate_genomicsdb_array:
 
 * consolidate_genomicsdb_array
 
@@ -74,7 +76,7 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
 
 .. ------------------------------
 
-.. _CLI Tools vcf_histogram
+.. _CLI Tools vcf_histogram:
 
 * vcf_histogram
 
@@ -88,7 +90,7 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
 
 .. ------------------------------
 
-.. _CLI Tools vcf_histogram
+.. _CLI Tools vcf_histogram:
 
 * vcfdiff
 

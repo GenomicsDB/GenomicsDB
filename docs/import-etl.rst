@@ -20,25 +20,34 @@ For brevity, we will only use the term VCF.
 Preliminaries
 ===============================
 *  You need libcsv while `compiling`_.
+
 .. _compiling: https://github.com/GenomicsDB/GenomicsDB/wiki/Compiling-GenomicsDB
+
 *  License terms: We use libcsv to parse CSV files. 
    `libcsv`_ is licensed under the GNU Library or Lesser General Public License version 2.0 (LGPLv2). 
    So, if you are re-distributing binaries or object files, they may be subject to LGPLv2 terms. 
    Please ensure that any binaries/object files you distribute are compliant with LGPLv2. 
    You can disable libcsv usage by not setting the USE_LIBCSV and LIBCSV_DIR flags during compilation. 
    However, your binaries/executables will not be able to import CSV files into GenomicsDB.
+
 .. _libcsv: https://sourceforge.net/projects/libcsv/
 
 
 Organizing your data
 ===============================
 * All your VCFs must be block compressed and indexed. `Bcftools`_ is one good option for compressing and indexing.
+
 .. _Bcftools: https://github.com/samtools/bcftools
+
 * The VCF format allows you to have multiple lines with the same position (identical chromosome+pos). The import program can NOT handle such VCFs. Make sure you use tools like bcftools to collapse multiple lines with the same position into a single line. Example commands are `provided here`_.
+
 .. _provided here: https://github.com/GenomicsDB/GenomicsDB/wiki/Useful-external-tools#collapse-multiple-lines-with-the-same-genomic-position-into-a-single-line
+:was
 * In a multi-node environment, you must decide:
    * How to `partition your data in GenomicsDB`_.
+
    .. _partition your data in GenomicsDB: https://github.com/GenomicsDB/GenomicsDB/wiki/GenomicsDB-setup-in-a-multi-node-cluster
+
    * How your VCF files are accessed by the import program:
       * On a shared filesystem (NFS, Lustre etc) accessible from all nodes.
       *  If you are partitioning data by rows, your files can be scattered across local filesystems on multiple machines; each filesystem accessible only by the node on which it is mounted. Currently, such a setup isn't supported for column partitioning.
@@ -53,13 +62,16 @@ Importing CSVs into GenomicsDB
 Preliminaries
 ===============================
 *  You need libcsv while `compiling`_.
+
 .. _compiling: https://github.com/GenomicsDB/GenomicsDB/wiki/Compiling-GenomicsDB
+
 *  License terms: We use libcsv to parse CSV files. 
    `libcsv`_ is licensed under the GNU Library or Lesser General Public License version 2.0 (LGPLv2). 
    So, if you are re-distributing binaries or object files, they may be subject to LGPLv2 terms. 
    Please ensure that any binaries/object files you distribute are compliant with LGPLv2. 
    You can disable libcsv usage by not setting the USE_LIBCSV and LIBCSV_DIR flags during compilation. 
    However, your binaries/executables will not be able to import CSV files into GenomicsDB.
+
 .. _libcsv: https://sourceforge.net/projects/libcsv/
 
 CSV format
@@ -129,9 +141,11 @@ Special fields
 Organizing your data
 ===============================
 * All CSV files imported into a GenomicsDB array must respect the number and order of fields as defined in the `vid_mapping_file`_.
+
 .. _vid_mapping_file: https://github.com/GenomicsDB/GenomicsDB/wiki/Importing-VCF-data-into-GenomicsDB#fields-information
 
 * The import program cannot handle CSV files where 2 lines have the same value of row and begin_column - this restriction is similar to that imposed on `loading VCFs`_.
+
 .. _loading VCFs: https://github.com/GenomicsDB/GenomicsDB/wiki/Importing-VCF-data-into-GenomicsDB#fields-information
 
 
