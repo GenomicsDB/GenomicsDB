@@ -8,7 +8,8 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
 
 .. _CLI Tools vcf2genomicsdb_init:
 
-* *vcf2genomicsdb_init*: 
+vcf2genomicsdb_init 
+-------------------
   
   Tool for creating a GenomicsDB workspace, and initializing it with configuration json files. 
   
@@ -22,7 +23,8 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
 
 .. _CLI Tools vcf2genomicsdb:
 
-* *vcf2genomicsdb*: 
+vcf2genomicsdb
+--------------
   
   Tool for importing VCF files into GenomicsDB. 
   
@@ -36,7 +38,8 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
 
 .. _CLI Tools gt-mpi-gather: 
 
-* *gt_mpi_gather*: 
+gt_mpi_gather
+-------------
   
   Tool for querying GenomicsDB. Outputs results as either *VariantCalls* or *Variants*
   
@@ -50,7 +53,8 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
 
 .. _CLI Tools create_genomicsdb_workspace:
 
-* create_genomicsdb_workspace
+create_genomicsdb_workspace
+---------------------------
 
   Tool for creating a new GenomicsDB workspace.
 
@@ -64,7 +68,8 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
 
 .. _CLI Tools consolidate_genomicsdb_array:
 
-* consolidate_genomicsdb_array
+consolidate_genomicsdb_array
+----------------------------
 
   Consolidate fragments from incremental imports into a single fragment.
 
@@ -78,7 +83,8 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
 
 .. _CLI Tools vcf_histogram:
 
-* vcf_histogram
+vcf_histogram
+-------------
 
   Create a histogram showing the number of variants per histogram bin. Can be useful in deciding how to partition the GenomicsDB workspace.
 
@@ -90,9 +96,10 @@ Refer to :ref:`this link <Building + Installing>` for instructions on building a
 
 .. ------------------------------
 
-.. _CLI Tools vcf_histogram:
+.. _CLI Tools vcf_diff:
 
-* vcfdiff
+vcfdiff
+-------
 
   Check whether VCFs are identical
 

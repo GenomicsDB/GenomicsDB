@@ -48,3 +48,5 @@ TAGS
 .vscode/*
 
 */env/*
+docs/_build/
+env/*

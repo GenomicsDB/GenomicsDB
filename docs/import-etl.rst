@@ -6,9 +6,9 @@ Import / ETL
 GenomicsDB supports importing genomics data in several common formats, and with a variety of methods.
 
 GenomicsDB can ingest data in VCF, gVCF. and CSV formats. When importing VCFs or gVCFs, 
-you need to run a few preprocessing steps before importing. 
+you may need to run a few preprocessing steps before importing. 
 
-The primary and suggested method of importing is to use the native vcf2genomicsdb importer tool (see CLI Tools).
+The primary and suggested method of importing is to use the native vcf2genomicsdb importer tool (see :ref:`CLI Tools <CLI Tools>`).
 There is also a Java API for importing (see here).
 
 
@@ -17,21 +17,6 @@ VCF/gVCF
 The import program can handle block compressed and indexed VCFs, gVCFs, BCFs and gBCFs. 
 For brevity, we will only use the term VCF.
 
-Preliminaries
-===============================
-*  You need libcsv while `compiling`_.
-
-.. _compiling: https://github.com/GenomicsDB/GenomicsDB/wiki/Compiling-GenomicsDB
-
-*  License terms: We use libcsv to parse CSV files. 
-   `libcsv`_ is licensed under the GNU Library or Lesser General Public License version 2.0 (LGPLv2). 
-   So, if you are re-distributing binaries or object files, they may be subject to LGPLv2 terms. 
-   Please ensure that any binaries/object files you distribute are compliant with LGPLv2. 
-   You can disable libcsv usage by not setting the USE_LIBCSV and LIBCSV_DIR flags during compilation. 
-   However, your binaries/executables will not be able to import CSV files into GenomicsDB.
-
-.. _libcsv: https://sourceforge.net/projects/libcsv/
-
 
 Organizing your data
 ===============================
@@ -39,14 +24,14 @@ Organizing your data
 
 .. _Bcftools: https://github.com/samtools/bcftools
 
-* The VCF format allows you to have multiple lines with the same position (identical chromosome+pos). The import program can NOT handle such VCFs. Make sure you use tools like bcftools to collapse multiple lines with the same position into a single line. Example commands are `provided here`_.
+* The VCF format allows you to have multiple lines with the same position (identical chromosome+pos). The import program can NOT handle such VCFs. Make sure you use tools like bcftools to collapse multiple lines with the same position into a single line. Example command:
 
-.. _provided here: https://github.com/GenomicsDB/GenomicsDB/wiki/Useful-external-tools#collapse-multiple-lines-with-the-same-genomic-position-into-a-single-line
-:was
+    .. code-block:: bash
+
+        bcftools norm -m +any [-O <output_format> -o <output>] <input_file>
+
 * In a multi-node environment, you must decide:
-   * How to `partition your data in GenomicsDB`_.
-
-   .. _partition your data in GenomicsDB: https://github.com/GenomicsDB/GenomicsDB/wiki/GenomicsDB-setup-in-a-multi-node-cluster
+   * How to `partition your data in GenomicsDB <#Multi-node-setup>`
 
    * How your VCF files are accessed by the import program:
       * On a shared filesystem (NFS, Lustre etc) accessible from all nodes.
@@ -61,9 +46,7 @@ Importing CSVs into GenomicsDB
 
 Preliminaries
 ===============================
-*  You need libcsv while `compiling`_.
-
-.. _compiling: https://github.com/GenomicsDB/GenomicsDB/wiki/Compiling-GenomicsDB
+*  You need libcsv while compiling.
 
 *  License terms: We use libcsv to parse CSV files. 
    `libcsv`_ is licensed under the GNU Library or Lesser General Public License version 2.0 (LGPLv2). 
@@ -144,11 +127,41 @@ Organizing your data
 
 .. _vid_mapping_file: https://github.com/GenomicsDB/GenomicsDB/wiki/Importing-VCF-data-into-GenomicsDB#fields-information
 
-* The import program cannot handle CSV files where 2 lines have the same value of row and begin_column - this restriction is similar to that imposed on `loading VCFs`_.
-
-.. _loading VCFs: https://github.com/GenomicsDB/GenomicsDB/wiki/Importing-VCF-data-into-GenomicsDB#fields-information
+* The import program cannot handle CSV files where multiple lines have the same value of row and begin_column - this restriction is similar to that imposed on loading VCFs. Consolidate these multiple lines into a single line to continue.
 
 
+Multi-node setup
+*******************************
+
+GenomicsDB can be setup to store variant data across multiple partitions of an array. All the data belonging to one partition of an array lives on a single filesystem. Thus, by creating multiple partitions, users can store data possibly across multiple hosts/nodes in a cluster. Array partitioning is useful when the data to be stored and queried is very large and cannot fit within a single machine/node. Or the user might wish to store array partitions in different nodes so that downstream queries and analysis can be run in a distributed manner for scalability and/or performance.
+
+The user must decide how to partition data across multiple nodes in a cluster:
+
+* How many nodes should be used to store the data?
+
+* How many partitions should reside on each node? A single node can hold multiple partitions (assuming the node has enough disk space).
+
+* What mode should be used for partitioning the data? Two modes of partitioning are supported by various import/query tools.
+
+  * Row partitioning: In this mode, for a given sample/CallSet (row), all the variant data resides in a single partition. Data belonging to different samples/CallSets may be scattered across different partitions.
+  * Column partitioning: In this mode, for a given genomic position (column), all the variant data across all samples/CallSets resides in a single partition. Data is partitioned by genomic positions.
+
+Which partitioning scheme is better to use is dependent on the queries/analysis performed by downstream tools. Here are some example queries for which the 'best' partitioning schemes are suggested.
+
+* Query: fetch attribute X from all samples/CallSets for position Y (or small interval [Y1-Y2])
+
+  * Row-based partitioning
+
+    * For single position queries (or small intervals), partitioning the data by rows would likely provide higher performance. By accessing data across multiple partitions that may be located in multiple nodes in parallel, the system will be able to utilize higher aggregate disk and memory bandwidth. In a column based partitioning, only a single partition would service the request.
+    * Simple data import step if the original data is organized as a file per sample/CallSet (for example VCFs). Just import data from the required subset of files to the correct partition.
+    * Con(s). A final aggregator may be needed since the data for a given position is scattered across machines. Some of the query tools we provide use MPI to collect the final output into a single node.
+Query: run analysis tool T on all variants (grouped by column position) found in a large column interval [Z1-Z2] (or scan across the whole array).
+
+  * Column-based partitioning
+
+    * The user is running a query/analysis for every position in the queried interval. Hence, for each position, the system must fetch data from all samples/CallSets and run T. Partitioning by column reduces/eliminates any communication between partitions. For a sufficiently large query interval, the aggregate disk and memory bandwidth across multiple nodes can still be utilized.
+    * No/minimal data aggregation step as all the data for a given column is located within a single partition.
+    * Con(s). Importing data into GenomicsDB may become complex, especially if the initial data is organized as a file per sample/CallSet.
 
 
 Best Practices

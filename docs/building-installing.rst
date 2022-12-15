@@ -4,10 +4,7 @@
 Building + Installing
 ###############################
 
-This section refers to building and installing the core GenomicsDB executables and tools. For including published artifacts in your code, see the appropriate :ref:`API docs <API Docs>` and *Examples* sections. 
-For more details on dependencies and manually compiling GenomicsDB, see the `old docs`_ for now. 
-
-.. _old docs: https://github.com/GenomicsDB/GenomicsDB/wiki/Compiling-GenomicsDB#building
+This section refers to building and installing the core GenomicsDB executables and tools. For including published artifacts in your code, see the appropriate :ref:`API docs <API Docs>` and :ref:`Examples <Examples>` sections. 
 
 Bash
 *******************************
@@ -29,9 +26,9 @@ The script *install_prereqs.sh* is meant to work with Docker, but should work on
 
 Docker
 *******************************
-Docker images for GenomicsDB are published to GitHub Container Registry. This `page`_ shows the image versions available. Below we show some examples of using the docker image to interact with GenomicsDB executables.
+Docker images for GenomicsDB are published to GitHub Container Registry. `This page`_ shows the image versions available. Below we show some examples of using the docker image to interact with GenomicsDB executables.
 
-.. _page: https://github.com/GenomicsDB/GenomicsDB/pkgs/container/genomicsdb/versions
+.. _This page: https://github.com/GenomicsDB/GenomicsDB/pkgs/container/genomicsdb/versions
 
  
 Examples:

@@ -38,10 +38,11 @@ Common Issues
         Unhandled overlapping variants at columns <col1> and <col2> for row <row>
 
 
-    GenomicsDB cannot deal with overlapping variants within a single sample - `more details documented here`_. Workarounds exist for dealing with overlapping deletions and gVCF reference blocks (intervals with \<NON_REF\> as the only alternate allele). When overlapping variants which are neither deletions nor reference blocks are found in the input VCF file, then the above exception is thrown. Check whether bcftools can help you - see point 2 `in the section on organizing your data`_.
+    GenomicsDB cannot deal with overlapping variants within a single sample. Workarounds exist for dealing with overlapping deletions and gVCF reference blocks (intervals with \<NON_REF\> as the only alternate allele). When overlapping variants which are neither deletions nor reference blocks are found in the input VCF file, then the above exception is thrown. Try to use bcftools to collapse multiple lines with the same position into a single line. An example bcftools invocation is shown below:
 
-    .. _more details documented here: https://github.com/GenomicsDB/GenomicsDB/wiki/Overlapping-variant-calls-in-a-sample
-    .. _in the section on organizing your data: https://github.com/GenomicsDB/GenomicsDB/wiki/Importing-VCF-data-into-GenomicsDB#organizing-your-data
+    .. code-block:: bash
+
+        bcftools norm -m +any [-O <output_format> -o <output>] <input_file>
 
 .. ------------------------------
 
@@ -52,9 +53,7 @@ Common Issues
         Cannot have both "row_partitions" and "column_partitions" simultaneously in the JSON file
 
 
-    A GenomicsDB array can be partitioned by rows or columns but not both simultaneously - see `this page`_ for more information.
-
-    .. _this page: https://github.com/GenomicsDB/GenomicsDB/wiki/GenomicsDB-setup-in-a-multi-node-cluster
+    A GenomicsDB array can be partitioned by rows or columns but not both simultaneously.
 
 .. ------------------------------
 
@@ -72,10 +71,7 @@ Common Issues
 
     * *Incorrect value(s) of idx_in_file in the callset_mapping_file*: Note that *row_idx* is the globally unique value of the TileDB row index corresponding to a given sample/CallSet. *idx_in_file* is useful mostly for multi-sample VCFs and specifies the index of the sample in a given VCF. For single sample VCFs, this field should be 0 (or omitted altogether).
 
-    * *Incorrect partition bounds in the loader JSON or incorrectly specified partition index in the command line*: Read the section on `running the program`_ in the `import data`_ wiki section. Also, please re-check your partition bounds in the loader JSON.
-
-    .. _running the program: https://github.com/GenomicsDB/GenomicsDB/wiki/Importing-VCF-data-into-GenomicsDB#running-the-program
-    .. _import data: https://github.com/GenomicsDB/GenomicsDB/wiki/Importing-VCF-data-into-GenomicsDB
+    * *Incorrect partition bounds in the loader JSON or incorrectly specified partition index in the command line*: Please re-check your partition bounds in the loader JSON.
 
 .. ------------------------------
 
@@ -97,9 +93,7 @@ Common Issues
         chrX	114112	.	TCT	TTT	999	PASS	.	GT:DP:GQ:MIN_DP:PL	0/0:0:0:0:0,0,0
 
 
-    The fix is to run bcftools norm as described `here`_ which will merge the alleles as
-
-    .. _here: https://github.com/Intel-HLS/GenomicsDB/wiki/Useful-external-tools#useful-bcftools-commands
+    The fix is to run bcftools norm as described above in 3. which will merge the alleles as
 
     .. code-block:: none  
 
