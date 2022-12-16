@@ -20,8 +20,10 @@ build:
   jobs:
     post_build:
       - mvn javadoc:javadoc -Dprotoc.filepath=/usr/bin/protoc -Dgenomicsdb_source_directory=$(pwd)
-      - ls docs && echo "done" && ls _build || ls
-      - mv build/site/apidocs/* _build/html/javadocs
+      - ls docs/_build/html
+      - mv build/site/apidocs/* docs/_build/html/javadocs
+      - ls docs/_build/html
+      - ls docs/_build/html/javadocs
 
 formats:
   - pdf
