@@ -4,7 +4,7 @@
 Building + Installing
 ###############################
 
-This section refers to building and installing the core GenomicsDB executables and tools. For including published artifacts in your code, see the appropriate :ref:`API docs <API Docs>` and :ref:`Examples <Examples>` sections. 
+This section refers to building and installing the core GenomicsDB executables and tools. For including published artifacts in your code, see the appropriate :ref:`API docs <API Docs>` and Examples sections. 
 
 Bash
 *******************************
