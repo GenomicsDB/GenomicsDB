@@ -116,7 +116,7 @@ API Reference
 .. toctree::
    :maxdepth: 3
 
-   javadocs/packages
+   javadocs/index
 
 
 

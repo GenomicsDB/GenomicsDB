@@ -9,6 +9,15 @@ version: 2
 sphinx:
   configuration: docs/conf.py
 
+build:
+  apt_packages:
+    - openjdk-11-jdk
+    - protobuf-compiler
+    - maven
+  pre_build:
+    - mvn javadoc:javadoc -Dprotoc.filepath=/usr/bin/protoc -Dgenomicsdb_source_directory=$(pwd)
+    - mv build/sites/apidocs docs/_build/html/_static/javadocs
+
 formats:
   - pdf
 
