@@ -18,10 +18,9 @@ build:
     - protobuf-compiler
     - maven
   jobs:
-    pre_build:
+    post_build:
       - mvn javadoc:javadoc -Dprotoc.filepath=/usr/bin/protoc -Dgenomicsdb_source_directory=$(pwd)
-      - mkdir -p docs/_static/
-      - mv build/site/apidocs docs/_static/javadocs
+      - mv build/site/apidocs/* docs/_build/html/javadocs
 
 formats:
   - pdf
