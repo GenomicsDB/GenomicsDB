@@ -19,6 +19,7 @@ build:
     - maven
   commands:
     - python -mvirtualenv env
+    - apt install -y openjdk-11-jdk protobuf-compiler maven
     - env/bin/python -m pip install --force-reinstall jinja2===3.0.3
     - env/bin/python -m pip install -r docs/requirements.txt
     - echo $SHELL
