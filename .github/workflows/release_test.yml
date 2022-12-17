@@ -49,15 +49,15 @@ jobs:
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom
           ./test_genomicsdbjar.sh
-
-      - name: Checkout GATK
-        uses: actions/checkout@v3
-        with:
-          repository: broadinstitute/gatk
-          lfs: 'true'
-
-      - name: Try GATK integration test
-        shell: bash
-        run: |
-          ./gradlew installDist -Dgenomicsdb.version=${VERSION_NUMBER}
-          ./gradlew test --tests *GenomicsDB*
+#
+#      - name: Checkout GATK
+#        uses: actions/checkout@v3
+#        with:
+#          repository: broadinstitute/gatk
+#          lfs: 'true'
+#
+#      - name: Try GATK integration test
+#        shell: bash
+#        run: |
+#          ./gradlew installDist -Dgenomicsdb.version=${VERSION_NUMBER}
+#          ./gradlew test --tests *GenomicsDB*
