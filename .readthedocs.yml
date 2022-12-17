@@ -17,13 +17,20 @@ build:
     - openjdk-11-jdk
     - protobuf-compiler
     - maven
-  jobs:
-    post_build:
-      - mvn javadoc:javadoc -Dprotoc.filepath=/usr/bin/protoc -Dgenomicsdb_source_directory=$(pwd)
-      - ls docs/_build/html
-      - mv build/site/apidocs/* docs/_build/html/javadocs
-      - ls docs/_build/html
-      - ls docs/_build/html/javadocs
+  commands:
+    - python -mvirtualenv env
+    - env/bin/python -m pip install -r docs/requirements.txt
+    - source env/bin/activate && cd docs && make html && cd ..
+    - mvn javadoc:javadoc -Dprotoc.filepath=/usr/bin/protoc -Dgenomicsdb_source_directory=$(pwd)
+    - mv build/site/apidocs/* docs/_build/html/javadocs
+    - mkdir _readthedocs/ && mv docs/_build/html _readthedocs/
+#  jobs:
+#    post_build:
+#      - mvn javadoc:javadoc -Dprotoc.filepath=/usr/bin/protoc -Dgenomicsdb_source_directory=$(pwd)
+#      - ls docs/_build/html
+#      - mv build/site/apidocs/* docs/_build/html/javadocs
+#      - ls docs/_build/html
+#      - ls docs/_build/html/javadocs
 
 formats:
   - pdf
