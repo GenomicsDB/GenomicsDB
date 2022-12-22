@@ -13,10 +13,14 @@ build:
   os: ubuntu-20.04
   tools:
     python: "3.10"
+  apt_packages:
+    - protobuf-compiler
   jobs:
     pre_build:
       - cd docs && doxygen
-      - ls docs/ && ls docs/doxydocs && ls docs/doxyrst
+      - wget -c https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_amd64.tar.gz -O - | tar -xz
+      - mkdir -p docs/protodoc
+      - cd src/resources && protoc --plugin=protoc-gen-doc=../../protoc-gen-doc --doc_out=../../docs/protodoc --doc_opt=markdown,proto.md *proto
 
 formats:
   - pdf

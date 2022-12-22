@@ -1,6 +1,6 @@
 
 ###############################
-Overview (DOCUMENTATION WIP)
+Overview
 ###############################
 
 |License: MIT| 

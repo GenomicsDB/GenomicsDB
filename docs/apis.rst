@@ -56,6 +56,13 @@ Optional field(s):
 The various APIs take in the same query fields in one form or another, so check the approptiate reference for your use case. 
 If you are new to GenomicsDB, we recommend starting with the :ref:`gt_mpi_gather <CLI Tools gt-mpi-gather>` CLI tool to familiarize yourself with the concepts. 
 
+All the APIs support taking configuration options as protobuf. Here's the protobuf documentation:
+
+.. toctree::
+   :maxdepth: 2
+
+   protodoc/proto.md
+
 
 C++
 *******************************
@@ -63,6 +70,9 @@ C++
 * Querying CLI tools available - see :ref:`vcf2genomicsdb <CLI Tools vcf2genomicsdb>`
 
 .. _cpp source code: https://github.com/GenomicsDB/GenomicsDB/tree/master/src/main/cpp
+
+API Reference
+===============================
 
 .. toctree::
    :maxdepth: 3
@@ -91,7 +101,7 @@ API Reference
 ===============================
 * Coming Soon. See the `bindings source code`_ for the time being. 
 
-.. _bindings source code: https://github.com/nalinigans/GenomicsDB-Python
+.. _bindings source code: https://github.com/GenomicsDB/GenomicsDB-Python
 
 Java
 *******************************
@@ -110,7 +120,7 @@ Java
    <dependency>
       <groupId>org.genomicsdb</groupId>
       <artifactId>genomicsdb</artifactId>
-      <version>1.4.4</version>
+      <version>1.4.5</version>
    </dependency>
 
 

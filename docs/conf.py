@@ -29,8 +29,11 @@ author = 'Scott Hill'
 # ones.
 extensions = [ 
     'breathe',
-    'nbsphinx'
+    'nbsphinx',
+    'myst_parser'
 ]
+
+source_suffix = ['.rst', '.md']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -69,3 +72,6 @@ html_static_path = ['_static']
 breathe_projects = {'genomicsdb': 'doxydocs/xml'}
 
 breathe_default_project = "genomicsdb"
+
+# enable TOC links for protobuf documentation
+myst_all_links_external = True
