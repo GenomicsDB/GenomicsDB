@@ -66,6 +66,6 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
-breathe_projects = {'genomicsdb': 'doxydocs'}
+breathe_projects = {'genomicsdb': 'doxydocs/xml'}
 
 breathe_default_project = "genomicsdb"
