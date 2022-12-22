@@ -793,7 +793,8 @@ WARN_LOGFILE           =
 INPUT                  = ../src/main/cpp/src/api \
                          ../src/main/cpp/include/api \
                          ../src/main/java/org/genomicsdb/reader \
-                         ../src/main/java/org/genomicsdb/importer
+                         ../src/main/java/org/genomicsdb/importer \
+                         ../src/main/java/org/genomicsdb/model
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
