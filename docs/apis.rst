@@ -64,6 +64,10 @@ C++
 
 .. _cpp source code: https://github.com/GenomicsDB/GenomicsDB/tree/master/src/main/cpp
 
+.. toctree::
+   :maxdepth: 3
+
+   doxyrst/cplusplus
 
 Python
 *******************************
@@ -116,7 +120,8 @@ API Reference
 .. toctree::
    :maxdepth: 3
 
-   javadocs/index
+   doxyrst/javaimporter
+   doxyrst/javareader
 
 
 
