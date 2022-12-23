@@ -30,7 +30,11 @@ author = 'Scott Hill'
 extensions = [ 
     'breathe',
     'nbsphinx',
-    'myst_parser'
+    'myst_parser',
+    # extensions below are for GenomicsDB-Python
+    'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.napoleon'
 ]
 
 source_suffix = ['.rst', '.md']

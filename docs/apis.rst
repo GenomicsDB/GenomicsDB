@@ -66,7 +66,7 @@ All the APIs support taking configuration options as protobuf. Here's the protob
 
 C++
 *******************************
-* Native interface - See `cpp source code`_ (Reference coming soon)
+* Native interface - See `cpp source code`_
 * Querying CLI tools available - see :ref:`vcf2genomicsdb <CLI Tools vcf2genomicsdb>`
 
 .. _cpp source code: https://github.com/GenomicsDB/GenomicsDB/tree/master/src/main/cpp
@@ -75,7 +75,7 @@ API Reference
 ===============================
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
    doxyrst/cplusplus
 
@@ -99,9 +99,11 @@ Install ``genomicsdb`` with the following command:
 
 API Reference
 ===============================
-* Coming Soon. See the `bindings source code`_ for the time being. 
 
-.. _bindings source code: https://github.com/GenomicsDB/GenomicsDB-Python
+.. toctree::
+   :maxdepth: 2
+
+   python/modules
 
 Java
 *******************************
@@ -128,7 +130,7 @@ API Reference
 ===============================
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
    doxyrst/javaimporter
    doxyrst/javareader
