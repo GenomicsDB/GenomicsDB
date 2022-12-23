@@ -3,4 +3,5 @@ sphinx-rtd-theme==0.5.0
 nbsphinx==0.8.10
 breathe==4.34.0
 myst-parser==0.18.1
+--extra-index-url https://test.pypi.org/simple/
 genomicsdb
