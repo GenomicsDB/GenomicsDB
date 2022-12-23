@@ -21,7 +21,7 @@ build:
       - wget -c https://github.com/pseudomuto/protoc-gen-doc/releases/download/v1.5.1/protoc-gen-doc_1.5.1_linux_amd64.tar.gz -O - | tar -xz
       - mkdir -p docs/protodoc
       - cd src/resources && protoc --plugin=protoc-gen-doc=../../protoc-gen-doc --doc_out=../../docs/protodoc --doc_opt=../../docs/protodoc.tmpl,proto.md *proto
-      - git clone --no-single-branch --depth 50 https://github.com/GenomicsDB/GenomicsDB-Python.git .
+      - cd dependencies && git clone --no-single-branch --depth 50 https://github.com/GenomicsDB/GenomicsDB-Python.git .
       - mv GenomicsDB-Python/genomicsdb GenomicsDB-Python/genomicsdb_data
       - pip install genomicsdb
 
