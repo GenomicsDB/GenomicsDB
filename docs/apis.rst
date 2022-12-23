@@ -103,7 +103,7 @@ API Reference
 .. toctree::
    :maxdepth: 2
 
-   python/modules
+   python/genomicsdb
 
 Java
 *******************************
