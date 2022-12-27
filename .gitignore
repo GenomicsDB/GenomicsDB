@@ -43,3 +43,11 @@ TAGS
 
 #Xcode
 .DS_Store
+
+#vs-code
+.vscode/*
+
+*/env/*
+docs/_build/
+env/*
+docs/doxydocs
