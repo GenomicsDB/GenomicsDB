@@ -65,7 +65,7 @@
 
 
 std::string genomicsdb_version() {
-  return GENOMICSDB_VERSION;
+  return genomicsdb::version();
 }
 
 #define VERIFY(X) if(!(X)) throw GenomicsDBException(#X);

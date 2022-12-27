@@ -34,6 +34,7 @@
 #define GENOMICSDB_H
 
 #include "genomicsdb_exception.h"
+#include "genomicsdb_utils.h"
 
 #include <map>
 #include <set>
@@ -47,13 +48,7 @@
 #include <vector>
 #include <functional>
 
-// Override project visibility set to hidden for api
-#if (defined __GNUC__ && __GNUC__ >= 4) || defined __INTEL_COMPILER
-#  define GENOMICSDB_EXPORT __attribute__((visibility("default")))
-#else
-#  define GENOMICSDB_EXPORT
-#endif
-
+[[deprecated("Use genomicsdb::version instead")]]
 GENOMICSDB_EXPORT std::string genomicsdb_version();
 
 typedef std::pair<uint64_t, uint64_t> interval_t;
@@ -323,7 +318,7 @@ class GenomicsDB {
   /**
    * Constructor to the GenomicsDB Query API with configuration json files
    *   query_configuration - describe the query configuration in either a JSON file or string
-   *   query_configuration_type - type of query configuration, could be a JSON_FILE or JSON_STRING
+   *   query_configuration_type - type of query confi1guration, could be a JSON_FILE or JSON_STRING
    *   loader_config_json_file, optional - describe the loader configuration in a JSON file.
    *           If a configuration key exists in both the query and the loader configuration, the query
    *           configuration takes precedence
