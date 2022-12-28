@@ -318,7 +318,7 @@ class GenomicsDB {
   /**
    * Constructor to the GenomicsDB Query API with configuration json files
    *   query_configuration - describe the query configuration in either a JSON file or string
-   *   query_configuration_type - type of query confi1guration, could be a JSON_FILE or JSON_STRING
+   *   query_configuration_type - type of query configuration, could be a JSON_FILE or JSON_STRING
    *   loader_config_json_file, optional - describe the loader configuration in a JSON file.
    *           If a configuration key exists in both the query and the loader configuration, the query
    *           configuration takes precedence

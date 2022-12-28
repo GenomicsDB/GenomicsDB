@@ -29,7 +29,6 @@
 
 #include "genomicsdb.h"
 #include "genomicsdb_config_base.h"
-#include "genomicsdb_utils.h"
 #include "tiledb_utils.h"
 #include "genomicsdb_logger.h" // REMOVE
 
