@@ -41,6 +41,28 @@
 #include <thread>
 #include <utility>
 
+TEST_CASE_METHOD(TempDir, "utils", "[genomicsdb_utils]") {
+  REQUIRE(genomicsdb::version().size() > 0);
+  REQUIRE_THAT(genomicsdb::version(), Catch::Equals(GENOMICSDB_VERSION));
+
+  std::string hello_world = "Hello World";
+  std::string filename =  append("hello.txt");
+  CHECK(TileDBUtils::write_file(filename, hello_world.data(), hello_world.length(), true) == TILEDB_OK);
+
+  CHECK(genomicsdb::is_file(filename));
+  CHECK(!genomicsdb::is_file(filename+".nonexistent"));
+  
+  CHECK(genomicsdb::file_size(filename) == 11);
+  CHECK(genomicsdb::file_size(filename+".new") == -1);
+  
+  char *txt;
+  size_t length;
+  CHECK(genomicsdb::read_entire_file(filename, (void **)&txt, &length) == GENOMICSDB_OK);
+  CHECK(length == 11);
+  CHECK(hello_world == txt);
+  CHECK(genomicsdb::read_entire_file(filename+".another", (void **)txt, &length) == TILEDB_ERR);
+}
+
 TEST_CASE("api get_version", "[get_version]") {
   REQUIRE(genomicsdb_version().size() > 0);
   REQUIRE_THAT(genomicsdb_version(), Catch::Equals(GENOMICSDB_VERSION));

@@ -34,6 +34,7 @@
 #define GENOMICSDB_H
 
 #include "genomicsdb_exception.h"
+#include "genomicsdb_utils.h"
 
 #include <map>
 #include <set>
@@ -47,13 +48,7 @@
 #include <vector>
 #include <functional>
 
-// Override project visibility set to hidden for api
-#if (defined __GNUC__ && __GNUC__ >= 4) || defined __INTEL_COMPILER
-#  define GENOMICSDB_EXPORT __attribute__((visibility("default")))
-#else
-#  define GENOMICSDB_EXPORT
-#endif
-
+[[deprecated("Use genomicsdb::version instead")]]
 GENOMICSDB_EXPORT std::string genomicsdb_version();
 
 typedef std::pair<uint64_t, uint64_t> interval_t;
