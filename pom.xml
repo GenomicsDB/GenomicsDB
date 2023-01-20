@@ -134,8 +134,6 @@
       <version>${protobuf.version}</version>
     </dependency>
     <dependency>
-      <!--Required to convert protocol buffer to JSON string conversion
-         using for JsonFormat.printToString-->
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java-util</artifactId>
       <version>${protobuf.version}</version>
