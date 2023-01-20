@@ -27,21 +27,18 @@ import htsjdk.tribble.*;
 import htsjdk.variant.bcf2.BCF2Codec;
 import htsjdk.variant.vcf.VCFContigHeaderLine;
 import htsjdk.variant.vcf.VCFHeader;
-
-import org.genomicsdb.model.Coordinates;
-import org.genomicsdb.model.GenomicsDBVidMapProto;
-import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.genomicsdb.importer.extensions.JsonFileExtensions;
+import org.genomicsdb.model.Coordinates;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.model.GenomicsDBVidMapProto;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 import static org.genomicsdb.Constants.CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX;
-import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBArrays;
 import static org.genomicsdb.GenomicsDBUtils.getArrayColumnBounds;
-import static com.googlecode.protobuf.format.JsonFormat.ParseException;
+import static org.genomicsdb.GenomicsDBUtils.listGenomicsDBArrays;
 
 /**
  * A reader for GenomicsDB that implements {@link htsjdk.tribble.FeatureReader}
@@ -169,22 +166,17 @@ public class GenomicsDBFeatureReader<T extends Feature, SOURCE> implements Featu
                     && contigInterval.getEnd() >= Integer.parseInt(ref[1]));
         }
         else {
-            try {
-                GenomicsDBVidMapProto.VidMappingPB vidPB = this.exportConfiguration.hasVidMapping() ?
-                        this.exportConfiguration.getVidMapping() :
-                        generateVidMapFromFile(this.exportConfiguration.getVidMappingFile());
-                long[] bounds = getArrayColumnBounds(workspace, array);
-                // here we only check if contig starts within column bounds
-                // this works because currently the contig coalescing respects contig boundaries
-                // that is, we are guaranteed that entire contigs reside in the same array
-                // if that changes we need to get smarter here
-                return checkVidIfContigStartsWithinColumnBounds(vidPB, bounds, contigInterval);
-            } catch (ParseException e) {
-                throw new RuntimeException("Error parsing vid from file");
-            }
+            GenomicsDBVidMapProto.VidMappingPB vidPB = this.exportConfiguration.hasVidMapping() ?
+                    this.exportConfiguration.getVidMapping() :
+                    generateVidMapFromFile(this.exportConfiguration.getVidMappingFile());
+            long[] bounds = getArrayColumnBounds(workspace, array);
+            // here we only check if contig starts within column bounds
+            // this works because currently the contig coalescing respects contig boundaries
+            // that is, we are guaranteed that entire contigs reside in the same array
+            // if that changes we need to get smarter here
+            return checkVidIfContigStartsWithinColumnBounds(vidPB, bounds, contigInterval);
         }
     }
-
 
     private void generateHeadersForQuery(final String randomExistingArrayName) throws IOException {
         GenomicsDBExportConfiguration.ExportConfiguration.Builder fullExportConfigurationBuilder =

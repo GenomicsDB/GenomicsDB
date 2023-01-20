@@ -26,9 +26,12 @@
 #include "vid_mapper.h"
 #include <google/protobuf/message.h>
 
+// Forward Protobuf Declarations
 namespace genomicsdb_pb {
+  class ImportConfiguration;
   class ExportConfiguration;
 }
+class ContigPosition;
 
 // Overridding env variables
 #define ENABLE_SHARED_POSIXFS_OPTIMIZATIONS "GENOMICSDB_SHARED_POSIXFS_OPTIMIZATIONS"
@@ -173,11 +176,12 @@ class GenomicsDBConfigBase {
   rapidjson::Document read_from_JSON_string(const std::string& str, const int rank=0);
   void read_from_JSON(const rapidjson::Document& json_doc, const int rank=0);
   void read_and_initialize_vid_and_callset_mapping_if_available(const rapidjson::Document& json_doc, const int rank);
+  
   //Protobuf parsing functions
   void read_from_PB_binary_string(const std::string& str, const int rank=0);
+  int read_from_PB_file(const std::string& filename, const int rank=0) { return -1; }
   void read_from_PB(const genomicsdb_pb::ExportConfiguration* x, const int rank=0);
-  void read_and_initialize_vid_and_callset_mapping_if_available(const genomicsdb_pb::ExportConfiguration*);
-  static void get_pb_from_json_file(google::protobuf::Message* pb_config, const std::string& json_file);
+  static int get_pb_from_json_file(google::protobuf::Message* pb_config, const std::string& json_file);
   static bool output_to_stdout(const std::string& name) {
     return name.empty() || name == "-";
   }
@@ -236,6 +240,10 @@ class GenomicsDBConfigBase {
   std::string m_callset_mapping_file;
   //Enable optimizations (disable file locking and enable keep file handles open until finalization
   bool m_enable_shared_posixfs_optimizations;
+  template<typename T>
+  void base_read_from_PB(const T* pb_config);
+  template<typename T>
+  void read_and_initialize_vid_and_callset_mapping_if_available(const T* pb_config);
  public:
   //Static convenience member
   static std::unordered_map<std::string, bool> m_vcf_output_format_to_is_bcf_flag;
@@ -257,12 +265,18 @@ class GenomicsDBImportConfig : public GenomicsDBConfigBase {
  public:
   GenomicsDBImportConfig();
   void read_from_file(const std::string& filename, int rank=0);
+  int read_from_PB_file(const std::string& filename, const int rank=0);
+  void read_from_PB(const genomicsdb_pb::ImportConfiguration*, const int rank=0);
   inline bool is_partitioned_by_row() const {
     return m_row_based_partitioning;
   }
   inline bool is_partitioned_by_column() const {
     return !m_row_based_partitioning;
   }
+  // protobuf-specific
+  ContigInfo get_contig_info(const ContigPosition* contig_position);
+  ColumnRange extract_contig_interval(const ContigPosition* start, const ContigPosition* end);
+  
   inline int64_t get_max_num_rows_in_array() const {
     return m_max_num_rows_in_array;
   }

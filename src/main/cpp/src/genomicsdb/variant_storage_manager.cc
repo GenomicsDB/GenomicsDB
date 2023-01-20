@@ -544,8 +544,11 @@ int VariantStorageManager::open_array(const std::string& array_name, const VidMa
   auto mode_int = (*mode_iter).second;
 
   std::string array_path = SLASHIFY(m_workspace) + array_name;
-  if (mode_int == TILEDB_ARRAY_READ && !is_array(m_tiledb_ctx, array_path)) {
-    logger.error("Array {} in workspace {} does not seem to exist{}", array_name,  m_workspace, PRINT_TILEDB_ERRMSG);
+  if (!is_array(m_tiledb_ctx, array_path)) {
+    if (mode_int == TILEDB_ARRAY_READ) {
+      logger.error("Array {} in workspace {} does not seem to exist{}",
+                   array_name,  m_workspace, PRINT_TILEDB_ERRMSG);
+    }
     return -1;
   }
 

@@ -50,8 +50,7 @@ import java.util.List;
 import java.util.Base64;
 
 import org.genomicsdb.shaded.com.google.protobuf.Message;
-import com.googlecode.protobuf.format.JsonFormat;
-import com.googlecode.protobuf.format.JsonFormat.ParseException;
+import org.genomicsdb.shaded.com.google.protobuf.util.JsonFormat;
 
 public final class TestGenomicsDBSparkHDFS {
 

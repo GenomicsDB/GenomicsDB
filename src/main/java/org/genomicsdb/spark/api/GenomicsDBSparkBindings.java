@@ -1,5 +1,6 @@
 package org.genomicsdb.spark.api;
 
+import com.google.protobuf.util.JsonFormat;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.SparkConf;
@@ -16,8 +17,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
-
-import com.googlecode.protobuf.format.JsonFormat;
 
 /**
  * Example Invocation
@@ -56,7 +55,7 @@ public class GenomicsDBSparkBindings {
     if (isPB) {
       String queryPBString = FileUtils.readFileToString(new File(queryJsonFile));
       final GenomicsDBExportConfiguration.ExportConfiguration.Builder builder = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
-      new JsonFormat().merge(new ByteArrayInputStream(queryPBString.getBytes()), builder);
+      JsonFormat.parser().merge(queryPBString, builder);
       queryPBString = Base64.getEncoder().encodeToString(builder.build().toByteArray());
       hadoopConf.set(GenomicsDBConfiguration.QUERYPB, queryPBString);
     } else {

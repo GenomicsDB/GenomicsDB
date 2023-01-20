@@ -40,12 +40,7 @@
 #endif
 
 #include <string>
-
-/**@{*/
-/** Return code. */
-#define GENOMICSDB_OK 0
-#define GENOMICSDB_ERR -1
-/**@}*/
+#include "genomicsdb_status.h"
 
 namespace genomicsdb {
 

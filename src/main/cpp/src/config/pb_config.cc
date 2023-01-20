@@ -29,25 +29,201 @@
 #include <google/protobuf/util/json_util.h>
 #include <google/protobuf/util/type_resolver.h>
 #include <google/protobuf/util/type_resolver_util.h>
+
 #include "tiledb_utils.h"
 #include "json_config.h"
 #include "genomicsdb_config_base.h"
+#include "genomicsdb_logger.h"
+#include "genomicsdb_status.h"
+
+#include "genomicsdb_coordinates.pb.h"
+#include "genomicsdb_import_config.pb.h"
 #include "genomicsdb_export_config.pb.h"
+#include "genomicsdb_vid_mapping.pb.h"
+#include "genomicsdb_callsets_mapping.pb.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X);
 
 void GenomicsDBConfigBase::read_from_PB_binary_string(const std::string& str, const int rank) {
   genomicsdb_pb::ExportConfiguration export_config;
   auto status = export_config.ParseFromString(str);
-  if(!status || !export_config.IsInitialized())
-    throw GenomicsDBConfigException("Could not deserialize PB binary string");
+  if(!status || !export_config.IsInitialized()) {
+    throw GenomicsDBConfigException("Could not deserialize PB binary string for export");
+  }
   read_from_PB(&export_config, rank);
 }
 
+int GenomicsDBImportConfig::read_from_PB_file(const std::string& filename, const int rank) {
+  genomicsdb_pb::ImportConfiguration import_config;
+  int status = get_pb_from_json_file(&import_config, filename);
+  if (status == GENOMICSDB_OK) {
+    read_from_PB(&import_config, rank);
+  }
+  return status;
+}
+
+ContigInfo GenomicsDBImportConfig::get_contig_info(const ContigPosition* contig_position) {
+  ContigInfo contig_info;
+  if (!m_vid_mapper.get_contig_info(contig_position->contig(), contig_info)) {
+    logger.fatal(GenomicsDBConfigException(logger.format("Could not locate contig({}) position({}) in the vid mapper",
+                                                         contig_position->contig(), contig_position->position())));
+  }
+  return std::move(contig_info);
+}
+
+
+ColumnRange GenomicsDBImportConfig::extract_contig_interval(const ContigPosition* start,
+                                                            const ContigPosition* end) {
+  ContigInfo contig_info = get_contig_info(start);
+  ColumnRange column_range;
+  if (end) {
+    if (start->contig() != end->contig()) {
+      logger.fatal(GenomicsDBConfigException(logger.format("Start contig({}) and End contig({}) in protobuf are different",
+                                                           start->contig(), end->contig())));
+    }
+    column_range = verify_contig_position_and_get_tiledb_column_interval(contig_info,
+                                                                         start->position(),
+                                                                         end->position());
+  } else {
+    column_range = verify_contig_position_and_get_tiledb_column_interval(contig_info,
+                                                                         start->position(),
+                                                                         INT64_MAX-1);
+  }
+  return column_range;
+}
+
+void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfiguration* import_config, const int rank) {
+  base_read_from_PB(import_config);
+
+  // Get column partitions
+  if (import_config->column_partitions_size() == 0) {
+    logger.fatal(GenomicsDBConfigException("Loader PB should have at least one partition specified"));
+  }
+  m_column_partitions_specified = true;
+
+  m_array_names.resize(import_config->column_partitions_size());
+  m_sorted_column_partitions.resize(import_config->column_partitions_size());
+  m_column_ranges.resize(import_config->column_partitions_size());
+  
+  auto partitions = import_config->column_partitions();
+  m_single_workspace_path = true;
+  m_single_array_name = partitions.size() == 1;
+  m_column_partitions_specified = true;
+
+  // Store the begins for every partition for lookup later
+  std::unordered_map<int64_t, unsigned> begin_to_idx;
+  auto partition_idx = 0u;
+  for (auto partition: partitions) {
+    if (partition.has_workspace()) {
+      if (m_workspaces.size() == 0) {
+          m_workspaces.emplace_back(partition.workspace());
+      } else {
+        m_workspaces.resize(import_config->column_partitions_size());
+        m_workspaces[partition_idx] = partition.workspace();
+        m_single_workspace_path = false;
+      }
+    }
+    if (partition.generate_array_name_from_partition_bounds()) {
+      logger.fatal(GenomicsDBConfigException("Generate array name from partition bounds not yet supported"));
+    } else if (!partition.has_array_name()) {
+      logger.fatal(GenomicsDBConfigException("Currently every partition should have an array name specified"));
+    }
+    m_array_names[partition_idx] = partition.array_name();
+    
+    m_column_ranges[partition_idx].resize(1);      //only 1 std::pair
+    if (partition.begin().has_contig_position()) {
+      auto* start = &partition.begin().contig_position();
+      auto* end = partition.has_end()?&partition.end().contig_position():nullptr;
+      m_column_ranges[partition_idx][0] = std::move(extract_contig_interval(start, end));
+    } else {
+      m_column_ranges[partition_idx][0].first = partition.begin().tiledb_column();
+      if (partition.has_end()) {
+        m_column_ranges[partition_idx][0].second = partition.end().tiledb_column();
+      } else {
+        m_column_ranges[partition_idx][0].second = INT64_MAX-1;
+      }
+    }  
+    if (m_column_ranges[partition_idx][0].first > m_column_ranges[partition_idx][0].second) {
+      std::swap<int64_t>(m_column_ranges[partition_idx][0].first, m_column_ranges[partition_idx][0].second);
+    }
+    m_sorted_column_partitions[partition_idx].first = m_column_ranges[partition_idx][0].first;
+    m_sorted_column_partitions[partition_idx].second = m_column_ranges[partition_idx][0].second;
+    begin_to_idx[m_column_ranges[partition_idx][0].first] = partition_idx;
+    partition_idx++;
+  }
+
+  if ((m_single_workspace_path && m_workspaces.size() != 1) ||
+      (!m_single_workspace_path && m_workspaces.size() != partitions.size())) {
+    logger.fatal(GenomicsDBConfigException("List of workspaces should either be one for a single workspace or have workspaces specified for every partition"));
+  }
+
+  // Sort in ascending order and set end value if not set for the partition
+  std::sort(m_sorted_column_partitions.begin(), m_sorted_column_partitions.end(), ColumnRangeCompare);
+  for (auto i=0ull; i+1u<m_sorted_column_partitions.size(); ++i) {
+    if (m_sorted_column_partitions[i].first == m_sorted_column_partitions[i+1u].first) {
+      logger.fatal(GenomicsDBConfigException("Column partitions cannot have the same begin value"));
+    }
+    if (m_sorted_column_partitions[i].second >= m_sorted_column_partitions[i+1u].first) {
+      m_sorted_column_partitions[i].second = m_sorted_column_partitions[i+1u].first-1;
+    }
+    auto idx = begin_to_idx[m_sorted_column_partitions[i].first];
+    m_column_ranges[idx][0].second = m_sorted_column_partitions[i].second;
+  }
+  
+  if (import_config->has_size_per_column_partition()) m_per_partition_size = import_config->size_per_column_partition();
+  if (import_config->has_treat_deletions_as_intervals()) m_treat_deletions_as_intervals = import_config->treat_deletions_as_intervals();
+
+  // genomicsdb options
+  if (import_config->has_fail_if_updating()) m_fail_if_updating = import_config->fail_if_updating();
+  if (import_config->has_disable_synced_writes()) m_disable_synced_writes = import_config->disable_synced_writes();
+  if (import_config->has_ignore_cells_not_in_partition()) m_ignore_cells_not_in_partition = import_config->ignore_cells_not_in_partition();
+    
+  // vcf import options
+  if (import_config->has_num_parallel_vcf_files()) m_num_parallel_vcf_files = import_config->num_parallel_vcf_files();
+  if (import_config->has_do_ping_pong_buffering()) m_do_ping_pong_buffering = import_config->do_ping_pong_buffering();
+  if (import_config->has_offload_vcf_output_processing()) m_offload_vcf_output_processing = import_config->offload_vcf_output_processing();
+
+  // vcf generate options
+  if (import_config->has_produce_combined_vcf()) {
+    m_produce_combined_vcf = import_config->produce_combined_vcf();
+    m_vcf_output_filename = "-"; // stdout, TODO: hardcoded for now, protobuf has it as part of partition
+    if (import_config->has_reference_genome()) {
+      m_reference_genome = import_config->reference_genome();
+    } else {
+      logger.fatal(GenomicsDBConfigException("Should specify a reference genome when produce_conbined_vcf is set to true"));
+    }
+    if (import_config->has_vcf_header_filename()) m_vcf_header_filename = import_config->vcf_header_filename();
+    if (import_config->has_discard_vcf_index()) m_discard_vcf_index = import_config->discard_vcf_index();
+  }
+
+  // callset processing for sample rows to import
+  if (import_config->has_lb_callset_row_idx()) m_lb_callset_row_idx = import_config->lb_callset_row_idx();
+  if (import_config->has_ub_callset_row_idx()) m_ub_callset_row_idx = import_config->ub_callset_row_idx();
+  fix_callset_row_idx_bounds(rank);
+
+  // tiledb options
+  if (import_config->has_produce_tiledb_array()) m_produce_tiledb_array = import_config->produce_tiledb_array();
+  if (import_config->has_delete_and_create_tiledb_array()) m_delete_and_create_tiledb_array = import_config->delete_and_create_tiledb_array();
+  if (import_config->has_segment_size()) m_segment_size = import_config->segment_size();
+  if (import_config->has_num_cells_per_tile()) m_num_cells_per_tile = import_config->num_cells_per_tile();
+  if (import_config->has_consolidate_tiledb_array_after_load()) m_consolidate_tiledb_array_after_load = import_config->consolidate_tiledb_array_after_load();
+
+  // tiledb compression options
+  if (import_config->has_compress_tiledb_array()) m_compress_tiledb_array = import_config->compress_tiledb_array();
+  if (import_config->has_tiledb_compression_type()) m_tiledb_compression_type = import_config->tiledb_compression_type();
+  if (import_config->has_tiledb_compression_level()) m_tiledb_compression_level = import_config->tiledb_compression_level();
+
+  // other tiledb options
+  if (import_config->has_enable_shared_posixfs_optimizations()) m_enable_shared_posixfs_optimizations = import_config->enable_shared_posixfs_optimizations();
+  if (import_config->has_disable_delta_encode_for_offsets()) m_disable_delta_encode_offsets = import_config->disable_delta_encode_for_offsets();
+  if (import_config->has_disable_delta_encode_for_coords()) m_disable_delta_encode_coords = import_config->disable_delta_encode_for_coords();
+  if (import_config->has_enable_bit_shuffle_gt()) m_enable_bit_shuffle_gt = import_config->enable_bit_shuffle_gt();
+  if (import_config->has_enable_lz4_compression_gt()) m_enable_lz4_compression_gt = import_config->enable_lz4_compression_gt();
+}
+
 void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration* export_config, const int rank) {
-  VERIFY_OR_THROW(export_config && export_config->IsInitialized());
-  read_and_initialize_vid_and_callset_mapping_if_available(export_config);
-  VERIFY_OR_THROW(m_vid_mapper.is_initialized() && m_vid_mapper.is_callset_mapping_initialized());
+  base_read_from_PB(export_config);
+  
   m_workspaces.clear();
   m_workspaces.emplace_back(export_config->workspace());
   m_single_workspace_path = true;
@@ -63,8 +239,6 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
     m_attributes[i] = std::move(std::string(export_config->attributes(i)));
   if(export_config->has_query_filter())
     m_query_filter = export_config->query_filter();
-  if(export_config->has_segment_size())
-    m_segment_size = export_config->segment_size();
   if(export_config->has_vcf_header_filename())
     m_vcf_header_filename = export_config->vcf_header_filename();
   m_vcf_output_filename = export_config->has_vcf_output_filename()
@@ -216,79 +390,87 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
   //fuzzy search if that is acceptable
   m_bypass_intersecting_intervals_phase =
       export_config->has_bypass_intersecting_intervals_phase() ? export_config->bypass_intersecting_intervals_phase() : false;
+}
+
+template<typename T>
+void GenomicsDBConfigBase::base_read_from_PB(const T* pb_config) {
+  VERIFY_OR_THROW(pb_config && pb_config->IsInitialized());
+  read_and_initialize_vid_and_callset_mapping_if_available(pb_config);
+  VERIFY_OR_THROW(m_vid_mapper.is_initialized() && m_vid_mapper.is_callset_mapping_initialized());
+  
+  if (pb_config->has_segment_size()) {
+    m_segment_size = pb_config->segment_size();
+  }
+  
   //Enable Shared PosixFS Optimizations in TileDB
-  m_enable_shared_posixfs_optimizations = export_config->has_enable_shared_posixfs_optimizations()
-    ? export_config->enable_shared_posixfs_optimizations() : false;
+  if (pb_config->has_enable_shared_posixfs_optimizations()){
+    m_enable_shared_posixfs_optimizations = pb_config->enable_shared_posixfs_optimizations();
+  }
+  
+  m_workspaces.clear();
+  m_single_workspace_path = true;
+  m_array_names.clear();
 }
 
+template<typename T>
 void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_available(
-    const genomicsdb_pb::ExportConfiguration* export_config) {
-  //Callset mapping and vid mapping
-  if(export_config->has_vid_mapping_file()) {
-    m_vid_mapping_file = export_config->vid_mapping_file();
-    m_vid_mapper = std::move(FileBasedVidMapper(m_vid_mapping_file));
+    const T* pb_config) {
+  if (pb_config->has_vid_mapping_file()) {
+    VidMappingPB vidmap_pb;
+    auto& vidmap_file = pb_config->vid_mapping_file();
+    if (get_pb_from_json_file(&vidmap_pb, vidmap_file) == GENOMICSDB_OK) {
+      m_vid_mapper.parse_vidmap_protobuf(&vidmap_pb);
+    } else {
+      logger.warn("Could not deserialize vid mapping file {} as protobuf. Trying to parse as a regular JSON file instead", vidmap_file);
+      m_vid_mapping_file = vidmap_file;
+      m_vid_mapper = std::move(FileBasedVidMapper(m_vid_mapping_file));
+    }
+  } else if(pb_config->has_vid_mapping()) {
+    m_vid_mapper.parse_vidmap_protobuf(&(pb_config->vid_mapping()));
   }
-  else {
-    if(export_config->has_vid_mapping()) {
-      m_vid_mapper.parse_vidmap_protobuf(&(export_config->vid_mapping()));
+
+  if (pb_config->has_callset_mapping_file()) {
+    CallsetMappingPB callset_mapping_pb;
+    auto& callset_mapping_file = pb_config->callset_mapping_file();
+    if (get_pb_from_json_file(&callset_mapping_pb, callset_mapping_file) == GENOMICSDB_OK) {
+      m_vid_mapper.parse_callset_protobuf(&callset_mapping_pb);
+    } else {
+      logger.warn("Could not deserialize callset mapping file {} as protobuf. Trying to parse as a regular JSON file instead", callset_mapping_file);
+      m_callset_mapping_file = callset_mapping_file;
+      m_vid_mapper.parse_callsets_json(callset_mapping_file, true);
     }
-    else if (!m_vid_mapper.is_initialized()) {
-      throw GenomicsDBConfigException("Protobuf ExportConfiguration must have \
-          either vid_mapping_file or vid_mapping object defined");
-    }
+  } else if (pb_config->has_callset_mapping()) {
+    m_vid_mapper.parse_callset_protobuf(&(pb_config->callset_mapping()));
   }
-  if(export_config->has_callset_mapping_file()) {
-    m_callset_mapping_file = export_config->callset_mapping_file();
-    auto callsets_json_doc = std::move(parse_json_file(m_callset_mapping_file));
-    m_vid_mapper.read_callsets_info(callsets_json_doc, 0);
+
+  if (!m_vid_mapper.is_callset_mapping_initialized()) {
+    logger.fatal(GenomicsDBConfigException("Could not initialize callset mapping with either protobuf or regular JSON files"));
   }
-  else {
-    if(export_config->has_callset_mapping()) {
-      m_vid_mapper.parse_callset_protobuf(&(export_config->callset_mapping()));
-    }
-    else if (!m_vid_mapper.is_initialized()) {
-      throw GenomicsDBConfigException("Protobuf ExportConfiguration must have either \
-	  callset_mapping_file or callset_mapping object defined");
-    }
+  if (!m_vid_mapper.is_initialized()) {
+    logger.fatal(GenomicsDBConfigException("Could not initialize vid mapping with either protobuf or regular JSON files"));
   }
 }
 
-void GenomicsDBConfigBase::get_pb_from_json_file(
+int GenomicsDBConfigBase::get_pb_from_json_file(
         google::protobuf::Message *pb_config,
         const std::string& json_file) {
-  char *json_buffer = 0;
-  size_t json_buffer_length;
-  if (TileDBUtils::read_entire_file(json_file, (void **)&json_buffer, &json_buffer_length) != TILEDB_OK
-        || !json_buffer || json_buffer_length == 0) { 
-    free(json_buffer);
-    throw GenomicsDBConfigException(std::string("Could not open query JSON file ")+json_file);
+  char *buffer = 0;
+  size_t buffer_length;
+  if (TileDBUtils::read_entire_file(json_file, (void **)&buffer, &buffer_length) != TILEDB_OK || !buffer || buffer_length == 0) {
+    free(buffer);
+    logger.fatal(GenomicsDBConfigException("Could not read json file " + json_file));
   }
-  std::string json_to_binary_output;
-#ifndef USE_PROTOBUF_V_3_0_0_BETA_1
-  google::protobuf::util::JsonParseOptions parse_opt;
-  parse_opt.ignore_unknown_fields = true;
-#endif
-  //The function JsonStringToMessage was made available in Protobuf version 3.0.0. However,
-  //to maintain compatibility with GATK-4, we need to use 3.0.0-beta-1. This version doesn't have
-  //the JsonStringToMessage method. A workaround is as follows.
-  //https://stackoverflow.com/questions/41651271/is-there-an-example-of-protobuf-with-text-output
-  google::protobuf::util::TypeResolver* resolver= google::protobuf::util::NewTypeResolverForDescriptorPool(
-      "", google::protobuf::DescriptorPool::generated_pool());
-  auto status = google::protobuf::util::JsonToBinaryString(resolver,
-      "/"+pb_config->GetDescriptor()->full_name(), json_buffer,
-      &json_to_binary_output
-#ifndef USE_PROTOBUF_V_3_0_0_BETA_1
-      , parse_opt
-#endif
-      );
+  google::protobuf::StringPiece pb_string(buffer, buffer_length);
+  google::protobuf::util::JsonParseOptions json_options;
+  json_options.ignore_unknown_fields = true;
+  auto status = google::protobuf::util::JsonStringToMessage(pb_string, pb_config, json_options);
+  free(buffer);
   if (!status.ok()) {
-    delete resolver;
-    free(json_buffer);
-    throw GenomicsDBConfigException(std::string("Error converting JSON to binary string from file ")+json_file);
+    logger.debug("json file {} does not seem to be serialized protobuf - error:{}", json_file, status.ToString());
+    return GENOMICSDB_ERR;
+  } else if (!pb_config->IsInitialized()) {
+    logger.debug("Could not deserialize protobuf from json file {}", json_file);
+    return GENOMICSDB_ERR;
   }
-  delete resolver;
-  free(json_buffer);
-  auto success = pb_config->ParseFromString(json_to_binary_output);
-  if(!success)
-    throw GenomicsDBConfigException(std::string("Could not parse query JSON file to protobuf ")+json_file);
+  return GENOMICSDB_OK;
 }

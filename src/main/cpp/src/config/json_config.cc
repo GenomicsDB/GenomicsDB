@@ -30,6 +30,10 @@
 #include "json_config.h"
 #include "tiledb_utils.h"
 #include "genomicsdb_config_base.h"
+#include "genomicsdb_logger.h"
+#include "genomicsdb_status.h"
+
+#include "genomicsdb_import_config.pb.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X);
 
@@ -41,7 +45,7 @@ rapidjson::Document parse_json_file(const std::string& filename) {
   size_t json_buffer_length;
   if (TileDBUtils::read_entire_file(filename, (void **)&json_buffer, &json_buffer_length) != TILEDB_OK || !json_buffer || json_buffer_length == 0) {
     free(json_buffer);
-    throw GenomicsDBConfigException((std::string("Could not open vid/callset mapping file \"")+filename+"\"").c_str());
+    throw GenomicsDBConfigException((std::string("Could not open JSON file ")+filename));
   }
   rapidjson::Document json_doc;
   json_doc.Parse(json_buffer);
@@ -681,12 +685,22 @@ void GenomicsDBConfigBase::read_and_initialize_vid_and_callset_mapping_if_availa
       VERIFY_OR_THROW(json_doc["vid_mapping"].IsObject());
       m_vid_mapper = std::move(FileBasedVidMapper(json_doc["vid_mapping"]));
     }
-  } else
-    m_vid_mapper = std::move(FileBasedVidMapper(m_vid_mapping_file));
+  } else {
+    VidMappingPB vidmap_pb;
+    if (get_pb_from_json_file(&vidmap_pb, m_vid_mapping_file) == GENOMICSDB_OK) {
+      m_vid_mapper.parse_vidmap_protobuf(&vidmap_pb);
+    } else {
+      m_vid_mapper = std::move(FileBasedVidMapper(m_vid_mapping_file));
+    }
+  }
   m_vid_mapper.read_callsets_info(json_doc, rank);
 }
 
 void GenomicsDBImportConfig::read_from_file(const std::string& filename, const int rank) {
+  if (read_from_PB_file(filename, rank) == GENOMICSDB_OK) {
+    return;
+  }
+  logger.warn("Could not deserialize loader file {} as protobuf. Trying to parse as a regular JSON file instead", filename);
   rapidjson::Document json_doc = std::move(GenomicsDBConfigBase::read_from_file(filename, rank));
   //Check for row based partitioning - default column based
   m_row_based_partitioning = json_doc.HasMember("row_based_partitioning") && json_doc["row_based_partitioning"].IsBool()

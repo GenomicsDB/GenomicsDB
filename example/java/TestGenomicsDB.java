@@ -20,8 +20,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-import com.googlecode.protobuf.format.JsonFormat;
-
+import org.genomicsdb.shaded.com.google.protobuf.util.JsonFormat;
 import gnu.getopt.Getopt;
 import gnu.getopt.LongOpt;
 
@@ -39,7 +38,6 @@ import org.genomicsdb.importer.GenomicsDBImporter;
 import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.genomicsdb.reader.GenomicsDBFeatureReader;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -53,11 +51,11 @@ public final class TestGenomicsDB
     return new String(encoded, encoding);
   }
 
-  private static GenomicsDBExportConfiguration.ExportConfiguration resolveExportConfigurationFromJsonString(String jsonString) throws JsonFormat.ParseException {
+  private static GenomicsDBExportConfiguration.ExportConfiguration resolveExportConfigurationFromJsonString(String jsonString) {
     GenomicsDBExportConfiguration.ExportConfiguration.Builder exportConfigurationBuilder =
             GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
     try {
-      new JsonFormat().merge(new ByteArrayInputStream(jsonString.getBytes()), exportConfigurationBuilder);
+      JsonFormat.parser().merge(jsonString, exportConfigurationBuilder);
     } catch (IOException e) {
       System.err.println(String.format("Could not resolve export for given json string: %s", e.getMessage()));
       System.exit(1);

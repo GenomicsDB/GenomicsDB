@@ -419,9 +419,10 @@ void File2TileDBBinaryBase::read_next_batch(std::vector<uint8_t>& buffer,
         break;
       }
       has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, false, true);  //no need to re-seek, use next_line() directly, advance file pointer
-    } else
-      VERIFY_OR_THROW(read_one_line_fully && "Buffer did not have space to hold a line fully - increase buffer size")
+    } else {
+      VERIFY_OR_THROW(read_one_line_fully && "Buffer(size_per_column_partition) did not have space to hold a line fully - increase buffer size");
     }
+  }
   //put Tiledb NULL for row_idx as end-of-batch marker
   for (auto i=0ull; i<static_cast<size_t>(partition_file_batch.get_num_orders()); ++i) {
 #ifdef PRODUCE_BINARY_CELLS

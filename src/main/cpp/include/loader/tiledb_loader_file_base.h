@@ -147,7 +147,7 @@ class BufferReaderBase : public virtual GenomicsDBImportReaderBase {
     if (src == 0)
       return 0u;
     if (m_num_valid_bytes_in_buffer+num_bytes > m_buffer.size()) {
-      logger.debug("Buffer resized from {} bytes to {}", m_buffer.size(), m_num_valid_bytes_in_buffer+num_bytes);
+      logger.debug("Buffer(segment_size) resized from {} bytes to {}", m_buffer.size(), m_num_valid_bytes_in_buffer+num_bytes);
       m_buffer.resize(m_num_valid_bytes_in_buffer+num_bytes);
     }
     return append_all_data(src, num_bytes);

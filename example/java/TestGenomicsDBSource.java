@@ -51,7 +51,7 @@ import static org.apache.spark.sql.functions.bround;
 import static org.apache.spark.sql.functions.col;
 
 import org.genomicsdb.shaded.com.google.protobuf.Message;
-import com.googlecode.protobuf.format.JsonFormat;
+import org.genomicsdb.shaded.com.google.protobuf.util.JsonFormat;
 
 public final class TestGenomicsDBSource implements JsonFileExtensions {
 
@@ -70,7 +70,7 @@ public final class TestGenomicsDBSource implements JsonFileExtensions {
   }
 
   public static StructType getSchemaFromQuery(File query, String vidmapping) 
-      throws IOException, ParseException {
+      throws ParseException, IOException {
     try {
       JSONParser qparser = new JSONParser();
       FileReader queryJsonReader = new FileReader(query);
@@ -124,14 +124,13 @@ public final class TestGenomicsDBSource implements JsonFileExtensions {
     }
   }
 
-  public VidMappingPB getVidMapPBFromLoaderPB(String file) 
-      throws com.googlecode.protobuf.format.JsonFormat.ParseException {
+  public VidMappingPB getVidMapPBFromLoaderPB(String file) {
     GenomicsDBImportConfiguration.ImportConfiguration.Builder loader = 
         GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
     
     String jsonString = GenomicsDBUtils.readEntireFile(file);
     try {
-      new JsonFormat().merge(new ByteArrayInputStream(jsonString.getBytes()), loader);
+      JsonFormat.parser().merge(jsonString, loader);
     } catch (IOException e) {
       System.err.println(String.format("Could not get Json format for file %s", file));
       System.exit(1);
@@ -244,7 +243,7 @@ public final class TestGenomicsDBSource implements JsonFileExtensions {
       }
       StructType querySchema = getSchemaFromQuery(new File(queryFile), vidMapping);
       schema = schemaBuilder.buildSchemaWithVid(querySchema.fields());
-    } catch (com.googlecode.protobuf.format.JsonFormat.ParseException e) {
+    } catch (IOException e) {
       e.printStackTrace();
     }
 

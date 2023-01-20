@@ -22,7 +22,6 @@
 
 package org.genomicsdb.importer;
 
-import com.googlecode.protobuf.format.JsonFormat;
 import htsjdk.samtools.util.RuntimeIOException;
 import htsjdk.tribble.FeatureReader;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -180,10 +179,8 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
      *
      * @param config Parallel import configuration
      * @throws FileNotFoundException when files could not be read/written
-     * @throws JsonFormat.ParseException when existing callset jsons are invalid. incremental case
      */
-    public GenomicsDBImporter(final ImportConfig config) throws FileNotFoundException,
-            JsonFormat.ParseException, GenomicsDBException {
+    public GenomicsDBImporter(final ImportConfig config) throws FileNotFoundException, GenomicsDBException {
         this.config = config;
         this.config.setImportConfiguration(addExplicitValuesToImportConfiguration(config));
         long lbRowIdx = this.config.getImportConfiguration().hasLbCallsetRowIdx()
