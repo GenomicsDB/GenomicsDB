@@ -149,6 +149,9 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
     m_sorted_column_partitions[partition_idx].first = m_column_ranges[partition_idx][0].first;
     m_sorted_column_partitions[partition_idx].second = m_column_ranges[partition_idx][0].second;
     begin_to_idx[m_column_ranges[partition_idx][0].first] = partition_idx;
+
+    if (partition.has_vcf_output_filename() && partition_idx == rank) m_vcf_output_filename = partition.vcf_output_filename();
+
     partition_idx++;
   }
 
@@ -186,7 +189,7 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
   // vcf generate options
   if (import_config->has_produce_combined_vcf()) {
     m_produce_combined_vcf = import_config->produce_combined_vcf();
-    m_vcf_output_filename = "-"; // stdout, TODO: hardcoded for now, protobuf has it as part of partition
+    if (m_vcf_output_filename.empty()) m_vcf_output_filename="-";
     if (import_config->has_reference_genome()) {
       m_reference_genome = import_config->reference_genome();
     } else {
