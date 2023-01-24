@@ -93,6 +93,10 @@ ColumnRange GenomicsDBImportConfig::extract_contig_interval(const ContigPosition
 }
 
 void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfiguration* import_config, const int rank) {
+  if (import_config->has_row_based_partitioning() && import_config->row_based_partitioning() == true) {
+    logger.fatal(GenomicsDBConfigException("Row based partitioning not yet supported"));
+  }
+  
   base_read_from_PB(import_config);
 
   // Get column partitions
@@ -151,6 +155,7 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
     begin_to_idx[m_column_ranges[partition_idx][0].first] = partition_idx;
 
     if (partition.has_vcf_output_filename() && partition_idx == rank) m_vcf_output_filename = partition.vcf_output_filename();
+    if (partition.has_vcf_header_filename() && partition_idx == rank) m_vcf_header_filename = partition.vcf_header_filename();
 
     partition_idx++;
   }
@@ -173,10 +178,9 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
     m_column_ranges[idx][0].second = m_sorted_column_partitions[i].second;
   }
   
+  // genomicsdb options
   if (import_config->has_size_per_column_partition()) m_per_partition_size = import_config->size_per_column_partition();
   if (import_config->has_treat_deletions_as_intervals()) m_treat_deletions_as_intervals = import_config->treat_deletions_as_intervals();
-
-  // genomicsdb options
   if (import_config->has_fail_if_updating()) m_fail_if_updating = import_config->fail_if_updating();
   if (import_config->has_disable_synced_writes()) m_disable_synced_writes = import_config->disable_synced_writes();
   if (import_config->has_ignore_cells_not_in_partition()) m_ignore_cells_not_in_partition = import_config->ignore_cells_not_in_partition();
@@ -187,15 +191,17 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
   if (import_config->has_offload_vcf_output_processing()) m_offload_vcf_output_processing = import_config->offload_vcf_output_processing();
 
   // vcf generate options
-  if (import_config->has_produce_combined_vcf()) {
+  if (import_config->has_produce_combined_vcf() && import_config->produce_combined_vcf()) {
     m_produce_combined_vcf = import_config->produce_combined_vcf();
-    if (m_vcf_output_filename.empty()) m_vcf_output_filename="-";
     if (import_config->has_reference_genome()) {
       m_reference_genome = import_config->reference_genome();
     } else {
-      logger.fatal(GenomicsDBConfigException("Should specify a reference genome when produce_conbined_vcf is set to true"));
+      logger.fatal(GenomicsDBConfigException("Should specify a reference genome when produce_combined_vcf is set to true"));
     }
-    if (import_config->has_vcf_header_filename()) m_vcf_header_filename = import_config->vcf_header_filename();
+    if (m_vcf_output_filename.empty()) m_vcf_output_filename = "-";
+    if (m_vcf_header_filename.empty() && import_config->has_vcf_header_filename()) {
+      m_vcf_header_filename = import_config->vcf_header_filename();
+    }
     if (import_config->has_discard_vcf_index()) m_discard_vcf_index = import_config->discard_vcf_index();
   }
 

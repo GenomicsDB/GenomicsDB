@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -49,6 +50,7 @@ message Partition {
     bool generate_array_name_from_partition_bounds = 4;
   }
   optional string vcf_output_filename = 5;
+  optional string vcf_header_filename = 7;
   optional GenomicsDBColumn end = 6;
 }
 
