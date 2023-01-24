@@ -104,6 +104,8 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
     logger.fatal(GenomicsDBConfigException("Loader PB should have at least one partition specified"));
   }
   m_column_partitions_specified = true;
+  if (import_config->has_produce_combined_vcf()) m_produce_combined_vcf = import_config->produce_combined_vcf();
+  if (import_config->has_produce_tiledb_array()) m_produce_tiledb_array = import_config->produce_tiledb_array();
 
   m_array_names.resize(import_config->column_partitions_size());
   m_sorted_column_partitions.resize(import_config->column_partitions_size());
@@ -154,8 +156,10 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
     m_sorted_column_partitions[partition_idx].second = m_column_ranges[partition_idx][0].second;
     begin_to_idx[m_column_ranges[partition_idx][0].first] = partition_idx;
 
-    if (partition.has_vcf_output_filename() && partition_idx == rank) m_vcf_output_filename = partition.vcf_output_filename();
-    if (partition.has_vcf_header_filename() && partition_idx == rank) m_vcf_header_filename = partition.vcf_header_filename();
+    if (m_produce_combined_vcf) {
+      if (partition.has_vcf_output_filename() && partition_idx == rank) m_vcf_output_filename = partition.vcf_output_filename();
+      if (partition.has_vcf_header_filename() && partition_idx == rank) m_vcf_header_filename = partition.vcf_header_filename();
+    }
 
     partition_idx++;
   }
@@ -165,7 +169,7 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
     logger.fatal(GenomicsDBConfigException("List of workspaces should either be one for a single workspace or have workspaces specified for every partition"));
   }
 
-  // Sort in ascending order and set end value if not set for the partition
+  // Sort in ascending order and set "end" value if not set for the partition
   std::sort(m_sorted_column_partitions.begin(), m_sorted_column_partitions.end(), ColumnRangeCompare);
   for (auto i=0ull; i+1u<m_sorted_column_partitions.size(); ++i) {
     if (m_sorted_column_partitions[i].first == m_sorted_column_partitions[i+1u].first) {
@@ -190,9 +194,13 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
   if (import_config->has_do_ping_pong_buffering()) m_do_ping_pong_buffering = import_config->do_ping_pong_buffering();
   if (import_config->has_offload_vcf_output_processing()) m_offload_vcf_output_processing = import_config->offload_vcf_output_processing();
 
-  // vcf generate options
-  if (import_config->has_produce_combined_vcf() && import_config->produce_combined_vcf()) {
-    m_produce_combined_vcf = import_config->produce_combined_vcf();
+  // callset processing for sample rows to import
+  if (import_config->has_lb_callset_row_idx()) m_lb_callset_row_idx = import_config->lb_callset_row_idx();
+  if (import_config->has_ub_callset_row_idx()) m_ub_callset_row_idx = import_config->ub_callset_row_idx();
+  fix_callset_row_idx_bounds(rank);
+
+  // combined vcf generate options
+  if (m_produce_combined_vcf) {
     if (import_config->has_reference_genome()) {
       m_reference_genome = import_config->reference_genome();
     } else {
@@ -205,29 +213,25 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
     if (import_config->has_discard_vcf_index()) m_discard_vcf_index = import_config->discard_vcf_index();
   }
 
-  // callset processing for sample rows to import
-  if (import_config->has_lb_callset_row_idx()) m_lb_callset_row_idx = import_config->lb_callset_row_idx();
-  if (import_config->has_ub_callset_row_idx()) m_ub_callset_row_idx = import_config->ub_callset_row_idx();
-  fix_callset_row_idx_bounds(rank);
+  // tiledb storage options
+  if (m_produce_tiledb_array) {
+    if (import_config->has_delete_and_create_tiledb_array()) m_delete_and_create_tiledb_array = import_config->delete_and_create_tiledb_array();
+    if (import_config->has_segment_size()) m_segment_size = import_config->segment_size();
+    if (import_config->has_num_cells_per_tile()) m_num_cells_per_tile = import_config->num_cells_per_tile();
+    if (import_config->has_consolidate_tiledb_array_after_load()) m_consolidate_tiledb_array_after_load = import_config->consolidate_tiledb_array_after_load();
 
-  // tiledb options
-  if (import_config->has_produce_tiledb_array()) m_produce_tiledb_array = import_config->produce_tiledb_array();
-  if (import_config->has_delete_and_create_tiledb_array()) m_delete_and_create_tiledb_array = import_config->delete_and_create_tiledb_array();
-  if (import_config->has_segment_size()) m_segment_size = import_config->segment_size();
-  if (import_config->has_num_cells_per_tile()) m_num_cells_per_tile = import_config->num_cells_per_tile();
-  if (import_config->has_consolidate_tiledb_array_after_load()) m_consolidate_tiledb_array_after_load = import_config->consolidate_tiledb_array_after_load();
+    // compression options
+    if (import_config->has_compress_tiledb_array()) m_compress_tiledb_array = import_config->compress_tiledb_array();
+    if (import_config->has_tiledb_compression_type()) m_tiledb_compression_type = import_config->tiledb_compression_type();
+    if (import_config->has_tiledb_compression_level()) m_tiledb_compression_level = import_config->tiledb_compression_level();
 
-  // tiledb compression options
-  if (import_config->has_compress_tiledb_array()) m_compress_tiledb_array = import_config->compress_tiledb_array();
-  if (import_config->has_tiledb_compression_type()) m_tiledb_compression_type = import_config->tiledb_compression_type();
-  if (import_config->has_tiledb_compression_level()) m_tiledb_compression_level = import_config->tiledb_compression_level();
-
-  // other tiledb options
-  if (import_config->has_enable_shared_posixfs_optimizations()) m_enable_shared_posixfs_optimizations = import_config->enable_shared_posixfs_optimizations();
-  if (import_config->has_disable_delta_encode_for_offsets()) m_disable_delta_encode_offsets = import_config->disable_delta_encode_for_offsets();
-  if (import_config->has_disable_delta_encode_for_coords()) m_disable_delta_encode_coords = import_config->disable_delta_encode_for_coords();
-  if (import_config->has_enable_bit_shuffle_gt()) m_enable_bit_shuffle_gt = import_config->enable_bit_shuffle_gt();
-  if (import_config->has_enable_lz4_compression_gt()) m_enable_lz4_compression_gt = import_config->enable_lz4_compression_gt();
+    // other tiledb options
+    if (import_config->has_enable_shared_posixfs_optimizations()) m_enable_shared_posixfs_optimizations = import_config->enable_shared_posixfs_optimizations();
+    if (import_config->has_disable_delta_encode_for_offsets()) m_disable_delta_encode_offsets = import_config->disable_delta_encode_for_offsets();
+    if (import_config->has_disable_delta_encode_for_coords()) m_disable_delta_encode_coords = import_config->disable_delta_encode_for_coords();
+    if (import_config->has_enable_bit_shuffle_gt()) m_enable_bit_shuffle_gt = import_config->enable_bit_shuffle_gt();
+    if (import_config->has_enable_lz4_compression_gt()) m_enable_lz4_compression_gt = import_config->enable_lz4_compression_gt();
+  }
 }
 
 void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration* export_config, const int rank) {
