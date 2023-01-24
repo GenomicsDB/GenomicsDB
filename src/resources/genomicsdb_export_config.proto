@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2020-2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -98,10 +99,10 @@ message ExportConfiguration {
   optional bool sites_only_query = 23;
   optional bool produce_GT_with_min_PL_value_for_spanning_deletions = 24;
   optional bool scan_full = 25;
-  optional uint32 segment_size = 26;
+  optional uint32 segment_size = 26 [default = 10485760];
   optional uint32 combined_vcf_records_buffer_size_limit = 27;
-  optional bool enable_shared_posixfs_optimizations = 28;
-  optional bool bypass_intersecting_intervals_phase = 29;
+  optional bool enable_shared_posixfs_optimizations = 28 [default = false];
+  optional bool bypass_intersecting_intervals_phase = 29 [default = false];
   optional SparkConfig spark_config = 30;
   repeated AnnotationSource annotation_source = 31;
   optional uint32 annotation_buffer_size = 32 [default = 10240];

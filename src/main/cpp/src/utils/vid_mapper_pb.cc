@@ -1,6 +1,7 @@
 /*
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -49,7 +50,12 @@ int VidMapper::parse_callset_protobuf(
     std::string callset_name = it->sample_name();
     int64_t row_idx = sample_info.row_idx();
     int64_t idx_in_file = sample_info.idx_in_file();
-    std::string stream_name = sample_info.has_stream_name() ? sample_info.stream_name() : "";
+    std::string filename;
+    if (sample_info.has_filename()) {
+      filename = sample_info.filename();
+    } else {
+      filename = sample_info.has_stream_name() ? sample_info.stream_name() : "";
+    }
 
     if (m_callset_name_to_row_idx.find(callset_name) !=
         m_callset_name_to_row_idx.end()) {
@@ -66,8 +72,7 @@ int VidMapper::parse_callset_protobuf(
     }
 
     m_max_callset_row_idx = std::max(m_max_callset_row_idx, row_idx);
-
-    auto file_idx = get_or_append_global_file_idx(stream_name);
+    auto file_idx = get_or_append_global_file_idx(filename);
     if (static_cast<size_t>(row_idx) >= m_row_idx_to_info.size())
       m_row_idx_to_info.resize(static_cast<size_t>(row_idx)+1u);
     const auto& curr_row_info = m_row_idx_to_info[row_idx];
@@ -81,10 +86,10 @@ int VidMapper::parse_callset_protobuf(
         throw ProtoBufBasedVidMapperException(
           std::string("Callset/sample ")
           + callset_name
-          + " has multiple stream names: "
+          + " has multiple file/stream names: "
           + m_file_idx_to_info[curr_row_info.m_file_idx].m_name
           + ", "
-          + stream_name);
+          + filename);
       if (curr_row_info.m_idx_in_file != idx_in_file)
         throw ProtoBufBasedVidMapperException(
           std::string("Conflicting values of \"idx_in_file\" ")
@@ -103,7 +108,7 @@ int VidMapper::parse_callset_protobuf(
 	    row_idx,
 	    other_row_idx);
 	if (!added_successfully)
-	  throw ProtoBufBasedVidMapperException(std::string("Attempting to import a sample from file/stream ")+stream_name
+	  throw ProtoBufBasedVidMapperException(std::string("Attempting to import a sample from file/stream ")+filename
 	      +" multiple times under aliases '"+m_row_idx_to_info[other_row_idx].m_name
 	      +"' and '"+callset_name+"' with row indexes "+std::to_string(other_row_idx)
 	      +" and "+std::to_string(row_idx)+" respectively");

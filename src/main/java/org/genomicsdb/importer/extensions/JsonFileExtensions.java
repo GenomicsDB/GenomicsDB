@@ -1,8 +1,30 @@
+/*
+ * The MIT License (MIT)
+ * Copyright (c) 2018-2023 Omics Data Automation, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
 package org.genomicsdb.importer.extensions;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
-import com.googlecode.protobuf.format.JsonFormat;
+import com.google.protobuf.util.JsonFormat;
 import htsjdk.variant.variantcontext.writer.VariantContextWriter;
 import htsjdk.variant.variantcontext.writer.VariantContextWriterBuilder;
 import htsjdk.variant.vcf.VCFHeader;
@@ -32,18 +54,18 @@ public interface JsonFileExtensions {
      */
     default File dumpTemporaryLoaderJSONFile(final GenomicsDBImportConfiguration.ImportConfiguration importConfiguration,
                                              final String filename) throws IOException {
-      String loaderJSONString = new JsonFormat().printToString(importConfiguration);
+      String loaderJSONString = JsonFormat.printer().preservingProtoFieldNames().print(importConfiguration);
 
-        File tempLoaderJSONFile = (filename.isEmpty()) ?
-                File.createTempFile("loader_", ".json") :
-                new File(filename);
+      File tempLoaderJSONFile = (filename.isEmpty()) ?
+              File.createTempFile("loader_", ".json") :
+              new File(filename);
 
-        if (filename.isEmpty()) tempLoaderJSONFile.deleteOnExit();
+      if (filename.isEmpty()) tempLoaderJSONFile.deleteOnExit();
 
-        PrintWriter out = new PrintWriter(tempLoaderJSONFile);
-        out.println(loaderJSONString);
-        out.close();
-        return tempLoaderJSONFile;
+      PrintWriter out = new PrintWriter(tempLoaderJSONFile);
+      out.println(loaderJSONString);
+      out.close();
+      return tempLoaderJSONFile;
     }
 
     /**
@@ -58,7 +80,12 @@ public interface JsonFileExtensions {
     default void writeCallsetMapJSONFile(final String outputCallsetMapJSONFilePath,
                                          final GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB)
             throws GenomicsDBException {
-      String callsetMapJSONString = new JsonFormat().printToString(callsetMappingPB);
+      String callsetMapJSONString = null;
+      try {
+        callsetMapJSONString = JsonFormat.printer().preservingProtoFieldNames().print(callsetMappingPB);
+      } catch (InvalidProtocolBufferException e) {
+        throw new GenomicsDBException(String.format("Exception while printing callsetMapping protobuf message: %s", e.getLocalizedMessage()));
+      }
       if (GenomicsDBUtils.writeToFile(outputCallsetMapJSONFilePath, callsetMapJSONString) != 0) {
         throw new GenomicsDBException(String.format("Could not write callset map json file : %s", outputCallsetMapJSONFilePath));
       }
@@ -76,7 +103,12 @@ public interface JsonFileExtensions {
     default void writeVidMapJSONFile(final String outputVidMapJSONFilePath,
                                      final GenomicsDBVidMapProto.VidMappingPB vidMappingPB)
             throws GenomicsDBException {
-      String vidMapJSONString = new JsonFormat().printToString(vidMappingPB);
+      String vidMapJSONString;
+      try {
+        vidMapJSONString = JsonFormat.printer().preservingProtoFieldNames().print(vidMappingPB);
+      } catch (InvalidProtocolBufferException e) {
+        throw new GenomicsDBException(String.format("Could not get string form for vidMappingPB: %s", e.getLocalizedMessage()));
+      }
       if (GenomicsDBUtils.writeToFile(outputVidMapJSONFilePath, vidMapJSONString) != 0) {
         throw new GenomicsDBException(String.format("Could not write vid map json file : %s", outputVidMapJSONFilePath));
       }
@@ -114,15 +146,14 @@ public interface JsonFileExtensions {
      * @param vidFile file with existing vid info
      * @return a vid map containing all field names, lengths and types
      * from the merged GVCF header. for incremental import case
-     * @throws JsonFormat.ParseException when there is an error parsing existing vid json
      */
     default GenomicsDBVidMapProto.VidMappingPB generateVidMapFromFile(final String vidFile)
-           throws JsonFormat.ParseException, GenomicsDBException {
+           throws GenomicsDBException {
       String existingVidJson = GenomicsDBUtils.readEntireFile(vidFile);
       GenomicsDBVidMapProto.VidMappingPB.Builder vidMapBuilder =
               GenomicsDBVidMapProto.VidMappingPB.newBuilder();
       try {
-        new JsonFormat().merge(new ByteArrayInputStream(existingVidJson.getBytes()), vidMapBuilder);
+        JsonFormat.parser().merge(existingVidJson, vidMapBuilder);
       } catch (IOException e) {
         throw new GenomicsDBException(String.format("Could not generate vidmap from file : %s", e.getMessage()));
       }
@@ -157,10 +188,10 @@ public interface JsonFileExtensions {
      * @return String base64 encoded protobuf string
      */
     static String getProtobufAsBase64StringFromFile(Message.Builder builder,
-            String file) throws JsonFormat.ParseException, GenomicsDBException{
+            String file) throws GenomicsDBException{
         String jsonString = GenomicsDBUtils.readEntireFile(file);
         try {
-          new JsonFormat().merge(new ByteArrayInputStream(jsonString.getBytes()), builder);
+          JsonFormat.parser().ignoringUnknownFields().merge(jsonString, builder);
         } catch (IOException e) {
           throw new GenomicsDBException(String.format("Serialize protobuf json file into base64 encoded encoded string: %s", e.getMessage()));
         }
@@ -173,7 +204,7 @@ public interface JsonFileExtensions {
      * @param builder protobuf message builder
      * @param pbString base64 encoded protobug string
      * @return protobuf message
-     * @throws InvalidProtocolBufferException
+     * @throws InvalidProtocolBufferException when protobuf cannot parse the string
      */
     static Message getProtobufFromBase64EncodedString(Message.Builder builder, String pbString) 
             throws InvalidProtocolBufferException {

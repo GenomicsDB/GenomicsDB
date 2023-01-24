@@ -5,7 +5,7 @@
  *
  * The MIT License (MIT)
  *
- * Copyright (c) 2022 Omics Data Automation, Inc.
+ * Copyright (c) 2022-2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -40,12 +40,7 @@
 #endif
 
 #include <string>
-
-/**@{*/
-/** Return code. */
-#define GENOMICSDB_OK 0
-#define GENOMICSDB_ERR -1
-/**@}*/
+#include "genomicsdb_status.h"
 
 namespace genomicsdb {
 

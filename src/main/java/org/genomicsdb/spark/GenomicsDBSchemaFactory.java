@@ -1,6 +1,6 @@
 /*
  * The MIT License (MIT)
- * Copyright (c) 2020 Omics Data Automation
+ * Copyright (c) 2020, 2023 Omics Data Automation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -91,7 +91,7 @@ public class GenomicsDBSchemaFactory implements JsonFileExtensions {
       if (config.hasProtoLoader()) {
         GenomicsDBImportConfiguration.ImportConfiguration.Builder importConfigurationBuilder = 
                GenomicsDBImportConfiguration.ImportConfiguration.newBuilder();
-        GenomicsDBImportConfiguration.ImportConfiguration importPB = 
+        GenomicsDBImportConfiguration.ImportConfiguration importPB =
             (GenomicsDBImportConfiguration.ImportConfiguration)JsonFileExtensions.getProtobufFromBase64EncodedString(
                 importConfigurationBuilder, 
                 config.getLoaderPB());
@@ -106,7 +106,7 @@ public class GenomicsDBSchemaFactory implements JsonFileExtensions {
       else {
         this.vidMap = buildVidSchemaMap(config.getLoaderJsonFile());
       }
-    } catch(com.googlecode.protobuf.format.JsonFormat.ParseException | InvalidProtocolBufferException e ) {
+    } catch(InvalidProtocolBufferException e ) {
       throw new GenomicsDBException("Error parsing protobuf:", e);
     }
   }

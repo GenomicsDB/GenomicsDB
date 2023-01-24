@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # The MIT License (MIT)
-# Copyright (c) 2021-2022 Omics Data Automation Inc.
+# Copyright (c) 2021-2023 Omics Data Automation Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -40,9 +40,6 @@ VCFS_DIR=$(cd $1 && pwd)
 TEMP_DIR=$(mktemp -d -t test_tools-XXXXXXXXXX)
 
 WORKSPACE=$TEMP_DIR/ws
-LOADER_JSON=$TEMP_DIR/ws/loader.json
-CALLSET_MAPPING_JSON=$TEMP_DIR/ws/callset_mapping.json
-TEMPLATE_HEADER=$TESTS_DIR/ws/vcf_header.vcf
 
 REFERENCE_GENOME=$VCFS_DIR/../chr1_10MB.fasta.gz
 
@@ -97,6 +94,7 @@ create_template_loader_json() {
 {
     "treat_deletions_as_intervals": true,
     "compress_tiledb_array": true,
+    "produce_combined_vcf": false,
     "produce_tiledb_array": true,
     "size_per_column_partition": 700,
     "delete_and_create_tiledb_array": true,
@@ -320,7 +318,7 @@ run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -o -S $SAMPLE_D
 # Template loader json
 create_template_loader_json
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "#18"
-assert_true $(grep '"segment_size": 400' $WORKSPACE/loader.json | wc -l) 1 "Test #16 segment_size from template loader json was not applied"
+assert_true $(grep '"segment_size": 400' $WORKSPACE/loader.json | wc -l) 1 "Test #18 segment_size from template loader json was not applied"
 
 # Fail if same field in INFO and FORMAT have different types
 create_sample_list inconsistent_DP_t0.vcf.gz
@@ -342,6 +340,24 @@ run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR 
 # No compression level specified
 create_template_loader_json $TILEDB_COMPRESSION_ZLIB
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE" 2 85 24 85 "$23"
+
+# Fail if generate_array_name_from_partition_bounds(not supported yet!) is set
+create_template_loader_json
+run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o -t $TEMPLATE"
+sed -i -e 's/"array_name": .*,/"generate_array_name_from_partition_bounds": true,/g' $WORKSPACE/loader.json
+run_command "vcf2genomicsdb $WORKSPACE/loader.json" ERR
+
+# Try running with produce_combined_vcf
+create_template_loader_json
+run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o -t $TEMPLATE"
+sed -i -e 's/"produce_combined_vcf": false/"produce_combined_vcf": true/g' $WORKSPACE/loader.json
+run_command "vcf2genomicsdb $WORKSPACE/loader.json" 134
+sed -i -e 's|"produce_tiledb_array": true|"reference_genome": "'${REFERENCE_GENOME}'"|g' $WORKSPACE/loader.json
+run_command "vcf2genomicsdb $WORKSPACE/loader.json" OK
+sed -i -e 's|"row_based_partitioning": false|"vcf_header_filename": "'${WORKSPACE}'/vcfheader.vcf"|g' $WORKSPACE/loader.json
+run_command "vcf2genomicsdb $WORKSPACE/loader.json" OK
+sed -i -e 's|"workspace": "'${WORKSPACE}'"|"workspace": "'${WORKSPACE}'", "vcf_header_filename": "'${WORKSPACE}'/vcfheader.vcf", "vcf_output_filename": "'${WORKSPACE}'/out"|g' $WORKSPACE/loader.json
+run_command "vcf2genomicsdb $WORKSPACE/loader.json" OK
 
 # Test --progress switch with an interval
 run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE"

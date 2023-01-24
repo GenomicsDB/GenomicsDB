@@ -164,9 +164,9 @@ void GenomicsDBConfigBase::set_query_column_ranges(const std::vector<ColumnRange
 GenomicsDBImportConfig::GenomicsDBImportConfig()
   : GenomicsDBConfigBase() {
   m_standalone_converter_process = false;
-  m_treat_deletions_as_intervals = false;
+  m_treat_deletions_as_intervals = true;
   m_produce_combined_vcf = false;
-  m_produce_tiledb_array = false;
+  m_produce_tiledb_array = true;
   m_compress_tiledb_array = true;
   m_disable_synced_writes = false;
   m_delete_and_create_tiledb_array = false;

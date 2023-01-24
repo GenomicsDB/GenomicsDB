@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2021-2022 Omics Data Automation, Inc.
+ * Copyright (c) 2021-2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -181,7 +181,7 @@ int main(int argc, char** argv) {
       GenomicsDBImportConfig loader_config;
       loader_config.read_from_file(loader_json_config_file, my_world_mpi_rank);
       if (loader_config.is_partitioned_by_row()) {
-        std::cerr << "Splitting is available for column partitioning, row partitioning should be trivial if samples are scattered across files. See wiki page https://github.com/Intel-HLS/GenomicsDB/wiki/Dealing-with-multiple-GenomicsDB-partitions for more information\n";
+        std::cerr << "Splitting is available for column partitioning, row partitioning should be trivial if samples are scattered across files. See wiki page https://github.com/GenomicsDB/GenomicsDB/wiki/Dealing-with-multiple-GenomicsDB-partitions for more information\n";
         return 0;
       }
       VidMapper id_mapper = loader_config.get_vid_mapper(); //copy

@@ -1,6 +1,7 @@
 /*
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2018-2021, 2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -22,7 +23,6 @@
 
 package org.genomicsdb.importer;
 
-import com.googlecode.protobuf.format.JsonFormat;
 import htsjdk.tribble.CloseableTribbleIterator;
 import htsjdk.tribble.FeatureReader;
 import htsjdk.variant.bcf2.BCF2Codec;
@@ -98,7 +98,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     }
 
     @Test(expectedExceptions = GenomicsDBException.class)
-    public void testWriteVidMapJSONToNonexistentFolders() throws FileNotFoundException, JsonFormat.ParseException, InterruptedException {
+    public void testWriteVidMapJSONToNonexistentFolders() throws FileNotFoundException, InterruptedException {
         GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A  =
                 GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder().build();
         Set<VCFHeaderLine> mergedHeader = new LinkedHashSet();
@@ -113,7 +113,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     }
 
     @Test(expectedExceptions = GenomicsDBException.class)
-    public void testWriteCallsetJSONToNonexistentFolders() throws FileNotFoundException, JsonFormat.ParseException, InterruptedException {
+    public void testWriteCallsetJSONToNonexistentFolders() throws FileNotFoundException, InterruptedException {
         GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A  =
                 GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder().build();
         Set<VCFHeaderLine> mergedHeader = new LinkedHashSet();
@@ -127,7 +127,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     }
 
     @Test(expectedExceptions = GenomicsDBException.class)
-    public void testVCFHeaderToNonexistentFolders() throws FileNotFoundException, JsonFormat.ParseException, InterruptedException {
+    public void testVCFHeaderToNonexistentFolders() throws FileNotFoundException, InterruptedException {
         GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A  =
                 GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder().build();
         Set<VCFHeaderLine> mergedHeader = new LinkedHashSet();
@@ -180,7 +180,13 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
             for (Object cObject : callsetArray) {
                 JSONObject sampleObject = (JSONObject) cObject;
                 String sampleName_B = (String) sampleObject.get("sample_name");
-                Long tiledbRowIndex_B = (Long) sampleObject.get("row_idx");
+                Long tiledbRowIndex_B;
+                try {
+                    tiledbRowIndex_B = (Long) sampleObject.get("row_idx");
+                } catch (java.lang.ClassCastException e) {
+                    // Parse 64-bit integers stored as strings in protobuf-generated JSONs
+                    tiledbRowIndex_B = Long.parseLong((String)sampleObject.get("row_idx"));
+                }
                 String stream_name_B = (String) sampleObject.get("stream_name");
 
                 String sampleName_A = callsetMappingPB_A.getCallsets(index).getSampleName();
@@ -625,8 +631,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     }
 
     private GenomicsDBImporter getGenomicsDBImporterForMultipleImport(String incrementalImport,
-            String inputVCF, boolean noVid) throws FileNotFoundException,
-            com.googlecode.protobuf.format.JsonFormat.ParseException {
+            String inputVCF, boolean noVid) throws FileNotFoundException {
         String vidArgument = "--vidmap-output " + tempVidJsonFile.getAbsolutePath() + " ";
         if (noVid) {
             vidArgument = "";
