@@ -13,7 +13,7 @@
 # import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
-
+import sphinx_rtd_theme
 
 # -- Project information -----------------------------------------------------
 
@@ -31,6 +31,7 @@ extensions = [
     'breathe',
     'nbsphinx',
     'myst_parser',
+    'sphinx_rtd_theme',
     # extensions below are for GenomicsDB-Python
     'sphinx.ext.autodoc',
     'sphinx.ext.viewcode',
@@ -57,7 +58,6 @@ master_doc = 'index'
 # a list of builtin themes.
 #
 html_theme = 'sphinx_rtd_theme'
-html_theme_path = ["_themes", ]
 
 # Theme options are theme-specific and customize the look and feel of a
 # theme further.  For a list of options available for each theme, see the

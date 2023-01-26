@@ -25,6 +25,7 @@ All the APIs support taking configuration options as protobuf. Here's the protob
 
 C++
 *******************************
+
 * Native interface - See `cpp source code`_
 * Querying CLI tools available - see :ref:`vcf2genomicsdb <CLI Tools vcf2genomicsdb>`
 
@@ -40,6 +41,7 @@ API Reference
 
 Python
 *******************************
+
 * Python bindings for GenomicsDB. Requires Python version *>= 3.6*
 * Built using Cython.
 * Currently only supports querying (no importing).
@@ -66,13 +68,9 @@ API Reference
 
 Java
 *******************************
+
 * Data can be returned in either a htsjdk `VariantContext`_ object or <other>.
 * The GenomicsDB java bindings are published to `Maven Central`_ every release.
-
-.. _VariantContext: https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html
-.. _Maven Central: https://mvnrepository.com/artifact/org.genomicsdb/genomicsdb
-
-
 * Add GenomicsDB to your maven project with the following snippet (update the version, if necessary):
 
 .. code-block:: java
@@ -83,6 +81,9 @@ Java
       <artifactId>genomicsdb</artifactId>
       <version>1.4.5</version>
    </dependency>
+
+.. _VariantContext: https://samtools.github.io/htsjdk/javadoc/htsjdk/htsjdk/variant/variantcontext/VariantContext.html
+.. _Maven Central: https://mvnrepository.com/artifact/org.genomicsdb/genomicsdb
 
 
 API Reference
