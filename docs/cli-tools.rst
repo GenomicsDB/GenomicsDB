@@ -71,7 +71,8 @@ gt_mpi_gather
   * query_column_ranges : This field contains is a list of lists. Each member list contains the column ranges that are to be queried. Each element of the inner list can be a single integer, representing the single column position to be queried, or a list of size 2 representing the column range to be queried.
 
     In the above example, the process will query column range \[0-100\] (inclusive) and the position 500 and return all *VariantCalls* intersecting with these query ranges/positions.
-    This field is a list of lists (and other fields are lists of strings), in order to support using GenomicsDB with MPI. Each member of the othermost list can be processed by a separate MPI rank.
+    This field is a list of lists (and other fields are lists of strings), in order to support using GenomicsDB with MPI. Each member of the outermost list can be processed by a separate MPI rank.
+    If MPI is not being used, only the first element of the outermost list will be processed.
   * query_attributes : List of strings specifying attributes to be fetched
   
   Optional field(s):
