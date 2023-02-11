@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -448,7 +449,6 @@ VCF2TileDBLoader::VCF2TileDBLoader(
       idx) {
   std::vector<BufferStreamInfo> empty_vec;
   common_constructor_initialization(
-    config_filename,
     empty_vec,
     "",
     idx);
@@ -463,14 +463,12 @@ VCF2TileDBLoader::VCF2TileDBLoader(
       config_filename,
       idx) {
   common_constructor_initialization(
-    config_filename,
     buffer_stream_info_vec,
     buffer_stream_callset_mapping_json_string,
     idx);
 }
 
 void VCF2TileDBLoader::common_constructor_initialization(
-  const std::string& config_filename,
   const std::vector<BufferStreamInfo>& buffer_stream_info_vec,
   const std::string& buffer_stream_callset_mapping_json_string,
   const int idx) {

@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -366,7 +367,6 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
                                        const bool enable_shared_posixfs_optimzations=false);
  private:
   void common_constructor_initialization(
-    const std::string& config_filename,
     const std::vector<BufferStreamInfo>& buffer_stream_info_vec,
     const std::string& buffer_stream_callset_mapping_json_string,
     const int idx);
