@@ -21,8 +21,10 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include "vcf2binary.h"
+#include "genomicsdb_status.h"
 #include "tiledb_loader.h"
+#include "vcf2binary.h"
+
 #include <mpi.h>
 #include <getopt.h>
 
@@ -83,6 +85,8 @@ int main(int argc, char** argv) {
   //Get my world rank
   int my_world_mpi_rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &my_world_mpi_rank);
+
+  rc = GENOMICSDB_OK;
   // Define long options
   static struct option long_options[] = {
     {"tmp-directory",1,0,'T'},
@@ -174,6 +178,7 @@ int main(int argc, char** argv) {
 #ifdef USE_GPERFTOOLS_HEAP
     HeapProfilerStart("vcf2genomicsdb.gperf.heap");
 #endif
+
     //Split files as per the partitions defined - don't load data
     if (split_files) {
       std::cout << "Split files" << std::endl;
@@ -181,8 +186,8 @@ int main(int argc, char** argv) {
       GenomicsDBImportConfig loader_config;
       loader_config.read_from_file(loader_json_config_file, my_world_mpi_rank);
       if (loader_config.is_partitioned_by_row()) {
-        std::cerr << "Splitting is available for column partitioning, row partitioning should be trivial if samples are scattered across files. See wiki page https://github.com/GenomicsDB/GenomicsDB/wiki/Dealing-with-multiple-GenomicsDB-partitions for more information\n";
-        return 0;
+        std::cerr << "Splitting` is available for column partitioning, row partitioning should be trivial if samples are scattered across files. See wiki page https://github.com/GenomicsDB/GenomicsDB/wiki/Dealing-with-multiple-GenomicsDB-partitions for more information\n";
+        return GENOMICSDB_ERR;
       }
       VidMapper id_mapper = loader_config.get_vid_mapper(); //copy
       //Might specify more VCF files from the command line
@@ -208,8 +213,16 @@ int main(int argc, char** argv) {
             results_directory, (produce_all_partitions ? column_partitions.size() : 1u), my_world_mpi_rank);
     } else {
       //Loader object
-      VCF2TileDBLoader loader(loader_json_config_file, my_world_mpi_rank);
-      loader.read_all();
+      try {
+        VCF2TileDBLoader loader(loader_json_config_file, my_world_mpi_rank);
+        loader.read_all();
+      } catch (const SizePerColumnPartitionTooSmallException& genomicsdb_ex) {
+        logger.error("{} current size_per_column_partition={}", genomicsdb_ex.what(), genomicsdb_ex.size());
+        rc = GENOMICSDB_ERR;
+      } catch (const std::exception& ex) {
+        logger.error("Error encountered : {}", ex.what());
+        rc = GENOMICSDB_ERR;
+      }
     }
 #ifdef USE_GPERFTOOLS_HEAP
     HeapProfilerStop();
@@ -220,5 +233,5 @@ int main(int argc, char** argv) {
   }
   //finalize
   MPI_Finalize();
-  return 0;
+  return rc;
 }

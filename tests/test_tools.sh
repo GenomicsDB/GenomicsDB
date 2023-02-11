@@ -359,7 +359,12 @@ run_command "vcf2genomicsdb $WORKSPACE/loader.json" OK
 sed -i -e 's|"workspace": "'${WORKSPACE}'"|"workspace": "'${WORKSPACE}'", "vcf_header_filename": "'${WORKSPACE}'/vcfheader.vcf", "vcf_output_filename": "'${WORKSPACE}'/out"|g' $WORKSPACE/loader.json
 run_command "vcf2genomicsdb $WORKSPACE/loader.json" OK
 
+# Test with too small size_per_column_partition
+sed -i -e 's/"size_per_column_partition": 700/"size_per_column_partition": 70/g' $WORKSPACE/loader.json
+run_command "vcf2genomicsdb $WORKSPACE/loader.json" ERR
+
 # Test --progress switch with an interval
+create_template_loader_json
 run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE"
 run_command "vcf2genomicsdb --progress=2 $WORKSPACE/loader.json"
 run_command "vcf2genomicsdb_init -w $WORKSPACE -S $SAMPLE_DIR -o -t $TEMPLATE"
