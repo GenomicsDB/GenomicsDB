@@ -274,6 +274,9 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
   VCF2TileDBLoader(
     const std::string& config_filename,
     const int idx);
+  VCF2TileDBLoader (
+    const GenomicsDBImportConfig& config,
+    int idx);
   VCF2TileDBLoader(
     const std::string& config_filename,
     const std::vector<BufferStreamInfo>& buffer_stream_info_vec,

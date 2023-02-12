@@ -376,8 +376,9 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
       }
     }
   }
-  if(export_config->has_reference_genome())
+  if(export_config->has_reference_genome()) {
     m_reference_genome = export_config->reference_genome();
+  }
   //Limit on max #alt alleles so that PL fields get re-computed
   m_max_diploid_alt_alleles_that_can_be_genotyped = export_config->has_max_diploid_alt_alleles_that_can_be_genotyped()
     ? export_config->max_diploid_alt_alleles_that_can_be_genotyped() : MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED;

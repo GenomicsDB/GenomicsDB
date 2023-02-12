@@ -361,6 +361,8 @@ run_command "vcf2genomicsdb $WORKSPACE/loader.json" OK
 
 # Test with too small size_per_column_partition
 sed -i -e 's/"size_per_column_partition": 700/"size_per_column_partition": 70/g' $WORKSPACE/loader.json
+run_command "vcf2genomicsdb $WORKSPACE/loader.json" OK
+sed -i -e 's/"size_per_column_partition": 70/"size_per_column_partition": 0/g' $WORKSPACE/loader.json
 run_command "vcf2genomicsdb $WORKSPACE/loader.json" ERR
 
 # Test --progress switch with an interval

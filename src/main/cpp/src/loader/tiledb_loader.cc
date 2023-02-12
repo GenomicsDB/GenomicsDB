@@ -454,6 +454,19 @@ VCF2TileDBLoader::VCF2TileDBLoader(
     idx);
 }
 
+VCF2TileDBLoader::VCF2TileDBLoader (
+    const GenomicsDBImportConfig& config,
+    int idx)
+  : VCF2TileDBLoaderConverterBase(
+      config,
+      idx) {
+  std::vector<BufferStreamInfo> empty_vec;
+  common_constructor_initialization(
+    empty_vec,
+    "",
+    idx);
+}
+
 VCF2TileDBLoader::VCF2TileDBLoader(
   const std::string& config_filename,
   const std::vector<BufferStreamInfo>& buffer_stream_info_vec,

@@ -179,12 +179,13 @@ int main(int argc, char** argv) {
     HeapProfilerStart("vcf2genomicsdb.gperf.heap");
 #endif
 
+    GenomicsDBImportConfig loader_config;
+    loader_config.read_from_file(loader_json_config_file, my_world_mpi_rank);
+
     //Split files as per the partitions defined - don't load data
     if (split_files) {
       std::cout << "Split files" << std::endl;
 
-      GenomicsDBImportConfig loader_config;
-      loader_config.read_from_file(loader_json_config_file, my_world_mpi_rank);
       if (loader_config.is_partitioned_by_row()) {
         std::cerr << "Splitting` is available for column partitioning, row partitioning should be trivial if samples are scattered across files. See wiki page https://github.com/GenomicsDB/GenomicsDB/wiki/Dealing-with-multiple-GenomicsDB-partitions for more information\n";
         return GENOMICSDB_ERR;
@@ -213,15 +214,32 @@ int main(int argc, char** argv) {
             results_directory, (produce_all_partitions ? column_partitions.size() : 1u), my_world_mpi_rank);
     } else {
       //Loader object
-      try {
-        VCF2TileDBLoader loader(loader_json_config_file, my_world_mpi_rank);
-        loader.read_all();
-      } catch (const SizePerColumnPartitionTooSmallException& genomicsdb_ex) {
-        logger.error("{} current size_per_column_partition={}", genomicsdb_ex.what(), genomicsdb_ex.size());
-        rc = GENOMICSDB_ERR;
-      } catch (const std::exception& ex) {
-        logger.error("Error encountered : {}", ex.what());
-        rc = GENOMICSDB_ERR;
+      rc = GENOMICSDB_ERR;
+      int max_iterations = 10;
+      int iterations = max_iterations;
+      while (rc && iterations) {
+        try {
+          VCF2TileDBLoader loader(loader_config, my_world_mpi_rank);
+          loader.read_all();
+          rc = GENOMICSDB_OK;
+          if (iterations < max_iterations) {
+            g_logger.info("Successful import!");
+          }
+        } catch (const SizePerColumnPartitionTooSmallException& genomicsdb_ex) {
+          g_logger.info_once("Loader config filename={}", loader_json_config_file);
+          int64_t current_size_per_column_partition = loader_config.get_size_per_column_partition();
+          int64_t new_size_per_column_partition = iterations*current_size_per_column_partition;
+          assert(current_size_per_column_partition == genomicsdb_ex.size());
+          g_logger.info("Increasing size_per_colummn_partition from {} to {}", current_size_per_column_partition, new_size_per_column_partition);
+          loader_config.set_size_per_column_partition(new_size_per_column_partition);
+          if (--iterations == 1) {
+            g_logger.error("Could not import successfully even after {} tries of increasing size_per_column_partition", max_iterations);
+            break;
+          }
+        } catch (const std::exception& ex) {
+          g_logger.error("Error encountered : {}", ex.what());
+          break;
+        }
       }
     }
 #ifdef USE_GPERFTOOLS_HEAP
