@@ -48,7 +48,6 @@ class VCF2TileDBException : public std::exception {
 class ThreadException {
 public:
   ThreadException() {}
-#ifndef DISABLE_OPENMP
   void rethrow() {
     if (m_exception_ptr) std::rethrow_exception(m_exception_ptr);
   }
@@ -59,15 +58,8 @@ public:
   std::exception_ptr& get() {
     return m_exception_ptr;
   }
+ private:
   std::exception_ptr m_exception_ptr = nullptr;
-#else
-  // Just stubs for the non OPENMP flow
-  void rethrow() {}
-  void capture() {}
-  std::exception_ptr& get() {
-    return nullptr;
-  }
-#endif
 };
 
 //Used to exchange info between loader and converter

@@ -319,7 +319,7 @@ void VCF2TileDBConverter::read_next_batch(const unsigned exchange_idx) {
   assert(exchange_idx < m_exchanges.size());
   auto& curr_exchange = *(m_exchanges[exchange_idx]);
   for (auto partition_idx=0u; partition_idx<m_partition_batch.size(); ++partition_idx) {
-    if (!m_thread_exception.m_exception_ptr && curr_exchange.is_partition_requested_by_loader(partition_idx)) {
+    if (!m_thread_exception.get() && curr_exchange.is_partition_requested_by_loader(partition_idx)) {
       activate_next_batch(exchange_idx, partition_idx);
       //Find callsets which still have new data in this partition
       int64_t idx_offset = curr_exchange.get_idx_offset_for_partition(partition_idx);
