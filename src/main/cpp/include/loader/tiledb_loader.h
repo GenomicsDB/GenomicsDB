@@ -45,6 +45,31 @@ class VCF2TileDBException : public std::exception {
   std::string msg_;
 };
 
+class ThreadException {
+public:
+  ThreadException() {}
+#ifndef DISABLE_OPENMP
+  void rethrow() {
+    if (m_exception_ptr) std::rethrow_exception(m_exception_ptr);
+  }
+  void capture() {
+    #pragma omp critical
+    m_exception_ptr = std::current_exception();
+  }
+  std::exception_ptr& get() {
+    return m_exception_ptr;
+  }
+  std::exception_ptr m_exception_ptr = nullptr;
+#else
+  // Just stubs for the non OPENMP flow
+  void rethrow() {}
+  void capture() {}
+  std::exception_ptr& get() {
+    return nullptr;
+  }
+#endif
+};
+
 //Used to exchange info between loader and converter
 //The actual buffer sizes depend on whether the object is being initialized by the loader or converter
 //Using flat buffers helps MPI message passing
@@ -210,6 +235,8 @@ class VCF2TileDBConverter : public VCF2TileDBLoaderConverterBase {
   //Data structure for exchanging info between loader and converter
   //If standalone, points to owned exchanges, else must point to those owned by VCF2TileDBLoader
   std::vector<LoaderConverterMessageExchange*> m_exchanges;
+  // Use with OpenMP/multiple threads for exception propagation
+  ThreadException m_thread_exception;
 };
 
 class CellPQElement {
@@ -392,6 +419,8 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
   //For checking whether cells are traversed in correct order
   int64_t m_previous_cell_row_idx;
   int64_t m_previous_cell_column;
+  // Use with OpenMP/multiple threads for exception propagation
+  ThreadException m_thread_exception;
 };
 
 #endif

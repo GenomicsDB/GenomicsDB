@@ -319,7 +319,7 @@ void VCF2TileDBConverter::read_next_batch(const unsigned exchange_idx) {
   assert(exchange_idx < m_exchanges.size());
   auto& curr_exchange = *(m_exchanges[exchange_idx]);
   for (auto partition_idx=0u; partition_idx<m_partition_batch.size(); ++partition_idx) {
-    if (curr_exchange.is_partition_requested_by_loader(partition_idx)) {
+    if (!m_thread_exception.m_exception_ptr && curr_exchange.is_partition_requested_by_loader(partition_idx)) {
       activate_next_batch(exchange_idx, partition_idx);
       //Find callsets which still have new data in this partition
       int64_t idx_offset = curr_exchange.get_idx_offset_for_partition(partition_idx);
@@ -336,6 +336,7 @@ void VCF2TileDBConverter::read_next_batch(const unsigned exchange_idx) {
   //Set upper bound on #files to process in parallel
   #pragma omp parallel for default(shared) num_threads(m_num_parallel_vcf_files)
   for (auto i=0u; i<m_file2binary_handlers.size(); ++i) {
+    if (m_thread_exception.get()) continue;
     static size_t tm = 0;
     auto progress_bar = [&] () {
       size_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -352,10 +353,16 @@ void VCF2TileDBConverter::read_next_batch(const unsigned exchange_idx) {
     //#pragma omp critical
     //std::cerr << "Thread id "<<omp_get_thread_num()<<" level "<<omp_get_active_level()<<"\n";
     //Also advances circular buffer idx
-    m_file2binary_handlers[i]->read_next_batch(m_cell_data_buffers, m_partition_batch,
-        m_exhausted_buffer_stream_identifiers, num_exhausted_buffer_streams,
-        false);
+    try {
+      m_file2binary_handlers[i]->read_next_batch(m_cell_data_buffers, m_partition_batch,
+                                                 m_exhausted_buffer_stream_identifiers,
+                                                 num_exhausted_buffer_streams,
+                                                 false);
+    } catch (std::exception& e) {
+      m_thread_exception.capture();
+    }
   }
+  m_thread_exception.rethrow();
   //No re-allocation as capacity doesn't change
   m_exhausted_buffer_stream_identifiers.resize(num_exhausted_buffer_streams);
   //For non-standalone converter processes, must simply advance read idx
@@ -600,7 +607,7 @@ void VCF2TileDBLoader::read_all(VCF2TileDBLoaderReadState& read_state) {
   #pragma omp parallel default(shared) num_threads(num_parallel_omp_sections)
   while (!exit_loop) {
     #pragma omp single
-    {
+    if (!m_thread_exception.get()) {
       single_thread_phase_timer.start();
       fetch_exchange_counter = (exchange_counter+1u)%num_exchanges;
       load_exchange_counter = exchange_counter;
@@ -614,17 +621,22 @@ void VCF2TileDBLoader::read_all(VCF2TileDBLoaderReadState& read_state) {
     #pragma omp sections
     {
       #pragma omp section
-      {
+      if (!m_thread_exception.get()) {
         //#pragma omp critical
         //std::cerr << "Fetch thread id "<<omp_get_thread_num()<<" level "<<omp_get_active_level()<<"\n";
         fetch_timer.start();
-        m_converter->read_next_batch(fetch_exchange_counter);
-        if (!m_do_ping_pong_buffering)
+        try {
+          m_converter->read_next_batch(fetch_exchange_counter);
+        } catch (const std::exception& exception) {
+          m_thread_exception.capture();
+          exit_loop = true;
+        }
+        if (!m_thread_exception.get() && !m_do_ping_pong_buffering)
           advance_write_idxs(fetch_exchange_counter);
         fetch_timer.stop();
       }
       #pragma omp section
-      {
+      if (!m_thread_exception.get()) {
         //#pragma omp critical
         //std::cerr << "Load thread id "<<omp_get_thread_num()<<" level "<<omp_get_active_level()<<"\n";
         load_timer.start();
@@ -637,7 +649,7 @@ void VCF2TileDBLoader::read_all(VCF2TileDBLoaderReadState& read_state) {
         load_timer.stop();
       }
       #pragma omp section
-      if (m_offload_vcf_output_processing) {
+      if (!m_thread_exception.get() && m_offload_vcf_output_processing) {
         flush_output_timer.start();
         for (auto op : m_operators)
           op->flush_output();
@@ -645,7 +657,7 @@ void VCF2TileDBLoader::read_all(VCF2TileDBLoaderReadState& read_state) {
       }
     }
     #pragma omp single
-    {
+    if (!m_thread_exception.get()) {
       sections_timer.stop();
       single_thread_phase_timer.start();
       if (m_do_ping_pong_buffering)
@@ -671,6 +683,7 @@ void VCF2TileDBLoader::read_all(VCF2TileDBLoaderReadState& read_state) {
       critical_path_timer->accumulate_critical_path_cpu_time(critical_path_timer->get_last_interval_cpu_time());
     }
   }
+  m_thread_exception.rethrow();
   read_state.m_done = done;
   read_state.m_exchange_counter = exchange_counter;
   read_state.m_time_in_read_all.stop();
