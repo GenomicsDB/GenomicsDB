@@ -187,8 +187,8 @@ int main(int argc, char** argv) {
       std::cout << "Split files" << std::endl;
 
       if (loader_config.is_partitioned_by_row()) {
-        std::cerr << "Splitting` is available for column partitioning, row partitioning should be trivial if samples are scattered across files. See wiki page https://github.com/GenomicsDB/GenomicsDB/wiki/Dealing-with-multiple-GenomicsDB-partitions for more information\n";
-        return ERR;
+        std::cerr << "Splitting is available for column partitioning, row partitioning should be trivial if samples are scattered across files. See wiki page https://github.com/GenomicsDB/GenomicsDB/wiki/Dealing-with-multiple-GenomicsDB-partitions for more information\n";
+        return 0;
       }
       VidMapper id_mapper = loader_config.get_vid_mapper(); //copy
       //Might specify more VCF files from the command line
