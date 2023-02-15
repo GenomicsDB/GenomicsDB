@@ -211,6 +211,8 @@ bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, in
 template
 bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset,
     const int64_t buffer_offset_limit, const double val, bool print_sep);
+//This is an explict instantiation after an explicit specialization for std::string and char *, clang
+//puts out a warning, commenting out for now
 //template
 //bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset,
 //    const int64_t buffer_offset_limit, const std::string& val, bool print_sep);
