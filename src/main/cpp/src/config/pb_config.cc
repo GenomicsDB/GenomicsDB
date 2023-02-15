@@ -118,7 +118,7 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
 
   // Store the begins for every partition for lookup later
   std::unordered_map<int64_t, unsigned> begin_to_idx;
-  auto partition_idx = 0u;
+  auto partition_idx = 0;
   for (auto partition: partitions) {
     if (partition.has_workspace()) {
       if (m_workspaces.size() == 0) {
@@ -165,7 +165,7 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
   }
 
   if ((m_single_workspace_path && m_workspaces.size() != 1) ||
-      (!m_single_workspace_path && m_workspaces.size() != partitions.size())) {
+      (!m_single_workspace_path && (int64_t)m_workspaces.size() != partitions.size())) {
     logger.fatal(GenomicsDBConfigException("List of workspaces should either be one for a single workspace or have workspaces specified for every partition"));
   }
 

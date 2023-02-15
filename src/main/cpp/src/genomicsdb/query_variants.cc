@@ -976,8 +976,10 @@ void VariantQueryProcessor::gt_fill_row(
   assert(query_config.get_first_normal_field_query_idx() >= 1u);
   assert(query_config.get_first_normal_field_query_idx() != UNDEFINED_ATTRIBUTE_IDX_VALUE);
   //Variables to store special fields
+#if VERBOSE>1
   //Num alternate alleles
   unsigned num_ALT_alleles = 0u;
+#endif
   //Iterate over attributes
   auto attr_iter = cell.begin();
   ++attr_iter;  //skip the END field
@@ -991,9 +993,12 @@ void VariantQueryProcessor::gt_fill_row(
   }
   //Initialize ALT field, if needed
   const auto* ALT_field_ptr = get_known_field_if_queried<VariantFieldALTData, true>(curr_call, query_config, GVCF_ALT_IDX);
+#if VERBOSE>1
   if (ALT_field_ptr && ALT_field_ptr->is_valid()) {
     num_ALT_alleles = ALT_field_ptr->get().size();   //ALT field data is vector<string>
   }
+  logger.info("[query_variants:gt_fill_row] row={} col={} num_ALT_alleles={}", row, column, num_ALT_alleles);
+#endif
   //Go over all normal query fields and fetch data
   for (auto i=query_config.get_first_normal_field_query_idx(); i<query_config.get_num_queried_attributes(); ++i, ++attr_iter) {
     assert(attr_iter != cell.end());

@@ -64,6 +64,7 @@ void File2TileDBBinaryColumnPartitionBase::initialize_base_class_members(const i
 
 #ifdef PRODUCE_BINARY_CELLS
 
+
 template<class FieldType>
 bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, const FieldType val, bool print_sep) {
   int64_t add_size = sizeof(FieldType);
@@ -210,12 +211,12 @@ bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, in
 template
 bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset,
     const int64_t buffer_offset_limit, const double val, bool print_sep);
-template
-bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset,
-    const int64_t buffer_offset_limit, const char* val, bool print_sep);
-template
-bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset,
-    const int64_t buffer_offset_limit, const std::string& val, bool print_sep);
+//template
+//bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset,
+//    const int64_t buffer_offset_limit, const std::string& val, bool print_sep);
+//template
+//bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset,
+//    const int64_t buffer_offset_limit, const char* val, bool print_sep);
 template
 void File2TileDBBinaryBase::tiledb_buffer_resize_if_needed_and_print(std::vector<uint8_t>& buffer,
     int64_t& buffer_offset, const uint64_t val, bool print_sep);
