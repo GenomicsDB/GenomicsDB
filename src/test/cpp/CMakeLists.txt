@@ -40,6 +40,7 @@ set(CPP_TEST_SOURCES
   src/test_alleles_combiner.cc
   src/test_gt_remapper.cc
   src/test_bgen.cc
+  src/test_query_variants.cc
   )
 
 if(LIBDBI_FOUND)

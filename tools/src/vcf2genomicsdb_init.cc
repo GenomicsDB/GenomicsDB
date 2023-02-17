@@ -456,7 +456,6 @@ static int generate_json(import_config_t import_config) {
   // Using vector instead of map here because map does not keep track of order of insertion as it uses some 
   // form of binary tree for fast retrieval
   std::vector<std::pair<std::string, int64_t>> regions;
-  int64_t total_length = 0;
   
   int rc = OK;
   for (int i=0; i<hdr->nhrec && !rc; i++) {
@@ -482,7 +481,6 @@ static int generate_json(import_config_t import_config) {
         index = bcf_hrec_find_key(hrec, "length");
         assert(index >= 0);
         int64_t length = std::stoll(hrec->vals[index]);
-        total_length += length;
         regions.push_back({id, length});
         break;
       }

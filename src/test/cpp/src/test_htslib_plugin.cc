@@ -43,10 +43,10 @@ TEST_CASE_METHOD(TempDir, "test htslib plugin", "[test_htslib_plugin]") {
 
   CHECK(genomicsdb_filesystem_init(NULL, 0) == NULL);
   CHECK(genomicsdb_filesystem_init("", 0) == NULL);
-  CHECK(genomicsdb_filesystem_init(get().c_str(), 0) == NULL); // Directories not supported
+  CHECK(genomicsdb_filesystem_init(get_temp_dir().c_str(), 0) == NULL); // Directories not supported
   CHECK(genomicsdb_filesystem_init("dfdfd://ddd", 0) == NULL);
 
-  std::string filename = get()+"/foo";
+  std::string filename = get_temp_dir()+"/foo";
   CHECK(genomicsdb_filesystem_init(filename.c_str(), 0) == NULL);
   CHECK(genomicsdb_filesystem_init(filename.c_str(), O_RDONLY) == NULL);
   void* ctx = genomicsdb_filesystem_init(filename.c_str(), O_RDWR);

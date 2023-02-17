@@ -35,7 +35,7 @@ class TempDir {
     TileDBUtils::delete_dir(tmp_dirname_);
   }
 
-  const std::string& get() {
+  const std::string& get_temp_dir() {
     return tmp_dirname_;
   }
 
