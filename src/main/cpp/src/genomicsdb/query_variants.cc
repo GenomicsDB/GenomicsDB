@@ -498,7 +498,7 @@ bool VariantQueryProcessor::scan_handle_cell(const VariantQueryConfig& query_con
         std::string callset_name;
         assert(m_vid_mapper->get_callset_name(cell.get_row(), callset_name));
         logger.fatal(VariantQueryProcessorException(
-            logqger.format("Unhandled overlapping variants around {}:{}-{} for {}",
+            logger.format("Unhandled overlapping variants around {}:{}-{} for {}",
                           begin_name, begin_position, cell_begin_position, callset_name)));
       }
       if (curr_call.contains_deletion_or_MNV()) {
