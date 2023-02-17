@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2018-2020 Omics Data Automation, Inc.
+ * Copyright (c) 2018-2020, 2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -1343,11 +1343,9 @@ void FileBasedVidMapper::parse_type_descriptor(FieldInfo& field_info, const rapi
   //So, the JSON must specify the data type used in the VCF in addition to the real type
   const char* type_descriptor_json_attribute_names[] = { "type", "vcf_type" };
   VERIFY_OR_THROW(field_info_json_dict.HasMember("type"));
-  auto has_vcf_type_attribute = false;
   for (auto i=0u; i<2u; ++i) {
     const auto curr_attribute_name = type_descriptor_json_attribute_names[i];
     if (field_info_json_dict.HasMember(curr_attribute_name)) {
-      has_vcf_type_attribute = (i == 1u);
       auto& type_json_value = field_info_json_dict[curr_attribute_name];
       if (!(type_json_value.IsString() || type_json_value.IsArray()))
         throw FileBasedVidMapperException(std::string("Attribute '")+curr_attribute_name

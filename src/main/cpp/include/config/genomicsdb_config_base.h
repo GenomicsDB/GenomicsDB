@@ -274,6 +274,13 @@ class GenomicsDBImportConfig : public GenomicsDBConfigBase {
   inline bool is_partitioned_by_column() const {
     return !m_row_based_partitioning;
   }
+  inline int64_t get_size_per_column_partition() const {
+    return m_per_partition_size;
+  }
+  inline void set_size_per_column_partition(int64_t size_per_column_partition) {
+    m_per_partition_size = size_per_column_partition;
+  }
+
   // protobuf-specific
   ContigInfo get_contig_info(const ContigPosition* contig_position);
   ColumnRange extract_contig_interval(const ContigPosition* start, const ContigPosition* end);

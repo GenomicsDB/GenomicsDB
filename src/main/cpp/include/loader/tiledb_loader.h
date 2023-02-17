@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -42,6 +43,23 @@ class VCF2TileDBException : public std::exception {
   }
  private:
   std::string msg_;
+};
+
+class ThreadException {
+public:
+  ThreadException() {}
+  void rethrow() {
+    if (m_exception_ptr) std::rethrow_exception(m_exception_ptr);
+  }
+  void capture() {
+    #pragma omp critical
+    m_exception_ptr = std::current_exception();
+  }
+  std::exception_ptr& get() {
+    return m_exception_ptr;
+  }
+ private:
+  std::exception_ptr m_exception_ptr = nullptr;
 };
 
 //Used to exchange info between loader and converter
@@ -209,6 +227,8 @@ class VCF2TileDBConverter : public VCF2TileDBLoaderConverterBase {
   //Data structure for exchanging info between loader and converter
   //If standalone, points to owned exchanges, else must point to those owned by VCF2TileDBLoader
   std::vector<LoaderConverterMessageExchange*> m_exchanges;
+  // Use with OpenMP/multiple threads for exception propagation
+  ThreadException m_thread_exception;
 };
 
 class CellPQElement {
@@ -273,6 +293,9 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
   VCF2TileDBLoader(
     const std::string& config_filename,
     const int idx);
+  VCF2TileDBLoader (
+    const GenomicsDBImportConfig& config,
+    int idx);
   VCF2TileDBLoader(
     const std::string& config_filename,
     const std::vector<BufferStreamInfo>& buffer_stream_info_vec,
@@ -366,7 +389,6 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
                                        const bool enable_shared_posixfs_optimzations=false);
  private:
   void common_constructor_initialization(
-    const std::string& config_filename,
     const std::vector<BufferStreamInfo>& buffer_stream_info_vec,
     const std::string& buffer_stream_callset_mapping_json_string,
     const int idx);
@@ -389,6 +411,8 @@ class VCF2TileDBLoader : public VCF2TileDBLoaderConverterBase {
   //For checking whether cells are traversed in correct order
   int64_t m_previous_cell_row_idx;
   int64_t m_previous_cell_column;
+  // Use with OpenMP/multiple threads for exception propagation
+  ThreadException m_thread_exception;
 };
 
 #endif

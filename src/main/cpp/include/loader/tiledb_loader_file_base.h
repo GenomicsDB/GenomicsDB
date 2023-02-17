@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2020 Omics Data Automation, Inc.
+ * Copyright (c) 2020, 2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -55,6 +55,16 @@ class File2TileDBBinaryException : public std::exception {
   }
  private:
   std::string msg_;
+};
+
+class SizePerColumnPartitionTooSmallException : public File2TileDBBinaryException {
+ public:
+  SizePerColumnPartitionTooSmallException(const std::string m="", const int64_t size=-1) : File2TileDBBinaryException(m), size_(size) {}
+  const int64_t size() const noexcept {
+    return size_;
+  }
+ private:
+  int64_t size_;
 };
 
 //Abstract base class for all classes that will read "records" and produce binary cells
@@ -147,7 +157,7 @@ class BufferReaderBase : public virtual GenomicsDBImportReaderBase {
     if (src == 0)
       return 0u;
     if (m_num_valid_bytes_in_buffer+num_bytes > m_buffer.size()) {
-      logger.debug("Buffer resized from {} bytes to {}", m_buffer.size(), m_num_valid_bytes_in_buffer+num_bytes);
+      logger.debug("Buffer(segment_size) resized from {} bytes to {}", m_buffer.size(), m_num_valid_bytes_in_buffer+num_bytes);
       m_buffer.resize(m_num_valid_bytes_in_buffer+num_bytes);
     }
     return append_all_data(src, num_bytes);
@@ -300,8 +310,7 @@ class File2TileDBBinaryBase {
    * List active row idxs
    */
   virtual void list_active_row_idxs(const ColumnPartitionBatch& partition_batch, int64_t& row_idx_offset, std::vector<int64_t>& row_idx_vec) const = 0;
-  /*
-   * */
+
   void read_next_batch(std::vector<std::vector<uint8_t>*>& buffer_vec,
                        std::vector<ColumnPartitionBatch>& partition_batches,
                        std::vector<BufferStreamIdentifier>& exhausted_buffer_stream_identifiers, size_t& num_exhausted_buffer_streams,

@@ -1,6 +1,26 @@
-#include "tiledb_loader_file_base.h"
+/**
+ * The MIT License (MIT)
+ * Copyright (c) 2023 Omics Data Automation, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw File2TileDBBinaryException(#X);
+#include "tiledb_loader_file_base.h"
 
 //Move constructor
 File2TileDBBinaryColumnPartitionBase::File2TileDBBinaryColumnPartitionBase(File2TileDBBinaryColumnPartitionBase&& other) {
@@ -43,6 +63,7 @@ void File2TileDBBinaryColumnPartitionBase::initialize_base_class_members(const i
 //File2TileDBBinaryBase functions
 
 #ifdef PRODUCE_BINARY_CELLS
+
 
 template<class FieldType>
 bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset, const int64_t buffer_offset_limit, const FieldType val, bool print_sep) {
@@ -190,12 +211,14 @@ bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, in
 template
 bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset,
     const int64_t buffer_offset_limit, const double val, bool print_sep);
-template
-bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset,
-    const int64_t buffer_offset_limit, const char* val, bool print_sep);
-template
-bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset,
-    const int64_t buffer_offset_limit, const std::string& val, bool print_sep);
+//This is an explict instantiation after an explicit specialization for std::string and char *, clang
+//puts out a warning, commenting out for now
+//template
+//bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset,
+//    const int64_t buffer_offset_limit, const std::string& val, bool print_sep);
+//template
+//bool File2TileDBBinaryBase::tiledb_buffer_print(std::vector<uint8_t>& buffer, int64_t& buffer_offset,
+//    const int64_t buffer_offset_limit, const char* val, bool print_sep);
 template
 void File2TileDBBinaryBase::tiledb_buffer_resize_if_needed_and_print(std::vector<uint8_t>& buffer,
     int64_t& buffer_offset, const uint64_t val, bool print_sep);
@@ -419,8 +442,8 @@ void File2TileDBBinaryBase::read_next_batch(std::vector<uint8_t>& buffer,
         break;
       }
       has_data = seek_and_fetch_position(partition_info, is_read_buffer_exhausted, false, true);  //no need to re-seek, use next_line() directly, advance file pointer
-    } else {
-      VERIFY_OR_THROW(read_one_line_fully && "Buffer did not have space to hold a line fully - increase buffer size");
+    } else if (!read_one_line_fully) {
+      logger.fatal(SizePerColumnPartitionTooSmallException("Buffer(size_per_column_partition) did not have space to hold a line fully - increase buffer size", buffer.size()));
     }
   }
   //put Tiledb NULL for row_idx as end-of-batch marker
