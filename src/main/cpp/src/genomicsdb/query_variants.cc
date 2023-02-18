@@ -491,12 +491,12 @@ bool VariantQueryProcessor::scan_handle_cell(const VariantQueryConfig& query_con
       //Can handle overlapping deletions and reference blocks - if something else, throw error
       if (!curr_call.contains_deletion_or_MNV() && !curr_call.is_reference_block()) {
         std::string begin_name, cell_begin_name;
-        int64_t begin_position, cell_begin_position;
-        assert(m_vid_mapper->get_contig_location(curr_call.get_column_begin(), begin_name, begin_position));
-        assert(m_vid_mapper->get_contig_location(cell.get_begin_column(), cell_begin_name, cell_begin_position));
+        int64_t begin_position=-1, cell_begin_position=-1;
+        m_vid_mapper->get_contig_location(curr_call.get_column_begin(), begin_name, begin_position);
+        m_vid_mapper->get_contig_location(cell.get_begin_column(), cell_begin_name, cell_begin_position);
         assert(begin_name == cell_begin_name);
         std::string callset_name;
-        assert(m_vid_mapper->get_callset_name(cell.get_row(), callset_name));
+        m_vid_mapper->get_callset_name(cell.get_row(), callset_name);
         logger.fatal(VariantQueryProcessorException(
             logger.format("Unhandled overlapping variants around {}:{}-{} for {}",
                           begin_name, begin_position, cell_begin_position, callset_name)));
