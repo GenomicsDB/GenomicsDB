@@ -391,6 +391,9 @@ run_command "gt_mpi_gather -A "non-existent-array" $WORKSPACE/loader.json -j $QU
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-AC"
 run_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-calls"
 
+# Test gt_mpi_gather with a partition not imported
+run_command "gt_mpi_gather --rank 1 -l $WORKSPACE/loader.json -j $QUERY_JSON" ERR
+
 # Diff results from two gt_mpi_gather invocations
 # $1 Results from 1st invocation
 # $2 Results from 2nd invocation
@@ -468,8 +471,9 @@ diff_gt_mpi_gather_output $TEMP_DIR/output.without_bypass $TEMP_DIR/output OK "S
 create_sample_list t9_unhandled_overlapping_variants.vcf.gz
 run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o"
 run_command "vcf2genomicsdb -r 12 $WORKSPACE/loader.json"
-create_query_json_with_intervals INTERVALS="\"query_contig_intervals\": [{\"contig\": \"13\", \"begin\": 1, \"end\":115169878 }]"
-run_command "gt_mpi_gather -j query.json --produce-Broad-GVCF" ERR
+create_query_json_with_intervals "\"query_contig_intervals\": [{\"contig\": \"13\", \"begin\": 1, \"end\":115169878 }]" "\"reference_genome\" : \"$REFERENCE_GENOME\""
+sed -i -e 's/"RAW_MQ",//g' $QUERY_JSON
+run_command "gt_mpi_gather --rank 12 -l $WORKSPACE/loader.json -j $QUERY_JSON --produce-Broad-GVCF" ERR
 
 # Fail if the reference genome cannot be parsed by htslib for any reason
 create_sample_list t0.vcf.gz
