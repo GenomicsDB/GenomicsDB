@@ -24,6 +24,8 @@
 #include "query_variants.h"
 #include "timer.h"
 
+#include "genomicsdb_logger.h"
+
 using namespace std;
 
 #if 0
@@ -161,8 +163,9 @@ void VariantQueryProcessor::register_field_creators(const VariantArraySchema& sc
   for (auto i=0ull; i<schema.attribute_num(); ++i) {
     type_index t = schema.type(i);
     auto iter = VariantQueryProcessor::m_type_index_to_creator.find(t);
-    if (iter == VariantQueryProcessor::m_type_index_to_creator.end())
-      throw UnknownAttributeTypeException("Unknown type of schema attribute "+std::string(t.name()));
+    if (iter == VariantQueryProcessor::m_type_index_to_creator.end()) {
+      logger.fatal(UnknownAttributeTypeException(logger.format("Unknown type of schema attribute {}", t.name())));
+    }
     //For known fields, check for special creators
     unsigned enumIdx = m_schema_idx_to_known_variant_field_enum_LUT.get_known_field_enum_for_schema_idx(i);
     if (m_schema_idx_to_known_variant_field_enum_LUT.is_defined_value(enumIdx) && KnownFieldInfo::requires_special_creator(enumIdx))
@@ -193,10 +196,10 @@ VariantQueryProcessor::VariantQueryProcessor(VariantStorageManager* storage_mana
   clear();
   m_storage_manager = storage_manager;
   m_ad = storage_manager->open_array(array_name, &vid_mapper, "r");
-  if (m_ad < 0)
-    throw VariantQueryProcessorException("Could not open array "+array_name
-                                         +" at workspace: "+storage_manager->get_workspace()
-                                         + "\nTileDB error message : "+tiledb_errmsg);
+  if (m_ad < 0) {
+    logger.fatal(VariantQueryProcessorException(logger.format("Could not open array {} at workspace {} ", array_name,
+                                                              storage_manager->get_workspace())));
+  }
   m_array_schema = new VariantArraySchema();
   auto status = storage_manager->get_array_schema(m_ad, m_array_schema);
   assert(status == TILEDB_OK);
@@ -221,19 +224,19 @@ void VariantQueryProcessor::initialize() {
   register_field_creators(*m_array_schema, *m_vid_mapper);
 }
 
-void VariantQueryProcessor::finalize_queried_attributes(const VariantArraySchema& schema, VariantQueryConfig& queryConfig) const {
-  if (queryConfig.get_num_queried_attributes() == 0u //add all attributes
-      || queryConfig.sites_only_query()) {           //ignore INFO fields
+void VariantQueryProcessor::finalize_queried_attributes(const VariantArraySchema& schema, VariantQueryConfig& query_config) const {
+  if (query_config.get_num_queried_attributes() == 0u //add all attributes
+      || query_config.sites_only_query()) {           //ignore INFO fields
     std::vector<std::string> new_query_attribute_vector;
-    if (queryConfig.get_num_queried_attributes() == 0u) //add all attributes from schema
+    if (query_config.get_num_queried_attributes() == 0u) //add all attributes from schema
       for (auto i=0ull; i<schema.attribute_num(); ++i)
         new_query_attribute_vector.push_back(schema.attribute_name(i));
     else //only queried attributes
-      for (auto i=0ull; i<queryConfig.get_num_queried_attributes(); ++i)
-        new_query_attribute_vector.push_back(queryConfig.get_query_attribute_name(i));
+      for (auto i=0ull; i<query_config.get_num_queried_attributes(); ++i)
+        new_query_attribute_vector.push_back(query_config.get_query_attribute_name(i));
     std::vector<bool> valid_vector(new_query_attribute_vector.size(), true); //assume all valid first
     //Filter out FORMAT fields
-    if (queryConfig.sites_only_query()) {
+    if (query_config.sites_only_query()) {
       auto FORMAT_fields_needed_in_sites_only_query = std::unordered_set<std::string>({
         "DP_FORMAT", "MIN_DP"
       });
@@ -248,24 +251,26 @@ void VariantQueryProcessor::finalize_queried_attributes(const VariantArraySchema
           valid_vector[i] = false;
       }
     }
-    queryConfig.clear_attributes_to_query();
+    query_config.clear_attributes_to_query();
     for (auto i=0u; i<new_query_attribute_vector.size(); ++i)
       if (valid_vector[i])
-        queryConfig.add_attribute_to_query(new_query_attribute_vector[i], 0u);
+        query_config.add_attribute_to_query(new_query_attribute_vector[i], 0u);
   }
 }
 
-void VariantQueryProcessor::obtain_TileDB_attribute_idxs(const VariantArraySchema& schema, VariantQueryConfig& queryConfig) const {
+void VariantQueryProcessor::obtain_TileDB_attribute_idxs(const VariantArraySchema& schema, VariantQueryConfig& query_config) const {
   //Map query attributes to schema idxs
   for (auto i=0ull; i<schema.attribute_num(); ++i) {
     const auto& name = schema.attribute_name(i);
     unsigned query_idx = 0u;
-    if (queryConfig.get_query_idx_for_name(name, query_idx))
-      queryConfig.set_schema_idx_for_query_idx(query_idx, i);
+    if (query_config.get_query_idx_for_name(name, query_idx))
+      query_config.set_schema_idx_for_query_idx(query_idx, i);
   }
-  for (auto i=0u; i<queryConfig.get_num_queried_attributes(); ++i) {
-    if (!queryConfig.is_schema_idx_defined_for_query_idx(i))
-      throw UnknownQueryAttributeException("Invalid query attribute : "+queryConfig.get_query_attribute_name(i));
+  for (auto i=0u; i<query_config.get_num_queried_attributes(); ++i) {
+    if (!query_config.is_schema_idx_defined_for_query_idx(i)) {
+      logger.fatal(UnknownQueryAttributeException(logger.format("Invalid query attribute : {}",
+                                                                query_config.get_query_attribute_name(i))));
+    }
   }
 }
 
@@ -484,9 +489,18 @@ bool VariantQueryProcessor::scan_handle_cell(const VariantQueryConfig& query_con
       for (auto i=0ull; i<num_entries_in_tmp_pq_buffer; ++i)
         end_pq.push(tmp_pq_buffer[i]);
       //Can handle overlapping deletions and reference blocks - if something else, throw error
-      if (!curr_call.contains_deletion_or_MNV() && !curr_call.is_reference_block())
-        throw VariantQueryProcessorException("Unhandled overlapping variants at columns "+std::to_string(curr_call.get_column_begin())+" and "
-                                             + std::to_string(cell.get_begin_column())+" for row "+std::to_string(cell.get_row()));
+      if (!curr_call.contains_deletion_or_MNV() && !curr_call.is_reference_block()) {
+        std::string begin_name, cell_begin_name;
+        int64_t begin_position=-1, cell_begin_position=-1;
+        m_vid_mapper->get_contig_location(curr_call.get_column_begin(), begin_name, begin_position);
+        m_vid_mapper->get_contig_location(cell.get_begin_column(), cell_begin_name, cell_begin_position);
+        assert(begin_name == cell_begin_name);
+        std::string callset_name;
+        m_vid_mapper->get_callset_name(cell.get_row(), callset_name);
+        logger.fatal(VariantQueryProcessorException(
+            logger.format("Unhandled overlapping variants around {}:{}-{} for {}",
+                          begin_name, begin_position, cell_begin_position, callset_name)));
+      }
       if (curr_call.contains_deletion_or_MNV()) {
         //Reduce #calls with deletions
         assert(num_calls_with_deletions_or_MNVs > 0u);
@@ -627,17 +641,13 @@ void VariantQueryProcessor::do_query_bookkeeping(const VariantArraySchema& array
   for (auto i=0u; i<query_config.get_num_column_intervals(); ++i) {
     const auto& col_range = query_config.get_column_interval(i);
     if (col_range.first < dim_domains[1].first || col_range.first > dim_domains[1].second
-        || col_range.second < dim_domains[1].first || col_range.second > dim_domains[1].second)
-      throw OutOfBoundsQueryException("Query interval "+std::to_string(i)+" : "+std::to_string(col_range.first)+", "
-                                      +std::to_string(col_range.second)+" is out of bounds");
+        || col_range.second < dim_domains[1].first || col_range.second > dim_domains[1].second) {
+      logger.fatal(OutOfBoundsQueryException(logger.format("Query interval {}:{}-{} is out of bounds",
+                                                           i, col_range.first, col_range.second)));
+    }
   }
   //If specific rows requested
   if (!query_config.query_all_rows()) {
-    /*for (uint64_t i=0ull; i<query_config.get_num_rows_to_query(); ++i) {
-      auto row_idx = query_config.get_array_row_idx_for_query_row_idx(i);
-      if (row_idx < dim_domains[0].first || row_idx > dim_domains[0].second)
-        throw OutOfBoundsQueryException("Queried row index "+std::to_string(row_idx)+" is out of bounds");
-    }*/
     query_config.clamp_query_rows(dim_domains[0].first, dim_domains[0].second);
   }
   //Done with bookkeeping
