@@ -24,9 +24,13 @@
 #define JNI_MPI_INIT_H
 
 #include "headers.h"
+
+#define DISABLE_MPI
 #ifndef DISABLE_MPI
 #include <mpi.h>
 #endif
+
+
 
 class JNIMpiInit
 {

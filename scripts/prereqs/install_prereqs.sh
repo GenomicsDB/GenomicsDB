@@ -30,6 +30,7 @@ OPENSSL_VERSION=${OPENSSL_VERSION:-1.1.1o}
 MAVEN_VERSION=${MAVEN_VERSION:-3.6.3}
 CURL_VERSION=${CURL_VERSION:-7.83.1}
 UUID_VERSION=${UUID_VERSION:-1.0.3}
+BUILD_TYPE=${1:-"full"}
 
 # BUILD_DISTRIBUTABLE_LIBRARY, if true will build/install OpenSSL/CURL/UUID/Intel zlib libs
 BUILD_DISTRIBUTABLE_LIBRARY=${BUILD_DISTRIBUTABLE_LIBRARY:-false}
@@ -54,7 +55,6 @@ fi
 if [ -f $PREREQS_ENV ]; then
   echo "Found PREREQS_ENV=$PREREQS_ENV from a previous run"
   source $PREREQS_ENV
-  rm -f $PREREQS_ENV
 fi
 touch $PREREQS_ENV
 
@@ -292,7 +292,7 @@ elif [[ $CENTOS_VERSION -eq 6 ]]; then
 fi
 
 RC=1
-install_prerequisites $2 $3 &&
+install_prerequisites $BUILD_TYPE &&
   if [[ $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
     echo "Installing static libraries"
     install_openssl &&

@@ -79,7 +79,7 @@ if(HTSLIB_SOURCE_DIR)
             LDFLAGS=${HTSLIB_${CMAKE_BUILD_TYPE}_LDFLAGS}
             CC=${CMAKE_C_COMPILER} AR=${CMAKE_AR} RANLIB=${CMAKE_RANLIB}
             ${HTSLIB_OSXCROSS_COMPILE_FLAGS}
-            --disable-lzma --disable-bz2 --disable-s3 --disable-gcs
+            --disable-lzma --disable-bz2 --disable-s3 --disable-gcs --without-libdeflate
         BUILD_COMMAND ${CMAKE_COMMAND} -E make_directory cram
             COMMAND ${CMAKE_COMMAND} -E make_directory test
             COMMAND ${CMAKE_COMMAND} -E make_directory test/fuzz
