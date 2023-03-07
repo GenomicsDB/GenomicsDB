@@ -28,7 +28,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04,macos-11]
+        #os: [ubuntu-20.04,macos-11]
+        os: [ubuntu-22.04]
         type: [basic]
         java: [8,11]
         include:
