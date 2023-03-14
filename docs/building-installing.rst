@@ -18,7 +18,7 @@ The script *install_prereqs.sh* is meant to work with Docker, but should work on
     # Install the prerequisites to build GenomicsDB and create a genomicsdb_prereqs.sh in $HOME
     sudo prereqs/install_prereqs.sh
     source $HOME/genomicsdb_prereqs.sh
-    cmake -DCMAKE_PREFIX_INSTALL=$HOME /path/to/GenomicsDB # simplest
+    cmake -DCMAKE_INSTALL_PREFIX=$HOME /path/to/GenomicsDB # simplest
 
     # Build and install the include/lib/bin files to $HOME
     make && make install
