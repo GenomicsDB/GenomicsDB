@@ -232,8 +232,6 @@ find_package(TileDB REQUIRED)
 include_directories(${TILEDB_INCLUDE_DIR})
 #include_directories(${TILEDB_INCLUDE_DIR})
 
-message(STATUS "***** ${ZLIB_LIBRARIES}")
-
 #librt
 find_library(LIBRT_LIBRARY rt)
 
@@ -435,7 +433,6 @@ function(build_GenomicsDB_links target)
     if(USE_GPERFTOOLS_HEAP AND GPERFTOOLS_FOUND)
         target_link_libraries(${target} ${GPERFTOOLS_HEAP_PROFILER_LIBRARY})
     endif()
-    message(STATUS "++++ ${CMAKE_CURRENT_SOURCE_DIR}: GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES=${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES}")
     target_link_libraries(${target} ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES})
 endfunction()
 

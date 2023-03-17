@@ -28,17 +28,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #os: [ubuntu-20.04,macos-11]
-        os: [ubuntu-22.04]
+        os: [ubuntu-20.04,ubuntu-22.04,macos-12]
         type: [basic]
         java: [8,11]
-        #include:
-          #- os: ubuntu-20.04
-          #  type: hdfs
-          #  java: 8
-            #- os: ubuntu-18.04
-            #  type: hdfs
-            #  java: 11
+        include:
+          - os: ubuntu-20.04
+            type: hdfs
+            java: 11
+          - os: ubuntu-22.04
+            type: hdfs
+            java: 11
 
     env: 
       OS_TYPE: ${{matrix.os}} 
@@ -146,11 +145,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install jsondiff
-        make test ARGS=-V || (echo "Tests failed!!" &&
-           cat /home/runner/work/GenomicsDB/GenomicsDB/build/Testing/Temporary/LastTest.log &&
-           echo "SureFire reports..." &&
-           cat /home/runner/work/GenomicsDB/GenomicsDB/build/target/surefire-reports/junitreports/TEST-org.genomicsdb.GenomicsDBLibLoaderTest.xml &&
-           echo "SureFire reports DONE" && exit 1)
+        make test ARGS=-V
 
     - name: Test - Distributed FileSystems
       if: matrix.type == 'hdfs'
