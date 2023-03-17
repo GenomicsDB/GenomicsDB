@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #The MIT License (MIT)
 #Copyright (c) 2016-2017 Intel Corporation
@@ -31,7 +31,6 @@ import shutil
 from collections import OrderedDict
 import jsondiff
 import errno
-import distutils.spawn
 import uuid
 import tarfile
 
@@ -212,7 +211,7 @@ def modify_query_column_ranges_for_PB(test_query_dict):
 
 def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, outfile_string, golden_string):
     with open(outfilename, "w") as out_fd:
-        out_fd.write(outfile_string)
+        out_fd.write(outfile_string.decode('utf-8'))
     bcf_cmd = bcftools_path+' view -Oz -o '+outfilename+'.gz '+outfilename+' && '+bcftools_path+' index -f -t '+outfilename+'.gz'
     success,bcf_stdout,stderr_string = run_cmd(bcf_cmd, False, 'Call to bcftools failed ')
     if(not success):
@@ -407,7 +406,7 @@ def main():
     parent_dir=os.path.dirname(os.path.realpath(__file__))
     os.chdir(parent_dir)
     top_tmpdir = tempfile.mkdtemp()
-    bcftools_path = distutils.spawn.find_executable("bcftools")
+    bcftools_path = shutil.which("bcftools")
     java_import_dir = top_tmpdir+os.path.sep + 'java_import'
     os.mkdir(java_import_dir)
     test_pb_configs(top_tmpdir, ctest_dir)
