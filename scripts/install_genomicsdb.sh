@@ -44,6 +44,10 @@ fi
 
 if [[ $ENABLE_BINDINGS == *java* ||  $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
 	BUILD_JAVA=true
+  if [[ BUILD_FOR_PYTHON == true ]]; then
+    echo "BUILD_DISTRIBUTABLE_LIBRARY for Java and BUILD_FOR_PYTHON cannot simultaneously be set"
+    exit 1
+  fi
 else
 	BUILD_JAVA=false
 fi

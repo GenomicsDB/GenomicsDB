@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
- * Copyright (c) 2020 Omics Data Automation, Inc.
+ * Copyright (c) 2020, 2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -21,10 +21,9 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include "jni_mpi_init.h"
 #include "genomicsdb_GenomicsDBLibLoader.h"
 
-JNIMpiInit g_jni_mpi_init;
+#include <string>
 
 std::string get_system_property(JNIEnv* env, const std::string& name ) {
   jclass java_system_class = env->FindClass("java/lang/System");
@@ -47,6 +46,5 @@ JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBLibLoader_jniGenomicsDBOneT
   if (!gatk_stacktrace_on_user_exception.empty()) {
     setenv("GENOMICSDB_PRINT_STACKTRACE", gatk_stacktrace_on_user_exception.c_str(), 1);
   }
-  g_jni_mpi_init.initialize();
   return 0;
 }

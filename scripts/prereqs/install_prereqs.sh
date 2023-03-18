@@ -26,13 +26,15 @@ set -e
 # Arguments to the script
 #  $1 - 'full' if build prerequisites should be installed, 'release' if only runtime prerequisites should be installed
 
-OPENSSL_VERSION=1.1.1o
-MAVEN_VERSION=3.6.3
-CURL_VERSION=7.83.1
-UUID_VERSION=1.0.3
+OPENSSL_VERSION=${OPENSSL_VERSION:-1.1.1o}
+MAVEN_VERSION=${MAVEN_VERSION:-3.6.3}
+CURL_VERSION=${CURL_VERSION:-7.83.1}
+UUID_VERSION=${UUID_VERSION:-1.0.3}
+BUILD_TYPE=${1:-"full"}
 
 # BUILD_DISTRIBUTABLE_LIBRARY, if true will build/install OpenSSL/CURL/UUID/Intel zlib libs
 BUILD_DISTRIBUTABLE_LIBRARY=${BUILD_DISTRIBUTABLE_LIBRARY:-false}
+INSTALL_OPENSSL=${INSTALL_OPENSSL:-$BUILD_DISTRIBUTABLE_LIBRARY}
 
 # Check for the following overriding env variables
 #    $INSTALL_PREFIX allows for dependencies maven/protobuf/etc. that are built to be installed to $INSTALL_PREFIX for user installs
@@ -53,7 +55,6 @@ fi
 if [ -f $PREREQS_ENV ]; then
   echo "Found PREREQS_ENV=$PREREQS_ENV from a previous run"
   source $PREREQS_ENV
-  rm -f $PREREQS_ENV
 fi
 touch $PREREQS_ENV
 
@@ -291,7 +292,7 @@ elif [[ $CENTOS_VERSION -eq 6 ]]; then
 fi
 
 RC=1
-install_prerequisites $2 $3 &&
+install_prerequisites $BUILD_TYPE &&
   if [[ $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
     echo "Installing static libraries"
     install_openssl &&
@@ -300,5 +301,10 @@ install_prerequisites $2 $3 &&
       if [[ $CENTOS_VERSION -eq 6 ]]; then
         install_intel_zlib
       fi
-  fi && RC=0
+  fi &&
+  if [[ $INSTALL_OPENSSL == true ]]; then
+    echo "Installing openssl $OPENSSL_VERSION"
+    install_openssl
+  fi &&
+  RC=0
 finalize $RC

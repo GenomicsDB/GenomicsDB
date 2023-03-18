@@ -28,16 +28,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04,macos-11]
+        os: [ubuntu-20.04,ubuntu-22.04,macos-12]
         type: [basic]
         java: [8,11]
         include:
           - os: ubuntu-20.04
             type: hdfs
-            java: 8
-            #- os: ubuntu-18.04
-            #  type: hdfs
-            #  java: 11
+            java: 11
+          - os: ubuntu-22.04
+            type: hdfs
+            java: 11
 
     env: 
       OS_TYPE: ${{matrix.os}} 
@@ -87,7 +87,11 @@ jobs:
           INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
         else
           echo "Install Prerequisites for Linux.."
-          sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
+          if [[ ${{matrix.os}} == ubuntu-22.04 ]]; then
+            sudo INSTALL_OPENSSL=true INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
+          else
+            sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
+          fi
         fi
         echo "cat prereqs env..."
         cat $PREREQS_ENV

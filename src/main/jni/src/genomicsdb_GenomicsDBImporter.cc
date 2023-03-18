@@ -25,7 +25,6 @@
 #include "genomicsdb_importer.h"
 #include "genomicsdb_jni_exception.h"
 #include "genomicsdb_GenomicsDBImporter.h"
-#include "jni_mpi_init.h"
 #include "json_config.h"
 #include "genomicsdb_vid_mapping.pb.h"
 #include "genomicsdb_callsets_mapping.pb.h"
@@ -48,7 +47,7 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniGenomicsDBImporter(
   //Loader object
   VCF2TileDBLoader loader(
     loader_configuration_file_cstr,
-    g_jni_mpi_init.get_mpi_rank(rank));
+    rank);
   loader.read_all();
   //Cleanup
   env->ReleaseStringUTFChars(
@@ -71,7 +70,7 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniInitializeGenomicsDBImport
   //GenomicsDBImporter object
   auto importer = new GenomicsDBImporter(
                         loader_configuration_file_cstr,
-                        g_jni_mpi_init.get_mpi_rank(rank));
+                        rank);
   //Cleanup
   env->ReleaseStringUTFChars(
     loader_configuration_file,
