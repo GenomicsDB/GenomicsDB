@@ -607,7 +607,7 @@ if(BUILD_JAVA)
 
     if(NOT DISABLE_MPI)
         add_test(NAME CI_tests
-            COMMAND python ${CMAKE_SOURCE_DIR}/tests/run.py
+            COMMAND ${CMAKE_SOURCE_DIR}/tests/run.py
             ${CMAKE_BINARY_DIR}
             ${CMAKE_INSTALL_PREFIX}
             ${CMAKE_BUILD_TYPE})
