@@ -25,4 +25,4 @@ FROM $os
 
 ENV DOCKER_BUILD=true
 COPY ./scripts/ /scripts
-RUN /scripts/prereqs/install_prereqs.sh true full
+RUN BUILD_DISTRIBUTABLE_LIBRARY=true /scripts/prereqs/install_prereqs.sh full
