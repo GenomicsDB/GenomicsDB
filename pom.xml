@@ -476,14 +476,5 @@
         <surefireArgLine>--illegal-access=permit -Djava.library.path=${project.basedir}/bin:${java.library.path}</surefireArgLine>
       </properties>
       </profile>  
-    <profile>
-      <id>spark2</id>
-      <properties>
-        <scala.main>2.11</scala.main>
-        <spark.version>2.4.0</spark.version>
-        <spark.exclude.packages>org.genomicsdb.spark.sources</spark.exclude.packages>
-        <spark.exclude.files>**/org/genomicsdb/spark/sources/*.java</spark.exclude.files>
-      </properties>  
-    </profile>
   </profiles>
 </project>

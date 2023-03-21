@@ -493,16 +493,6 @@ if(BUILD_JAVA)
         ./src/test/java/org/genomicsdb/GenomicsDBTestUtils.java
         )
     
-      if(GENOMICSDB_MAVEN_PROFILE STREQUAL "spark2")
-      set(JAVA_SCALA_SOURCES 
-          ${JAVA_SCALA_SOURCES}
-          ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBDataSourceReader.java
-          ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBDataSourceV2.java
-          ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBRecordReader.java
-          ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBInputPartition.java
-	  ./src/main/java/org/genomicsdb/spark/v2/GenomicsDBInputPartitionReader.java
-        )
-    else()
       set(JAVA_SCALA_SOURCES
           ${JAVA_SCALA_SOURCES}
           ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBRecordReader.java
@@ -515,7 +505,6 @@ if(BUILD_JAVA)
 	  ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBInputPartitionReader.java
 	  ./src/main/java/org/genomicsdb/spark/sources/GenomicsDBPartitionReaderFactory.java
         )
-    endif()
     
     if(PROTOBUF_REGENERATE)
         #Must be set here - see https://cmake.org/cmake/help/v3.3/command/set_source_files_properties.html
