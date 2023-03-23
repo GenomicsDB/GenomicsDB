@@ -158,5 +158,15 @@ jobs:
         python tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $CMAKE_INSTALL_PREFIX local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $GITHUB_WORKSPACE/tests Coverage
         $GITHUB_WORKSPACE/.github/scripts/test_hdfs_htslib_support.sh
 
+    - name: Coverage
+      shell: bash
+      working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
+      run: |
+        lcov --directory . --capture --output-file coverage.info
+        lcov --remove coverage.info '/opt*' '/usr*' '*/dependencies/*' '*/src/test*' '*.pb.h' '*.pb.cc' '*/protobuf-install/*' '*/awssdk-install/*' '*/gcssdk-install/*' 'v1/*' '/Library/*' -o coverage.info
+
     - name: Upload Coverage to CodeCov
       uses: codecov/codecov-action@v3
+      with:
+        files: build/coverage.info, build/target/jacoco-reports/jacoco-ut/jacoco.xml, build/target/jacoco-reports/jacoco-ci/jacoco-ci.xml
+        verbose: true
