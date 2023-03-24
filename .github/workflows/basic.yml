@@ -155,7 +155,7 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install jsondiff
         source $SPARK_ENV
-        python tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $CMAKE_INSTALL_PREFIX local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $GITHUB_WORKSPACE/tests Coverage
+        python tests/run_spark_hdfs.py $GENOMICSDB_BUILD_DIR $CMAKE_INSTALL_PREFIX local hdfs://localhost:9000/ client $GENOMICSDB_RELEASE_VERSION $GITHUB_WORKSPACE/tests "" Coverage
         $GITHUB_WORKSPACE/.github/scripts/test_hdfs_htslib_support.sh
 
     - name: Coverage
