@@ -24,7 +24,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: GenomicsDB/TestGenomicsDBJar
-          ref: ml_genomicsdb_release
+          ref: ng_033032023
 
       - name: Set version number
         run: |
@@ -44,11 +44,13 @@ jobs:
       - name: Run smoke test
         shell: bash
         run: |
-          rm -f libtiledbgenomicsdb.*
           mvn install:install-file -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom
-          ./test_genomicsdbjar.sh
+          ./run_checks.sh
+        env:
+          GENOMICSDB_TAG: ${{ github.ref_name }}
+
 #
 #      - name: Checkout GATK
 #        uses: actions/checkout@v3
