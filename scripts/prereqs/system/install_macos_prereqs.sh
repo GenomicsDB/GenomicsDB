@@ -35,4 +35,5 @@ brew list automake &> /dev/null || brew install automake
 brew list lcov &> /dev/null || brew install lcov
 brew list openssl@1.1 &> /dev/null || brew install openssl@1.1
 brew list zstd &> /dev/null || brew install zstd
+brew list openjdk@17 &> /dev/null || brew install openjdk@17
 echo "export OPENSSL_ROOT_DIR=$(brew --prefix openssl@1.1)" >> $PREREQS_ENV
