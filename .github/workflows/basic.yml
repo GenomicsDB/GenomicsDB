@@ -30,7 +30,7 @@ jobs:
       matrix:
         os: [ubuntu-20.04,ubuntu-22.04,macos-12]
         type: [basic]
-        java: [8,11]
+        java: [11,17]
         include:
           - os: ubuntu-20.04
             type: hdfs

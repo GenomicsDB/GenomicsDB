@@ -9,7 +9,7 @@ USER=`whoami`
 HADOOP=hadoop-${HADOOP_VER:-3.2.4}
 HADOOP_DIR=${INSTALL_DIR}/$HADOOP
 HADOOP_ENV=${HADOOP_ENV:-$HOME/hadoop_env.sh}
-JAVA_VER=${JAVA_VER:-8}
+JAVA_VER=${JAVA_VER:-17}
 
 install_prereqs() {
   # Java install in workflow yaml
