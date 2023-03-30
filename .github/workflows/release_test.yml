@@ -28,6 +28,7 @@ jobs:
 
       - name: Set version number
         run: |
+          echo ${{github.ref_name}}
           echo VERSION_NUMBER=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
           echo GENOMICSDB_VERSION=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
 
@@ -50,7 +51,8 @@ jobs:
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom
           ./test_genomicsdbjar.sh
 #
-#      - name: Checkout GATK
+#     - name: Checkout GATK
+#        if: ${{github.ref_name}} != *" skip-gatk-it"*
 #        uses: actions/checkout@v3
 #        with:
 #          repository: broadinstitute/gatk
