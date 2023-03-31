@@ -47,7 +47,7 @@ jobs:
           mvn install:install-file -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom
-          ./run_checks.sh
+          ./test_genomicsdbjar.sh
         env:
           GENOMICSDB_TAG: ${{ github.ref_name }}
 
