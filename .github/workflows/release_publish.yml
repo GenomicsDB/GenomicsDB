@@ -41,7 +41,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: ${{ inputs.release_artifact }}
-
+        
       - name: Deploy Maven Central
         shell: bash
         run: |
@@ -57,35 +57,28 @@ jobs:
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID \
             -Djavadoc=genomicsdb-${VERSION_NUMBER}-javadoc.jar \
-            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar \
-            -Dtypes=jar \
+            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar 
           mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID \
             -Djavadoc=genomicsdb-${VERSION_NUMBER}-javadoc.jar \
-            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar \
-            -Dtypes=jar \
-          cp genomicsdb-${VERSION_NUMBER}.pom genomicsdb-${VERSION_NUMBER}-spark.pom
+            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar 
           echo mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-${VERSION_NUMBER}-allinone-spark.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb-spark -Dversion=${VERSION_NUMBER} \
-            -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}-spark.pom -DrepositoryId=$REPO_ID \
+            -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID \
             -Djavadoc=genomicsdb-${VERSION_NUMBER}-javadoc.jar \
-            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar \
-            -Dtypes=jar \
-            -Dclassifiers=allinone-spark
+            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar 
           mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-${VERSION_NUMBER}-allinone-spark.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb-spark -Dversion=${VERSION_NUMBER} \
-            -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}-spark.pom -DrepositoryId=$REPO_ID \
+            -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID \
             -Djavadoc=genomicsdb-${VERSION_NUMBER}-javadoc.jar \
-            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar \
-            -Dtypes=jar \
-            -Dclassifiers=allinone-spark
+            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar 
           if [[ ${VERSION_NUMBER} != *SNAPSHOT ]]; then
               mvn nexus-staging:rc-list -DnexusUrl=https://oss.sonatype.org/ -DserverId=ossrh -f genomicsdb-${VERSION_NUMBER}.pom
               stagingRepoId=$(mvn nexus-staging:rc-list -DnexusUrl=https://oss.sonatype.org/ -DserverId=ossrh | grep orggenomicsdb|cut -f2 -d' ')
               echo $stagingRepoId
-              mvn -X nexus-staging:rc-close -DserverId=ossrh -DnexusUrl=https://oss.sonatype.org/ -DstagingRepositoryId=$stagingRepoId -f genomicsdb-${VERSION_NUMBER}.pom
-              mvn nexus-staging:rc-close -DserverId=ossrh -DnexusUrl=https://oss.sonatype.org/ -DstagingRepositoryId=$stagingRepoId -f genomicsdb-${VERSION_NUMBER}-spark.pom
+              mvn nexus-staging:rc-close -DserverId=ossrh -DnexusUrl=https://oss.sonatype.org/ -DstagingRepositoryId=$stagingRepoId -f genomicsdb-${VERSION_NUMBER}.pom
+              mvn nexus-staging:rc-close -DserverId=ossrh -DnexusUrl=https://oss.sonatype.org/ -DstagingRepositoryId=$stagingRepoId -f genomicsdb-${VERSION_NUMBER}.pom
           fi
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
