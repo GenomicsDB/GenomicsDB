@@ -64,7 +64,7 @@ jobs:
         run: GENOMICSDB_TAG=${GENOMICSDB_MIN_TAG} ./test_genomicsdbjar.sh
 
 
-     - name: Checkout GATK
+      - name: Checkout GATK
         if: ${{inputs.tag_message}} != *"skip-gatk-it"*
         uses: actions/checkout@v3
         with:
