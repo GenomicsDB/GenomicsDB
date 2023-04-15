@@ -34,8 +34,6 @@ jobs:
           git fetch --tags --force
           echo "TAG_MESSAGE=$(git tag -l --sort=-taggerdate --format='%(contents)' $(git describe --tags $(git branch --show-current) ))" >> $GITHUB_ENV
         
-      - name: Check tag messsage
-        run: echo ${TAG_MESSAGE}
 
       - name: Install Prerequisites
         shell: bash
