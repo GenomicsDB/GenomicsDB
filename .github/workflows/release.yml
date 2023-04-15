@@ -16,6 +16,8 @@ env:
 jobs:
   build-and-push-mac-dylib:
     runs-on: macos-11
+    outputs: 
+      tag_message: ${{env.TAG_MESSAGE}}
     permissions:
       contents: read
       packages: write
