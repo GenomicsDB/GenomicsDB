@@ -26,6 +26,14 @@ jobs:
 
       - name: Set version number
         run: echo VERSION_NUMBER=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
+      
+      - name: Set tag messsage
+        run: | 
+          git fetch --tags --force
+          echo "TAG_MESSAGE=$(git tag -l --sort=-taggerdate --format='%(contents)' $(git describe --tags $(git branch --show-current) ))" >> $GITHUB_ENV
+        
+      - name: Check tag messsage
+        run: echo ${TAG_MESSAGE}
 
       - name: Install Prerequisites
         shell: bash
@@ -62,10 +70,11 @@ jobs:
       dylib_artifact: libtiledbgenomicsdb.dylib.${{ github.ref_name }}
 
   test:
-    needs: [release-jar]
+    needs: [build-and-push-mac-dylib, release-jar]
     uses: ./.github/workflows/release_test.yml
     with:
       release_artifact: release.${{ github.ref_name }}
+      tag_message: ${{ needs.build-and-push-mac-dylib.outputs.tag_message }}
 
   publish:
     needs: [test]

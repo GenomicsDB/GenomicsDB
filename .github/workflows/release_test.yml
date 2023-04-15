@@ -6,6 +6,9 @@ on:
       release_artifact:
         required: true
         type: string
+      tag_message:
+        required: false
+        type: string
 
 jobs:
   test-jar:
@@ -33,6 +36,11 @@ jobs:
           echo GENOMICSDB_VERSION=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
           echo GENOMICSDB_MIN_TAG=v1.5.0-SNAPSHOT >> $GITHUB_ENV
 
+      - name: Check tag messsage
+        run: |
+          echo "tag message is"
+          echo ${{inputs.tag_message}}
+
       - uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
@@ -55,16 +63,17 @@ jobs:
         shell: bash
         run: GENOMICSDB_TAG=${GENOMICSDB_MIN_TAG} ./test_genomicsdbjar.sh
 
-#
-#     - name: Checkout GATK
-#        if: ${{github.ref_name}} != *" skip-gatk-it"*
-#        uses: actions/checkout@v3
-#        with:
-#          repository: broadinstitute/gatk
-#          lfs: 'true'
-#
-#      - name: Try GATK integration test
-#        shell: bash
-#        run: |
-#          ./gradlew installDist -Dgenomicsdb.version=${VERSION_NUMBER}
-#          ./gradlew test --tests *GenomicsDB*
+
+     - name: Checkout GATK
+        if: ${{inputs.tag_message}} != *"skip-gatk-it"*
+        uses: actions/checkout@v3
+        with:
+          repository: broadinstitute/gatk
+          lfs: 'true'
+
+      - name: Try GATK integration test
+        if: ${{inputs.tag_message}} != *"skip-gatk-it"*
+        shell: bash
+        run: |
+          ./gradlew installDist -Dgenomicsdb.version=${VERSION_NUMBER}
+          ./gradlew test --tests *GenomicsDB*
