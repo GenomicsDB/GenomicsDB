@@ -78,7 +78,7 @@ jobs:
               stagingRepoId=$(mvn nexus-staging:rc-list -DnexusUrl=https://oss.sonatype.org/ -DserverId=ossrh | grep orggenomicsdb|cut -f2 -d' ')
               echo $stagingRepoId
               mvn nexus-staging:rc-close -DserverId=ossrh -DnexusUrl=https://oss.sonatype.org/ -DstagingRepositoryId=$stagingRepoId -f genomicsdb-${VERSION_NUMBER}.pom
-              mvn nexus-staging:rc-close -DserverId=ossrh -DnexusUrl=https://oss.sonatype.org/ -DstagingRepositoryId=$stagingRepoId -f genomicsdb-${VERSION_NUMBER}.pom
+              mvn nexus-staging:rc-close -DserverId=ossrh -DnexusUrl=https://oss.sonatype.org/ -DstagingRepositoryId=$stagingRepoId -f genomicsdb-spark-${VERSION_NUMBER}.pom
           fi
         env:
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
