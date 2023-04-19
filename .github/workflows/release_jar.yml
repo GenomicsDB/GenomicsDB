@@ -46,7 +46,7 @@ jobs:
           docker create -it --name genomicsdb ghcr.io/genomicsdb/genomicsdb:release bash
           docker cp genomicsdb:/build/GenomicsDB/build/src/main/libtiledbgenomicsdb.so .
           docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}.jar .
-          docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-allinone.jar .
+          docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-allinone-spark.jar .
           docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-sources.jar .
           docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-javadoc.jar .
           docker cp genomicsdb:/build/GenomicsDB/pom.xml genomicsdb-${VERSION_NUMBER}.pom

@@ -89,11 +89,13 @@
       <groupId>org.apache.spark</groupId>
       <artifactId>${spark.core.artifactid}</artifactId>
       <version>${spark.version}</version>
+      <optional>true</optional>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>${spark.sql.artifactid}</artifactId>
       <version>${spark.version}</version>
+      <optional>true</optional>
       <exclusions>
         <exclusion>
           <groupId>com.google.protobuf</groupId>
@@ -193,29 +195,6 @@
           </testExcludes>
         </configuration>
       </plugin>
-      <plugin>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <version>3.1.0</version>
-        <executions>
-          <execution>
-            <id>unzip-test-artifacts</id>
-            <phase>process-test-resources</phase>
-            <configuration>
-              <target>
-                <mkdir dir="${genomicsdb_build_directory}/test" />
-                <copy file="${test_source_directory}/../inputs/test.tgz" tofile="${genomicsdb_build_directory}/test/test.tar.gz" />
-                <gunzip src="${genomicsdb_build_directory}/test/test.tar.gz" />
-                <untar src="${genomicsdb_build_directory}/test/test.tar" dest="${genomicsdb_build_directory}/test/"/>
-                <replace file="${genomicsdb_build_directory}/test/inputs/query.json" token="inputs/" value="${genomicsdb_build_directory}/test/inputs/" />
-                <replace file="${genomicsdb_build_directory}/test/inputs/loader.json" token="inputs/" value="${genomicsdb_build_directory}/test/inputs/" />
-              </target>
-            </configuration>
-            <goals>
-              <goal>run</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
 
       <!-- Jacoco adapted from 
            https://www.petrikainulainen.net/programming/maven/creating-code-coverage-reports-for-unit-and-integration-tests-with-the-jacoco-maven-plugin/ -->
@@ -296,6 +275,25 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.3.0</version>
+        <executions>
+          <execution>
+            <id>spark-excluded</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>spark</classifier>
+                <excludes>
+                  <exclude>org/genomicsdb/spark/**</exclude>
+                </excludes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin> 
       <plugin> 
         <groupId>org.apache.maven.plugins</groupId> 
         <artifactId>maven-shade-plugin</artifactId>  
@@ -308,7 +306,7 @@
             </goals> 
             <configuration> 
             <shadedArtifactAttached>true</shadedArtifactAttached> 
-            <shadedClassifierName>allinone</shadedClassifierName> 
+            <shadedClassifierName>allinone-spark</shadedClassifierName> 
             <filters>
               <filter>
                 <artifact>*:*</artifact>
@@ -330,6 +328,42 @@
           </execution>  
         </executions> 
       </plugin> 
+      <plugin>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>unzip-test-artifacts</id>
+            <phase>process-test-resources</phase>
+            <configuration>
+              <target>
+                <mkdir dir="${genomicsdb_build_directory}/test" />
+                <copy file="${test_source_directory}/../inputs/test.tgz" tofile="${genomicsdb_build_directory}/test/test.tar.gz" />
+                <gunzip src="${genomicsdb_build_directory}/test/test.tar.gz" />
+                <untar src="${genomicsdb_build_directory}/test/test.tar" dest="${genomicsdb_build_directory}/test/"/>
+                <replace file="${genomicsdb_build_directory}/test/inputs/query.json" token="inputs/" value="${genomicsdb_build_directory}/test/inputs/" />
+                <replace file="${genomicsdb_build_directory}/test/inputs/loader.json" token="inputs/" value="${genomicsdb_build_directory}/test/inputs/" />
+              </target>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>replace-core-jar</id>
+            <phase>package</phase>
+            <configuration>
+              <target>
+                <move file="${project.build.directory}/genomicsdb-${genomicsdb.version}-spark.jar"
+                  tofile="${project.build.directory}/genomicsdb-${genomicsdb.version}.jar" />
+              </target>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>                
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>

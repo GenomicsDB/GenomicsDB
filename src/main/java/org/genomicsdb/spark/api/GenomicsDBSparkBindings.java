@@ -42,19 +42,19 @@ import java.util.List;
 
 /**
  * Example Invocation
- * spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-1.3.1-SNAPSHOT-allinone.jar loader.json querypb.json true
+ * spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-1.3.1-SNAPSHOT-allinone-spark.jar loader.json querypb.json true
  *      querypb.json should be parseable by GenomicsDBExportConfiguration.ExportConfiguration
  *  OR
- *  spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-1.3.1-SNAPSHOT-allinone.jar loader.json query.json false
+ *  spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-1.3.1-SNAPSHOT-allinone-spark.jar loader.json query.json false
  *  OR
- *  spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-1.3.1-SNAPSHOT-allinone.jar loader.json query.json
+ *  spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-1.3.1-SNAPSHOT-allinone-spark.jar loader.json query.json
  */
 public class GenomicsDBSparkBindings {
   List<VariantCall> variantCalls;
 
   public static void main(String[] args) throws IOException, ClassNotFoundException {
     if (args.length < 2) {
-      throw new RuntimeException("Usage: spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-<VERSION>-allinone.jar <loader.json> <query.json> [<is_serialized_pb>]"+
+      throw new RuntimeException("Usage: spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-<VERSION>-allinone-spark.jar <loader.json> <query.json> [<is_serialized_pb>]"+
               "Optional Argument 2 - <is_serialized_pb=True|False, default is false, if is_serialized_pb then query.json is a protobuf serialized file.");
     }
 

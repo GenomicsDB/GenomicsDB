@@ -55,7 +55,7 @@ def __find_genomicsdb_jar(target_dir, jar_file_name):
 
 def setup_classpath(build_dir):
     target_dir=os.path.join(build_dir,'target')
-    allinone_jar=__find_genomicsdb_jar(target_dir,'genomicsdb-*allinone.jar')
+    allinone_jar=__find_genomicsdb_jar(target_dir,'genomicsdb-*allinone-spark.jar')
     examples_jar=__find_genomicsdb_jar(target_dir,'genomicsdb-*examples.jar')
     if 'CLASSPATH' in os.environ:
         classpath=os.environ['CLASSPATH']
@@ -94,7 +94,7 @@ def setup_jacoco(build_dir, build_type):
             if e.errno != errno.EEXIST:
                 __error_exit('could not create jacoco-reports dir:'+e.errno+' '+e.filename+' '+e.strerror)
         genomicsdb_classes_dir = os.path.join(target_dir, 'jacoco-classes')
-        allinone_archive = zipfile.ZipFile(__find_genomicsdb_jar(target_dir,'genomicsdb-*allinone.jar'))
+        allinone_archive = zipfile.ZipFile(__find_genomicsdb_jar(target_dir,'genomicsdb-*allinone-spark.jar'))
         for file in allinone_archive.namelist():
             if file.startswith('org/genomicsdb'):
                 allinone_archive.extract(file, genomicsdb_classes_dir)
