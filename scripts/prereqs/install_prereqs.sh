@@ -27,7 +27,7 @@ set -e
 #  $1 - 'full' if build prerequisites should be installed, 'release' if only runtime prerequisites should be installed
 
 OPENSSL_VERSION=${OPENSSL_VERSION:-1.1.1o}
-MAVEN_VERSION=${MAVEN_VERSION:-3.6.3}
+MAVEN_VERSION=${MAVEN_VERSION:-3.9.1}
 CURL_VERSION=${CURL_VERSION:-7.83.1}
 UUID_VERSION=${UUID_VERSION:-1.0.3}
 BUILD_TYPE=${1:-"full"}

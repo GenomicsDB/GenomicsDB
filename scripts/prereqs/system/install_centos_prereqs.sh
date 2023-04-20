@@ -52,7 +52,7 @@ install_cmake3() {
 
 install_openjdk() {
   echo "Installing openjdk" &&
-  yum install -y -q java-1.8.0-openjdk-devel &&
+  yum install -y -q java-17-openjdk-devel &&
   echo "export JRE_HOME=/usr/lib/jvm/jre" >> $PREREQS_ENV
 }
 

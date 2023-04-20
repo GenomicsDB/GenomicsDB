@@ -75,7 +75,7 @@ def setup_jacoco(build_dir, build_type):
         jacoco_agent_jar = os.path.join(build_dir,'lib/jacocoagent.jar')
         if (not os.path.isfile(jacoco_cli_jar) or not os.path.isfile(jacoco_agent_jar)):
             jacoco_zip_file = os.path.join(build_dir, "jacoco-0.8.5.zip")
-            urlretrieve ("https://github.com/jacoco/jacoco/releases/download/v0.8.2/jacoco-0.8.2.zip", 
+            urlretrieve ("https://github.com/jacoco/jacoco/releases/download/v0.8.8/jacoco-0.8.8.zip", 
                                 jacoco_zip_file)
             with zipfile.ZipFile(jacoco_zip_file, 'r') as zip_ref:
                 zip_ref.extract('lib/jacocoagent.jar', build_dir)
