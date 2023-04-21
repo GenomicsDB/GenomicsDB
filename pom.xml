@@ -81,7 +81,7 @@
     <test_source_directory>${genomicsdb_source_directory}/src/test/java</test_source_directory>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <surefireArgLine>--illegal-access=permit -Djava.library.path=${project.basedir}/bin:${java.library.path}</surefireArgLine>
+    <surefireArgLine>-Djava.library.path=${project.basedir}/bin:${java.library.path}</surefireArgLine>
   </properties>
 
   <dependencies>
