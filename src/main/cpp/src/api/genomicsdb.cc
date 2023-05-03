@@ -414,8 +414,6 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
     m_variant_call_processor.process(std::make_pair<uint64_t, uint64_t>((uint64_t)begin, (uint64_t)end));
   }
 
-  if (!cell.evaluate_cell()) return;
-
   auto coords = cell.get_coordinates();
 
   assert(query_config.is_defined_query_idx_for_known_field_enum(GVCF_END_IDX));

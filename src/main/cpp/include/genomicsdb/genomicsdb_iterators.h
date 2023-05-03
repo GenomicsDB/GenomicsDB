@@ -448,6 +448,9 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
     inline const GenomicsDBGVCFCell& operator*() const {
       return *m_cell;
     }
+    inline const bool evaluate_cell() const {
+      return m_cell_evaluated_with_filter_expression;
+    }
     inline bool end() const {
       return SingleCellTileDBIterator::end() && m_end_set.empty();
     }
