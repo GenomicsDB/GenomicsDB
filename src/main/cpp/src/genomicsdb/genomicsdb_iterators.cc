@@ -509,6 +509,31 @@ bool SingleCellTileDBIterator::advance_to_next_useful_cell(const uint64_t min_nu
 #endif
     advance_fields_other_than_coords_END(num_cells_incremented);
   }
+
+  // Evaluate filter expression if necessary
+  m_cell_evaluated_with_filter_expression = true;
+  if (m_query_config->get_query_filter().size() > 0) {
+    const auto& attribute_ids = m_query_config->get_query_attributes_schema_idxs();
+    std::vector<void *> buffers;
+    std::vector<size_t> buffer_sizes;
+    std::vector<int64_t> positions;
+    for (auto i=0; i<m_fields.size(); i++) {
+      auto& genomicsdb_columnar_field = m_fields[i];
+      auto buffer = get_buffer_and_index(i);
+      if (genomicsdb_columnar_field.is_variable_length_field()) {
+        buffers.push_back(const_cast<GenomicsDBBuffer *>(buffer.first)->get_offsets_pointer());
+        buffer_sizes.push_back(buffer.first->get_offsets_size_in_bytes());
+        positions.push_back((int64_t)buffer.second);
+      }
+      buffers.push_back(const_cast<uint8_t *>(buffer.first->get_raw_pointer()));
+      buffer_sizes.push_back(buffer.first->get_data_vector_size_in_bytes());
+      positions.push_back((int64_t)buffer.second);
+    }
+    if (tiledb_array_evaluate_cell(m_tiledb_array, buffers.data(), buffer_sizes.data(), positions.data()) != TILEDB_OK) {
+      m_cell_evaluated_with_filter_expression = false;
+    }
+  }
+
   return true;
 }
 
@@ -646,7 +671,7 @@ void SingleCellTileDBIterator::advance_fields_other_than_coords_END(const uint64
   assert(m_END_query_idx == 0u);
   for (auto i=0u; i<m_query_attribute_idx_vec.size(); ++i)
     m_query_attribute_idx_vec[i] = i+1u;  //END is the first field - ignore
-  //-2 - ignore coords and END
+  //-2 - ignore coords as well
   m_query_attribute_idx_num_cells_to_increment_vec.resize(m_fields.size()-2u);
   //For all fields, #cells to skip == num_cells_to_increment initially
   m_query_attribute_idx_num_cells_to_increment_vec.assign(
@@ -660,7 +685,7 @@ void SingleCellTileDBIterator::advance_fields_other_than_coords_END(const uint64
     assert(!m_done_reading_from_TileDB
            && m_query_column_interval_idx == curr_query_column_interval_idx);
 #ifdef DEBUG
-    //After the skip cells API is implemented, there shouldn't be any attributes
+    //After the TileDB read with skip cells, there shouldn't be any attributes
     //whose cells need to be skipped after a call to read_from_TileDB()
     for (auto i=0u; i<m_query_attribute_idx_vec.size(); ++i)
       assert(m_query_attribute_idx_num_cells_to_increment_vec[i] == 0u);

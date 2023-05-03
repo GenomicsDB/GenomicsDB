@@ -162,6 +162,9 @@ class GenomicsDBColumnarCell {
   inline int get_field_size_in_bytes(const int query_idx) const {
     return m_iterator->get_field_size_in_bytes(query_idx);
   }
+  inline bool evaluate_cell() const {
+    return m_iterator->evaluate_cell();
+  }
   inline bool is_valid(const int query_idx) const {
     return m_iterator->is_valid(query_idx);
   }
