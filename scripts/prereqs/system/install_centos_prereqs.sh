@@ -51,9 +51,16 @@ install_cmake3() {
 }
 
 install_openjdk() {
-  echo "Installing openjdk" &&
-  yum install -y -q java-17-openjdk-devel &&
-  echo "export JRE_HOME=/usr/lib/jvm/jre" >> $PREREQS_ENV
+  if [[ $CENTOS_VERSION -ge 8 ]]; then
+    echo "Installing openjdk" &&
+      yum install -y -q java-17-openjdk-devel &&
+      echo "export JRE_HOME=/usr/lib/jvm/jre" >> $PREREQS_ENV
+  else
+    curl -O https://download.java.net/java/GA/jdk17.0.2/dfd4a8d0985749f896bed50d7138ee7f/8/GPL/openjdk-17.0.2_linux-x64_bin.tar.gz &&
+    tar zxvf openjdk-17.0.2_linux-x64_bin.tar.gz &&
+    mv jdk-17.0.2 /usr/local/ &&
+    echo "export JAVA_HOME=/usr/local/jdk-17.0.2" >> $PREREQS_ENV
+  fi
 }
 
 install_mpi() {

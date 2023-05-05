@@ -20,7 +20,7 @@
 #
 # Description: Docker file to generate GenomicsDB release jar
 
-FROM ghcr.io/genomicsdb/genomicsdb:centos_6_prereqs
+FROM ghcr.io/genomicsdb/genomicsdb:centos_6_prereqs_java_17
 ARG GENOMICSDB_RELEASE_VERSION=""
 ARG MAC_DYLIB_PATH=""
 ARG USE_HDFS=""
