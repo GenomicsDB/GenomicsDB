@@ -23,6 +23,6 @@
 ARG os=centos:6
 FROM $os
 
-ENV DOCKER_BUILD=true
+ENV BUILD_DISTRIBUTABLE_LIBRARY=true
 COPY ./scripts/ /scripts
-RUN /scripts/prereqs/install_prereqs.sh true full
+RUN /scripts/prereqs/install_prereqs.sh

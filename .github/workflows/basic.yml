@@ -19,7 +19,7 @@ env:
   CMAKE_INSTALL_PREFIX: ${{github.workspace}}/install
   GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
   GENOMICSDB_RELEASE_VERSION: x.y.z.test
-  HADOOP_VER: 3.2.4
+  HADOOP_VER: 3.3.5
   SPARK_VER: 3.0.1
   SPARK_HADOOP_VER: 2.7
 
@@ -30,7 +30,7 @@ jobs:
       matrix:
         os: [ubuntu-20.04,ubuntu-22.04,macos-12]
         type: [basic]
-        java: [8,11]
+        java: [11,17]
         include:
           - os: ubuntu-20.04
             type: hdfs
