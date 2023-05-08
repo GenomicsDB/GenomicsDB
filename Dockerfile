@@ -34,8 +34,9 @@ ARG enable_bindings=""
 
 COPY . /build/GenomicsDB/
 ENV DOCKER_BUILD=true
+ENV BUILD_DISTRIBUTABLE_LIBRARY=${distributable_jar}
 WORKDIR /build/GenomicsDB
-RUN ./scripts/prereqs/install_prereqs.sh ${distributable_jar} full ${enable_bindings} &&\
+RUN ./scripts/prereqs/install_prereqs.sh full &&\
     useradd -r -U -m ${user} &&\
     ./scripts/install_genomicsdb.sh ${user} ${install_dir} ${distributable_jar} ${enable_bindings}
 
@@ -47,9 +48,10 @@ ARG user=genomicsdb
 ARG install_dir=/usr/local
 ARG distributable_jar=false
 ARG enable_bindings=""
+ENV BUILD_DISTRIBUTABLE_LIBRARY=${distributable_jar}
 COPY ./scripts/prereqs /build
 WORKDIR /build
-RUN ./install_prereqs.sh ${distributable_jar} release ${enable_bindings} &&\
+RUN ./install_prereqs.sh release &&\
     useradd -r -U -m ${user}
 
 COPY --from=full /usr/local/bin/*genomicsdb* /usr/local/bin/gt_mpi_gather /usr/local/bin/vcf* ${install_dir}/bin/
