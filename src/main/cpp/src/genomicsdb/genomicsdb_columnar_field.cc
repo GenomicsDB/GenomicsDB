@@ -326,16 +326,18 @@ void GenomicsDBColumnarField::set_valid_vector_in_live_buffer_list_tail_ptr() {
   auto buffer_ptr = get_live_buffer_list_tail();
   assert(buffer_ptr);
   auto& valid_vector = buffer_ptr->get_valid_vector();
-  if (m_length_descriptor == BCF_VL_FIXED)
+  if (m_length_descriptor == BCF_VL_FIXED) {
     for (auto i=0ull; i<buffer_ptr->get_num_live_entries(); ++i) {
       assert(i < valid_vector.size());
       valid_vector[i] = m_check_tiledb_valid_element(buffer_ptr->get_raw_pointer() + (m_fixed_length_field_size*i),
                         m_fixed_length_field_num_elements);
-    } else
+    }
+  } else {
     for (auto i=0ull; i<buffer_ptr->get_num_live_entries(); ++i) {
       assert(i < valid_vector.size());
       valid_vector[i] = (buffer_ptr->get_size_of_variable_length_field(i) > 0u);
     }
+  }
 }
 
 void GenomicsDBColumnarField::print_data_in_buffer_at_index(std::ostream& fptr,

@@ -532,8 +532,10 @@ void VariantQueryProcessor::iterate_over_cells(
   for (; !(columnar_forward_iter->end()); ++(*columnar_forward_iter)) {
     auto& cell = **columnar_forward_iter;
     auto coords = cell.get_coordinates();
-    if (query_config.is_queried_array_row_idx(coords[0]))      //If row is part of query, process cell
+    //If row is part of query and is not filtered away, process cell
+    if (query_config.is_queried_array_row_idx(coords[0]) && cell.evaluate_cell()) {
       variant_operator.operate_on_columnar_cell(cell, query_config, get_array_schema());
+    }
   }
   variant_operator.finalize();
   delete columnar_forward_iter;
@@ -550,8 +552,9 @@ void VariantQueryProcessor::iterate_over_gvcf_entries(
       use_common_array_object);
   for (; !(columnar_gvcf_iter->end()); ++(*columnar_gvcf_iter)) {
     auto& cell = **columnar_gvcf_iter;
-
-    variant_operator.operate_on_columnar_cell(cell);
+    if (cell.get_iterator()->evaluate_cell()) {
+      variant_operator.operate_on_columnar_cell(cell);
+    }
   }
   //variant_operator.finalize();
   delete columnar_gvcf_iter;

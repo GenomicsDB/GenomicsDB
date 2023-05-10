@@ -2,7 +2,7 @@
  * src/test/cpp/src/test_genomicsdb_api.cc
  *
  * The MIT License (MIT)
- * Copyright (c) 2019-2022 Omics Data Automation, Inc.
+ * Copyright (c) 2019-2023 Omics Data Automation, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -280,6 +280,26 @@ class NullVariantCallProcessor : public GenomicsDBVariantCallProcessor {
   };
 };
 
+class CountCellsProcessor : public GenomicsDBVariantCallProcessor {
+ public:
+  CountCellsProcessor() {
+  };
+
+  void process(const interval_t& interval) {
+  };
+
+  void process(const std::string& sample_name,
+               const int64_t* coordinates,
+               const genomic_interval_t& genomic_interval,
+               const std::vector<genomic_field_t>& genomic_fields) {
+    m_count++;
+    m_coordinates = coordinates;
+  };
+
+  int m_count = 0;
+  const int64_t* m_coordinates;
+};
+
 class OneQueryIntervalProcessor : public GenomicsDBVariantCallProcessor {
  public:
   OneQueryIntervalProcessor(const std::vector<std::string> attributes = {}, bool is_PP=false) {
@@ -540,17 +560,43 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
   gdb->query_variant_calls(one_query_interval_processor);
   delete gdb;
 
-  // try query with contig intervals instead of tiledb column intervals
-  ContigInterval* contig_interval = new ContigInterval();
-  contig_interval->set_contig("1");
-  contig_interval->set_begin(1);
-  contig_interval->set_end(249250621);
-  column_interval->Clear();
-  column_interval->set_allocated_contig_interval(contig_interval);
-  CHECK(config->SerializeToString(&config_string));
-  gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
-  gdb->query_variant_calls();
-  delete gdb;
+  SECTION("Try query with contig intervals instead of tiledb column intervals") {
+    ContigInterval* contig_interval = new ContigInterval();
+    contig_interval->set_contig("1");
+    contig_interval->set_begin(1);
+    contig_interval->set_end(249250621);
+    column_interval->Clear();
+    column_interval->set_allocated_contig_interval(contig_interval);
+    CHECK(config->SerializeToString(&config_string));
+    gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
+    gdb->query_variant_calls();
+    delete gdb;
+  }
+
+  SECTION("Try query with a filter") {
+    config->set_query_filter("REF == \"G\" && GT &= \"1/1\" && ALT |= \"T\"");
+    CHECK(config->SerializeToString(&config_string));
+    gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
+    CountCellsProcessor count_cells_processor;
+    gdb->query_variant_calls(count_cells_processor);
+    CHECK(count_cells_processor.m_count == 1);
+    CHECK(count_cells_processor.m_coordinates[0] == 1);
+    CHECK(count_cells_processor.m_coordinates[1] == 17384);
+    delete gdb;
+  }
+
+  SECTION("Try query with a filter and a small segment size to force TileDB buffers overflow") {
+    config->set_query_filter("REF == \"G\" && GT &= \"11\" && ALT |= \"T\"");
+    config->set_segment_size(40);
+    CHECK(config->SerializeToString(&config_string));
+    gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
+    CountCellsProcessor count_cells_processor;
+    gdb->query_variant_calls(count_cells_processor);
+    CHECK(count_cells_processor.m_count == 1);
+    CHECK(count_cells_processor.m_coordinates[0] == 1);
+    CHECK(count_cells_processor.m_coordinates[1] == 17384);
+    delete gdb;
+  }
 }
 
 TEST_CASE("api generate_vcf direct", "[query_generate_vcf_direct]") {

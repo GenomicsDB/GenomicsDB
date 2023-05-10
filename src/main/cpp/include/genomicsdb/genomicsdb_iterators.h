@@ -232,6 +232,9 @@ class SingleCellTileDBIterator {
     auto coords_query_idx = m_fields.size()-1u;
     return reinterpret_cast<const int64_t*>(get_raw_field_pointer_for_query_idx(coords_query_idx));
   }
+  inline const bool evaluate_cell() const {
+    return m_cell_evaluated_with_filter_expression;
+  }
   void print(const int query_idx, std::ostream& fptr=std::cout) const;
   void print_ALT(const int query_idx, std::ostream& fptr=std::cout) const;
   void print_csv(const int query_idx, std::ostream& fptr=std::cout) const;
@@ -350,6 +353,7 @@ class SingleCellTileDBIterator {
   const VariantQueryConfig* m_query_config;
   uint64_t m_query_column_interval_idx;
   GenomicsDBColumnarCell* m_cell;
+  bool m_cell_evaluated_with_filter_expression;
   //Buffers for fields
   std::vector<GenomicsDBColumnarField> m_fields;
   //Cell markers for handling the sweep operation
@@ -443,6 +447,9 @@ class GenomicsDBGVCFIterator : public SingleCellTileDBIterator {
     const GenomicsDBGVCFIterator& operator++();
     inline const GenomicsDBGVCFCell& operator*() const {
       return *m_cell;
+    }
+    inline const bool evaluate_cell() const {
+      return m_cell_evaluated_with_filter_expression;
     }
     inline bool end() const {
       return SingleCellTileDBIterator::end() && m_end_set.empty();
