@@ -1,4 +1,1 @@
-pytest
-pylint
-PyVCF
 jsondiff
