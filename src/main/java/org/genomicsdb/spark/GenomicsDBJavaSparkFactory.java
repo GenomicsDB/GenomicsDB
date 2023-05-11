@@ -49,6 +49,7 @@ public final class GenomicsDBJavaSparkFactory {
 
     SparkConf conf = new SparkConf();
     conf.setAppName("GenomicsDBTest using newAPIHadoopRDD");
+    conf.set("spark.hadoopRDD.ignoreEmptySplits","false");
     JavaSparkContext sc = new JavaSparkContext(conf);
 
     Configuration hadoopConf = sc.hadoopConfiguration();

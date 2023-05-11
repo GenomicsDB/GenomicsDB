@@ -58,7 +58,7 @@
   <properties>
     <java.version>17</java.version>
     <scala.main>2.12</scala.main>
-    <spark.version>3.0.1</spark.version>
+    <spark.version>3.4.0</spark.version>
     <spark.core.artifactid>spark-core_${scala.main}</spark.core.artifactid>
     <spark.sql.artifactid>spark-sql_${scala.main}</spark.sql.artifactid>
     <spark.exclude.packages>org.genomicsdb.spark.v2</spark.exclude.packages>

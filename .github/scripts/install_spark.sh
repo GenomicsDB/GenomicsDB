@@ -5,8 +5,8 @@
 INSTALL_DIR=${INSTALL_DIR:-/usr}
 USER=`whoami`
 
-SPARK_VER=${SPARK_VER:-3.0.1}
-SPARK=spark-$SPARK_VER-bin-hadoop${SPARK_HADOOP_VER:-2.7}
+SPARK_VER=${SPARK_VER:-3.4.0}
+SPARK=spark-$SPARK_VER-bin-hadoop${SPARK_HADOOP_VER:-3}
 SPARK_DIR=${INSTALL_DIR}/$SPARK
 SPARK_LOCAL_DIR="/usr/local/spark"
 SPARK_ENV=${SPARK_ENV:-$HOME/spark_env.sh}
@@ -55,7 +55,7 @@ configure_spark() {
   sudo echo "SPARK_MASTER_HOST=127.0.0.1" > ${SPARK_LOCAL_DIR}/conf/spark-env.sh &&
   sudo echo "SPARK_LOCAL_IP=127.0.0.1" >> ${SPARK_LOCAL_DIR}/conf/spark-env.sh &&
   sudo echo "localhost" > ${SPARK_LOCAL_DIR}/conf/slaves &&
-  sudo cp ${SPARK_LOCAL_DIR}/conf/log4j.properties.template ${SPARK_LOCAL_DIR}/conf/log4j.properties &&
+  sudo cp ${SPARK_LOCAL_DIR}/conf/log4j2.properties.template ${SPARK_LOCAL_DIR}/conf/log4j2.properties &&
   echo "configure_spark successful"
 }
 

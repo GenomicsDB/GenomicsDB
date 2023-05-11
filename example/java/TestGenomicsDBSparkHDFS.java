@@ -112,6 +112,7 @@ public final class TestGenomicsDBSparkHDFS {
       }
     }
     SparkConf conf = new SparkConf().setAppName("TestGenomicsDBSparkHDFS");
+    conf.set("spark.hadoopRDD.ignoreEmptySplits","false");
 
     Path dstdir = Paths.get("").toAbsolutePath();
     Path qSrc = Paths.get(queryFile);
