@@ -89,7 +89,7 @@ option(USE_GPERFTOOLS_HEAP "Collect heap profiling information using gperftools/
 
 set(GENOMICSDB_MAVEN_BUILD_DIR ${CMAKE_BINARY_DIR}/target CACHE PATH "Path to maven build directory")
 set(MAVEN_QUIET False CACHE BOOL "Do not print mvn messages")
-set(GENOMICSDB_MAVEN_PROFILE "" CACHE STRING "Profile to compile with Java 11") # used in Maven builds
+set(GENOMICSDB_MAVEN_PROFILE "" CACHE STRING "To enable the profile in Maven") # used in Maven builds
 set(GPG_PASSPHRASE "" CACHE STRING "Gpg passphrase for deploying to maven")
 
 set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when intel optimized zlib is required")

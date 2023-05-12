@@ -501,12 +501,4 @@
 
     </plugins>
   </build>
-  <profiles>
-    <profile>
-      <id>java11</id>
-      <properties>
-        <java.version>11</java.version>
-      </properties>
-      </profile>  
-  </profiles>
 </project>

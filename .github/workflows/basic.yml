@@ -30,7 +30,7 @@ jobs:
       matrix:
         os: [ubuntu-20.04,ubuntu-22.04,macos-12]
         type: [basic]
-        java: [11,17]
+        java: [17]
         include:
           - os: ubuntu-20.04
             type: hdfs
@@ -112,9 +112,6 @@ jobs:
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
-        if [[ $JAVA_VER == '11' ]]; then
-          GENOMICSDB_MAVEN_PROFILE=java11
-        fi
         source $PREREQS_ENV
         # java tests take a very long time to run on MacOS, so limit running the tests to PRs and master/develop branches
         BRANCH=${GITHUB_REF##*/}
