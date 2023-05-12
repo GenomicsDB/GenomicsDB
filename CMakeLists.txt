@@ -89,7 +89,6 @@ option(USE_GPERFTOOLS_HEAP "Collect heap profiling information using gperftools/
 
 set(GENOMICSDB_MAVEN_BUILD_DIR ${CMAKE_BINARY_DIR}/target CACHE PATH "Path to maven build directory")
 set(MAVEN_QUIET False CACHE BOOL "Do not print mvn messages")
-set(GENOMICSDB_MAVEN_PROFILE "" CACHE STRING "Profile to compile with Java 11") # used in Maven builds
 set(GPG_PASSPHRASE "" CACHE STRING "Gpg passphrase for deploying to maven")
 
 set(IPPROOT "" CACHE PATH "Path to IPP libraries - used when intel optimized zlib is required")
@@ -538,20 +537,12 @@ if(BUILD_JAVA)
 
       endif()
 
-      if(GENOMICSDB_MAVEN_PROFILE)
-        message(STATUS "Setting maven profile to ${GENOMICSDB_MAVEN_PROFILE}" )
-        set(MAVEN_PROFILE 
-          -P${GENOMICSDB_MAVEN_PROFILE})
-        set(MAVEN_ARGS ${MAVEN_ARGS} ${MAVEN_PROFILE})
-    else()
-        set(MAVEN_PROFILE "")
-    endif()
 
     #Maven build - depends on dynamic library
     add_custom_command(
         OUTPUT ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-allinone-spark.jar
         COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/pom.xml ${CMAKE_BINARY_DIR}/pom.xml
-        COMMAND mvn versions:set ${MAVEN_QUIET_ARGS} -DnewVersion=${GENOMICSDB_RELEASE_VERSION} ${MAVEN_PROFILE}
+        COMMAND mvn versions:set ${MAVEN_QUIET_ARGS} -DnewVersion=${GENOMICSDB_RELEASE_VERSION}
         COMMAND mvn package -DskipTests ${MAVEN_ARGS}
         DEPENDS tiledbgenomicsdb ${JAVA_SCALA_SOURCES} pom.xml
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR})

@@ -67,6 +67,7 @@ public class GenomicsDBSparkBindings {
 
     SparkConf conf = new SparkConf();
     conf.setAppName("GenomicsDB API Experimental Bindings");
+    conf.set("spark.hadoopRDD.ignoreEmptySplits","false");
     JavaSparkContext sc = new JavaSparkContext(conf);
 
     Configuration hadoopConf = sc.hadoopConfiguration();
