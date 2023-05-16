@@ -80,7 +80,12 @@ install_hadoop() {
       setup_paths &&
       cp -fr $GITHUB_WORKSPACE/.github/resources/hadoop/* $HADOOP_DIR/etc/hadoop &&
       mkdir -p $HADOOP_DIR/logs &&
-      export HADOOP_ROOT_LOGGER=ERROR,console
+      export HADOOP_ROOT_LOGGER=ERROR,console &&
+      echo "download hadoop with download successful"
+  fi
+  if [[ $? != 0 ]];
+    echo "Hadoop did not install successfully. Aborting"
+    exit 1
   fi
   source $HADOOP_ENV &&
     configure_hadoop &&
@@ -88,5 +93,4 @@ install_hadoop() {
 }
 
 echo "INSTALL_DIR=$INSTALL_DIR"
-echo "INSTALL_TYPE=$INSTALL_TYPE"
 install_hadoop
