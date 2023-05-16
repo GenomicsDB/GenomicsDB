@@ -83,7 +83,7 @@ install_hadoop() {
       export HADOOP_ROOT_LOGGER=ERROR,console &&
       echo "download hadoop with download successful"
   fi
-  if [[ $? != 0 ]];
+  if [[ $? != 0 ]]; then
     echo "Hadoop did not install successfully. Aborting"
     exit 1
   fi
