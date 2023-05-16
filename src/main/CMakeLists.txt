@@ -3,7 +3,7 @@
 #
 # The MIT License
 #
-# Copyright (c) 2019-2020,2022 Omics Data Automation, Inc.
+# Copyright (c) 2019-2020,2022-2023 Omics Data Automation, Inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -128,7 +128,8 @@ endif()
 #endif()
 
 install(TARGETS genomicsdb tiledbgenomicsdb LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
-install(FILES cpp/include/api/genomicsdb.h  cpp/include/api/genomicsdb_exception.h cpp/include/api/genomicsdb_utils.h DESTINATION include)
+install(FILES cpp/include/api/genomicsdb.h  cpp/include/api/genomicsdb_exception.h cpp/include/api/genomicsdb_status.h cpp/include/api/genomicsdb_utils.h
+        DESTINATION include)
 if(BUILD_FOR_PYTHON)
   install(FILES ${PROTOBUF_GENERATED_PYTHON_SRCS} DESTINATION genomicsdb/protobuf/python)
 endif()
