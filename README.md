@@ -1,4 +1,5 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![readthedocs](https://readthedocs.org/projects/genomicsdb/badge/?version=latest)](https://genomicsdb.readthedocs.io/en/latest/)
 [![Maven Central](https://img.shields.io/maven-central/v/org.genomicsdb/genomicsdb.svg)](https://mvnrepository.com/artifact/org.genomicsdb)
 
 | Master | Develop |
@@ -6,7 +7,7 @@
 | [![actions](https://github.com/GenomicsDB/GenomicsDB/workflows/build/badge.svg?branch=master)](https://github.com/GenomicsDB/GenomicsDB/actions?query=branch%3Amaster) | [![actions](https://github.com/GenomicsDB/GenomicsDB/workflows/build/badge.svg?branch=develop)](https://github.com/GenomicsDB/GenomicsDB/actions?query=branch%3Adevelop) |
 | [![codecov](https://codecov.io/gh/GenomicsDB/GenomicsDB/branch/master/graph/badge.svg)](https://codecov.io/gh/GenomicsDB/GenomicsDB) | [![codecov](https://codecov.io/gh/GenomicsDB/GenomicsDB/branch/develop/graph/badge.svg)](https://codecov.io/gh/GenomicsDB/GenomicsDB/branch/develop) |
 
-GenomicsDB, originally from [Intel Health and Lifesciences](https://github.com/Intel-HLS/GenomicsDB), is built on top of a fork of [htslib](https://github.com/samtools/htslib) and a tile-based array storage system for importing, querying and transforming variant data. Variant data is sparse by nature (sparse relative to the whole genome) and using sparse array data stores is a perfect fit for storing such data. GenomicsDB is a highly performant scalable data storage written in C++ for importing, querying and transforming genomic variant data.
+GenomicsDB is built on top of a fork of [htslib](https://github.com/samtools/htslib) and a tile-based array storage system for importing, querying and transforming variant data. Variant data is sparse by nature (sparse relative to the whole genome) and using sparse array data stores is a perfect fit for storing such data. GenomicsDB is a highly performant scalable data storage written in C++ for importing, querying and transforming genomic variant data. See [genomicsdb.readthedocs.io](https://genomicsdb.readthedocs.io/en/latest/) for documentation and usage.
 * Supported platforms : Linux and MacOS.
 * Supported filesystems : POSIX, HDFS, EMRFS(S3), GCS and Azure Blob.
 
@@ -16,9 +17,6 @@ Included are
 * MPI and Spark support for parallel querying of GenomicsDB.
 
 GenomicsDB is packaged into [gatk4](https://software.broadinstitute.org/gatk/documentation/article?id=11091) and benefits qualitatively from a large user base.
-
-The GenomicsDB documentation for users is hosted as a Github wiki:
-https://github.com/GenomicsDB/GenomicsDB/wiki
 
 ## External Contributions
 GenomicsDB is open source and all participation is welcome.
