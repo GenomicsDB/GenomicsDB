@@ -24,20 +24,5 @@ GenomicsDB is released under the MIT License and all external
 contributors are expected to grant an MIT License for their contributions.
 
 ### Checklist before creating Pull Request
-Please ensure that the code is well documented in Javadoc style for Java/Scala. For C/C++ code, roughly adhere to [Google C++ Style](https://google.github.io/styleguide/cppguide.html) for consistency/readabilty.
+Please ensure that the code is well documented in Javadoc style for Java/Scala.  For Java/C/C++ code formatting, roughly adhere to the Google Style Guides. See [GenomicsDB Style Guide](Style.md)
 
-```
-Use spaces instead of tabs.
-Use 2 spaces for indenting.
-Add brackets even for one line blocks e.g. 
-        if (x>0)
-           do_foo();
- should ideally be 
-       if (x>0) {
-         do_foo();
-       }
-Pad header e.g.
-        if(x>0) should be if (x>0)
-        while(x>0) should be while (x>0)
-One half indent for class modifiers.
-```
