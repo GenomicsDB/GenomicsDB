@@ -1,5 +1,5 @@
 ###############################
-Using with GATK
+Using GenomicsDB with GATK
 ###############################
 
 GenomicsDB is packaged into
