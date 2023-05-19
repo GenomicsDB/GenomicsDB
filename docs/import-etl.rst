@@ -5,7 +5,7 @@ Import / ETL
 ###############################
 GenomicsDB supports importing genomics data in several common formats, and with a variety of methods.
 
-GenomicsDB can ingest data in VCF, gVCF, BCF, gBCFand CSV formats. When importing VCFs or gVCFs,
+GenomicsDB can ingest data in VCF, BCF, gVCF and CSV formats. When importing VCF/BCFs or gVCFs,
 you may need to run a few preprocessing steps before importing. 
 
 The primary and suggested method of importing is to use the native vcf2genomicsdb importer tool (see :ref:`CLI Tools <CLI Tools>`).
@@ -14,7 +14,7 @@ There is also a Java API for importing (see :ref:`here <APIs/Java/API Reference/
 
 VCF/gVCF
 *******************************
-The import program can handle block compressed and indexed VCFs, gVCFs, BCFs and gBCFs. 
+The import program can handle block compressed and indexed VCFs, BCFs and gVCFs.
 For brevity, we will only use the term VCF.
 
 
