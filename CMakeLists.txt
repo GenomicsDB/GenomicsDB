@@ -147,12 +147,13 @@ if (BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_FOR_PYTHON)
     endif()
 endif()
 
-#Check C++ 2011 support
+#Check for minimum C++11 support, but use C++17 if possible
 include(CheckAndSetStdCXX2011Flag)
 CHECK_AND_SET_STD_CXX_2011_FLAG(test_cpp_2011)
 if(NOT test_cpp_2011)
-    message(FATAL_ERROR "Your compiler does not support C++ 2011, exiting")
+  message(FATAL_ERROR "Your compiler does not support C++ 2011, exiting")
 endif()
+
 #Check for stack-protector-strong
 include(CheckAndSetStackProtectorStrong)
 CHECK_AND_SET_STACK_PROTECTOR_STRONG_FLAG(test_stack_protector_strong)
@@ -208,10 +209,11 @@ endif()
 find_package(libuuid REQUIRED)
 include_directories(${LIBUUID_INCLUDE_DIR})
 
-#OpenSSL required by TileDB and CURL
 if(BUILD_DISTRIBUTABLE_LIBRARY)
   set(OPENSSL_USE_STATIC_LIBS TRUE)
 endif()
+
+#OpenSSL required by TileDB and CURL
 find_package(OpenSSL REQUIRED)
 find_package(CURL REQUIRED)
 
@@ -226,11 +228,6 @@ include_directories(${SPDLOG_INCLUDE_DIR})
 #htslib
 find_package(htslib REQUIRED)
 include_directories(BEFORE ${HTSLIB_INCLUDE_DIR})
-
-#TileDB
-find_package(TileDB REQUIRED)
-include_directories(${TILEDB_INCLUDE_DIR})
-#include_directories(${TILEDB_INCLUDE_DIR})
 
 #librt
 find_library(LIBRT_LIBRARY rt)
@@ -249,6 +246,8 @@ endif()
     #add_definitions(-DLIBDBI)
 #endif()
 
+include(GNUInstallDirs)
+
 #Protobuf library
 find_package(ProtobufWrapper REQUIRED)
 if(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR)
@@ -259,21 +258,27 @@ endif()
 include_directories(${PROTOBUF_INCLUDE_DIRS})
 
 #JNI
-if(BUILD_JAVA)
-    if(CMAKE_CROSSCOMPILING)
-	set(JAVA_HOME ${TARGET_JAVA_HOME})
-	set(ENV{JAVA_HOME} ${TARGET_JAVA_HOME})
-    endif()
-    find_package(JNI REQUIRED)
-    if(CMAKE_CROSSCOMPILING)
-	unset(JAVA_HOME)
-	unset(ENV{JAVA_HOME})
-    endif()
-    find_package(Java 11 REQUIRED)
-    include_directories(${JNI_INCLUDE_DIRS})
-    include_directories(src/main/jni/include)
-    include(UseJava)
+if(BUILD_JAVA OR USE_HDFS)
+  if(CMAKE_CROSSCOMPILING)
+    set(JAVA_HOME ${TARGET_JAVA_HOME})
+    set(ENV{JAVA_HOME} ${TARGET_JAVA_HOME})
+  endif()
+  find_package(JNI REQUIRED)
+  if(CMAKE_CROSSCOMPILING)
+    unset(JAVA_HOME)
+    unset(ENV{JAVA_HOME})
+  endif()
+  if (BUILD_JAVA)
+    find_package(Java 17 REQUIRED)
+  endif()
+  include_directories(${JNI_INCLUDE_DIRS})
+  include_directories(src/main/jni/include)
+  include(UseJava)
 endif()
+
+#TileDB
+find_package(TileDB REQUIRED)
+include_directories(${TILEDB_INCLUDE_DIR})
 
 #libcsv
 if(NOT BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_FOR_PYTHON)
