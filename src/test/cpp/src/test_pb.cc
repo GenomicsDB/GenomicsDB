@@ -25,6 +25,8 @@
 #include "json_config.h"
 #include "variant_query_config.h"
 #include "genomicsdb_export_config.pb.h"
+#include "vid_mapper_pb.h"
+
 #include "test_common.h"
 
 void check_equal_query_config(const GenomicsDBConfigBase& json_config, const GenomicsDBConfigBase& pb_config) {
@@ -156,4 +158,15 @@ TEST_CASE("pb_vid_mapping_test", "[vid_protobuf_config]")
   vid_pb.parse_vidmap_protobuf(&vid_config);
   // check against pb generated from file
   check_equal_vid_config(vid_json, vid_pb);
+}
+
+static std::string vid_mapping_overlapping_contigs(ctests_input_dir+"vid_protobuf_overlapping_contigs.json");
+
+TEST_CASE("pb_overlapping_vid_mapping_test", "[vid_protobuf_overlapping_contigs]")
+{
+  VidMapper vid_pb;
+  VidMappingPB vid_config;
+  GenomicsDBConfigBase::get_pb_from_json_file(&vid_config, vid_mapping_overlapping_contigs);
+  CHECK(vid_config.IsInitialized());
+  CHECK_THROWS_AS(vid_pb.parse_vidmap_protobuf(&vid_config), ProtoBufBasedVidMapperException);
 }
