@@ -2,6 +2,7 @@
 #
 # The MIT License (MIT)
 # Copyright (c) 2021-2023 Omics Data Automation Inc.
+# Copyright (c) 2023 da̅tma, inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -25,15 +26,22 @@
 #    vcf2genomicsdb
 #    gt_mpi_gather
 # $1 contains the test vcfs - t0.vcf.gz, t1.vcf.gz and t2.vcf.gz
-if [[ $# -ne 2 ]]; then
-  echo "Usage: ./test_tools.sh <vcfs_dir> <install_dir>"
+if [[ $# -lt 2 ]]; then
+  echo "Usage: ./test_tools.sh <vcfs_dir> <install_dir> <disable_mpi>"
   echo "<vcf_dir> can be a local or remote directory containing the test vcfs -"
   echo "            t0.vcf.gz, t1.vcf.gz and t2.vcf.gz"
+  echo "optional <disable_mpi>, if set gt_mpi_gather_tests are not run"
   exit 1
 fi
 
 if [[ -n $2 ]]; then
   PATH=$2/bin:$2:$PATH
+fi
+
+if [[ $# -ge 3 ]]; then
+  DISABLE_MPI=$3
+else
+  DISABLE_MPI=0
 fi
 
 VCFS_DIR=$(cd $1 && pwd)
@@ -224,7 +232,9 @@ ERR=1
 sanity_check "vcf2genomicsdb_init"
 sanity_check "vcf2genomicsdb"
 sanity_check "consolidate_genomicsdb_array"
-sanity_check "gt_mpi_gather"
+if [[ $DISABLE_MPI == 0 ]]; then
+  sanity_check "gt_mpi_gather"
+fi
 
 WORKSPACE=$TEMP_DIR/ws_$RANDOM
 run_command "vcf2genomicsdb_init -w $WORKSPACE" ERR
@@ -380,6 +390,11 @@ run_command "vcf2genomicsdb --progress=.001h $WORKSPACE/loader.json"
 create_template_loader_json -5 -5
 run_command "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -o -t $TEMPLATE"
 run_command "vcf2genomicsdb $WORKSPACE/loader.json" ERR
+
+if [[ $DISABLE_MPI == 1 ]]; then
+  echo "Build with DISABLE_MPI option set, not running gt_mpi_gather tests"
+  exit 0
+fi
 
 # Sanity test gt_mpi_gather
 create_sample_list t0.vcf.gz
