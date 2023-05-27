@@ -61,8 +61,6 @@
     <spark.version>3.4.0</spark.version>
     <spark.core.artifactid>spark-core_${scala.main}</spark.core.artifactid>
     <spark.sql.artifactid>spark-sql_${scala.main}</spark.sql.artifactid>
-    <spark.exclude.packages>org.genomicsdb.spark.v2</spark.exclude.packages>
-    <spark.exclude.files>**/org/genomicsdb/spark/v2/**.java</spark.exclude.files>
     <htsjdk.version>3.0.5</htsjdk.version>
     <json.simple.version>[1.1.1,)</json.simple.version>
     <gson.version>[2.10.1,)</gson.version>
@@ -187,12 +185,6 @@
           <compilerArgs>
             <arg>-Xlint</arg>
           </compilerArgs>
-          <excludes>
-            <exclude>${spark.exclude.files}</exclude>
-          </excludes>
-          <testExcludes>
-            <testExclude>${spark.exclude.files}</testExclude>
-          </testExcludes>
         </configuration>
       </plugin>
 
@@ -245,7 +237,7 @@
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
         <version>2.15.2</version>
-<!-- removing for OSX build
+        <!-- removing for OSX build
         <executions>
           <execution>
             <id>scala-compile-first</id>
@@ -255,7 +247,7 @@
             </goals>
           </execution>
         </executions>
--->
+        -->
       </plugin>
       <plugin>
         <groupId>net.alchim31.maven</groupId>
@@ -281,15 +273,27 @@
         <version>3.3.0</version>
         <executions>
           <execution>
-            <id>spark-excluded</id>
+            <id>main</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classifier>main</classifier>
+                <excludes>
+                  <exclude>org/genomicsdb/spark/**</exclude>
+                </excludes>
+            </configuration>
+          </execution>
+          <execution>
+            <id>spark</id>
             <goals>
               <goal>jar</goal>
             </goals>
             <configuration>
               <classifier>spark</classifier>
-                <excludes>
-                  <exclude>org/genomicsdb/spark/**</exclude>
-                </excludes>
+                <includes>
+                  <include>org/genomicsdb/spark/**</include>
+                </includes>
             </configuration>
           </execution>
         </executions>
@@ -329,42 +333,6 @@
         </executions> 
       </plugin> 
       <plugin>
-        <artifactId>maven-antrun-plugin</artifactId>
-        <version>3.1.0</version>
-        <executions>
-          <execution>
-            <id>unzip-test-artifacts</id>
-            <phase>process-test-resources</phase>
-            <configuration>
-              <target>
-                <mkdir dir="${genomicsdb_build_directory}/test" />
-                <copy file="${test_source_directory}/../inputs/test.tgz" tofile="${genomicsdb_build_directory}/test/test.tar.gz" />
-                <gunzip src="${genomicsdb_build_directory}/test/test.tar.gz" />
-                <untar src="${genomicsdb_build_directory}/test/test.tar" dest="${genomicsdb_build_directory}/test/"/>
-                <replace file="${genomicsdb_build_directory}/test/inputs/query.json" token="inputs/" value="${genomicsdb_build_directory}/test/inputs/" />
-                <replace file="${genomicsdb_build_directory}/test/inputs/loader.json" token="inputs/" value="${genomicsdb_build_directory}/test/inputs/" />
-              </target>
-            </configuration>
-            <goals>
-              <goal>run</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>replace-core-jar</id>
-            <phase>package</phase>
-            <configuration>
-              <target>
-                <move file="${project.build.directory}/genomicsdb-${genomicsdb.version}-spark.jar"
-                  tofile="${project.build.directory}/genomicsdb-${genomicsdb.version}.jar" />
-              </target>
-            </configuration>
-            <goals>
-              <goal>run</goal>
-            </goals>                
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>${surefire.plugin.version}</version>
@@ -401,7 +369,6 @@
           <show>private</show>
           <nohelp>true</nohelp>
           <source>8</source>
-          <excludePackageNames>${spark.exclude.packages}</excludePackageNames>
           <sourceFileExcludes>
             <sourceFileExclude>**/Coordinates.java</sourceFileExclude>
             <sourceFileExclude>**/GenomicsDBVidMapProto.java</sourceFileExclude>
@@ -446,36 +413,68 @@
       </plugin>
       <!-- previously in default profile, moving out to avoid duplicating for spark2 profile -->
       <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-antrun-plugin</artifactId>
-            <version>3.1.0</version>
-            <executions>
-              <execution>
-                <id>exec-protoc</id>
-                <phase>generate-sources</phase>
-                <configuration>
-                  <target>
-                    <mkdir dir="${protobuf.output.directory}" />
-                    <path id="protobuf.input.filepaths.path">
-                      <fileset dir="${protobuf.input.directory}">
-                        <include name="**/*.proto"/>
-                      </fileset>
-                    </path>
-                    <pathconvert pathsep=" " property="protobuf.input.filepaths" refid="protobuf.input.filepaths.path"/>
-                    <exec executable="${protoc.filepath}" failonerror="true">
-                      <arg value="-I"/>
-                      <arg value="${protobuf.input.directory}"/>
-                      <arg value="--java_out"/>
-                      <arg value="${protobuf.output.directory}"/>
-                      <arg line="${protobuf.input.filepaths}"/>
-                    </exec>
-                  </target>
-                </configuration>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-              </execution>
-            </executions>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>exec-protoc</id>
+            <phase>generate-sources</phase>
+            <configuration>
+              <target>
+                <mkdir dir="${protobuf.output.directory}" />
+                <path id="protobuf.input.filepaths.path">
+                  <fileset dir="${protobuf.input.directory}">
+                    <include name="**/*.proto"/>
+                  </fileset>
+                </path>
+                <pathconvert pathsep=" " property="protobuf.input.filepaths" refid="protobuf.input.filepaths.path"/>
+                <exec executable="${protoc.filepath}" failonerror="true">
+                  <arg value="-I"/>
+                  <arg value="${protobuf.input.directory}"/>
+                  <arg value="--java_out"/>
+                  <arg value="${protobuf.output.directory}"/>
+                  <arg line="${protobuf.input.filepaths}"/>
+                </exec>
+              </target>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>unzip-test-artifacts</id>
+            <phase>process-test-resources</phase>
+            <configuration>
+              <target>
+                <mkdir dir="${genomicsdb_build_directory}/test" />
+                <copy file="${test_source_directory}/../inputs/test.tgz" tofile="${genomicsdb_build_directory}/test/test.tar.gz" />
+                <gunzip src="${genomicsdb_build_directory}/test/test.tar.gz" />
+                <untar src="${genomicsdb_build_directory}/test/test.tar" dest="${genomicsdb_build_directory}/test/"/>
+                <replace file="${genomicsdb_build_directory}/test/inputs/query.json" token="inputs/" value="${genomicsdb_build_directory}/test/inputs/" />
+                <replace file="${genomicsdb_build_directory}/test/inputs/loader.json" token="inputs/" value="${genomicsdb_build_directory}/test/inputs/" />
+              </target>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>replace-core-jar</id>
+            <phase>package</phase>
+            <configuration>
+              <target>
+                <move file="${project.build.directory}/genomicsdb-${genomicsdb.version}-main.jar"
+                      tofile="${project.build.directory}/genomicsdb-${genomicsdb.version}.jar" />
+                <move file="${project.build.directory}/genomicsdb-${genomicsdb.version}-spark.jar"
+                      tofile="${project.build.directory}/genomicsdb-spark-${genomicsdb.version}.jar" />
+              </target>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>                
+          </execution>
+        </executions>
           </plugin>
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
