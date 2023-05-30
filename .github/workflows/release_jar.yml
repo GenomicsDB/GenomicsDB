@@ -29,7 +29,7 @@ jobs:
           name: ${{ inputs.dylib_artifact }}
 
       - name: Build Centos 6 and create release jar
-        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: Dockerfile.release
@@ -43,6 +43,9 @@ jobs:
       - name: Get artifacts from docker image
         shell: bash
         run: |
+          echo "Finding spark jars"
+          find . -name *spark*
+          echo "Finding spark jars DONE"
           docker create -it --name genomicsdb ghcr.io/genomicsdb/genomicsdb:release bash
           docker cp genomicsdb:/build/GenomicsDB/build/src/main/libtiledbgenomicsdb.so .
           docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}.jar .
