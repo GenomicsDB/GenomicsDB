@@ -50,6 +50,7 @@ jobs:
           docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-sources.jar .
           docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-javadoc.jar .
           docker cp genomicsdb:/build/GenomicsDB/pom.xml genomicsdb-${VERSION_NUMBER}.pom
+          docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-spark-${VERSION_NUMBER}.jar .
           sed -i.bak 's/${genomicsdb.version}/'"${VERSION_NUMBER}"'/' genomicsdb-${VERSION_NUMBER}.pom
 
       - name: Archive libraries as artifact
