@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
  * Copyright (c) 2021-2023 Omics Data Automation, Inc.
+ * Copyright (c) 2023 da̅tma, inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -25,7 +26,6 @@
 #include "tiledb_loader.h"
 #include "vcf2binary.h"
 
-#include <mpi.h>
 #include <getopt.h>
 
 #ifdef USE_GPERFTOOLS
@@ -52,22 +52,23 @@ enum VCF2TileDBArgsEnum {
 void print_usage(){
     std::cerr << "Usage vcf2genomicsdb [options] <loader_json_config_file>\n"
               << "where options include:\n"
-              << "\t--help, -h\n"
-              << "\t--version\n"
-              << "\t--progress, -p Show import progress\n"
-              << "\t\tspecify minimum amount of time between progress messages with --progress=<interval> or -p<interval>\n"
-              << "\t\twhere <interval> is a floating point number. Default units are seconds, explicitly specify seconds, minutes, or hours by appending s, m, or h to the end of the number\n"
-              << "\t--tmp-directory, -T Specify temporary directory (stores some temporary files during the import process, default is " << g_tmp_scratch_dir << ")\n"
-              << "\t--rank, -r Manually assign MPI rank of process, determines on which partition the process will operate\n"
-              << "\t--split-files Split the files specified by the callset mapping JSON file according to the column partitions in the loader JSON\n"
-              << "\t\tresulting files will be placed in the same directory as the originals\n"
-              << "\t\tdefault behavior is to generate split files only for the partition corresponding to the rank\n"
-              << "\tModifiers to --split-files:\n"
-              << "\t\t--split-all-partitions Overrides --split-files default behavior and instead creates split files for all partitions\n"
-              << "\t\t--split-files-results-directory Specify where to place split files, overrides default behavior of placing them in the same directory as originals\n"
-              << "\t\t--split-output-filename Create a split file for one column partition and one VCF\n"
-              << "\t\t\te.g. vcf2genomicsdb <loader.json> --rank=<rank> --split-files --split-output-filename=<output_path> <input.vcf.gz>\n"
-              << "\t\t--split-callset-mapping-file Create callset mapping files containing the paths to the generated split files, one callset per partition\n" << std::endl;
+              << "\t \e[1m--help\e[0m, \e[1m-h\e[0m\n"
+              << "\t \e[1m--version\e[0m\n"
+              << "\t \e[1m--progress\e[0m, \e[1m-p\e[0m Show import progress\n"
+              << "\t\t specify minimum amount of time between progress messages with \e[1m--progress\e[0m=<interval> or \e[1m-p\e[0m<interval>\n"
+              << "\t\t where <interval> is a floating point number. Default units are seconds,\n"
+              << "\t\t explicitly specify seconds, minutes, or hours by appending s, m, or h to the end of the number\n"
+              << "\t \e[1m--tmp-directory\e[0m, \e[1m-T\e[0m Specify temporary directory (stores some temporary files during the import process, default is " << g_tmp_scratch_dir << ")\n"
+              << "\t \e[1m--rank\e[0m, \e[1m-r\e[0m Manually assign a rank for the process, determines on which partition the vcf2genomicsdb process will operate\n"
+              << "\t \e[1m--split-files\e[0m Split the files specified by the callset mapping JSON file according to the column partitions in the loader JSON\n"
+              << "\t\t resulting files will be placed in the same directory as the originals\n"
+              << "\t\t default behavior is to generate split files only for the partition corresponding to the rank\n"
+              << "\t\t Modifiers to \e[1m--split-files\e[0m:\n"
+              << "\t\t \e[1m--split-all-partitions\e[0m Overrides \e[1m--split-files\e[0m default behavior and instead creates split files for all partitions\n"
+              << "\t\t \e[1m--split-files-results-directory\e[0m Specify where to place split files, overrides default behavior of placing them in the same directory as originals\n"
+              << "\t\t \e[1m--split-output-filename\e[0m Create a split file for one column partition and one VCF\n"
+              << "\t\t\t e.g. vcf2genomicsdb <loader.json> --rank=<rank> --split-files --split-output-filename=<output_path> <input.vcf.gz>\n"
+              << "\t\t \e[1m--split-callset-mapping-file\e[0m Create callset mapping files containing the paths to the generated split files, one callset per partition\n" << std::endl;
 }
 
 int main(int argc, char** argv) {
@@ -76,17 +77,9 @@ int main(int argc, char** argv) {
 #endif
   g_show_import_progress = false;
 
-  //Initialize MPI environment
-  auto rc = MPI_Init(0, 0);
-  if (rc != MPI_SUCCESS) {
-    printf ("Error starting MPI program. Terminating.\n");
-    MPI_Abort(MPI_COMM_WORLD, rc);
-  }
-  //Get my world rank
-  int my_world_mpi_rank = 0;
-  MPI_Comm_rank(MPI_COMM_WORLD, &my_world_mpi_rank);
+  int rc = OK;
+  int concurrency_rank = 0;
 
-  rc = OK;
   // Define long options
   static struct option long_options[] = {
     {"tmp-directory",1,0,'T'},
@@ -114,7 +107,7 @@ int main(int argc, char** argv) {
       g_tmp_scratch_dir = optarg;
       break;
     case 'r':
-      my_world_mpi_rank = strtol(optarg, 0, 10);
+      concurrency_rank = strtol(optarg, 0, 10);
       break;
     case 'h':
       print_usage();
@@ -180,7 +173,7 @@ int main(int argc, char** argv) {
 #endif
 
     GenomicsDBImportConfig loader_config;
-    loader_config.read_from_file(loader_json_config_file, my_world_mpi_rank);
+    loader_config.read_from_file(loader_json_config_file, concurrency_rank);
 
     //Split files as per the partitions defined - don't load data
     if (split_files) {
@@ -202,7 +195,7 @@ int main(int argc, char** argv) {
       const auto& column_partitions = loader_config.get_sorted_column_partitions();
       auto loop_bound = (produce_all_partitions ? column_partitions.size() : 1u);
       for (auto i=0ull; i<loop_bound; ++i) {
-        int rank = produce_all_partitions ? i : my_world_mpi_rank;
+        int rank = produce_all_partitions ? i : concurrency_rank;
         VCF2TileDBConverter converter(loader_config, rank,
                                       &empty_buffers, &empty_exchange);
         converter.print_all_partitions(results_directory, "", rank);
@@ -211,7 +204,7 @@ int main(int argc, char** argv) {
       }
       if (split_callset_mapping_file)
         id_mapper.write_partition_loader_json_file(loader_json_config_file, loader_config.get_callset_mapping_file(),
-            results_directory, (produce_all_partitions ? column_partitions.size() : 1u), my_world_mpi_rank);
+            results_directory, (produce_all_partitions ? column_partitions.size() : 1u), concurrency_rank);
     } else {
       //Loader object
       rc = ERR;
@@ -219,7 +212,7 @@ int main(int argc, char** argv) {
       int iterations = max_iterations;
       while (rc && iterations) {
         try {
-          VCF2TileDBLoader loader(loader_config, my_world_mpi_rank);
+          VCF2TileDBLoader loader(loader_config, concurrency_rank);
           loader.read_all();
           rc = OK;
           if (iterations < max_iterations) {
@@ -249,7 +242,6 @@ int main(int argc, char** argv) {
     ProfilerStop();
 #endif
   }
-  //finalize
-  MPI_Finalize();
+
   return rc;
 }

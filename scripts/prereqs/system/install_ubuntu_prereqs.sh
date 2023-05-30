@@ -120,14 +120,14 @@ install_nobuild_prerequisites() {
     apt-get update -q &&
     mkdir -p /usr/share/man/man7 && mkdir -p /usr/share/man/man1 &&
     apt-get -y install --no-install-recommends \
-                                    zlib1g-dev \
-                                    libbz2-dev \
-                                    libssl-dev \
+                                    zlib1g \
+                                    libbz2-1.0 \
+                                    libssl3 \
                                     libgomp1 \
                                     mpich \
                                     zstd \
                                     libcsv3 \
-                                    libcurl4-openssl-dev &&
+                                    libcurl4 &&
     apt-get clean &&
     apt-get purge -y &&
     rm -rf /var/lib/apt/lists*

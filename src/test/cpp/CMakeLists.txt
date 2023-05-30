@@ -5,6 +5,7 @@
 # The MIT License
 #
 # Copyright (c) 2019 Omics Data Automation, Inc.
+# Copyright (c) 2023 da̅tma, inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -61,7 +62,7 @@ add_executable(ctests ${CPP_TEST_SOURCES})
 target_link_libraries_for_GenomicsDB_tests(ctests)
 
 #test_bgen has to be fixed, until then...
-if(BUILD_DISTRIBUTABLE_LIBRARY OR BUILD_FOR_PYTHON)
+if(BUILD_DISTRIBUTABLE_LIBRARY OR BUILD_FOR_PYTHON OR DISABLE_MPI)
   set(INCLUDE_TEST_BGEN 0)
 else()
   set(INCLUDE_TEST_BGEN 1)
