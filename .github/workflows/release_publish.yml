@@ -71,10 +71,11 @@ jobs:
           echo mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-spark-${VERSION_NUMBER}.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb-spark -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID
-          mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-${VERSION_NUMBER}-spark.jar \
+          mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-spark-${VERSION_NUMBER}.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID
 
+          # publish
           if [[ ${VERSION_NUMBER} != *SNAPSHOT ]]; then
               mvn nexus-staging:rc-list -DnexusUrl=https://oss.sonatype.org/ -DserverId=ossrh -f genomicsdb-${VERSION_NUMBER}.pom
               stagingRepoId=$(mvn nexus-staging:rc-list -DnexusUrl=https://oss.sonatype.org/ -DserverId=ossrh | grep orggenomicsdb|cut -f2 -d' ')
