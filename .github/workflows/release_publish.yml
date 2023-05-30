@@ -67,6 +67,12 @@ jobs:
             -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar \
             -Dfiles=genomicsdb-${VERSION_NUMBER}-allinone-spark.jar -Dtypes=jar -Dclassifiers=allinone-spark
 
+          echo "Debugging..."
+          cat genomicsdb-${VERSION_NUMBER}.pom
+          echo "Debugging DONE"
+          find . -name *spark*jar
+          echo "Find spark jar DONE"
+
           # spark jar
           echo mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-spark-${VERSION_NUMBER}.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb-spark -Dversion=${VERSION_NUMBER} \
