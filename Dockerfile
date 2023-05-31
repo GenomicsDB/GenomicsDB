@@ -38,8 +38,7 @@ ENV BUILD_DISTRIBUTABLE_LIBRARY=${distributable_jar}
 WORKDIR /build/GenomicsDB
 RUN ./scripts/prereqs/install_prereqs.sh full &&\
     useradd -r -U -m ${user} &&\
-    ./scripts/install_genomicsdb.sh ${user} ${install_dir} ${distributable_jar} ${enable_bindings} &&\
-    echo "Listing installed jars" && ls ${install_dir}/bin/* && echo "Listing install jars DONE"
+    ./scripts/install_genomicsdb.sh ${user} ${install_dir} ${distributable_jar} ${enable_bindings}
 
 ARG os=centos:7
 

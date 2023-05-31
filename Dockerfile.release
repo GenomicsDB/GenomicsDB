@@ -33,6 +33,4 @@ COPY . /build/GenomicsDB/
 COPY libtiledbgenomicsdb.dylib ${MAC_DYLIB_PATH}
 WORKDIR /build/GenomicsDB
 RUN useradd -r -U -m genomicsdb &&\
-    ./scripts/install_genomicsdb.sh genomicsdb /usr/local true java &&\
-    echo "Listing release installed jars" && find /usr/local -name *jar  && echo "Listing release install jars DONE" &&\
-    echo "Listing build installed jars" && find /build/GenomicsDB -name *jar && echo "Listing release install jars DONE"
+    ./scripts/install_genomicsdb.sh genomicsdb /usr/local true java
