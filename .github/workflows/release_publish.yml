@@ -72,7 +72,7 @@ jobs:
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb-spark -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID
           mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-spark-${VERSION_NUMBER}.jar \
-            -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
+            -DgroupId=org.genomicsdb -DartifactId=genomicsdb-spark -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID
 
           # publish
