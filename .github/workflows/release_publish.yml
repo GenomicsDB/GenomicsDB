@@ -64,8 +64,7 @@ jobs:
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID \
             -Djavadoc=genomicsdb-${VERSION_NUMBER}-javadoc.jar \
-            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar \
-            -Dfiles=genomicsdb-${VERSION_NUMBER}-allinone-spark.jar -Dtypes=jar -Dclassifiers=allinone-spark
+            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar
 
           # spark jar
           echo mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-spark-${VERSION_NUMBER}.jar \
