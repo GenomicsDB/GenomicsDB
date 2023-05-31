@@ -51,9 +51,6 @@ jobs:
           docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-javadoc.jar .
           docker cp genomicsdb:/build/GenomicsDB/pom.xml genomicsdb-${VERSION_NUMBER}.pom
           docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-spark-${VERSION_NUMBER}.jar .
-          echo "Finding spark jars"  
-          find . -name "*spark*jar"
-          echo "Finding spark jars DONE"
           sed -i.bak 's/${genomicsdb.version}/'"${VERSION_NUMBER}"'/' genomicsdb-${VERSION_NUMBER}.pom
 
       - name: Archive libraries as artifact
@@ -63,4 +60,5 @@ jobs:
           path: |
             libtiledbgenomicsdb.*
             genomicsdb-${{ env.VERSION_NUMBER }}*.jar
+            genomicsdb-spark-${{ env.VERSION_NUMBER }}*.jar
             genomicsdb-${{ env.VERSION_NUMBER }}.pom
