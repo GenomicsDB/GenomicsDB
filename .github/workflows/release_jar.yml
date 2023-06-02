@@ -29,7 +29,7 @@ jobs:
           name: ${{ inputs.dylib_artifact }}
 
       - name: Build Centos 6 and create release jar
-        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+        uses: docker/build-push-action@v4
         with:
           context: .
           file: Dockerfile.release
@@ -50,6 +50,7 @@ jobs:
           docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-sources.jar .
           docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-${VERSION_NUMBER}-javadoc.jar .
           docker cp genomicsdb:/build/GenomicsDB/pom.xml genomicsdb-${VERSION_NUMBER}.pom
+          docker cp genomicsdb:/build/GenomicsDB/build/target/genomicsdb-spark-${VERSION_NUMBER}.jar .
           sed -i.bak 's/${genomicsdb.version}/'"${VERSION_NUMBER}"'/' genomicsdb-${VERSION_NUMBER}.pom
 
       - name: Archive libraries as artifact
@@ -59,4 +60,5 @@ jobs:
           path: |
             libtiledbgenomicsdb.*
             genomicsdb-${{ env.VERSION_NUMBER }}*.jar
+            genomicsdb-spark-${{ env.VERSION_NUMBER }}*.jar
             genomicsdb-${{ env.VERSION_NUMBER }}.pom
