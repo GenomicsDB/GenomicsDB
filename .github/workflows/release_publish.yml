@@ -73,6 +73,8 @@ jobs:
           mvn gpg:sign-and-deploy-file -Durl=$URL -Dfile=genomicsdb-spark-${VERSION_NUMBER}.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb-spark -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom -DrepositoryId=$REPO_ID
+            -Djavadoc=genomicsdb-${VERSION_NUMBER}-javadoc.jar \
+            -Dsources=genomicsdb-${VERSION_NUMBER}-sources.jar
 
           # publish
           if [[ ${VERSION_NUMBER} != *SNAPSHOT ]]; then
