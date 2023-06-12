@@ -95,8 +95,9 @@ install_mvn() {
   if [ -z $MVN ]; then
     if [ ! -d $MAVEN_INSTALL_PREFIX/apache-maven-$MAVEN_VERSION ]; then
       echo "Installing Maven"
-      MAVEN_MAJOR_VERSION=${MAVEN_VERSION%.*.*}
-wget $WGET_NO_CERTIFICATE -nv https://archive.apache.org/dist/maven/maven-$MAVEN_MAJOR_VERSON/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz -P /tmp &&
+      MAVEN_MAJOR_VERSION=$(cut -d '.' -f 1 <<< $MAVEN_VERSION)
+      echo "MAVEN_MAJOR_VERSION=$MAVEN_MAJOR_VERSION"
+      wget $WGET_NO_CERTIFICATE -nv https://archive.apache.org/dist/maven/maven-$MAVEN_MAJOR_VERSON/$MAVEN_VERSION/binaries/apache-maven-$MAVEN_VERSION-bin.tar.gz -P /tmp &&
         tar xf /tmp/apache-maven-*.tar.gz -C $MAVEN_INSTALL_PREFIX &&
         rm /tmp/apache-maven-*.tar.gz
       echo "Installing Maven DONE"
