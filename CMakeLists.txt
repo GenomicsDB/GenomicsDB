@@ -51,7 +51,7 @@ execute_process(
     )
 
 #Build parameters/options
-set(GENOMICSDB_RELEASE_VERSION "1.5.0-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+set(GENOMICSDB_RELEASE_VERSION "1.5.1-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 set(GENOMICSDB_VERSION "${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}" CACHE STRING "GenomicsDB full version string")
 
 option(BUILD_DISTRIBUTABLE_LIBRARY "Build the GenomicsDB library with minimal runtime dependencies")
