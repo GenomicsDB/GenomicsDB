@@ -13,6 +13,7 @@ import java.io.IOException;
 public class GenomicsDBQueryInputFormatTest {
 
   @Test
+  @SuppressWarnings("deprecation")
   public void testBasicQueryFormatClass() throws IOException, InterruptedException {
     GenomicsDBQueryInputFormat inputFormat = new GenomicsDBQueryInputFormat();
     Assert.assertNull(inputFormat.getConf());
@@ -84,6 +85,7 @@ public class GenomicsDBQueryInputFormatTest {
   }
 
   @Test
+  @SuppressWarnings("deprecation")
   public void testBasicInputSplitsNonExistentQueryJSON() throws IOException, InterruptedException{
     final GenomicsDBConfiguration tryConfiguration = new GenomicsDBConfiguration();
     tryConfiguration.set(GenomicsDBConfiguration.QUERYJSON, "xxx");

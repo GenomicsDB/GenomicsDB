@@ -144,6 +144,22 @@ public class GenomicsDBQueryTest {
   }
 
   @Test
+  void TestQueryGuardantWorkspace() {
+    long startTime = System.nanoTime();
+
+    GenomicsDBQuery query = new GenomicsDBQuery();
+    long genomicsDBHandle = query.connectJSON("/Users/nalini/GenomicsDB/build/perf_query.json");
+    List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, "allcontigs$1$3095677412");
+
+    for (Interval interval: intervals) {
+      System.out.println("Number of calls in intervals" + interval.calls.size());
+    }
+
+    long endTime = System.nanoTime();
+    System.out.println("Duration in seconds="+(endTime - startTime)/1000000000);  //divide by 1000000 to get milliseconds.
+  }
+
+  @Test
   void testGenomicsDBBasicConnectDisconnect() throws GenomicsDBException {
     GenomicsDBQuery query = new GenomicsDBQuery();
     long genomicsDBHandle = connect();

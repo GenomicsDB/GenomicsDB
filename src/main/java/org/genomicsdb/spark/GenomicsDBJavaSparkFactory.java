@@ -40,7 +40,7 @@ import java.util.List;
  */
 public final class GenomicsDBJavaSparkFactory {
 
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "deprecation"})
   public static void usingNewAPIHadoopRDD(String[] args) {
     
     String loaderJsonFile = args[0];

@@ -171,13 +171,13 @@ public class GenomicsDBQuery {
 
   public List<Interval> queryVariantCalls(long handle,
                                           final String arrayName) {
-    return jniQueryVariantCalls(handle, arrayName, Collections.EMPTY_LIST, Collections.EMPTY_LIST);
+    return jniQueryVariantCalls(handle, arrayName, Collections.emptyList(), Collections.emptyList());
   }
 
   public List<Interval> queryVariantCalls(long handle,
                                           final String arrayName,
                                           final List<Pair> columnRanges) {
-    return jniQueryVariantCalls(handle, arrayName, columnRanges, Collections.EMPTY_LIST);
+    return jniQueryVariantCalls(handle, arrayName, columnRanges, Collections.emptyList());
   }
 
   public List<Interval> queryVariantCalls(long handle,

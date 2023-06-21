@@ -62,7 +62,7 @@ public class ImportConfigSpec {
         boolean validateSampleToReaderMap = true;
         boolean passAsVcf = true;
         int batchSize = 1000;
-        Set<VCFHeaderLine> mergedHeader = new HashSet();
+        Set<VCFHeaderLine> mergedHeader = new HashSet<VCFHeaderLine>();
         Map<String, URI> sampleNameToVcfPath = new TreeMap<>();
         ImportConfig.Func<Map<String, URI>, Integer, Integer,
                 Map<String, FeatureReader<VariantContext>>> sampleToReaderMap = (a, b, c) -> new TreeMap<>();

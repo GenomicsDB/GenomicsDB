@@ -53,6 +53,7 @@ public class GenomicsDBBatch implements Batch, JsonFileExtensions {
     setSchemaOptions(options, schema);
   }
 
+  @SuppressWarnings("deprecation")
   private void setSchemaOptions(CaseInsensitiveStringMap options, StructType schema)
       throws RuntimeException {
 
@@ -66,7 +67,7 @@ public class GenomicsDBBatch implements Batch, JsonFileExtensions {
       finalSchema = GenomicsDBSchemaFactory.defaultSchema();
     }
 
-    Long blocksize = new Long(1);
+    Long blocksize = Long.valueOf(1);
     Long maxblock = Long.MAX_VALUE;
     if (options.get("genomicsdb.minqueryblocksize") != null){
       blocksize = Long.valueOf(options.get("genomicsdb.minqueryblocksize"));

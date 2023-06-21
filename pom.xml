@@ -64,7 +64,7 @@
     <htsjdk.version>3.0.5</htsjdk.version>
     <json.simple.version>[1.1.1,)</json.simple.version>
     <gson.version>[2.10.1,)</gson.version>
-    <log4j.version>[2.20.0,)</log4j.version>
+    <log4j.version>2.19.0</log4j.version>
     <!-- Sync the protobuf.version with GENOMICSDB_PROTOBUF_VERSION in CMakeLists.txt -->
     <protobuf.version>3.21.7</protobuf.version>
     <google_shade_version>org.genomicsdb.shaded.com.google</google_shade_version>
