@@ -368,7 +368,9 @@
         <configuration>
           <show>private</show>
           <nohelp>true</nohelp>
-          <source>8</source>
+          <doclint>all,-missing</doclint>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
           <sourceFileExcludes>
             <sourceFileExclude>**/Coordinates.java</sourceFileExclude>
             <sourceFileExclude>**/GenomicsDBVidMapProto.java</sourceFileExclude>
