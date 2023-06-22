@@ -22,27 +22,20 @@
 
 package org.genomicsdb.spark;
 
-import org.genomicsdb.model.*;
-
 import org.apache.spark.sql.types.StructType;
-
+import org.genomicsdb.model.Coordinates;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
 import org.genomicsdb.spark.sources.GenomicsDBInputPartition;
-import org.json.simple.JSONObject;
 import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.FileReader;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
-import java.lang.RuntimeException;
-import java.lang.InstantiationException;
-import java.lang.IllegalAccessException;
-import java.lang.ClassNotFoundException;
 
 /**
  * The input class represents all the data being queried from GenomicsDB.
