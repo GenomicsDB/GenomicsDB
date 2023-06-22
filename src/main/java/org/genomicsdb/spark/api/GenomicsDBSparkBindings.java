@@ -33,10 +33,8 @@ import org.genomicsdb.reader.GenomicsDBQuery.Interval;
 import org.genomicsdb.reader.GenomicsDBQuery.VariantCall;
 import org.genomicsdb.spark.GenomicsDBConfiguration;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 
@@ -50,8 +48,7 @@ import java.util.List;
  *  spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-1.3.1-SNAPSHOT-allinone-spark.jar loader.json query.json
  */
 public class GenomicsDBSparkBindings {
-  List<VariantCall> variantCalls;
-
+  @SuppressWarnings({"unchecked", "deprecation"})
   public static void main(String[] args) throws IOException, ClassNotFoundException {
     if (args.length < 2) {
       throw new RuntimeException("Usage: spark-submit --class org.genomicsdb.spark.api.GenomicsDBSparkBindings genomicsdb-<VERSION>-allinone-spark.jar <loader.json> <query.json> [<is_serialized_pb>]"+
@@ -62,7 +59,7 @@ public class GenomicsDBSparkBindings {
     String queryJsonFile = args[1];
     boolean isPB = false;
     if (args.length == 3) {
-      isPB = new Boolean(args[2]).booleanValue();
+      isPB = Boolean.valueOf(args[2]);
     }
 
     SparkConf conf = new SparkConf();
@@ -76,7 +73,7 @@ public class GenomicsDBSparkBindings {
     }
 
     if (isPB) {
-      String queryPBString = FileUtils.readFileToString(new File(queryJsonFile));
+      String queryPBString = FileUtils.readFileToString(new File(queryJsonFile), "UTF-8");
       final GenomicsDBExportConfiguration.ExportConfiguration.Builder builder = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder();
       JsonFormat.parser().merge(queryPBString, builder);
       queryPBString = Base64.getEncoder().encodeToString(builder.build().toByteArray());
@@ -90,7 +87,7 @@ public class GenomicsDBSparkBindings {
             GenomicsDBQueryInputFormat.class, Interval.class, variantCallListClass);
 
     System.out.println("Number of variants "+variants.count());
-    List variantList = variants.collect();
+    List<scala.Tuple2<Interval, List<VariantCall>>> variantList = variants.collect();
     for (Object variantObj : variantList) {
       System.out.println(variantObj);
     }

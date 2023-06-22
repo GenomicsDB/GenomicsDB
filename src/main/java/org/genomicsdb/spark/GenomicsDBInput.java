@@ -22,25 +22,20 @@
 
 package org.genomicsdb.spark;
 
-import org.genomicsdb.model.*;
-
 import org.apache.spark.sql.types.StructType;
-
-import org.json.simple.JSONObject;
+import org.genomicsdb.model.Coordinates;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.genomicsdb.spark.sources.GenomicsDBInputPartition;
 import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.FileReader;
 import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
-import java.lang.RuntimeException;
-import java.lang.InstantiationException;
-import java.lang.IllegalAccessException;
-import java.lang.ClassNotFoundException;
 
 /**
  * The input class represents all the data being queried from GenomicsDB.
@@ -98,34 +93,12 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
    */
   private T createInputInstance() {
     try {
-      return clazz.newInstance();
+      return clazz.getConstructor().newInstance();
     }
-    catch (IllegalAccessException | InstantiationException e) {
+    catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
       e.printStackTrace();
     }
     return null;
-  }
-
-  /**
-   * Creates a fallback plan for the datasource API for older spark versions
-   * @throws RuntimeException thrown if class is not GenomicsDBInputPartition
-   * @return Class found from the proper spark version package.
-   **/
-  private Class setDatasourceClass() throws RuntimeException {
-    Class c;
-    try {
-      c = Class.forName("org.genomicsdb.spark.sources.GenomicsDBInputPartition");
-    }
-    catch (ClassNotFoundException ex1) {
-      try{
-        c = Class.forName("org.genomicsdb.spark.v2.GenomicsDBInputPartition");
-      }
-      catch (ClassNotFoundException ex2) {
-        throw new RuntimeException("Warning: Could not find GenomicsDBInputPartition. " +
-                                   "Datasourceapi only works with >= Spark 2.4.0");       
-        }
-    }
-    return c;
   }
 
   /**
@@ -145,8 +118,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       return instance;
     }
     else {
-      Class c = setDatasourceClass();
-      if (c.isAssignableFrom(clazz)) {
+      if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
           instance.setGenomicsDBConf(genomicsDBConfiguration);
           instance.setGenomicsDBSchema(schema);
           instance.setGenomicsDBVidSchema(vMap);
@@ -178,8 +150,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
       return instance;
     }
     else {
-      Class c = setDatasourceClass();
-      if (c.isAssignableFrom(clazz)) {
+      if (GenomicsDBInputPartition.class.isAssignableFrom(clazz)) {
         instance.setPartitionInfo(part);
         instance.setQueryInfoList(qrangeList);
         instance.setGenomicsDBConf(genomicsDBConfiguration);
@@ -210,6 +181,7 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
     * @return Returns list of "work chunks" (either InputSplits or
     * InputPartitions)
     */
+  @SuppressWarnings("deprecation")
   public List<T> divideInput() {
 
     if (genomicsDBConfiguration.hasProtoLoader()){

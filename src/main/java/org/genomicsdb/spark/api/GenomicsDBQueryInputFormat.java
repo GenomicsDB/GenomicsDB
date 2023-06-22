@@ -29,6 +29,7 @@ public class GenomicsDBQueryInputFormat extends InputFormat<Interval, List<Varia
   private GenomicsDBInput<GenomicsDBInputSplit> input;
 
   @Override
+  @SuppressWarnings({"unchecked", "deprecation"})
   public List<InputSplit> getSplits(JobContext jobContext) throws IOException, InterruptedException {
     GenomicsDBConfiguration genomicsDBConfiguration = new GenomicsDBConfiguration(configuration);
 
@@ -61,6 +62,7 @@ public class GenomicsDBQueryInputFormat extends InputFormat<Interval, List<Varia
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public RecordReader<Interval, List<VariantCall>> createRecordReader(
       InputSplit inputSplit, TaskAttemptContext taskAttemptContext)
       throws IOException, InterruptedException {

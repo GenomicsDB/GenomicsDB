@@ -250,7 +250,7 @@ public interface VidMapExtensions {
 	    currList = fieldNameToDuplicateCheckInfo.get(vcfFieldName);
 	else {
 	    //Why 3? VCF header can have FILTER/INFO/FORMAT fields of the same name
-	    List<DuplicateFieldInfoTrackClass> init = new ArrayList(3);
+	    List<DuplicateFieldInfoTrackClass> init = new ArrayList<DuplicateFieldInfoTrackClass>(3);
 	    for(int i=0;i<3;++i)
 		init.add(new DuplicateFieldInfoTrackClass());
 	    fieldNameToDuplicateCheckInfo.put(vcfFieldName, init);

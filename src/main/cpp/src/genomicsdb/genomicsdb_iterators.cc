@@ -517,7 +517,7 @@ bool SingleCellTileDBIterator::advance_to_next_useful_cell(const uint64_t min_nu
     std::vector<void *> buffers;
     std::vector<size_t> buffer_sizes;
     std::vector<int64_t> positions;
-    for (auto i=0; i<m_fields.size(); i++) {
+    for (auto i=0u; i<m_fields.size(); i++) {
       auto& genomicsdb_columnar_field = m_fields[i];
       auto buffer = get_buffer_and_index(i);
       if (genomicsdb_columnar_field.is_variable_length_field()) {
