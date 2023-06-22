@@ -27,6 +27,7 @@ PREREQS_ENV=${PREREQS_ENV:-$HOME/genomicsdb_prereqs.sh}
 
 # Install GenomicsDB Dependencies
 HOMEBREW_NO_AUTO_UPDATE=1
+HOMEBREW_NO_INSTALL_CLEANUP=1
 brew list cmake &>/dev/null || brew install cmake
 brew list mpich &>/dev/null || brew install mpich
 brew list ossp-uuid &>/dev/null || brew install ossp-uuid
@@ -39,7 +40,7 @@ brew list automake &> /dev/null || brew install automake
 # The errors can be suppressed, but installing the older version 1.16 explicitly for now
 wget https://github.com/Homebrew/homebrew-core/raw/e92d2ae54954ebf485b484d8522104700b144fee/Formula/lcov.rb
 brew list lcov &> /dev/null && brew uninstall lcov
-brew install -s lcov
+brew install -s lcov.rb
 
 brew list openssl@1.1 &> /dev/null || brew install openssl@1.1
 brew list zstd &> /dev/null || brew install zstd
