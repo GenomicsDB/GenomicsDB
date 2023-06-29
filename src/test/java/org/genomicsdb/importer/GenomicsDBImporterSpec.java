@@ -101,7 +101,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     public void testWriteVidMapJSONToNonexistentFolders() throws FileNotFoundException, InterruptedException {
         GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A  =
                 GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder().build();
-        Set<VCFHeaderLine> mergedHeader = new LinkedHashSet();
+        Set<VCFHeaderLine> mergedHeader = new LinkedHashSet<VCFHeaderLine>();
         String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
         GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
         File nonExistentFolder = new File(WORKSPACE, "non-existent-folder");
@@ -116,7 +116,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     public void testWriteCallsetJSONToNonexistentFolders() throws FileNotFoundException, InterruptedException {
         GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A  =
                 GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder().build();
-        Set<VCFHeaderLine> mergedHeader = new LinkedHashSet();
+        Set<VCFHeaderLine> mergedHeader = new LinkedHashSet<VCFHeaderLine>();
         String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
         GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
         File nonExistentFolder = new File(WORKSPACE, "non-existent-folder");
@@ -130,7 +130,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     public void testVCFHeaderToNonexistentFolders() throws FileNotFoundException, InterruptedException {
         GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A  =
                 GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder().build();
-        Set<VCFHeaderLine> mergedHeader = new LinkedHashSet();
+        Set<VCFHeaderLine> mergedHeader = new LinkedHashSet<VCFHeaderLine>();
         String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
         GenomicsDBImporter importer = getGenomicsDBImporterForMultipleImport("", inputVCF, false);
         File nonExistentFolder = new File(WORKSPACE, "non-existent-folder");
@@ -216,6 +216,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     }
 
     @Test(testName = "should run parallel import with multiple chromosome intervals and one GVCF")
+    @SuppressWarnings("unchecked")
     public void testShouldRunParallelImportWithMultipleChromosomeIntervalsAndOneGvcf() throws IOException, InterruptedException {
         //Given
         String inputVCF = "tests/inputs/vcfs/t0.vcf.gz";
@@ -265,6 +266,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     }
 
     @Test(testName = "should be able to query using specific array name")
+    @SuppressWarnings("unchecked")
     public void testShouldBeAbleToQueryUsingSpecificArrayName() throws IOException, InterruptedException {
         //Given
         String inputVCF = "tests/inputs/vcfs/t0.vcf.gz";
@@ -296,6 +298,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     }
 
     @Test(testName = "should be able to query using specific chromosome interval")
+    @SuppressWarnings("unchecked")
     public void testShouldBeAbleToQueryUsingSpecificChromosomeInterval() throws IOException, InterruptedException {
         //Given
         String inputVCF = "tests/inputs/vcfs/t0.vcf.gz";
@@ -330,6 +333,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     @Test(testName = "genomicsdb incremental import check jsons and query",
             dataProvider = "vcfFiles",
             dataProviderClass = GenomicsDBTestUtils.class)
+    @SuppressWarnings("unchecked")
     public void testIncrementalImportJsonAndQuery(Map<String, FeatureReader<VariantContext>> sampleToReaderMap)
             throws IOException, InterruptedException {
         // get a subset of the map for initial import
@@ -410,6 +414,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     @Test(testName = "genomicsdb incremental import batch size",
             dataProvider = "vcfFiles",
             dataProviderClass = GenomicsDBTestUtils.class)
+    @SuppressWarnings("unchecked")
     public void testIncrementalImportBatchSize(Map<String, FeatureReader<VariantContext>> sampleToReaderMap)
             throws IOException, InterruptedException {
         // get a subset of the map for initial import
@@ -493,6 +498,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     @Test(testName = "genomicsdb multiple incremental imports",
             dataProvider = "vcfFiles",
             dataProviderClass = GenomicsDBTestUtils.class)
+    @SuppressWarnings("unchecked")
     public void testMultipleIncrementalImport(Map<String, FeatureReader<VariantContext>> sampleToReaderMap)
             throws IOException, InterruptedException {
         String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";
@@ -547,6 +553,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
             dataProvider = "vcfFiles",
             dataProviderClass = GenomicsDBTestUtils.class,
             expectedExceptions = GenomicsDBException.class)
+    @SuppressWarnings("unchecked")
     public void testIncrementalImportSameSample(Map<String, FeatureReader<VariantContext>> sampleToReaderMap)
             throws IOException, InterruptedException {
         String inputVCF = "tests/inputs/vcfs/t6.vcf.gz";

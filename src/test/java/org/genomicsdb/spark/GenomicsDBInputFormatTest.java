@@ -45,6 +45,7 @@ public class GenomicsDBInputFormatTest {
   @Test(testName = "Testcase0 for creating InputSplits",
       dataProvider = "loaderQueryHostFilesTest0",
       dataProviderClass = GenomicsDBTestUtils.class)
+  @SuppressWarnings({"unchecked", "deprecation"})
   public void testGetSplits0(String queryPath, String loaderPath, String hostPath) 
               throws IOException, FileNotFoundException, InterruptedException{
     Job job = Job.getInstance();
@@ -77,6 +78,7 @@ public class GenomicsDBInputFormatTest {
   @Test(testName = "Test each query maps to same partition, no split",
       dataProvider = "loaderQueryHostFilesTest1",
       dataProviderClass = GenomicsDBTestUtils.class)
+  @SuppressWarnings({"unchecked", "deprecation"})
   public void testAllQueriesMapsToSamePartitionNoSplit(String queryPath, String loaderPath, String hostPath) 
               throws IOException, FileNotFoundException, InterruptedException{
     Job job = Job.getInstance();
@@ -107,6 +109,7 @@ public class GenomicsDBInputFormatTest {
   @Test(testName = "Test single query splits up by query block over single partition",
       dataProvider = "loaderQueryHostFilesTest2",
       dataProviderClass = GenomicsDBTestUtils.class)
+  @SuppressWarnings({"unchecked", "deprecation"})
   public void testQuerySplitUpSinglePartition(String queryPath, String loaderPath, String hostPath) 
               throws IOException, FileNotFoundException, InterruptedException {
     Job job = Job.getInstance();
@@ -154,6 +157,7 @@ public class GenomicsDBInputFormatTest {
   @Test(testName = "Test local filesystem splits same as hdfs-compliant",
       dataProvider = "loaderQueryHostFilesTest3",
       dataProviderClass = GenomicsDBTestUtils.class)
+  @SuppressWarnings({"unchecked", "deprecation"})
   public void testGetSplits3(String queryPath, String loaderPath, String hostPath) 
               throws IOException, FileNotFoundException, InterruptedException {
     Job job = Job.getInstance();
@@ -182,6 +186,7 @@ public class GenomicsDBInputFormatTest {
   @Test(testName = "Test query larger than partitions",
       dataProvider = "loaderQueryHostFilesTest4",
       dataProviderClass = GenomicsDBTestUtils.class)
+  @SuppressWarnings({"unchecked", "deprecation"})
   public void testQueryLargerThanPartitions(String queryPath, 
               String loaderPath, String hostPath) 
               throws IOException, FileNotFoundException, InterruptedException {
@@ -213,6 +218,7 @@ public class GenomicsDBInputFormatTest {
   @Test(testName = "Testcase5 for creating InputSplits",
       dataProvider = "loaderQueryHostFilesTest5",
       dataProviderClass = GenomicsDBTestUtils.class)
+  @SuppressWarnings({"unchecked", "deprecation"})
   public void testGetSplits4(String queryPath, String loaderPath, String hostPath) 
               throws IOException, FileNotFoundException, InterruptedException{
     Job job = Job.getInstance();
@@ -261,6 +267,7 @@ public class GenomicsDBInputFormatTest {
   @Test(testName = "Test query larger than query block size",
       dataProvider = "loaderQueryHostFilesTest6",
       dataProviderClass = GenomicsDBTestUtils.class)
+  @SuppressWarnings({"unchecked", "deprecation"})
   public void testQueryLargerThanQueryBlockSize(String queryPath, 
               String loaderPath, String hostPath) 
               throws IOException, FileNotFoundException, InterruptedException {
@@ -286,6 +293,7 @@ public class GenomicsDBInputFormatTest {
   @Test(testName = "Test loader and query are protobuf",
       dataProvider = "loaderQueryPB7",
       dataProviderClass = GenomicsDBTestUtils.class)
+  @SuppressWarnings({"unchecked", "deprecation"})
   public void testLoaderPB(String loader, 
               String query) 
               throws IOException, FileNotFoundException, InterruptedException {
@@ -302,6 +310,7 @@ public class GenomicsDBInputFormatTest {
   @Test(testName = "Test loader not specified",
       expectedExceptions = RuntimeException.class,
       expectedExceptionsMessageRegExp = "Must specify either.*")
+  @SuppressWarnings({"unchecked", "deprecation"})
   public void testLoaderNotSpecified() {
     Map<String, String> options = new HashMap<String, String>();
     options.put(GenomicsDBConfiguration.QUERYJSON, "fakequeryfile");
@@ -311,6 +320,7 @@ public class GenomicsDBInputFormatTest {
   @Test(testName = "Test assert on malformed protobuf",
       dataProvider = "loaderQueryPB7",
       dataProviderClass = GenomicsDBTestUtils.class)
+  @SuppressWarnings({"unchecked", "deprecation"})
   public void testMalformedLoaderProtobuf(String loader, 
               String query) 
               throws IOException, FileNotFoundException, InterruptedException {

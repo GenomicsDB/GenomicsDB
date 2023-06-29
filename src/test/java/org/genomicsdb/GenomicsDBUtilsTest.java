@@ -32,6 +32,7 @@ import java.nio.file.Path;
 import java.util.UUID;
 
 public class GenomicsDBUtilsTest {
+  @SuppressWarnings("deprecation")
   @Test void testGenomicsDBCreateTileDBWorkspace() throws IOException {
     File tmpDir = Files.createTempDir();
     tmpDir.deleteOnExit();

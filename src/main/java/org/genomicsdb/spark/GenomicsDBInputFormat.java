@@ -71,7 +71,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
    * @return  Returns a list of input splits
    * @throws FileNotFoundException  Thrown if creaing configuration object fails
    */
-  @SuppressWarnings("unchecked")
+  @SuppressWarnings({"unchecked", "deprecation"})
   @Override
   public List<InputSplit> getSplits(JobContext jobContext) throws FileNotFoundException {
 
@@ -163,6 +163,7 @@ public class GenomicsDBInputFormat<VCONTEXT extends Feature, SOURCE>
   }
 
   @Override
+  @SuppressWarnings("deprecation")
   public RecordReader<String, VCONTEXT>
     createRecordReader(InputSplit inputSplit, TaskAttemptContext taskAttemptContext)
       throws IOException, InterruptedException {
