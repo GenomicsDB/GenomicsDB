@@ -404,6 +404,8 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
   //fuzzy search if that is acceptable
   m_bypass_intersecting_intervals_phase =
       export_config->has_bypass_intersecting_intervals_phase() ? export_config->bypass_intersecting_intervals_phase() : false;
+  //Check if any annotation sources are specified
+  m_has_annotation_sources = export_config->annotation_source_size() > 0 ? true : false;
 }
 
 template<typename T>

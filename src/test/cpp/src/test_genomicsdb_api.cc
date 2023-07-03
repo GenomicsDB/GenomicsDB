@@ -293,11 +293,12 @@ class CountCellsProcessor : public GenomicsDBVariantCallProcessor {
                const genomic_interval_t& genomic_interval,
                const std::vector<genomic_field_t>& genomic_fields) {
     m_count++;
-    m_coordinates = coordinates;
+    m_coordinates[0] = coordinates[0];
+    m_coordinates[1] = coordinates[1];
   };
 
   int m_count = 0;
-  const int64_t* m_coordinates;
+  int64_t m_coordinates[2];
 };
 
 class OneQueryIntervalProcessor : public GenomicsDBVariantCallProcessor {
@@ -573,8 +574,20 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     delete gdb;
   }
 
+  config->set_query_filter("REF == \"G\" && GT &= \"1/1\" && ALT |= \"T\"");
   SECTION("Try query with a filter") {
-    config->set_query_filter("REF == \"G\" && GT &= \"1/1\" && ALT |= \"T\"");
+    CHECK(config->SerializeToString(&config_string));
+    gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
+    CountCellsProcessor count_cells_processor;
+    gdb->query_variant_calls(count_cells_processor);
+    CHECK(count_cells_processor.m_count == 1);
+    CHECK(count_cells_processor.m_coordinates[0] == 1);
+    CHECK(count_cells_processor.m_coordinates[1] == 17384);
+    delete gdb;
+  }
+
+  config->set_workspace(workspace_PP);
+  SECTION("Try query with a filter and workspace with GT ploidy") {
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
@@ -586,7 +599,6 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
   }
 
   SECTION("Try query with a filter and a small segment size to force TileDB buffers overflow") {
-    config->set_query_filter("REF == \"G\" && GT &= \"11\" && ALT |= \"T\"");
     config->set_segment_size(40);
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
@@ -595,6 +607,69 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     CHECK(count_cells_processor.m_count == 1);
     CHECK(count_cells_processor.m_coordinates[0] == 1);
     CHECK(count_cells_processor.m_coordinates[1] == 17384);
+    delete gdb;
+  }
+}
+
+TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
+  using namespace genomicsdb_pb;
+  
+  char *genomicsdb_demo_workspace = getenv("GENOMICSDB_DEMO_WS");
+  if (!genomicsdb_demo_workspace) return;
+
+  ExportConfiguration *config = new ExportConfiguration();
+
+  std::string ws(genomicsdb_demo_workspace);
+  config->set_workspace(ws);
+  config->set_array_name("allcontigs$1$3095677412");
+  config->set_callset_mapping_file(ws+"/callset.json");
+  config->set_vid_mapping_file(ws+"/vidmap.json");
+
+  // query_contig_intervals
+  auto* contig_interval = config->add_query_contig_intervals();
+  contig_interval->set_contig("17");
+  contig_interval->set_begin(7571719);
+  contig_interval->set_end(7590868);
+
+  // query_row_ranges
+  auto* row_range = config->add_query_row_ranges()->add_range_list();
+  row_range->set_low(0);
+  row_range->set_high(200000);
+
+  // query_attributes
+  config->add_attributes()->assign("REF");
+  config->add_attributes()->assign("ALT");
+  config->add_attributes()->assign("GT");
+
+  // other
+  config->set_bypass_intersecting_intervals_phase(true);
+  config->set_enable_shared_posixfs_optimizations(true);
+
+  //filters
+  std::vector<std::string> filters = {"", // zlib arm64 - 1s
+    "REF==\"A\"", // 2s
+    "REF==\"A\" && ALT|=\"T\"", // 2s
+    "REF==\"A\" && ALT|=\"T\" && GT &= \"1/1\"" // 3s
+  };
+
+  // results
+  std::vector<int64_t> counts = { 2962039, 400432, 82245, 82245 };
+
+  for (auto i=0u; i<filters.size(); i++) {
+    config->set_query_filter(filters[i]);
+    std::string config_string;
+    CHECK(config->SerializeToString(&config_string));
+
+    Catch::Timer t;
+    t.start();
+
+    GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+    CountCellsProcessor count_cells_processor;
+    gdb->query_variant_calls(count_cells_processor);
+
+    CHECK(count_cells_processor.m_count == counts[i]);
+    printf("Elapsed Time=%us for %s\n", t.getElapsedMilliseconds()/1000, filters[i].c_str());
+  
     delete gdb;
   }
 }
