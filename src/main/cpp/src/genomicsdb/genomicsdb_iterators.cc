@@ -487,7 +487,9 @@ const SingleCellTileDBIterator& SingleCellTileDBIterator::operator++() {
       begin_new_query_column_interval();
   } else {
     assert(m_in_simple_traversal_mode);
-    m_at_new_query_column_interval = false;
+    if (m_at_new_query_column_interval && m_cell_evaluated_with_filter_expression) {
+      m_at_new_query_column_interval = false;
+    }
     auto increment_done = advance_to_next_useful_cell(1u);
     //TileDB couldn't provide > 1 cell, must move to next column interval
     if (!increment_done)

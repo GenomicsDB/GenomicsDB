@@ -286,6 +286,7 @@ class CountCellsProcessor : public GenomicsDBVariantCallProcessor {
   };
 
   void process(const interval_t& interval) {
+    m_intervals++;
   };
 
   void process(const std::string& sample_name,
@@ -297,6 +298,7 @@ class CountCellsProcessor : public GenomicsDBVariantCallProcessor {
     m_coordinates[1] = coordinates[1];
   };
 
+  int m_intervals = 0;
   int m_count = 0;
   int64_t m_coordinates[2];
 };
@@ -570,7 +572,10 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     column_interval->set_allocated_contig_interval(contig_interval);
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
-    gdb->query_variant_calls();
+    CountCellsProcessor count_cells_processor;
+    gdb->query_variant_calls(count_cells_processor);
+    CHECK(count_cells_processor.m_intervals == 1);
+    CHECK(count_cells_processor.m_count == 5);
     delete gdb;
   }
 
@@ -580,6 +585,7 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
     gdb->query_variant_calls(count_cells_processor);
+    CHECK(count_cells_processor.m_intervals == 1);
     CHECK(count_cells_processor.m_count == 1);
     CHECK(count_cells_processor.m_coordinates[0] == 1);
     CHECK(count_cells_processor.m_coordinates[1] == 17384);
@@ -588,10 +594,12 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
 
   config->set_workspace(workspace_PP);
   SECTION("Try query with a filter and workspace with GT ploidy") {
+    config->set_bypass_intersecting_intervals_phase(true);
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
     gdb->query_variant_calls(count_cells_processor);
+    CHECK(count_cells_processor.m_intervals == 1);
     CHECK(count_cells_processor.m_count == 1);
     CHECK(count_cells_processor.m_coordinates[0] == 1);
     CHECK(count_cells_processor.m_coordinates[1] == 17384);
@@ -604,6 +612,7 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
     gdb->query_variant_calls(count_cells_processor);
+    CHECK(count_cells_processor.m_intervals == 1);
     CHECK(count_cells_processor.m_count == 1);
     CHECK(count_cells_processor.m_coordinates[0] == 1);
     CHECK(count_cells_processor.m_coordinates[1] == 17384);
@@ -667,6 +676,7 @@ TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
     CountCellsProcessor count_cells_processor;
     gdb->query_variant_calls(count_cells_processor);
 
+    CHECK(count_cells_processor.m_intervals == 1);
     CHECK(count_cells_processor.m_count == counts[i]);
     printf("Elapsed Time=%us for %s\n", t.getElapsedMilliseconds()/1000, filters[i].c_str());
   
