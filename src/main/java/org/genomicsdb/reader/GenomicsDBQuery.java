@@ -1,6 +1,7 @@
 /*
  * The MIT License (MIT)
  * Copyright (c) 2019, 2022 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -167,6 +168,10 @@ public class GenomicsDBQuery {
 
   public void disconnect(long handle) {
     jniDisconnect(handle);
+  }
+
+  public List<Interval> queryVariantCalls(long handle) {
+    return jniQueryVariantCalls(handle, "", Collections.emptyList(), Collections.emptyList());
   }
 
   public List<Interval> queryVariantCalls(long handle,

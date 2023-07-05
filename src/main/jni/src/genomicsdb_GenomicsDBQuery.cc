@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2019-2020,2022 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -369,13 +370,16 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniQueryVariantCalls(JNIEnv *env,
 
   VariantCallProcessor processor(env, cls);
   try {
-    GenomicsDBVariantCalls variant_calls = genomicsdb->query_variant_calls(processor, array_name_cstr,
-                                                                           to_genomicsdb_ranges_vector(env, column_ranges),
-                                                                           to_genomicsdb_ranges_vector(env, row_ranges));
-
-    if (variant_calls.size() > 0) {
-      // auto result = to_java_Interval(env, cls, array_name_cstr, genomicsdb, variant_calls);
-      throw GenomicsDBException("NYI: processing results of genomicsdb_GenomicsDBQuery.cc#jniQueryInterval :"+std::to_string(__LINE__));
+    if (array_name_cstr == NULL || strlen(array_name_cstr) == 0) {
+      genomicsdb->query_variant_calls(processor);
+    } else {
+      GenomicsDBVariantCalls variant_calls = genomicsdb->query_variant_calls(processor, array_name_cstr,
+                                                                             to_genomicsdb_ranges_vector(env, column_ranges),
+                                                                             to_genomicsdb_ranges_vector(env, row_ranges));
+      if (variant_calls.size() > 0) {
+        // auto result = to_java_Interval(env, cls, array_name_cstr, genomicsdb, variant_calls);
+        throw GenomicsDBException("NYI: processing results of genomicsdb_GenomicsDBQuery.cc#jniQueryInterval :"+std::to_string(__LINE__));
+      }
     }
   } catch (GenomicsDBException& e) {
   }

@@ -1,5 +1,7 @@
 /**
- * The MIT License (MIT) Copyright (c) 2019-2020 Omics Data Automation, Inc.
+ * The MIT License (MIT)
+ * Copyright (c) 2019-2020 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * <p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  * and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -18,27 +20,29 @@
  */
 package org.genomicsdb.reader;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
+import com.google.protobuf.util.JsonFormat;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.genomicsdb.exception.GenomicsDBException;
+import org.genomicsdb.model.Coordinates;
 import org.genomicsdb.model.Coordinates.GenomicsDBColumnInterval;
 import org.genomicsdb.model.Coordinates.GenomicsDBColumnOrInterval;
 import org.genomicsdb.model.Coordinates.TileDBColumnInterval;
-import org.genomicsdb.model.GenomicsDBExportConfiguration;
-import org.genomicsdb.model.GenomicsDBExportConfiguration.AnnotationSource;
-import org.genomicsdb.model.GenomicsDBExportConfiguration.GenomicsDBColumnOrIntervalList;
 import org.genomicsdb.reader.GenomicsDBQuery.Interval;
 import org.genomicsdb.reader.GenomicsDBQuery.Pair;
 import org.genomicsdb.reader.GenomicsDBQuery.VariantCall;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.logging.Level;
+
+import static org.genomicsdb.model.GenomicsDBExportConfiguration.*;
 
 public class GenomicsDBQueryTest {
 
@@ -312,7 +316,7 @@ public class GenomicsDBQueryTest {
 
   @Test
   void testGenomicsDBGenerateVCFWithPBExportConfig() throws IOException {
-    GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration = GenomicsDBExportConfiguration.ExportConfiguration.newBuilder()
+    ExportConfiguration exportConfiguration = ExportConfiguration.newBuilder()
         .setWorkspace(workspace)
         .setVidMappingFile(vidMapping)
         .setCallsetMappingFile(callsetMapping)
@@ -337,6 +341,46 @@ public class GenomicsDBQueryTest {
     Assert.assertTrue(vcfIndexFile.length() > 0);
   }
 
+  @Test
+  void testGenomicsDBDemoWorkspace() throws IOException {
+    String ws = System.getenv("GENOMICSDB_DEMO_WS");
+    if (ws == null || ws.isEmpty()) {
+      return;
+    }
+    String arrayName = "allcontigs$1$3095677412";
+    Coordinates.ContigInterval interval = Coordinates.ContigInterval.newBuilder()
+            .setContig("17").setBegin(7571719).setEnd(7590868).build();
+    RowRangeList rowRangeList = RowRangeList.newBuilder().addRangeList(RowRange.newBuilder()
+            .setLow(0l).setHigh(200000l).build()).build();
+
+    String filters[] = {"", "REF==\"A\"", "REF==\"A\" && ALT|=\"T\"", "REF==\"A\" && ALT|=\"T\" && GT&=\"1/1\""};
+    Long expected_calls[] = new Long[]{ 2962039L, 400032L, 82245L, 82245L };
+    Assert.assertEquals(filters.length, expected_calls.length);
+
+    for (int i=0; i< filters.length; i++) {
+      Long startTime = System.currentTimeMillis();
+      ExportConfiguration exportConfiguration = ExportConfiguration.newBuilder()
+              .setWorkspace(ws)
+              .setVidMappingFile(ws + "/vidmap.json")
+              .setCallsetMappingFile(ws + "/callset.json")
+              .setArrayName(arrayName)
+              .setEnableSharedPosixfsOptimizations(true)
+              .setBypassIntersectingIntervalsPhase(true)
+              .setQueryFilter(filters[i])
+              .addQueryContigIntervals(interval)
+              .addQueryRowRanges(rowRangeList)
+              .build();
+      GenomicsDBQuery query = new GenomicsDBQuery();
+      long genomicsDBHandle = query.connectExportConfiguration(exportConfiguration);
+      Assert.assertTrue(genomicsDBHandle > 0);
+      List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle);
+      Assert.assertEquals(intervals.size(), 1);
+      Assert.assertEquals(intervals.get(0).calls.size(), expected_calls[i]);
+      System.out.println("Elapsed Time for "+filters[i]+(System.currentTimeMillis()-startTime)/1000+"s");
+      query.disconnect(genomicsDBHandle);
+    }
+  }
+
   /**
    * Test the VCF annotation service. This function is based on the java
    * testGenomicsDBGenerateVCFWithPBExportConfig test and the
@@ -346,7 +390,7 @@ public class GenomicsDBQueryTest {
   void testGenomicsDbVcfAnnotationService() {
     String dataSourceName = "dataSourceZero";
 
-    GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration = GenomicsDBExportConfiguration.ExportConfiguration
+    ExportConfiguration exportConfiguration = ExportConfiguration
         .newBuilder()
         .setWorkspace(workspace)
         .setVidMappingFile(vidMapping)
@@ -433,7 +477,7 @@ public class GenomicsDBQueryTest {
 
   /**
    * Compare the annotations in the genomicFields map to the expected values
-   * 
+   *
    * @param genomicFields
    * @param field0
    * @param field1
@@ -488,7 +532,7 @@ public class GenomicsDBQueryTest {
 
   /**
    * Convert the comma separated GenomicFields["ALT"] value to an array of strings
-   * 
+   *
    * @param alt
    * @return
    */
@@ -507,7 +551,7 @@ public class GenomicsDBQueryTest {
   void testGenomicsDbVcfAnnotationServiceMissingVcfException() {
     String dataSourceName = "dataSource123";
 
-    GenomicsDBExportConfiguration.ExportConfiguration exportConfiguration = GenomicsDBExportConfiguration.ExportConfiguration
+    ExportConfiguration exportConfiguration = ExportConfiguration
         .newBuilder()
         .setWorkspace(workspace)
         .setVidMappingFile(vidMapping)
