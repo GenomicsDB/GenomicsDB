@@ -269,6 +269,32 @@ public class GenomicsDBQueryTest {
   }
 
   @Test
+  void testGenomicsDBVariantCallQueryWithPBExportConfig() throws IOException {
+    Coordinates.ContigInterval interval = Coordinates.ContigInterval.newBuilder()
+        .setContig("1").setBegin(1).setEnd(100000).build();
+    RowRangeList rowRangeList = RowRangeList.newBuilder().addRangeList(RowRange.newBuilder()
+            .setLow(0L).setHigh(3L).build()).build();
+    ExportConfiguration exportConfiguration = ExportConfiguration.newBuilder()
+        .setWorkspace(workspace)
+        .setVidMappingFile(vidMapping)
+        .setCallsetMappingFile(callsetMapping)
+        .setArrayName(arrayName)
+        .setSegmentSize(40)
+        .addQueryContigIntervals(interval)
+        .addQueryRowRanges(rowRangeList)
+        .build();
+
+    GenomicsDBQuery query = new GenomicsDBQuery();
+    long genomicsDBHandle = query.connectExportConfiguration(exportConfiguration);
+    Assert.assertTrue(genomicsDBHandle > 0);
+
+    List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle);
+    Assert.assertEquals(intervals.size(), 1);
+    Assert.assertEquals(intervals.get(0).calls.size(), 5);
+    query.disconnect(genomicsDBHandle);
+  }
+
+  @Test
   void testGenomicsDBGenerateVCF() throws IOException {
     GenomicsDBQuery query = new GenomicsDBQuery();
     long genomicsDBHandle = connectWithSegmentSize();
@@ -296,6 +322,8 @@ public class GenomicsDBQueryTest {
     }
 
     vcfFile.delete();
+
+    query.disconnect(genomicsDBHandle);
   }
 
   @Test
@@ -312,6 +340,8 @@ public class GenomicsDBQueryTest {
     Assert.assertTrue(vcfFile.length() > 0);
     Assert.assertTrue(vcfIndexFile.exists());
     Assert.assertTrue(vcfIndexFile.length() > 0);
+
+    query.disconnect(genomicsDBHandle);
   }
 
   @Test
@@ -339,6 +369,8 @@ public class GenomicsDBQueryTest {
     Assert.assertTrue(vcfFile.length() > 0);
     Assert.assertTrue(vcfIndexFile.exists());
     Assert.assertTrue(vcfIndexFile.length() > 0);
+
+    query.disconnect(genomicsDBHandle);
   }
 
   @Test
