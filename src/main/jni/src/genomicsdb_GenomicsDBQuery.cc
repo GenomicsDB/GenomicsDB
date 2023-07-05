@@ -26,6 +26,7 @@
 
 #include <assert.h>
 #include <mutex>
+#include <string.h>
 
 //java.util.ArrayList
 static jclass java_ArrayList_ ;
