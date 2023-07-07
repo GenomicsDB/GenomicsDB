@@ -6,6 +6,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2021 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -256,6 +257,9 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
           VERIFY2((num_values >= 0 || num_values == -3),
                  logger.format("bcf_get_info_values returned {}. See vcf.h for error code", num_values));
           if (num_values > 0) {
+            if (info_type == BCF_HT_STR && ((char *)info_value)[info_value_length-1] == 0) {
+              info_value_length--;
+            }
             genomic_fields.push_back(get_genomic_field(annotation_source.datasource, info_attribute,
                                                        (char *)info_value, info_value_length, info_type));
             free(info_value);

@@ -3,6 +3,7 @@
  *
  * The MIT License (MIT)
  * Copyright (c) 2019-2023 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -776,7 +777,7 @@ class VariantAnnotationCallProcessor : public GenomicsDBVariantCallProcessor {
            CHECK(genomic_fields[i].str_value() == "A|&");
          } else if(genomic_fields[i].name == "GT") {
            ++countExpectedGenomicFields;
-           CHECK(genomic_fields[i].str_value() == "");
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type("GT")) == "0/1");
          } else if(genomic_fields[i].name == "dataSourceZero_field0") {
            ++countExpectedGenomicFields;
            CHECK(get_genomic_field_type(genomic_fields[i].name).is_int());
@@ -792,7 +793,7 @@ class VariantAnnotationCallProcessor : public GenomicsDBVariantCallProcessor {
          } else if(genomic_fields[i].name == "dataSourceZero_field3") {
            ++countExpectedGenomicFields;
            CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
-           CHECK(genomic_fields[i].str_value() == "noot");
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "noot");
          } else if(genomic_fields[i].name == "dataSourceZero_field7") {
            ++countExpectedGenomicFields;
            CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
@@ -800,7 +801,7 @@ class VariantAnnotationCallProcessor : public GenomicsDBVariantCallProcessor {
          } else if(genomic_fields[i].name == "dataSourceZero_ID") {
            ++countExpectedGenomicFields;
            CHECK(get_genomic_field_type(genomic_fields[i].name).is_string());
-           CHECK(genomic_fields[i].str_value() == "id001");
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "id001");
          } else {
            countExpectedGenomicFields = -1;
          }
@@ -823,13 +824,13 @@ class VariantAnnotationCallProcessor : public GenomicsDBVariantCallProcessor {
            CHECK(genomic_fields[i].str_value() == "T|&");
          } else if(genomic_fields[i].name == "GT") {
            ++countExpectedGenomicFields;
-           CHECK(genomic_fields[i].str_value().length() == 1);
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type("GT")) == "1/1");
          } else if(genomic_fields[i].name == "DP") {
            ++countExpectedGenomicFields;
-           CHECK(genomic_fields[i].str_value() == "x");
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "120");
          } else if(genomic_fields[i].name == "dataSourceZero_field3") {
            ++countExpectedGenomicFields;
-           CHECK(genomic_fields[i].str_value() == "waldo");
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "waldo");
          } else if(genomic_fields[i].name == "dataSourceZero_field4") {
            ++countExpectedGenomicFields;
            CHECK(get_genomic_field_type(genomic_fields[i].name).is_int());
@@ -844,7 +845,7 @@ class VariantAnnotationCallProcessor : public GenomicsDBVariantCallProcessor {
            CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "biz");
          } else if(genomic_fields[i].name == "dataSourceZero_ID") {
            ++countExpectedGenomicFields;
-           CHECK(genomic_fields[i].str_value() == "id002");
+           CHECK(genomic_fields[i].to_string(get_genomic_field_type(genomic_fields[i].name)) == "id002");
          } else {
            countExpectedGenomicFields = -1;
          }

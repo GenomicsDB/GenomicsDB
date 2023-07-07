@@ -6,6 +6,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2019-2020,2022 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -144,7 +145,7 @@ typedef struct genomic_field_t {
     return *(reinterpret_cast<char *>(const_cast<void *>(ptr)) + offset);
   }
   inline std::string str_value() const {
-    return std::string(reinterpret_cast<const char *>(ptr)).substr(0, num_elements);
+    return std::string(reinterpret_cast<const char *>(ptr), num_elements);
   }
   inline std::string cpp_str_value_at(uint64_t offset) const {
     check_offset(offset);
