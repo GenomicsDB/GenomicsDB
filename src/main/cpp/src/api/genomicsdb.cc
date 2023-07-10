@@ -147,9 +147,11 @@ GenomicsDB::GenomicsDB(const std::string& query_configuration,
         contigs.insert(std::get<0>(interval));
       }
 
-      // Create an annotationService class.
-      m_annotation_service = new AnnotationService(query_configuration, contigs);
-      AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
+      // Create an annotationService class
+      if (query_config->has_annotation_sources()) {
+        m_annotation_service = new AnnotationService(query_configuration, contigs);
+        AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
+      }
       break;
     }
     default:
@@ -432,27 +434,32 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
                                       std::make_pair(contig_position, contig_position+end_position-coords[1]));
 
   std::vector<genomic_field_t> genomic_fields;
-  std::string ref_value;
-  std::string alt_value;
+  
   // Ignore first field as it is "END"
   for (auto i=1u; i<query_config.get_num_queried_attributes(); i++) {
     if (cell.is_valid(i)) {
-      genomic_field_t field_vec(query_config.get_query_attribute_name(i),
-                                cell.get_field_ptr_for_query_idx(i),
-                                cell.get_field_length(i));
-      genomic_fields.push_back(field_vec);
-
-      if(query_config.get_query_attribute_name(i) == "REF") {
-        ref_value = field_vec.str_value();
-      } else if(query_config.get_query_attribute_name(i) == "ALT" && field_vec.get_num_elements() >= 1) {
-        alt_value = field_vec.str_value().substr(0, field_vec.str_value().find_first_of("|"));
-      }
+      genomic_field_t field(query_config.get_query_attribute_name(i),
+                            cell.get_field_ptr_for_query_idx(i),
+                            cell.get_field_length(i));
+      genomic_fields.push_back(field);
     }
   }
 
-  if(!alt_value.empty() && m_annotation_service) {
-    AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
-    annotation_service->annotate(genomic_interval, ref_value, alt_value, genomic_fields);
+  if (m_annotation_service) {
+    std::string alt_value;
+    std::string ref_value;
+    for (auto field: genomic_fields) {
+      if (field.name == "REF") {
+        ref_value = field.str_value();
+      } else if (field.name == "ALT" && field.get_num_elements() >= 1) {
+        alt_value = field.str_value().substr(0, field.str_value().find_first_of("|"));
+      }
+    }
+
+    if (!alt_value.empty()) {
+      AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
+      annotation_service->annotate(genomic_interval, ref_value, alt_value, genomic_fields);
+    }
   }
 
   std::string sample_name;

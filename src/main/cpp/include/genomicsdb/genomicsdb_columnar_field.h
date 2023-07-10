@@ -183,7 +183,7 @@ class GenomicsDBBuffer {
    */
   inline size_t get_offset(const size_t idx) const {
     assert(idx < m_offsets.size() && idx < m_num_filled_entries);
-    return m_offsets[idx ];
+    return m_offsets[idx];
   }
   /*
    * Get size in bytes of the idx-th element

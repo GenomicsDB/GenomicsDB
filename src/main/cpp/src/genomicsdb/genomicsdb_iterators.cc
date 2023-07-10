@@ -487,7 +487,9 @@ const SingleCellTileDBIterator& SingleCellTileDBIterator::operator++() {
       begin_new_query_column_interval();
   } else {
     assert(m_in_simple_traversal_mode);
-    m_at_new_query_column_interval = false;
+    if (m_at_new_query_column_interval && m_cell_evaluated_with_filter_expression) {
+      m_at_new_query_column_interval = false;
+    }
     auto increment_done = advance_to_next_useful_cell(1u);
     //TileDB couldn't provide > 1 cell, must move to next column interval
     if (!increment_done)
@@ -523,7 +525,6 @@ bool SingleCellTileDBIterator::advance_to_next_useful_cell(const uint64_t min_nu
       if (genomicsdb_columnar_field.is_variable_length_field()) {
         buffers.push_back(const_cast<GenomicsDBBuffer *>(buffer.first)->get_offsets_pointer());
         buffer_sizes.push_back(buffer.first->get_offsets_size_in_bytes());
-        positions.push_back((int64_t)buffer.second);
       }
       buffers.push_back(const_cast<uint8_t *>(buffer.first->get_raw_pointer()));
       buffer_sizes.push_back(buffer.first->get_data_vector_size_in_bytes());

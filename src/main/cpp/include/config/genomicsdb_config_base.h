@@ -170,6 +170,9 @@ class GenomicsDBConfigBase {
   inline bool enable_shared_posixfs_optimizations() const {
     return is_set_with_env_override(m_enable_shared_posixfs_optimizations, ENABLE_SHARED_POSIXFS_OPTIMIZATIONS);
   }
+  inline bool has_annotation_sources() const {
+    return m_has_annotation_sources;
+  }
   void scan_whole_array();
   const std::vector<std::string>& get_attributes() const { return m_attributes; }
   //JSON parsing functions
@@ -241,6 +244,8 @@ class GenomicsDBConfigBase {
   std::string m_callset_mapping_file;
   //Enable optimizations (disable file locking and enable keep file handles open until finalization
   bool m_enable_shared_posixfs_optimizations;
+  //Annotation Sources specified in protobuf export configuration
+  bool m_has_annotation_sources;
   template<typename T>
   void base_read_from_PB(const T* pb_config);
   template<typename T>
