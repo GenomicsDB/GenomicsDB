@@ -292,6 +292,47 @@ public class GenomicsDBQueryTest {
     Assert.assertEquals(intervals.size(), 1);
     Assert.assertEquals(intervals.get(0).calls.size(), 5);
     query.disconnect(genomicsDBHandle);
+
+    // With filter
+    exportConfiguration = ExportConfiguration.newBuilder()
+        .setWorkspace(workspace)
+        .setVidMappingFile(vidMapping)
+        .setCallsetMappingFile(callsetMapping)
+        .setArrayName(arrayName)
+        .setQueryFilter("END==17384 && REF==\"G\" && ALT|=\"A\" && GT&=\"0/1\"")
+        .setSegmentSize(40)
+        .addQueryContigIntervals(interval)
+        .addQueryRowRanges(rowRangeList)
+        .build();
+    query = new GenomicsDBQuery();
+    genomicsDBHandle = query.connectExportConfiguration(exportConfiguration);
+    Assert.assertTrue(genomicsDBHandle > 0);
+
+    intervals = query.queryVariantCalls(genomicsDBHandle);
+    Assert.assertEquals(intervals.size(), 1);
+    Assert.assertEquals(intervals.get(0).calls.size(), 2);
+    query.disconnect(genomicsDBHandle);
+
+    // With bad filter
+    exportConfiguration = ExportConfiguration.newBuilder()
+        .setWorkspace(workspace)
+        .setVidMappingFile(vidMapping)
+        .setCallsetMappingFile(callsetMapping)
+        .setArrayName(arrayName)
+        .setQueryFilter("POS=17384 && REF==\"G\" && ALT|=\"A\" && GT&=\"0/1\"")
+        .setSegmentSize(40)
+        .addQueryContigIntervals(interval)
+        .addQueryRowRanges(rowRangeList)
+        .build();
+    query = new GenomicsDBQuery();
+    genomicsDBHandle = query.connectExportConfiguration(exportConfiguration);
+    Assert.assertTrue(genomicsDBHandle > 0);
+
+    try {
+      intervals = query.queryVariantCalls(genomicsDBHandle);
+    } catch (GenomicsDBException e) {
+      // Expected Exception for bad filter
+    }
   }
 
   @Test

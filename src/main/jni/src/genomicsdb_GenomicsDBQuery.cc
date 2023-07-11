@@ -383,6 +383,7 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniQueryVariantCalls(JNIEnv *env,
       }
     }
   } catch (GenomicsDBException& e) {
+    handleJNIException(env, e);
   }
   
   env->ReleaseStringUTFChars(array_name, array_name_cstr);
