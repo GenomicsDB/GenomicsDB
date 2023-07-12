@@ -330,6 +330,7 @@ public class GenomicsDBQueryTest {
 
     try {
       intervals = query.queryVariantCalls(genomicsDBHandle);
+      Assert.fail();
     } catch (GenomicsDBException e) {
       // Expected Exception for bad filter
     }
