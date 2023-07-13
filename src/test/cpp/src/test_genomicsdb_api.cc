@@ -619,6 +619,15 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     CHECK(count_cells_processor.m_coordinates[1] == 17384);
     delete gdb;
   }
+
+  config->set_query_filter("POS==17385 && REF == \"G\" && GT &= \"1/1\" && ALT |= \"T\"");
+  SECTION("Try query with bad filter using non-existent POS") {
+    CHECK(config->SerializeToString(&config_string));
+    gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
+    CountCellsProcessor count_cells_processor;
+    REQUIRE_THROWS(gdb->query_variant_calls(count_cells_processor));
+    delete gdb;
+  }
 }
 
 TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {

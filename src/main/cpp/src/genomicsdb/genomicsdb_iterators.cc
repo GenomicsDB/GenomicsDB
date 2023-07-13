@@ -530,9 +530,12 @@ bool SingleCellTileDBIterator::advance_to_next_useful_cell(const uint64_t min_nu
       buffer_sizes.push_back(buffer.first->get_data_vector_size_in_bytes());
       positions.push_back((int64_t)buffer.second);
     }
-    if (tiledb_array_evaluate_cell(m_tiledb_array, buffers.data(), buffer_sizes.data(), positions.data()) != TILEDB_OK) {
-      m_cell_evaluated_with_filter_expression = false;
+    int rc;
+    if ((rc = tiledb_array_evaluate_cell(m_tiledb_array, buffers.data(), buffer_sizes.data(), positions.data())) == TILEDB_ERR) {
+      throw GenomicsDBIteratorException(std::string("Error while evaluating filter_expression")
+                                        + "\nTileDB error message : "+tiledb_errmsg);
     }
+    m_cell_evaluated_with_filter_expression = rc;
   }
 
   return true;
