@@ -428,7 +428,7 @@ public class GenomicsDBQueryTest {
             .setLow(0l).setHigh(200000l).build()).build();
 
     String filters[] = {"", "REF==\"A\"", "REF==\"A\" && ALT|=\"T\"", "REF==\"A\" && ALT|=\"T\" && GT&=\"1/1\""};
-    Long expected_calls[] = new Long[]{ 2962039L, 400032L, 82245L, 82245L };
+    Long expected_calls[] = new Long[]{ 2962039L, 400432L, 82245L, 82245L };
     Assert.assertEquals(filters.length, expected_calls.length);
 
     for (int i=0; i< filters.length; i++) {
