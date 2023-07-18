@@ -524,7 +524,7 @@ bool SingleCellTileDBIterator::advance_to_next_useful_cell(const uint64_t min_nu
       auto buffer = get_buffer_and_index(i);
       if (genomicsdb_columnar_field.is_variable_length_field()) {
         buffers.push_back(const_cast<GenomicsDBBuffer *>(buffer.first)->get_offsets_pointer());
-        buffer_sizes.push_back(buffer.first->get_offsets_size_in_bytes());
+        buffer_sizes.push_back((buffer.first->get_offsets_length()+1u)*sizeof(size_t));
       }
       buffers.push_back(const_cast<uint8_t *>(buffer.first->get_raw_pointer()));
       buffer_sizes.push_back(buffer.first->get_data_vector_size_in_bytes());

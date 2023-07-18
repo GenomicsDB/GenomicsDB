@@ -107,6 +107,9 @@ static std::string loader_json(ctests_input_dir+"loader.json");
 static std::string workspace_PP(ctests_input_dir+"ws_phased_ploidy");
 static std::string vid_mapping_PP(ctests_input_dir+"vid_phased_ploidy.json");
 
+// Test workspace created with vcf2genomicsdb_init
+static std::string workspace_new(ctests_input_dir+"ws_new");
+
 static std::string array("t0_1_2");
 
 // Test Shared PosixFS Optimizations
@@ -630,6 +633,55 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
   }
 }
 
+TEST_CASE("api query_variant_calls with protobuf new", "[query_variant_calls_with_protobuf_new]") {
+  using namespace genomicsdb_pb;
+
+  ExportConfiguration *config = new ExportConfiguration();
+
+  config->set_workspace(workspace_new);
+  config->set_array_name("t0_1_2");
+  config->set_callset_mapping_file(workspace_new+"/callset.json");
+  config->set_vid_mapping_file(workspace_new+"/vidmap.json");
+
+  // query_row_ranges
+  RowRangeList* row_ranges = config->add_query_row_ranges();
+  RowRange* row_range = row_ranges->add_range_list();
+  row_range->set_low(0);
+  row_range->set_high(3);
+
+  // query contig_interval
+  ContigInterval* contig_interval = config->add_query_contig_intervals();
+  contig_interval->set_contig("1");
+  contig_interval->set_begin(1);
+  contig_interval->set_end(249250621);
+
+  // query_attributes
+  config->add_attributes()->assign("GT");
+  config->add_attributes()->assign("DP");
+
+  config->set_bypass_intersecting_intervals_phase(true);
+  config->set_query_filter("REF == \"G\" && GT &= \"1/1\" && ALT |= \"T\"");
+
+  size_t segment_sizes[4] = { 16, 36, 96, 128 };
+
+  for (auto i=0; i<4; i++) {
+    SECTION("Test filter test for " + std::to_string(i)) {
+      config->set_segment_size(segment_sizes[i]);
+
+      std::string config_string;
+      CHECK(config->SerializeToString(&config_string));
+      GenomicsDB *gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+
+      CountCellsProcessor count_cells_processor;
+      gdb->query_variant_calls(count_cells_processor);
+
+      CHECK(count_cells_processor.m_intervals == 1);
+      CHECK(count_cells_processor.m_count == 1);
+      delete gdb;
+    }
+  }
+}
+
 TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
   using namespace genomicsdb_pb;
   
@@ -664,33 +716,43 @@ TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
   config->set_bypass_intersecting_intervals_phase(true);
   config->set_enable_shared_posixfs_optimizations(true);
 
-  //filters
+  // filters
   std::vector<std::string> filters = {"", // zlib arm64 - 1s
     "REF==\"A\"", // 2s
     "REF==\"A\" && ALT|=\"T\"", // 2s
     "REF==\"A\" && ALT|=\"T\" && GT &= \"1/1\"" // 3s
   };
 
+  // sizes
+  size_t segment_sizes[4] = { 0, 10240, 20480, 40960 };
+
   // results
   std::vector<int64_t> counts = { 2962039, 400432, 82245, 82245 };
 
   for (auto i=0u; i<filters.size(); i++) {
-    config->set_query_filter(filters[i]);
-    std::string config_string;
-    CHECK(config->SerializeToString(&config_string));
+    for (auto j=0u; j<4; j++) {
+      SECTION("Demo test for " + std::to_string(i) + std::to_string(j)) {
+        if (segment_sizes[j] > 0) config->set_segment_size(segment_sizes[j]);
+        config->set_query_filter(filters[i]);
 
-    Catch::Timer t;
-    t.start();
+        std::string config_string;
+        CHECK(config->SerializeToString(&config_string));
 
-    GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
-    CountCellsProcessor count_cells_processor;
-    gdb->query_variant_calls(count_cells_processor);
+        Catch::Timer t;
+        t.start();
 
-    CHECK(count_cells_processor.m_intervals == 1);
-    CHECK(count_cells_processor.m_count == counts[i]);
-    printf("Elapsed Time=%us for %s\n", t.getElapsedMilliseconds()/1000, filters[i].c_str());
+        GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+        CountCellsProcessor count_cells_processor;
+        gdb->query_variant_calls(count_cells_processor);
+
+        CHECK(count_cells_processor.m_intervals == 1);
+        CHECK(count_cells_processor.m_count == counts[i]);
+        printf("Elapsed Time=%us for filter=%s segment_size=%zu\n", t.getElapsedMilliseconds()/1000,
+               filters[i].c_str(), segment_sizes[j]);
   
-    delete gdb;
+        delete gdb;
+      }
+    }
   }
 }
 
