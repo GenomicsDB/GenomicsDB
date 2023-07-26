@@ -25,6 +25,8 @@ syntax = "proto2";
 option java_package = "org.genomicsdb.model";
 option java_outer_classname = "Coordinates";
 
+option go_package = "protobuf/";
+
 message ContigPosition {
   required string contig = 1;
   required int64 position = 2;

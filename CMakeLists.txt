@@ -26,7 +26,31 @@
 
 cmake_minimum_required(VERSION 3.17)
 
-project(GenomicsDB)
+#GIT_COMMIT_HASH derived from git tag to be used as part of GENOMICSDB_VERSION
+execute_process(
+    COMMAND git log -1 --format=%h
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+
+#Build versions
+set(GENOMICSDB_RELEASE_VERSION "1.5.1-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+"  GENOMICSDB_BASE_VERSION "${GENOMICSDB_RELEASE_VERSION}")
+
+#GIT_COMMIT_HASH derived from git tag to be used as part of GENOMICSDB_VERSION
+execute_process(
+    COMMAND git log -1 --format=%h
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+set(GENOMICSDB_VERSION "${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}" CACHE STRING "GenomicsDB full version string")
+
+message(STATUS "GenomicsDB version=${GENOMICSDB_BASE_VERSION} full_version=${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}")
+
+#project
+project(GenomicsDB DESCRIPTION "High performance data storage for import/query/transform of variants" VERSION ${GENOMICSDB_BASE_VERSION})
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -42,21 +66,13 @@ set(SPDLOG_INCLUDE_DIR  "${CMAKE_SOURCE_DIR}/dependencies/spdlog/include" CACHE 
 set(FMT_ROOT_DIR "${SPDLOG_INCLUDE_DIR}" CACHE PATH "Path to fmt library")
 set(USING_FMT_BUNDLED_WITH_SPDLOG True CACHE BOOL "Disable if using fmt library that's not bundled with spdlog")
 
-#GIT_COMMIT_HASH derived from git tag to be used as part of GENOMICSDB_VERSION
-execute_process(
-    COMMAND git log -1 --format=%h
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE GIT_COMMIT_HASH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-
 #Build parameters/options
-set(GENOMICSDB_RELEASE_VERSION "1.5.1-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
-set(GENOMICSDB_VERSION "${GENOMICSDB_RELEASE_VERSION}-${GIT_COMMIT_HASH}" CACHE STRING "GenomicsDB full version string")
-
 option(BUILD_DISTRIBUTABLE_LIBRARY "Build the GenomicsDB library with minimal runtime dependencies")
-option(BUILD_FOR_PYTHON "Build GenomicsDB library with minimal runtime, no jvm/openssl/curl dependencies and python protobuf bindings")
 option(BUILD_JAVA "Build Java/JNI interface for combined VCF records")
+
+option(BUILD_FOR_PYTHON "Build GenomicsDB library with minimal runtime, no jvm/openssl/curl dependencies and python protobuf bindings")
+option(BUILD_FOR_GO "Build GenomicsDB library with minimal runtime, no jvm/openssl/curl dependencies and go protobuf bindings")
+option(BUILD_FOR_R "Build GenomicsDB library with minimal runtime, no jvm/openssl/curl dependencies and R protobuf bindings")
 
 option(DISABLE_MPI "Disable use of any MPI compiler/libraries")
 option(DISABLE_OPENMP "Disable OpenMP")
@@ -132,14 +148,14 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND BUILD_FOR_ARCH)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${BUILD_FOR_ARCH}")
 endif()
 
-if(BUILD_DISTRIBUTABLE_LIBRARY OR BUILD_FOR_PYTHON)
+if(BUILD_DISTRIBUTABLE_LIBRARY OR BUILD_BINDINGS)
     set(DISABLE_MPI True)
     set(DISABLE_OPENMP True)
     if(APPLE)
-        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
+            #set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13")
     endif()
 endif()
-if (BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_FOR_PYTHON)
+if (BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_BINDINGS)
     #For the GNU compiler, link in static gcc libraries
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
@@ -280,8 +296,12 @@ endif()
 find_package(TileDB REQUIRED)
 include_directories(${TILEDB_INCLUDE_DIR})
 
+if(BUILD_FOR_PYTHON OR BUILD_FOR_GO OR BUILD_FOR_R)
+  set(BUILD_BINDINGS TRUE)
+endif()
+
 #libcsv
-if(NOT BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_FOR_PYTHON)
+if(NOT BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_BINDINGS)
     if(USE_LIBCSV)
         find_package(libcsv REQUIRED)
     else()

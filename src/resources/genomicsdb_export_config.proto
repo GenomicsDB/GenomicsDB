@@ -35,6 +35,8 @@ import "genomicsdb_callsets_mapping.proto";
 option java_package = "org.genomicsdb.model";
 option java_outer_classname = "GenomicsDBExportConfiguration";
 
+option go_package = "protobuf/";
+
 package genomicsdb_pb;
 
 message GenomicsDBColumnOrIntervalList {

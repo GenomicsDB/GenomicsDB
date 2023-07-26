@@ -36,6 +36,8 @@ syntax = "proto2";
 option java_package = "org.genomicsdb.model";
 option java_outer_classname = "GenomicsDBImportConfiguration";
 
+option go_package = "protobuf/";
+
 package genomicsdb_pb;
 
 import "genomicsdb_coordinates.proto";

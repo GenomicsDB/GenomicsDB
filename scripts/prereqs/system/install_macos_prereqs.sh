@@ -33,6 +33,7 @@ brew list mpich &>/dev/null || brew install mpich
 brew list ossp-uuid &>/dev/null || brew install ossp-uuid
 brew list libcsv &>/dev/null || brew install libcsv
 brew list automake &> /dev/null || brew install automake
+brew list pkg-config &> /dev/null || brew install pkg-config
 
 # brew has started installing lcov 2.0 and some GenomicsDB sources are erroring out while running lcov
 # For example -

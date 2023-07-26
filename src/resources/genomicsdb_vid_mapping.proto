@@ -33,6 +33,8 @@ syntax = "proto2";
 option java_package = "org.genomicsdb.model";
 option java_outer_classname = "GenomicsDBVidMapProto";
 
+option go_package = "protobuf/";
+
 message FieldLengthDescriptorComponentPB {
   oneof length_descriptor {
     string variable_length_descriptor = 1;
