@@ -28,5 +28,28 @@ int main(int argc, char** argv) {
     std::cerr << "Needs 1 argument <workspace_directory>\n";
     exit(-1);
   }
-  return TileDBUtils::create_workspace(argv[1], false);
+  int rc = TileDBUtils::create_workspace(argv[1], false);
+  switch (rc) {
+    case 0: // OK
+      std::cout << "Workspace successfully created at " << argv[1] << std::endl;
+      break;
+    case -1: // NOT_DIR
+      std::cerr << "Could not create a workspace as " << argv[1] << " exists and is not a directory" << std::endl;
+      break;
+    case -2: // NOT_CREATED - error condition
+      if (strnlen(tiledb_errmsg, TILEDB_ERRMSG_MAX_LEN) > 0) {
+         std::cerr << "TileDB error message:" << tiledb_errmsg << std::endl;
+      }
+      std::cerr << "Could not create a workspace at " << argv[1] << std::endl;
+      break;
+    case 1: //UNCHANGED
+      std::cout << "Workspace already exists at " << argv[1] << " and is unchanged" << std::endl;
+      break;
+    default:
+      if (strnlen(tiledb_errmsg, TILEDB_ERRMSG_MAX_LEN) > 0) {
+         std::cerr << "TileDB error message:" << tiledb_errmsg << std::endl;
+      }
+      std::cerr << "Could not create a workspace at " << argv[1] << " return code=" << rc << std::endl;
+  }
+  return rc;
 }

@@ -369,6 +369,12 @@ static void fix_protobuf_generated_json_for_int64(std::string& json, const std::
   }
 }
 
+static void log_tiledb_errmsg() {
+  if (strnlen(tiledb_errmsg, TILEDB_ERRMSG_MAX_LEN) > 0) {
+    g_logger.error(tiledb_errmsg);
+  }
+}
+
 static int write_json(google::protobuf::Message *message, const std::vector<std::string>& int64_fields, const std::string& output) {
   std::string json;
   google::protobuf::util::JsonPrintOptions json_options;
@@ -380,6 +386,7 @@ static int write_json(google::protobuf::Message *message, const std::vector<std:
   g_logger.debug("Writing out json file to {}", output);
   int status = OK;
   if (TileDBUtils::write_file(output, json.data(), json.length())) {
+    log_tiledb_errmsg();
     g_logger.error("Could not write out json file at {}", output);
     status = ERR;
   }
@@ -418,6 +425,7 @@ static int generate_json(import_config_t import_config) {
     char *template_json_contents;
     size_t template_json_length;
     if (TileDBUtils::read_entire_file(import_config.template_loader_json, (void **)&template_json_contents, &template_json_length)) {
+      log_tiledb_errmsg();
       g_logger.error("Could not read template loader json file {}", import_config.template_loader_json);
       return ERR;
     }
@@ -525,15 +533,18 @@ static int generate_json(import_config_t import_config) {
 static int rename_file(const std::string& src, const std::string& dest) {
   if (TileDBUtils::is_file(dest)) {
     if (TileDBUtils::delete_file(dest)) {
+      log_tiledb_errmsg();
       g_logger.error("Could not delete existing file at path {} for renaming {}", dest, src);
       return ERR;
     }
   }
   if (TileDBUtils::move_across_filesystems(src, dest)) {
-     g_logger.error("Could not rename file {} to {}", src, dest);
-     return ERR;
+    log_tiledb_errmsg();
+    g_logger.error("Could not rename file {} to {}", src, dest);
+    return ERR;
   }
   if (TileDBUtils::delete_file(src)) {
+    log_tiledb_errmsg();
     g_logger.error("Could not delete {} after copying to {}", src, dest);
     return ERR;
   }
@@ -544,6 +555,7 @@ static int update_json(import_config_t import_config) {
   char *callset_contents;
   size_t callset_length;
   if (TileDBUtils::read_entire_file(import_config.callset_output, (void **)&callset_contents, &callset_length)) {
+    log_tiledb_errmsg();
     g_logger.error("Could not read callset json file {}", import_config.callset_output);
     return ERR;
   }
@@ -606,6 +618,7 @@ static int update_json(import_config_t import_config) {
     char *loader_json_contents;
     size_t loader_json_length;
     if (TileDBUtils::read_entire_file(import_config.loader_json, (void **)&loader_json_contents, &loader_json_length)) {
+      log_tiledb_errmsg();
       g_logger.error("Could not read loader json file {}", import_config.loader_json);
       return ERR;
     }
@@ -661,11 +674,13 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
           if (TileDBUtils::is_file(sample_uri)) {
             samples.insert(TileDBUtils::real_dir(sample_uri));
           } else {
+            log_tiledb_errmsg();
             g_logger.error("Sample {} ignored as it is not locatable", sample_uri);
           }
         }
       }
     } else {
+      log_tiledb_errmsg();
       g_logger.error("Could not locate sample list file {}", sample_list);
       return samples;
     }
@@ -769,7 +784,10 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
     return ERR;
   }
   bcf_hdr_destroy(merged_hdr);
-  hts_close(merged_header_fptr);
+  if (hts_close(merged_header_fptr)) {
+    g_logger.error("Error while closing merged header file at {}", merged_header);
+    return ERR;
+  }
 
   // Write out callset.json
   std::string json;
@@ -783,7 +801,8 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
   g_logger.debug("Writing out callset json file to {}", callset_output);
   int rc = TileDBUtils::write_file(callset_output, json.data(), json.length());
   delete callset_protobuf;
-  
+
+  if (rc) log_tiledb_errmsg();
   return rc;
 }
 
@@ -958,6 +977,7 @@ int main(int argc, char** argv) {
   if (import_config.append_samples) {
     if (!TileDBUtils::workspace_exists(workspace) && !TileDBUtils::is_file(vidmap_output) && !TileDBUtils::is_file(callset_output)
         && !TileDBUtils::is_file(loader_json) && !TileDBUtils::is_file(merged_header)) {
+      log_tiledb_errmsg();
       g_logger.error("Workspace {} and jsons should already exist with the --append-samples/-a option", workspace);
     }
   } else if (TileDBUtils::workspace_exists(workspace)) {
@@ -990,6 +1010,7 @@ int main(int argc, char** argv) {
 
     if (generate) {
       if (TileDBUtils::create_workspace(workspace, overwrite_workspace) != TILEDB_OK) {
+        log_tiledb_errmsg();
         g_logger.error("Could not create workspace {}", workspace);
         return ERR;
       }
