@@ -441,7 +441,6 @@
             <phase>process-classes</phase>
             <configuration>
               <target>
-                <echo message="copying libtiledbgenomicsdb....."/>
                 <exec command="cp">
                   <arg value="-LR"/>
                   <arg value="${genomicsdb_lib_directory}/libtiledbgenomicsdb.dylib"/>
@@ -452,7 +451,6 @@
                   <arg value="${genomicsdb_lib_directory}/libtiledbgenomicsdb.so"/>
                   <arg value="${genomicsdb_build_directory}/classes/libtiledbgenomicsdb.so"/>
                 </exec>
-                <echo message="copying libtiledbgenomicsdb DONE"/>
               </target>
             </configuration>
             <goals>
