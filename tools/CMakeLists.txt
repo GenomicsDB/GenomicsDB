@@ -32,7 +32,7 @@ if(NOT APPLE)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie")
 endif()
 
-if(NOT BUILD_DISTRIBUTABLE_LIBRARY)
+if(NOT BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_BINDINGS)
   build_GenomicsDB_executable(create_genomicsdb_workspace)
   build_GenomicsDB_executable(vcf2genomicsdb_init)
   build_GenomicsDB_executable(vcf2genomicsdb)

@@ -30,6 +30,5 @@ includedir=${prefix}/include
 Name: @PROJECT_NAME@
 Description: @CMAKE_PROJECT_DESCRIPTION@
 Version: @PROJECT_VERSION@
-Requires: -L@GENOMICSDB_OPENSSL_ROOT_DIR@/lib -lcrypto -lssl
 Cflags: -I${includedir}
 Libs: -L${libdir} -ltiledbgenomicsdb
