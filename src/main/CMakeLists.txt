@@ -79,11 +79,7 @@ set(GenomicsDB_library_sources
 
 if(PROTOBUF_REGENERATE)
     #Must be set here - see https://cmake.org/cmake/help/v3.3/command/set_source_files_properties.html
-    if(BUILD_FOR_PYTHON)
-      set_source_files_properties(${PROTOBUF_GENERATED_CXX_SRCS} ${PROTOBUF_GENERATED_CXX_HDRS} ${PROTOBUF_GENERATED_PYTHON_SRCS} PROPERTIES GENERATED True)
-    else()
-      set_source_files_properties(${PROTOBUF_GENERATED_CXX_SRCS} ${PROTOBUF_GENERATED_CXX_HDRS} PROPERTIES GENERATED True)
-    endif()
+    set_source_files_properties(${PROTOBUF_GENERATED_CXX_SRCS} ${PROTOBUF_GENERATED_CXX_HDRS} ${PROTOBUF_GENERATED_PYTHON_SRCS} ${PROTOBUF_GENERATED_GO_SRCS} ${PROTOBUF_GENERATED_R_SRCS} PROPERTIES GENERATED True)
 endif()
 
 if(BUILD_JAVA)
@@ -127,9 +123,21 @@ endif()
     #target_link_libraries(tiledbgenomicsdb ${OPENSSL_LIBRARIES})
 #endif()
 
+set_target_properties(tiledbgenomicsdb PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
+
 install(TARGETS genomicsdb tiledbgenomicsdb LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
 install(FILES cpp/include/api/genomicsdb.h  cpp/include/api/genomicsdb_exception.h cpp/include/api/genomicsdb_status.h cpp/include/api/genomicsdb_utils.h
         DESTINATION include)
 if(BUILD_FOR_PYTHON)
   install(FILES ${PROTOBUF_GENERATED_PYTHON_SRCS} DESTINATION genomicsdb/protobuf/python)
 endif()
+if(BUILD_FOR_GO)
+  install(FILES ${PROTOBUF_GENERATED_GO_SRCS} DESTINATION protobuf)
+endif()
+if (BUILD_FOR_R)
+  install(FILES ${PROTOBUF_GENERATED_GO_SRCS} DESTINATION genomicsdb/protobuf/r)
+endif()
+
+get_filename_component(GENOMICSDB_OPENSSL_ROOT_DIR ${OPENSSL_CRYPTO_LIBRARY}/../ ABSOLUTE)
+configure_file(genomicsdb.pc.in genomicsdb.pc @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/genomicsdb.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)

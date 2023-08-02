@@ -2,6 +2,7 @@
 
 # The MIT License (MIT)
 # Copyright (c) 2019-2020 Omics Data Automation, Inc.
+# Copyright (c) 2023 dātma, inc™
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -33,6 +34,7 @@ brew list mpich &>/dev/null || brew install mpich
 brew list ossp-uuid &>/dev/null || brew install ossp-uuid
 brew list libcsv &>/dev/null || brew install libcsv
 brew list automake &> /dev/null || brew install automake
+brew list pkg-config &> /dev/null || brew install pkg-config
 
 # brew has started installing lcov 2.0 and some GenomicsDB sources are erroring out while running lcov
 # For example -

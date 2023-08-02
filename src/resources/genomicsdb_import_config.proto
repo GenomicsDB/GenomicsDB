@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
  * Copyright (c) 2023 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -35,6 +36,8 @@ syntax = "proto2";
 
 option java_package = "org.genomicsdb.model";
 option java_outer_classname = "GenomicsDBImportConfiguration";
+
+option go_package = "protobuf/";
 
 package genomicsdb_pb;
 

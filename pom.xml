@@ -154,15 +154,6 @@
   <build>
     <directory>${genomicsdb_build_directory}</directory>
     <testSourceDirectory>${test_source_directory}</testSourceDirectory>
-    <resources>
-      <resource>
-        <directory>${genomicsdb_lib_directory}</directory>
-        <includes>
-          <include>**/libtiledbgenomicsdb.so</include>
-          <include>**/libtiledbgenomicsdb.dylib</include>
-        </includes>
-      </resource>
-    </resources>
     <pluginManagement>
       <plugins>
         <plugin>
@@ -438,6 +429,27 @@
                   <arg value="--java_out"/>
                   <arg value="${protobuf.output.directory}"/>
                   <arg line="${protobuf.input.filepaths}"/>
+                </exec>
+              </target>
+            </configuration>
+            <goals>
+              <goal>run</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>copy-native-libs</id>
+            <phase>process-classes</phase>
+            <configuration>
+              <target>
+                <exec command="cp">
+                  <arg value="-LR"/>
+                  <arg value="${genomicsdb_lib_directory}/libtiledbgenomicsdb.dylib"/>
+                  <arg value="${genomicsdb_build_directory}/classes/libtiledbgenomicsdb.dylib"/>
+                </exec>
+                <exec command="cp">
+                  <arg value="-LR"/>
+                  <arg value="${genomicsdb_lib_directory}/libtiledbgenomicsdb.so"/>
+                  <arg value="${genomicsdb_build_directory}/classes/libtiledbgenomicsdb.so"/>
                 </exec>
               </target>
             </configuration>
