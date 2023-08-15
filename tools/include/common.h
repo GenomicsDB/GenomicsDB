@@ -26,7 +26,16 @@
 #include "genomicsdb_logger.h"
 #include "tiledb_utils.h"
 
+#include <getopt.h>
+
 #define OK   0
 #define ERR -1
+
+enum GenomicsDBArgsEnum {
+  VERSION=1000,
+};
+
+#define LOG_TILEDB_ERRMSG if (strnlen(tiledb_errmsg, TILEDB_ERRMSG_MAX_LEN) > 0) \
+                            g_logger.error("{}", tiledb_errmsg)
 
 #endif /* GENOMICSDB_TOOLS_COMMON_H */

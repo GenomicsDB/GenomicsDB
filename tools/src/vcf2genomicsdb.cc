@@ -26,8 +26,6 @@
 #include "tiledb_loader.h"
 #include "vcf2binary.h"
 
-#include <getopt.h>
-
 #ifdef USE_GPERFTOOLS
 #include "gperftools/profiler.h"
 #endif

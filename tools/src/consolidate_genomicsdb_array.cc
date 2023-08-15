@@ -31,10 +31,6 @@
 
 static Logger g_logger(Logger::get_logger("consolidate_genomicsdb_array"));
 
-enum GenomicsDBArgsEnum {
-  VERSION=1000,
-};
-
 void print_usage() {
   std::cerr << "Usage: consolidate_genomicsdb_array [options]\n"
             << "where options include:\n"
