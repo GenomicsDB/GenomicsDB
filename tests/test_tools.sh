@@ -243,6 +243,9 @@ fi
 
 run_command "create_genomicsdb_workspace" ERR
 run_command "create_genomicsdb_workspace $WORKSPACE" OK
+# Should be OK with a logged message that the workspace already exists
+# and is unchanged
+run_command "create_genomicsdb_workspace $WORKSPACE" OK
 run_command "create_genomicsdb_workspace $WORKSPACE/nested_ws" ERR
 run_command "create_gemomicsdb_workspace non-existent-dir/ws" ERR
 

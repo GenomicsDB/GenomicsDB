@@ -33,7 +33,11 @@ if [[ -n $2 ]]; then
 fi
 
 TESTS_DIR=`dirname $0`
-TEMP_DIR=$(mktemp -d -t test_genomicsdb_hfile_plugin-XXXXXXXXXX)
+if [[ $(uname) == "Darwin" ]]; then
+  TEMP_DIR=$(mktemp -d -t test_genomicsdb_hfile_plugin)
+else
+  TEMP_DIR=$(mktemp -d -t test_genomicsdb_hfile_plugin-XXXXXXXXXX)
+fi
 
 LOADER_JSON=$TEMP_DIR/loader.json
 CALLSET_MAPPING_JSON=$TEMP_DIR/callset_mapping.json
@@ -114,8 +118,47 @@ fi
 #TODO: compare the combined vcf with golden_outputs/t0_1_2_combined
 ACTUAL_FILESIZE=`wc -c $COMBINED_VCF | awk '{print $1}'`
 HEADER_FILESIZE=`wc -c $TEMPLATE_HEADER | awk '{print $1}'`
-if [[ $ACTUAL_FILESIZE -le $HEADER_FILESIZE  ]]; then
+if [[ $ACTUAL_FILESIZE -le $HEADER_FILESIZE ]]; then
   die "vcf2genomicsdb did not generate the expected vcf"
+fi
+
+# Test out vcf2genomicsdb_init/vcf2genomicsdb combo
+
+TEMPLATE_LOADER_JSON=$TEMP_DIR/template_loader.json
+cat > $TEMPLATE_LOADER_JSON  << EOF
+{
+    "treat_deletions_as_intervals": true,
+    "compress_tiledb_array": true,
+    "produce_tiledb_array": true,
+    "produce_combined_vcf": true,
+    "reference_genome": "$TESTS_DIR/inputs/chr1_10MB.fasta.gz",
+    "size_per_column_partition": 700,
+    "delete_and_create_tiledb_array": true,
+    "num_parallel_vcf_files": 1,
+    "discard_vcf_index": true,
+    "num_cells_per_tile": 3,
+    "offload_vcf_output_processing": false,
+    "row_based_partitioning": false,
+    "segment_size": 40,
+    "vcf_header_filename": "$TEMPLATE_HEADER",
+    "do_ping_pong_buffering": true
+}
+EOF
+
+SAMPLE_LIST=$TEMP_DIR/sample.list
+echo $1/t0.vcf.gz > $SAMPLE_LIST
+echo $1/t1.vcf.gz >> $SAMPLE_LIST
+echo $1/t2.vcf.gz >> $SAMPLE_LIST
+echo "cat sample.list"
+cat $SAMPLE_LIST
+
+check_rc `vcf2genomicsdb_init -w $WORKSPACE -o -s $SAMPLE_LIST -t $TEMPLATE_LOADER_JSON`
+check_rc `vcf2genomicsdb $WORKSPACE/loader.json > ${COMBINED_VCF}_new`
+NEW_FILESIZE=`wc -c ${COMBINED_VCF}_new | awk '{print $1}'`
+
+# Approximate check rounded to the tenth place as the file sizes are going to be different
+if [[ $NEW_FILESIZE/10 -le $HEADER_FILESIZE/10 ]]; then
+  die "vcf2genomicsdb with vcf2genomicsdb_init did not generate the expected vcf"
 fi
 
 cleanup

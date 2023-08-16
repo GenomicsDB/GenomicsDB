@@ -39,11 +39,6 @@ void print_usage() {
       }
 
 int main(int argc, char** argv) {
-  if (argc < 2) {
-    print_usage();
-    return ERR;
-  }
-
   static struct option long_options[] = {
     {"help",                       0, 0, 'h'},
     {"version",                    0, 0, VERSION},
@@ -67,7 +62,8 @@ int main(int argc, char** argv) {
   }
 
   if (optind >= argc) {
-    g_logger.error("Workspace directory required to be specified");
+    g_logger.error("Workspace directory required to be specified. See usage");
+    print_usage();
     return ERR;
   }
 
