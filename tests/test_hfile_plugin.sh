@@ -152,7 +152,7 @@ echo $1/t2.vcf.gz >> $SAMPLE_LIST
 echo "cat sample.list"
 cat $SAMPLE_LIST
 
-if $1 == hdfs://*; then
+if [[ $1 == "hdfs://*" ]]; then
   echo "Processing hadoop"
   check_rc `vcf2genomicsdb_init -w $WORKSPACE -o -S $1 -t $TEMPLATE_LOADER_JSON`
 else
