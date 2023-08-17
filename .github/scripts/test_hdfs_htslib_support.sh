@@ -27,7 +27,7 @@ set -e
 # Name Node is $1 - optional
 # hdfs path is $2 - optional
 
-NAME_NODE=${1:-"hdfs://localhost:9000/"}
+NAME_NODE=${1:-"hdfs://localhost:9000"}
 HDFS_PATH=${2:-"/home/hadoop/input/vcfs"}
 
 VCF_DIRS=$GITHUB_WORKSPACE/tests/inputs/vcfs

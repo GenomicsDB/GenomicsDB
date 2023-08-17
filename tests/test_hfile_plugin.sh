@@ -152,13 +152,21 @@ echo $1/t2.vcf.gz >> $SAMPLE_LIST
 echo "cat sample.list"
 cat $SAMPLE_LIST
 
-check_rc `vcf2genomicsdb_init -w $WORKSPACE -o -s $SAMPLE_LIST -t $TEMPLATE_LOADER_JSON`
+if $1 == hdfs://*; then
+  echo "Processing hadoop"
+  check_rc `vcf2genomicsdb_init -w $WORKSPACE -o -S $1 -t $TEMPLATE_LOADER_JSON`
+else
+  check_rc `vcf2genomicsdb_init -w $WORKSPACE -o -s $SAMPLE_LIST -t $TEMPLATE_LOADER_JSON`
+fi
+
 check_rc `vcf2genomicsdb $WORKSPACE/loader.json > ${COMBINED_VCF}_new`
-NEW_FILESIZE=`wc -c ${COMBINED_VCF}_new | awk '{print $1}'`
+ACTUAL_FILESIZE_NEW=`wc -c ${COMBINED_VCF}_new | awk '{print $1}'`
 
 # Approximate check rounded to the tenth place as the file sizes are going to be different
-if [[ $NEW_FILESIZE/10 -le $HEADER_FILESIZE/10 ]]; then
+if [[ $ACTUAL_FILESIZE_NEW/10 -ne $ACTUAL_FILESIZE/10 ]]; then
+  echo "Filesizes : $ACTUAL_FILESIZE_NEW $ACTUAL_FILESIZE"
   die "vcf2genomicsdb with vcf2genomicsdb_init did not generate the expected vcf"
 fi
 
+echo $TEMP_DIR
 cleanup

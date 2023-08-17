@@ -693,22 +693,31 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
     return samples;
   }
 
-  // TileDB returns only the path for cloud URIs, so get container/bucket prefix
-  std::regex uri_pattern("(.*//.*?/)(.*)(\\?.*$)", std::regex_constants::ECMAScript);
-  std::string prefix;
+  // TileDB returns only the path for cloud URIs, so get container/bucket prefix and query suffix
   std::string suffix;
-  if (std::regex_search(samples_dir, uri_pattern)) {
-    prefix = std::regex_replace(samples_dir, uri_pattern, "$1");
-    suffix = std::regex_replace(samples_dir, uri_pattern, "$3");
+  auto pos = samples_dir.find('?');
+  if (pos != std::string::npos) {
+    suffix = samples_dir.substr(pos+1);
+  } else {
+    pos = samples_dir.length();
+  }
+  std::regex uri_pattern("^(.*//.*?/)(.*$)", std::regex_constants::ECMAScript);
+  std::string prefix;
+  std::string uri = samples_dir.substr(0, pos);
+  if (std::regex_search(uri, uri_pattern)) {
+    prefix = std::regex_replace(uri, uri_pattern, "$1");
   }
 
-  g_logger.debug("URI {} has been parsed to prefix={} suffix={}", samples_dir, prefix, suffix);
+  g_logger.info("URI {} has been parsed to prefix={} suffix={}", samples_dir, prefix, suffix);
 
   std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir); 
   for (auto sample_file: sample_files) {
-    std::regex pattern(".*(.vcf.gz$|.bcf.gz$)");
+    std::cout << "original sample_file: " << sample_file << std::endl;
+    std::regex pattern("^.*(.vcf.gz$|.bcf.gz$)");
     if (std::regex_search(sample_file, pattern)) {
-      samples.insert(TileDBUtils::real_dir(prefix+sample_file+suffix));
+      sample_file = prefix+sample_file+suffix;
+      std::cout << "sample_file: " << sample_file << std::endl;
+      samples.insert(sample_file);
     }
   }
 
