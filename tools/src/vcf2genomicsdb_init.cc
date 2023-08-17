@@ -710,13 +710,14 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
 
   g_logger.info("URI {} has been parsed to prefix={} suffix={}", samples_dir, prefix, suffix);
 
-  std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir); 
+  std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir);
+  g_logger.info("Found {} sample_files at {}", sample_files.size(), samples_dir);
   for (auto sample_file: sample_files) {
-    std::cout << "original sample_file: " << sample_file << std::endl;
+    g_logger.info("sample_file from TileDB: {}", sample_file);
     std::regex pattern("^.*(.vcf.gz$|.bcf.gz$)");
     if (std::regex_search(sample_file, pattern)) {
       sample_file = prefix+sample_file+suffix;
-      std::cout << "sample_file: " << sample_file << std::endl;
+      g_logger.info("sample_file after processing: {}", sample_file);
       samples.insert(sample_file);
     }
   }

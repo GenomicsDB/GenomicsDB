@@ -152,10 +152,11 @@ echo $1/t2.vcf.gz >> $SAMPLE_LIST
 echo "cat sample.list"
 cat $SAMPLE_LIST
 
-if [[ $1 == hdfs://* ]]; then
-  echo "Processing hadoop"
+if [[ $1 == *//* ]]; then
+  echo "Processing from samples dir $1"
   check_rc `vcf2genomicsdb_init -w $WORKSPACE -o -S $1 -t $TEMPLATE_LOADER_JSON`
 else
+  echo "Processing from sample list"
   check_rc `vcf2genomicsdb_init -w $WORKSPACE -o -s $SAMPLE_LIST -t $TEMPLATE_LOADER_JSON`
 fi
 
@@ -168,5 +169,4 @@ if [[ $ACTUAL_FILESIZE_NEW/10 -ne $ACTUAL_FILESIZE/10 ]]; then
   die "vcf2genomicsdb with vcf2genomicsdb_init did not generate the expected vcf"
 fi
 
-echo $TEMP_DIR
 cleanup
