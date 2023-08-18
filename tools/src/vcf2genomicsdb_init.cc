@@ -693,11 +693,13 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
     return samples;
   }
 
-  // TileDB returns only the path for cloud URIs, so get container/bucket prefix and query suffix
+  // TODO: This part is hacky now and should be handled by TileDB. Currently, it returns only the path for
+  // cloud URIs, but the entire URI for hdfs for TileDBUtils::get_files. Get container/bucket prefix and
+  // query suffix to reconstruct filename!
   std::string suffix;
   auto pos = samples_dir.find('?');
   if (pos != std::string::npos) {
-    suffix = samples_dir.substr(pos+1);
+    suffix = samples_dir.substr(pos);
   } else {
     pos = samples_dir.length();
   }
@@ -716,7 +718,9 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
     g_logger.info("sample_file from TileDB: {}", sample_file);
     std::regex pattern("^.*(.vcf.gz$|.bcf.gz$)");
     if (std::regex_search(sample_file, pattern)) {
-      sample_file = prefix+sample_file+suffix;
+      if (sample_file.find("hdfs://") == std::string::npos) { 
+        sample_file = prefix+sample_file+suffix;
+      }
       g_logger.info("sample_file after processing: {}", sample_file);
       samples.insert(sample_file);
     }
