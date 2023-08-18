@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2020-2021 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -693,9 +694,10 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
     return samples;
   }
 
-  // TODO: This part is hacky now and should be handled by TileDB. Currently, it returns only the path for
-  // cloud URIs, but the entire URI for hdfs for TileDBUtils::get_files. Get container/bucket prefix and
-  // query suffix to reconstruct filename!
+  // TODO: This part is hacky and should be handled by TileDB. Currently, TileDBUtils.get_files() returns
+  // only the path for cloud URIs, but the entire URI for hdfs for TileDBUtils::get_files. Gets container/bucket
+  // prefix and query suffix using regu.ar expressions to reconstruct filename later!
+  // See https://github.com/datma-health/TileDB/issues/159
   std::string suffix;
   auto pos = samples_dir.find('?');
   if (pos != std::string::npos) {
@@ -710,18 +712,13 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
     prefix = std::regex_replace(uri, uri_pattern, "$1");
   }
 
-  g_logger.info("URI {} has been parsed to prefix={} suffix={}", samples_dir, prefix, suffix);
-
   std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir);
-  g_logger.info("Found {} sample_files at {}", sample_files.size(), samples_dir);
   for (auto sample_file: sample_files) {
-    g_logger.info("sample_file from TileDB: {}", sample_file);
     std::regex pattern("^.*(.vcf.gz$|.bcf.gz$)");
     if (std::regex_search(sample_file, pattern)) {
       if (sample_file.find("hdfs://") == std::string::npos) { 
         sample_file = prefix+sample_file+suffix;
       }
-      g_logger.info("sample_file after processing: {}", sample_file);
       samples.insert(sample_file);
     }
   }
