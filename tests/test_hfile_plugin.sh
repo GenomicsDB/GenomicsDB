@@ -2,6 +2,7 @@
 #
 # The MIT License (MIT)
 # Copyright (c) 2020 Omics Data Automation Inc.
+# Copyright (c) 2023 dātma, inc™
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -33,7 +34,11 @@ if [[ -n $2 ]]; then
 fi
 
 TESTS_DIR=`dirname $0`
-TEMP_DIR=$(mktemp -d -t test_genomicsdb_hfile_plugin-XXXXXXXXXX)
+if [[ $(uname) == "Darwin" ]]; then
+  TEMP_DIR=$(mktemp -d -t test_genomicsdb_hfile_plugin)
+else
+  TEMP_DIR=$(mktemp -d -t test_genomicsdb_hfile_plugin-XXXXXXXXXX)
+fi
 
 LOADER_JSON=$TEMP_DIR/loader.json
 CALLSET_MAPPING_JSON=$TEMP_DIR/callset_mapping.json
@@ -114,8 +119,55 @@ fi
 #TODO: compare the combined vcf with golden_outputs/t0_1_2_combined
 ACTUAL_FILESIZE=`wc -c $COMBINED_VCF | awk '{print $1}'`
 HEADER_FILESIZE=`wc -c $TEMPLATE_HEADER | awk '{print $1}'`
-if [[ $ACTUAL_FILESIZE -le $HEADER_FILESIZE  ]]; then
+if [[ $ACTUAL_FILESIZE -le $HEADER_FILESIZE ]]; then
   die "vcf2genomicsdb did not generate the expected vcf"
+fi
+
+# Test out vcf2genomicsdb_init/vcf2genomicsdb combo
+
+TEMPLATE_LOADER_JSON=$TEMP_DIR/template_loader.json
+cat > $TEMPLATE_LOADER_JSON  << EOF
+{
+    "treat_deletions_as_intervals": true,
+    "compress_tiledb_array": true,
+    "produce_tiledb_array": true,
+    "produce_combined_vcf": true,
+    "reference_genome": "$TESTS_DIR/inputs/chr1_10MB.fasta.gz",
+    "size_per_column_partition": 700,
+    "delete_and_create_tiledb_array": true,
+    "num_parallel_vcf_files": 1,
+    "discard_vcf_index": true,
+    "num_cells_per_tile": 3,
+    "offload_vcf_output_processing": false,
+    "row_based_partitioning": false,
+    "segment_size": 40,
+    "vcf_header_filename": "$TEMPLATE_HEADER",
+    "do_ping_pong_buffering": true
+}
+EOF
+
+SAMPLE_LIST=$TEMP_DIR/sample.list
+echo $1/t0.vcf.gz > $SAMPLE_LIST
+echo $1/t1.vcf.gz >> $SAMPLE_LIST
+echo $1/t2.vcf.gz >> $SAMPLE_LIST
+echo "cat sample.list"
+cat $SAMPLE_LIST
+
+if [[ $1 == *//* ]]; then
+  echo "Processing from samples dir $1"
+  check_rc `vcf2genomicsdb_init -w $WORKSPACE -o -S $1 -t $TEMPLATE_LOADER_JSON`
+else
+  echo "Processing from sample list"
+  check_rc `vcf2genomicsdb_init -w $WORKSPACE -o -s $SAMPLE_LIST -t $TEMPLATE_LOADER_JSON`
+fi
+
+check_rc `vcf2genomicsdb $WORKSPACE/loader.json > ${COMBINED_VCF}_new`
+ACTUAL_FILESIZE_NEW=`wc -c ${COMBINED_VCF}_new | awk '{print $1}'`
+
+# Approximate check rounded to the tenth place as the file sizes are going to be different
+if [[ $ACTUAL_FILESIZE_NEW/10 -ne $ACTUAL_FILESIZE/10 ]]; then
+  echo "Filesizes : $ACTUAL_FILESIZE_NEW $ACTUAL_FILESIZE"
+  die "vcf2genomicsdb with vcf2genomicsdb_init did not generate the expected vcf"
 fi
 
 cleanup

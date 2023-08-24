@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
  * Copyright (c) 2022 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -30,10 +31,6 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 
 static Logger g_logger(Logger::get_logger("consolidate_genomicsdb_array"));
-
-enum GenomicsDBArgsEnum {
-  VERSION=1000,
-};
 
 void print_usage() {
   std::cerr << "Usage: consolidate_genomicsdb_array [options]\n"

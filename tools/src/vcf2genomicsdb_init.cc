@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2020-2021 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -25,7 +26,6 @@
 #include <errno.h>
 #include <iostream>
 #include <fstream>
-#include <getopt.h>
 #include <regex>
 #include <sstream>
 #include <string>
@@ -381,6 +381,7 @@ static int write_json(google::protobuf::Message *message, const std::vector<std:
   int status = OK;
   if (TileDBUtils::write_file(output, json.data(), json.length())) {
     g_logger.error("Could not write out json file at {}", output);
+    LOG_TILEDB_ERRMSG;
     status = ERR;
   }
   delete message;
@@ -419,6 +420,7 @@ static int generate_json(import_config_t import_config) {
     size_t template_json_length;
     if (TileDBUtils::read_entire_file(import_config.template_loader_json, (void **)&template_json_contents, &template_json_length)) {
       g_logger.error("Could not read template loader json file {}", import_config.template_loader_json);
+      LOG_TILEDB_ERRMSG;
       return ERR;
     }
     google::protobuf::StringPiece template_json_string(template_json_contents, template_json_length);
@@ -506,18 +508,29 @@ static int generate_json(import_config_t import_config) {
     google::protobuf::util::MessageToJsonString(*vidmap_pb, &json, json_options);
     g_logger.debug("Writing out vidmap json file to {}", vidmap_output);
     fix_protobuf_generated_json_for_int64(json, {"tiledb_column_offset", "length"});
-    TileDBUtils::write_file(vidmap_output, json.data(), json.length());
-    delete vidmap_pb;
+    rc = TileDBUtils::write_file(vidmap_output, json.data(), json.length());
+    if (rc) {
+      g_logger.error("Error writing out vidmap json file to {}", vidmap_output);
+      LOG_TILEDB_ERRMSG;
+    }
 
     // Write out loader.json
-    json.clear();
-    google::protobuf::util::MessageToJsonString(*import_config_protobuf, &json, json_options);
-    g_logger.debug("Writing out loader json file to {}", loader_output);
-    fix_protobuf_generated_json_for_int64(json, {"tiledb_column", "size_per_column_partition", "segment_size",
-	  "num_cells_per_tile"});
-    rc = TileDBUtils::write_file(loader_output, json.data(), json.length());
-    delete import_config_protobuf;
+    if (!rc) {
+      json.clear();
+      google::protobuf::util::MessageToJsonString(*import_config_protobuf, &json, json_options);
+      g_logger.debug("Writing out loader json file to {}", loader_output);
+      fix_protobuf_generated_json_for_int64(json, {"tiledb_column", "size_per_column_partition", "segment_size",
+          "num_cells_per_tile"});
+      rc = TileDBUtils::write_file(loader_output, json.data(), json.length());
+      if (rc) {
+        g_logger.error("Error writing out loader json file to {}", loader_output);
+        LOG_TILEDB_ERRMSG;
+      }
+    }
   }
+
+  delete vidmap_pb;
+  delete import_config_protobuf;
 
   return rc;
 }
@@ -526,15 +539,18 @@ static int rename_file(const std::string& src, const std::string& dest) {
   if (TileDBUtils::is_file(dest)) {
     if (TileDBUtils::delete_file(dest)) {
       g_logger.error("Could not delete existing file at path {} for renaming {}", dest, src);
+      LOG_TILEDB_ERRMSG;
       return ERR;
     }
   }
   if (TileDBUtils::move_across_filesystems(src, dest)) {
-     g_logger.error("Could not rename file {} to {}", src, dest);
-     return ERR;
+    g_logger.error("Could not rename file {} to {}", src, dest);
+    LOG_TILEDB_ERRMSG;
+    return ERR;
   }
   if (TileDBUtils::delete_file(src)) {
     g_logger.error("Could not delete {} after copying to {}", src, dest);
+    LOG_TILEDB_ERRMSG;
     return ERR;
   }
   return OK;
@@ -545,6 +561,7 @@ static int update_json(import_config_t import_config) {
   size_t callset_length;
   if (TileDBUtils::read_entire_file(import_config.callset_output, (void **)&callset_contents, &callset_length)) {
     g_logger.error("Could not read callset json file {}", import_config.callset_output);
+    LOG_TILEDB_ERRMSG;
     return ERR;
   }
   google::protobuf::StringPiece callset_string(callset_contents, callset_length);
@@ -607,6 +624,7 @@ static int update_json(import_config_t import_config) {
     size_t loader_json_length;
     if (TileDBUtils::read_entire_file(import_config.loader_json, (void **)&loader_json_contents, &loader_json_length)) {
       g_logger.error("Could not read loader json file {}", import_config.loader_json);
+      LOG_TILEDB_ERRMSG;
       return ERR;
     }
     google::protobuf::StringPiece loader_json_string(loader_json_contents, loader_json_length);
@@ -676,18 +694,32 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
     return samples;
   }
 
-  // TileDB returns only the path for cloud URIs, so get container/bucket prefix
-  std::regex uri_pattern("(.*//)(.*?/)(.*$)");
+  // TODO: This part is hacky and should be handled by TileDB. Currently, TileDBUtils.get_files() returns
+  // only the path for cloud URIs, but the entire URI for hdfs for TileDBUtils::get_files. Gets container/bucket
+  // prefix and query suffix using regu.ar expressions to reconstruct filename later!
+  // See https://github.com/datma-health/TileDB/issues/159
+  std::string suffix;
+  auto pos = samples_dir.find('?');
+  if (pos != std::string::npos) {
+    suffix = samples_dir.substr(pos);
+  } else {
+    pos = samples_dir.length();
+  }
+  std::regex uri_pattern("^(.*//.*?/)(.*$)", std::regex_constants::ECMAScript);
   std::string prefix;
-  if (std::regex_search(samples_dir, uri_pattern)) {
-    prefix = std::regex_replace(samples_dir, uri_pattern, "$1$2");
+  std::string uri = samples_dir.substr(0, pos);
+  if (std::regex_search(uri, uri_pattern)) {
+    prefix = std::regex_replace(uri, uri_pattern, "$1");
   }
 
-  std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir); 
+  std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir);
   for (auto sample_file: sample_files) {
-    std::regex pattern(".*(.vcf.gz$|.bcf.gz$)");
+    std::regex pattern("^.*(.vcf.gz$|.bcf.gz$)");
     if (std::regex_search(sample_file, pattern)) {
-      samples.insert(TileDBUtils::real_dir(prefix+sample_file));
+      if (sample_file.find("hdfs://") == std::string::npos) { 
+        sample_file = prefix+sample_file+suffix;
+      }
+      samples.insert(sample_file);
     }
   }
 
@@ -795,10 +827,6 @@ static void process_include_fields(std::set<std::string>& fields, const std::str
     fields.insert(it->str());
   }
 }
-
-enum GenomicsDBArgsEnum {
-  VERSION=1000,
-};
 
 void print_usage() {
   std::cerr << "Usage: vcf2genomicsdb_init [options]\n"
@@ -969,11 +997,13 @@ int main(int argc, char** argv) {
 
   if (!sample_list.empty() && !TileDBUtils::is_file(sample_list)) {
     g_logger.error("Sample list {} specified with --sample-list/-s option cannot be accessed", sample_list);
+    LOG_TILEDB_ERRMSG;
     return ERR;
   }
 
   if (!samples_dir.empty() && !TileDBUtils::is_dir(samples_dir)) {
     g_logger.error("Samples dir {} specified with --samples-dir/-S option cannot be accessed", samples_dir);
+    LOG_TILEDB_ERRMSG;
     return ERR;
   }
 
@@ -991,6 +1021,7 @@ int main(int argc, char** argv) {
     if (generate) {
       if (TileDBUtils::create_workspace(workspace, overwrite_workspace) != TILEDB_OK) {
         g_logger.error("Could not create workspace {}", workspace);
+        LOG_TILEDB_ERRMSG;
         return ERR;
       }
     }
@@ -1018,7 +1049,7 @@ int main(int argc, char** argv) {
     google::protobuf::ShutdownProtobufLibrary();
 
   } catch(const GenomicsDBConfigException& genomicsdb_ex) {
-    g_logger.error(genomicsdb_ex.what());
+    g_logger.error("GenomicsDBConfigException: {}", genomicsdb_ex.what());
     return ERR;
   } catch (const std::exception& ex) {
     g_logger.error(ex.what());

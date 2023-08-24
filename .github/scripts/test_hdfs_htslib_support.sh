@@ -1,6 +1,7 @@
 #
 # The MIT License (MIT)
 # Copyright (c) 2020 Omics Data Automation, Inc.
+# Copyright (c) 2023 dātma, inc™
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -27,7 +28,7 @@ set -e
 # Name Node is $1 - optional
 # hdfs path is $2 - optional
 
-NAME_NODE=${1:-"hdfs://localhost:9000/"}
+NAME_NODE=${1:-"hdfs://localhost:9000"}
 HDFS_PATH=${2:-"/home/hadoop/input/vcfs"}
 
 VCF_DIRS=$GITHUB_WORKSPACE/tests/inputs/vcfs

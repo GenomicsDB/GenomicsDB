@@ -45,7 +45,11 @@ else
 fi
 
 VCFS_DIR=$(cd $1 && pwd)
-TEMP_DIR=$(mktemp -d -t test_tools-XXXXXXXXXX)
+if [[ $(uname) == "Darwin" ]]; then
+  TEMP_DIR=$(mktemp -d -t test_tools-GenomicsDB)
+else
+  TEMP_DIR=$(mktemp -d -t test_tools-GenomicsDB-XXXXXXXXXX)
+fi
 
 WORKSPACE=$TEMP_DIR/ws
 
@@ -229,12 +233,21 @@ OK=0
 ERR=1
 
 # Sanity Checks for Tools
+sanity_check "create_genomicsdb_workspace"
 sanity_check "vcf2genomicsdb_init"
 sanity_check "vcf2genomicsdb"
 sanity_check "consolidate_genomicsdb_array"
 if [[ $DISABLE_MPI == 0 ]]; then
   sanity_check "gt_mpi_gather"
 fi
+
+run_command "create_genomicsdb_workspace" ERR
+run_command "create_genomicsdb_workspace $WORKSPACE" OK
+# Should be OK with a logged message that the workspace already exists
+# and is unchanged
+run_command "create_genomicsdb_workspace $WORKSPACE" OK
+run_command "create_genomicsdb_workspace $WORKSPACE/nested_ws" ERR
+run_command "create_gemomicsdb_workspace non-existent-dir/ws" ERR
 
 WORKSPACE=$TEMP_DIR/ws_$RANDOM
 run_command "vcf2genomicsdb_init -w $WORKSPACE" ERR

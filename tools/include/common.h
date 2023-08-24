@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2021 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -26,7 +27,16 @@
 #include "genomicsdb_logger.h"
 #include "tiledb_utils.h"
 
+#include <getopt.h>
+
 #define OK   0
 #define ERR -1
+
+enum GenomicsDBArgsEnum {
+  VERSION=1000,
+};
+
+#define LOG_TILEDB_ERRMSG if (strnlen(tiledb_errmsg, TILEDB_ERRMSG_MAX_LEN) > 0) \
+                            g_logger.error("{}", tiledb_errmsg)
 
 #endif /* GENOMICSDB_TOOLS_COMMON_H */

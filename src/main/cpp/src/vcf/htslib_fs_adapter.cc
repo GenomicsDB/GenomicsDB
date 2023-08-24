@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2020-2021 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -118,7 +119,7 @@ ssize_t genomicsdb_filesystem_read(void *context, const char *filename, off_t of
 
 ssize_t genomicsdb_filesystem_write(void *context, const char *filename, const void *buffer, size_t nbytes) {
   if (write_file(reinterpret_cast<TileDB_CTX *>(context), filename, buffer, nbytes)) {
-    logger.error("hts_plugin read {} error {}", filename, tiledb_errmsg[0]?tiledb_errmsg:"");
+    logger.error("hts_plugin write {} error {}", filename, tiledb_errmsg[0]?tiledb_errmsg:"");
     return -1;
   } else {
     return nbytes;
