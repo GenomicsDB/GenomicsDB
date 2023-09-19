@@ -26,7 +26,6 @@ ARG os=centos:7
 FROM $os as full
 
 ARG user=genomicsdb
-ARG install_dir=/usr/local
 ARG distributable_jar=false
 # Options to enable_bindings are only java for now
 # e.g. enable_bindings="java"
@@ -38,7 +37,7 @@ ENV BUILD_DISTRIBUTABLE_LIBRARY=${distributable_jar}
 WORKDIR /build/GenomicsDB
 RUN ./scripts/prereqs/install_prereqs.sh full &&\
     useradd -r -U -m ${user} &&\
-    ./scripts/install_genomicsdb.sh ${user} ${install_dir} ${distributable_jar} ${enable_bindings}
+    ./scripts/install_genomicsdb.sh ${user} /usr/local ${distributable_jar} ${enable_bindings}
 
 ARG os=centos:7
 
