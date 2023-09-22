@@ -26,7 +26,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.*;
-import java.nio.file.Path;
 
 public class GenomicsDBLibLoader {
     public final static String GENOMICSDB_LIBRARY_PATH = "genomicsdb.library.path";
