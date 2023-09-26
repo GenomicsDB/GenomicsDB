@@ -806,7 +806,7 @@ TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
         gdb->query_variant_calls(count_cells_processor);
 
         CHECK(count_cells_processor.m_intervals == 1);
-        //CHECK(count_cells_processor.m_count == counts[i]);
+        CHECK(count_cells_processor.m_count == counts[i]);
         printf("Elapsed Time=%us for filter=%s segment_size=%zu\n", t.getElapsedMilliseconds()/1000,
                filters[i].c_str(), segment_sizes[j]);
   
