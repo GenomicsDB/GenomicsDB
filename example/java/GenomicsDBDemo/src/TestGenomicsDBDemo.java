@@ -40,7 +40,12 @@ public class TestGenomicsDBDemo {
     GenomicsDBExportConfiguration.RowRangeList rowRangeList = GenomicsDBExportConfiguration.RowRangeList.newBuilder().addRangeList(GenomicsDBExportConfiguration.RowRange.newBuilder()
             .setLow(0l).setHigh(200000l).build()).build();
 
-    String filters[] = {"", "REF==\"A\"", "REF==\"A\" && ALT|=\"T\"", "REF==\"A\" && ALT|=\"T\" && GT&=\"1/1\""};
+    String filters[] = {"",
+      "REF==\"A\"",
+      "REF==\"A\" && ALT|=\"T\"",
+      "REF==\"A\" &&  ALT|=\"T\" && ISHOMALT",
+      "REF==\"A\" && ALT|=\"T\" && resolve(GT,REF,ALT)&=\"T/T\""
+    };
 
     for (String filter: filters) {
       long startTime = System.currentTimeMillis();

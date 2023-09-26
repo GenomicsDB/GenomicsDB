@@ -20,7 +20,6 @@
  */
 package org.genomicsdb.reader;
 
-import com.google.protobuf.util.JsonFormat;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.genomicsdb.exception.GenomicsDBException;
 import org.genomicsdb.model.Coordinates;
@@ -40,8 +39,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.Level;
-
 import static org.genomicsdb.model.GenomicsDBExportConfiguration.*;
 
 public class GenomicsDBQueryTest {
@@ -270,12 +267,13 @@ public class GenomicsDBQueryTest {
 
   @Test
   void testGenomicsDBVariantCallQueryWithPBExportConfig() throws IOException {
+    String workspace_PP = workspace+"_phased_ploidy";
     Coordinates.ContigInterval interval = Coordinates.ContigInterval.newBuilder()
         .setContig("1").setBegin(1).setEnd(100000).build();
     RowRangeList rowRangeList = RowRangeList.newBuilder().addRangeList(RowRange.newBuilder()
             .setLow(0L).setHigh(3L).build()).build();
     ExportConfiguration exportConfiguration = ExportConfiguration.newBuilder()
-        .setWorkspace(workspace)
+        .setWorkspace(workspace_PP)
         .setVidMappingFile(vidMapping)
         .setCallsetMappingFile(callsetMapping)
         .setArrayName(arrayName)
@@ -295,11 +293,11 @@ public class GenomicsDBQueryTest {
 
     // With filter
     exportConfiguration = ExportConfiguration.newBuilder()
-        .setWorkspace(workspace)
+        .setWorkspace(workspace_PP)
         .setVidMappingFile(vidMapping)
         .setCallsetMappingFile(callsetMapping)
         .setArrayName(arrayName)
-        .setQueryFilter("END==17384 && REF==\"G\" && ALT|=\"A\" && GT&=\"0/1\"")
+        .setQueryFilter("POS==17384 && REF==\"G\" && ALT|=\"A\" && resolve(GT, REF, ALT)&=\"G/A\"")
         .setSegmentSize(40)
         .addQueryContigIntervals(interval)
         .addQueryRowRanges(rowRangeList)
@@ -313,13 +311,12 @@ public class GenomicsDBQueryTest {
     Assert.assertEquals(intervals.get(0).calls.size(), 2);
     query.disconnect(genomicsDBHandle);
 
-    // With bad filter
     exportConfiguration = ExportConfiguration.newBuilder()
-        .setWorkspace(workspace)
+        .setWorkspace(workspace_PP)
         .setVidMappingFile(vidMapping)
         .setCallsetMappingFile(callsetMapping)
         .setArrayName(arrayName)
-        .setQueryFilter("POS=17384 && REF==\"G\" && ALT|=\"A\" && GT&=\"0/1\"")
+        .setQueryFilter("NOT_ATTR=17384 && REF==\"G\" && ALT|=\"A\" && resolve(GT, REF, ALT)&=\"G/A\"")
         .setSegmentSize(40)
         .addQueryContigIntervals(interval)
         .addQueryRowRanges(rowRangeList)
@@ -427,8 +424,12 @@ public class GenomicsDBQueryTest {
     RowRangeList rowRangeList = RowRangeList.newBuilder().addRangeList(RowRange.newBuilder()
             .setLow(0l).setHigh(200000l).build()).build();
 
-    String filters[] = {"", "REF==\"A\"", "REF==\"A\" && ALT|=\"T\"", "REF==\"A\" && ALT|=\"T\" && GT&=\"1/1\""};
-    Long expected_calls[] = new Long[]{ 2962039L, 400432L, 82245L, 82245L };
+    String filters[] = {"",
+      "REF==\"A\"", "REF==\"A\" && ALT|=\"T\"",
+      "REF==\"A\" &&  ALT|=\"T\" && ISHOMALT",
+      "REF==\"A\" && ALT|=\"T\" && resolve(GT, REF, ALT)&=\"T/T\""
+    };
+    Long expected_calls[] = new Long[]{ 2962039L, 400432L, 82245L, 82245L, 69548L };
     Assert.assertEquals(filters.length, expected_calls.length);
 
     for (int i=0; i< filters.length; i++) {

@@ -14,6 +14,6 @@ Interval: 2507743582-2507762731 calls=400432
 Summary for REF=="A" && ALT|="T": Elapsed time: 75s
 Interval: 2507743582-2507762731 calls=82245
 
-Summary for REF=="A" && ALT|="T" && GT&="1/1": Elapsed time: 98s
+Summary for REF=="A" && ALT|="T" && resolve(GT, REF, ALT)&="T/T": Elapsed time: 98s
 Interval: 2507743582-2507762731 calls=82245
 ```
