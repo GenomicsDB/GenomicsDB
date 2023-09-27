@@ -4,6 +4,7 @@
 # The MIT License
 #
 # Copyright (c) 2019-2021 Omics Data Automation, Inc.
+# Copyright (c) 2023 dātma, inc™
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -59,6 +60,9 @@ else()
     -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_INSTALL_PREFIX=${PROTOBUF_PREFIX}
     -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+    -DCMAKE_C_VISIBILITY_PRESET=hidden
+    -DCMAKE_CXX_VISIBILITY_PRESET=hidden
+    -DCMAKE_VISIBILITY_INLINES_HIDDEN=TRUE
     -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
     )
   add_dependencies(protobuf_ep protobuf_build)
