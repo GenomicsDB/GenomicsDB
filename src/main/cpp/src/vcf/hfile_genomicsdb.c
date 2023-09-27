@@ -111,6 +111,7 @@ int hfile_plugin_init(struct hFILE_plugin *self) {
     self->name = "GenomicsDB Storage";
   }
   hfile_add_scheme_handler("az", &genomicsdb_handler);
+  hfile_add_scheme_handler("azb", &genomicsdb_handler);
   hfile_add_scheme_handler("hdfs", &genomicsdb_handler);
   hfile_add_scheme_handler("s3", &genomicsdb_handler);
   hfile_add_scheme_handler("gs", &genomicsdb_handler);
