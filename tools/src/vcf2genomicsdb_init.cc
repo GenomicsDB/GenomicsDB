@@ -716,6 +716,7 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
   for (auto sample_file: sample_files) {
     std::regex pattern("^.*(.vcf.gz$|.bcf.gz$)");
     if (std::regex_search(sample_file, pattern)) {
+      g_logger.info("sample_file is {}",sample_file);
       if (sample_file.find("hdfs://") == std::string::npos) { 
         sample_file = prefix+sample_file+suffix;
       }
