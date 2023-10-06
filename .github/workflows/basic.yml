@@ -128,7 +128,7 @@ jobs:
       shell: bash
       run: |
         source $PREREQS_ENV
-        make -j4
+        make
         make install
 
     - name: Test
