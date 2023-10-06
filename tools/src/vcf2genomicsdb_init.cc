@@ -717,7 +717,7 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
     std::regex pattern("^.*(.vcf.gz$|.bcf.gz$)");
     if (std::regex_search(sample_file, pattern)) {
       g_logger.info("sample_file is {}",sample_file); 
-      sample_file = prefix+(sample_file[0]=='/' ? sample_file.substr(1):sample_file)+suffix;
+      sample_file = prefix+sample_file[0]+suffix;
       
       samples.insert(sample_file);
     }
