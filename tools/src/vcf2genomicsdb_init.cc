@@ -714,9 +714,9 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
 
   std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir);
   for (auto sample_file: sample_files) {
+    g_logger.info("sample_file is {}",sample_file); 
     std::regex pattern("^.*(.vcf.gz$|.bcf.gz$)");
     if (std::regex_search(sample_file, pattern)) {
-      g_logger.info("sample_file is {}",sample_file); 
       sample_file = prefix+sample_file+suffix;
       
       samples.insert(sample_file);
