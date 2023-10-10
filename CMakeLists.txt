@@ -129,6 +129,8 @@ if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
 endif()
 
+# Honor visibility properties for all target types.
+# https://cmake.org/cmake/help/latest/policy/CMP0063.html
 if(POLICY CMP0063)
   cmake_policy(SET CMP0063 NEW)
 endif()
