@@ -36,7 +36,7 @@ execute_process(
     )
 
 #Build versions
-set(GENOMICSDB_RELEASE_VERSION "1.5.1-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+set(GENOMICSDB_RELEASE_VERSION "1.5.2-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+"  GENOMICSDB_BASE_VERSION "${GENOMICSDB_RELEASE_VERSION}")
 
 #GIT_COMMIT_HASH derived from git tag to be used as part of GENOMICSDB_VERSION
@@ -127,6 +127,12 @@ set(BUILD_FOR_ARCH "" CACHE STRING "Arch for which to build - values passed to -
 # https://cmake.org/cmake/help/latest/policy/CMP0135.html#policy:CMP0135
 if(POLICY CMP0135)
   cmake_policy(SET CMP0135 NEW)
+endif()
+
+# Honor visibility properties for all target types.
+# https://cmake.org/cmake/help/latest/policy/CMP0063.html
+if(POLICY CMP0063)
+  cmake_policy(SET CMP0063 NEW)
 endif()
 
 #See https://cmake.org/Wiki/CMake_RPATH_handling#Common_questions
