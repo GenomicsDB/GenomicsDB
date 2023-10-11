@@ -715,11 +715,8 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
   std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir);
   for (auto sample_file: sample_files) {
     std::regex pattern("^.*(.vcf.gz$|.bcf.gz$)");
-    if (std::regex_search(sample_file, pattern)) {
-      if (sample_file.find("hdfs://") == std::string::npos) { 
-        sample_file = prefix+sample_file+suffix;
-      }
-      samples.insert(sample_file);
+    if (std::regex_search(sample_file, pattern)) { 
+      sample_file = prefix+sample_file+suffix;
     }
   }
 
