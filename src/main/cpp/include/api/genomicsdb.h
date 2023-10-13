@@ -49,9 +49,6 @@
 #include <vector>
 #include <functional>
 
-[[deprecated("Use genomicsdb::version instead")]]
-GENOMICSDB_EXPORT std::string genomicsdb_version();
-
 typedef std::pair<uint64_t, uint64_t> interval_t;
 
 typedef struct genomic_interval_t {

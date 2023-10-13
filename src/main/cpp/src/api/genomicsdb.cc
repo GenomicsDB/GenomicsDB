@@ -6,6 +6,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2019-2020,2022 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -63,10 +64,6 @@
 #define TO_GENOMICSDB_VARIANT_VECTOR(X) (reinterpret_cast<std::vector<genomicsdb_variant_t> *>(static_cast<void *>(X)))
 #define TO_GENOMICSDB_VARIANT_CALL_VECTOR(X) (reinterpret_cast<std::vector<genomicsdb_variant_call_t> *>(static_cast<void *>(X)))
 
-
-std::string genomicsdb_version() {
-  return genomicsdb::version();
-}
 
 #define VERIFY(X) if(!(X)) throw GenomicsDBException(#X);
 

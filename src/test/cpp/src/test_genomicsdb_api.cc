@@ -64,11 +64,6 @@ TEST_CASE_METHOD(TempDir, "utils", "[genomicsdb_utils]") {
   CHECK(genomicsdb::read_entire_file(filename+".another", (void **)txt, &length) == TILEDB_ERR);
 }
 
-TEST_CASE("api get_version", "[get_version]") {
-  REQUIRE(genomicsdb_version().size() > 0);
-  REQUIRE_THAT(genomicsdb_version(), Catch::Equals(GENOMICSDB_VERSION));
-}
-
 TEST_CASE("api empty_args", "[empty_args]") {
   std::string empty_string;
 

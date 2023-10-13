@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * Copyright (c) 2018 Omics Data Automation Inc. and Intel Corporation
  * Copyright (c) 2021 Omics Data Automation Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -33,7 +34,7 @@
 
 JNIEXPORT jstring JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniLibraryVersion(JNIEnv *env, jclass cls) {
-  return env->NewStringUTF(genomicsdb_version().c_str());
+  return env->NewStringUTF(genomicsdb::version().c_str());
 }
 
 JNIEXPORT jint JNICALL 
