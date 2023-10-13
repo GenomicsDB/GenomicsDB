@@ -1,5 +1,5 @@
-  /**
-   * The MIT License (MIT)
+/**
+ * The MIT License (MIT)
  * Copyright (c) 2019-2020,2022 Omics Data Automation, Inc.
  * Copyright (c) 2023 dātma, inc™
  *
