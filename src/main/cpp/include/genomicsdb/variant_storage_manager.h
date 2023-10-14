@@ -109,7 +109,9 @@ class VariantArrayCellIterator {
   }
  private:
   unsigned m_num_queried_attributes;
+#ifdef DEBUG
   const VariantArraySchema* m_variant_array_schema;
+#endif
   BufferVariantCell m_cell;
   //The actual TileDB array iterator
   TileDB_ArrayIterator* m_tiledb_array_iterator;

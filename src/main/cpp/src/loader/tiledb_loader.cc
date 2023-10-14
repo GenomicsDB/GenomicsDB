@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
  * Copyright (c) 2023 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -63,8 +64,9 @@ VCF2TileDBLoaderConverterBase::VCF2TileDBLoaderConverterBase(
   : GenomicsDBImportConfig(config) {
   clear();
   m_idx = idx;
-  if (m_produce_combined_vcf && m_row_based_partitioning)
-    throw VCF2TileDBException("Cannot partition by rows and produce combined gVCF");
+  if (m_produce_combined_vcf && m_row_based_partitioning) {
+    logger.fatal(VCF2TileDBException("Cannot partition by rows and produce combined gVCF"));
+  }
   //Size circular buffers - 3 needed in non-standalone converter mode
   auto num_circular_buffers = m_do_ping_pong_buffering ? 3u : 1u;
   auto num_exchanges = m_do_ping_pong_buffering ? 2u : 1u;
@@ -82,8 +84,9 @@ VCF2TileDBLoaderConverterBase::VCF2TileDBLoaderConverterBase(
   clear();
   m_idx = idx;
   GenomicsDBImportConfig::read_from_file(config_filename, m_idx);
-  if (m_produce_combined_vcf && m_row_based_partitioning)
-    throw VCF2TileDBException("Cannot partition by rows and produce combined gVCF");
+  if (m_produce_combined_vcf && m_row_based_partitioning) {
+    logger.fatal(VCF2TileDBException("Cannot partition by rows and produce combined gVCF"));
+  }
   //Size circular buffers - 3 needed in non-standalone converter mode
   auto num_circular_buffers = m_do_ping_pong_buffering ? 3u : 1u;
   auto num_exchanges = m_do_ping_pong_buffering ? 2u : 1u;
@@ -118,7 +121,9 @@ void VCF2TileDBLoaderConverterBase::determine_num_callsets_owned(const VidMapper
         found_callset_in_range_for_this_file = true;
       }
     }
-    assert(found_callset_in_range_for_this_file);
+    if (!found_callset_in_range_for_this_file) {
+      logger.fatal(VCF2TileDBException(), "Could not find callset in range for file {}", file_info.m_name);
+    }
   }
   m_num_callsets_owned = 0;
   for (auto x : m_num_callsets_in_owned_file)
@@ -244,7 +249,7 @@ File2TileDBBinaryBase* VCF2TileDBConverter::create_file2tiledb_object(const File
                            ));
     break;
   default:
-    throw VCF2TileDBException(std::string("Unknown file type "+std::to_string(file_info.m_type)));
+    logger.fatal(VCF2TileDBException(), "Unknown file type: {}", file_info.m_type);
     break;
   }
   return file2binary_base_ptr;
@@ -872,22 +877,21 @@ bool VCF2TileDBLoader::produce_cells_in_column_major_order(unsigned exchange_idx
     const auto& buffer = m_ping_pong_buffers[m_order_idx_to_buffer_control[order].get_read_idx()];
     auto offset = top_ptr->m_offset;
     //Check whether cell is in column-major order
-    if (!(column > m_previous_cell_column || (column == m_previous_cell_column && row_idx > m_previous_cell_row_idx)))
-      throw VCF2TileDBException(std::string("Incorrect cell order found - cells must be in column major order. Previous cell: [ ")
-                                +std::to_string(m_previous_cell_row_idx)+", "+std::to_string(m_previous_cell_column)
-                                +" ] current cell: [ "+std::to_string(row_idx)+", "+std::to_string(column)+" ].\n"
-                                +"The most likely cause is unexpected data in the input file:\n"
-                                +"(a) A VCF file has two lines with the same genomic position\n"
-                                +"(b) An unsorted CSV file\n"
-                                +"(c) Malformed VCF file (or malformed index)\n"
-                                +"See point 2 at: https://github.com/Intel-HLS/GenomicsDB/wiki/Importing-VCF-data-into-GenomicsDB#organizing-your-data\n"
-                               );
+    if (!(column > m_previous_cell_column || (column == m_previous_cell_column && row_idx > m_previous_cell_row_idx))) {
+      logger.error("Incorrect cell order found - cells must be in column major order. Previous cell: [{}, {}] Current cell: [{}, {}]",
+                   m_previous_cell_row_idx, m_previous_cell_column, row_idx, m_previous_cell_column);
+      logger.error("The most likely cause is unexpected data in the input file:");
+      logger.error("\t(a) A VCF file has two lines with the same genomic position");
+      logger.error("\t(b) An unsorted CSV file");
+      logger.error("\t(c) Malformed VCF file (or malformed index");
+      logger.fatal(VCF2TileDBException(), "See point 2 at: https://github.com/GenomicsDB/GenomicsDB/wiki/Importing-VCF-data-into-GenomicsDB#organizing-your-data");
+    }
     auto skip_cell = (column > get_column_partition_end());
-    if (skip_cell && !m_ignore_cells_not_in_partition)
-      throw VCF2TileDBException(std::string("Found cell that does not belong to the current partition. Partition bounds: [ ")
-                                + std::to_string(get_column_partition_begin()) + ", "
-                                + std::to_string(get_column_partition_end()) + " ] - current cell [ "
-                                + std::to_string(row_idx) + ", " + std::to_string(column) + " ]");
+    if (skip_cell && !m_ignore_cells_not_in_partition) {
+      logger.error("Current cell [{}, {}]", row_idx, column);
+      logger.fatal(VCF2TileDBException(), "Found cell that does not belong to the current partition. Partition bounds: [{}, {}]",
+                   get_column_partition_begin(), get_column_partition_end());
+    }
     //Either no overflow or !skip_cell (overflow can occur iff retrying the same cell)
     assert(m_num_operators_overflow_in_last_round == 0u || !skip_cell);
     if (!skip_cell)
@@ -955,10 +959,10 @@ void VCF2TileDBLoader::consolidate_tiledb_array(const char* workspace, const cha
                                                 const bool enable_shared_posixfs_optimizations) {
   VariantStorageManager sm(workspace, buffer_size, enable_shared_posixfs_optimizations);
   auto ad = sm.open_array(array_name, 0, "w");
-  if (ad < 0)
-    throw VCF2TileDBException(std::string("Error opening array ")+array_name
-                              +" in workspace "+workspace+" when trying to consolidate"
-                              + "\nTileDB error message : "+tiledb_errmsg);
+  if (ad < 0) {
+    logger.error("Error opening array {} in workspace {} when trying to consolidate", array_name, workspace);
+    logger.fatal(VCF2TileDBException(), "TileDB error message: {}", tiledb_errmsg);
+  }
   sm.close_array(ad, true, batch_size);
 }
 

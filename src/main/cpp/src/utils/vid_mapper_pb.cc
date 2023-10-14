@@ -156,7 +156,7 @@ int VidMapper::parse_vidmap_protobuf(
   m_is_contig_and_field_info_initialized = true;
   m_is_initialized = m_is_callset_mapping_initialized;
 
-  return GENOMICSDB_VID_MAPPER_SUCCESS;
+  return ret;
 }
 
 int VidMapper::parse_contigs_from_vidmap(

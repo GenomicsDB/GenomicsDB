@@ -67,7 +67,9 @@ VariantArrayCellIterator::VariantArrayCellIterator(TileDB_CTX* tiledb_ctx, const
 						   const std::vector<int>& attribute_ids,
 						   const size_t buffer_size, const std::string& query_filter)
     : m_num_queried_attributes(attribute_ids.size()),
+#ifdef DEBUG
       m_variant_array_schema(&variant_array_schema),
+#endif
       m_cell(variant_array_schema, attribute_ids)
 #ifdef DO_PROFILING
     , m_tiledb_timer()

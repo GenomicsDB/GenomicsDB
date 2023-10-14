@@ -65,7 +65,9 @@ void* RemappedVariant::put_address(uint64_t input_call_idx, unsigned allele_or_g
  */
 void VariantOperations::merge_reference_allele(const Variant& variant, const VariantQueryConfig& query_config,
     std::string& merged_reference_allele) {
+#ifdef DEBUG
   auto* longer_ref = &merged_reference_allele;
+#endif
   auto merged_ref_length = merged_reference_allele.length();
   if (merged_ref_length == 0u) {
     merged_reference_allele = "N";
@@ -82,14 +84,15 @@ void VariantOperations::merge_reference_allele(const Variant& variant, const Var
     auto curr_ref_length = curr_ref.length();
     auto* shorter_ref = &curr_ref;
     const auto is_curr_ref_longer = (curr_ref_length > merged_ref_length);
+#ifdef DEBUG
     if (is_curr_ref_longer) {
       longer_ref = const_cast<std::string*>(&curr_ref);
       shorter_ref = &merged_reference_allele;
     }
-#ifdef DEBUG
     //sanity check only - the shorter ref must be a prefix of the longer ref (since they begin at the same location)
     if (!CHECK_IN_THE_MIDDLE_REF(merged_reference_allele) && !CHECK_IN_THE_MIDDLE_REF(curr_ref) && longer_ref->find(*shorter_ref) != 0) {
-      throw std::invalid_argument(std::string{"When combining variants at a given position, the shorter reference allele should be a prefix of the longer reference allele: \'"} + *shorter_ref + " , " + *longer_ref);
+      logger.fatal(std::invalid_argument(logger.format("When combining variants at a given position, the shorter reference allele should be a prefix of the longer reference allele: \'{}, {}\'",
+                                                       *shorter_ref, *longer_ref)));
     }
 #endif
     if (is_curr_ref_longer) {
@@ -100,7 +103,9 @@ void VariantOperations::merge_reference_allele(const Variant& variant, const Var
       else      //append remaining chars to merged reference
         merged_reference_allele.append(curr_ref, merged_ref_length, curr_ref_length - merged_ref_length);
       merged_ref_length = curr_ref_length;
+#ifdef DEBUG
       longer_ref = &merged_reference_allele;
+#endif
     } else if (CHECK_IN_THE_MIDDLE_REF(merged_reference_allele) && !CHECK_IN_THE_MIDDLE_REF(curr_ref))
       merged_reference_allele = curr_ref;
   }

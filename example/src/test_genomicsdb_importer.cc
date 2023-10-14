@@ -218,9 +218,7 @@ int main(int argc, char *argv[]) {
     ++num_iterations;
   }
   importer.finish();
-#ifdef DEBUG
   std::cerr << "Num iterations in importer "<<num_iterations<<"\n";
-#endif
   MPI_Finalize();
   return 0;
 }

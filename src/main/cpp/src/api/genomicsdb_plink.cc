@@ -587,10 +587,9 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
       }
     }
 
-    double pq;
     if(pq_string.length()) {
       try {
-        pq = std::pow(10, (double)std::stoi(pq_string)/-10);
+        std::pow(10, (double)std::stoi(pq_string)/-10);
       }
       catch(...) {
         pq_string.clear();
@@ -603,7 +602,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     };
 
     auto write_unphased_probability = [&] (const std::vector<int>& v, size_t ind) {
-      char p;
+      char p = 0;
 
       if(!probs.size()) {
         std::vector<int> counts(vec.size(), 0);

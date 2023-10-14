@@ -850,7 +850,10 @@ bool HistogramFieldHandlerBase::compute_valid_histogram_sum_2D_vector(
     const FieldInfo* vid_field_info_bin,
     const FieldInfo* vid_field_info_count,
     std::vector<std::map<T1, CombineResultType>>& histogram_map_vec) {
+  // TODO: not sure how num_valid_elements is used!
+#if 0
   auto num_valid_elements = 0ull;
+#endif
   auto num_calls_with_field = 0ull;
   assert(vid_field_info_bin->get_genomicsdb_type().get_tuple_element_type_index(0u) == std::type_index(typeid(T1)));
   assert(vid_field_info_count->get_genomicsdb_type().get_tuple_element_type_index(0u) == std::type_index(typeid(T2)));
@@ -886,9 +889,12 @@ bool HistogramFieldHandlerBase::compute_valid_histogram_sum_2D_vector(
 	if (is_bcf_valid_value<T1>(val_bin) && is_bcf_valid_value<T2>(val_count)) {
 	  auto iter_flag_pair = histogram_map.insert(std::pair<T1, CombineResultType>(val_bin, val_count));
 	  //Existing key
-	  if (!(iter_flag_pair.second))
-	    (*(iter_flag_pair.first)).second += val_count;
+	  if (!(iter_flag_pair.second)) {
+            (*(iter_flag_pair.first)).second += val_count;
+          }
+#if 0
 	  ++num_valid_elements;
+#endif
 	}
       }
       index_bin.advance_index_in_current_dimension();
