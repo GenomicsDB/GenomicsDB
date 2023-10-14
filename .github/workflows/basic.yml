@@ -32,9 +32,6 @@ jobs:
         type: [basic]
         java: [17]
         include:
-          - os: ubuntu-20.04
-            type: hdfs
-            java: 17
           - os: ubuntu-22.04
             type: hdfs
             java: 17

@@ -208,7 +208,7 @@ void handleJNIException(JNIEnv *env, GenomicsDBException& exception) {
 
 JNIEXPORT jstring JNICALL
 Java_org_genomicsdb_reader_GenomicsDBQuery_jniVersion(JNIEnv *env, jclass cls) {
-  return env->NewStringUTF(genomicsdb_version().c_str());
+  return env->NewStringUTF(genomicsdb::version().c_str());
 }
 
 JNIEXPORT jlong JNICALL
