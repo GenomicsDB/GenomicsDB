@@ -68,7 +68,7 @@ ContigInfo GenomicsDBImportConfig::get_contig_info(const ContigPosition* contig_
     logger.fatal(GenomicsDBConfigException(logger.format("Could not locate contig({}) position({}) in the vid mapper",
                                                          contig_position->contig(), contig_position->position())));
   }
-  return std::move(contig_info);
+  return contig_info;
 }
 
 

@@ -78,8 +78,7 @@ void *genomicsdb_filesystem_init(const char *filename, int mode) {
     std::string uri_prefix = get_uri_prefix(filename);
     auto found = tiledb_ctx_map->find(uri_prefix);
     if (found == tiledb_ctx_map->end()) {
-      TileDB_Config tiledb_config;
-      memset(&tiledb_config, 0, sizeof(TileDB_Config));
+      TileDB_Config tiledb_config = {};
       tiledb_config.home_ = filename;
       if (tiledb_ctx_init(&tiledb_ctx, &tiledb_config)) {
         logger.error("htslib_plugin could not open file {} {}", filename,

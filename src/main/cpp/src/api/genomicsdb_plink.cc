@@ -346,7 +346,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
   }
   vec.push_back(alt_string);
 
-  std::vector<int> gt_vec;
+  std::vector<size_t> gt_vec;
   auto iter = gt_string.begin();
 
   // parse GT
@@ -597,7 +597,7 @@ void GenomicsDBPlinkProcessor::process(const std::string& sample_name,
     }
 
     auto write_phased_probability = [&] (const std::vector<int>& v, size_t ind) {
-      char p = gt_vec[v[0]] == v[1] ? -1 : 0;
+      char p = (int)gt_vec[v[0]] == v[1] ? -1 : 0;
       codec_buf.push_back(p);
     };
 
@@ -649,7 +649,7 @@ void GenomicsDBPlinkProcessor::advance_state() {
       std::string str;
       auto num_rows = query_config->get_num_rows_to_query();
       int row;
-      for(int i = 0; i < num_rows; i++) {
+      for(auto i = 0ul; i < num_rows; i++) {
         row = query_config->get_array_row_idx_for_query_row_idx(i);
         vid_mapper.get_callset_name(row, str);
         sample_map.insert(std::make_pair(row, std::make_pair(-1, str)));

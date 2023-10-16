@@ -346,7 +346,7 @@ class OneQueryIntervalProcessor : public GenomicsDBVariantCallProcessor {
       if (m_attributes_size) {
         CHECK(genomic_fields.size() == m_attributes_size + 2); // Add '2' for REF and ALT fields
       }
-      int found_fields = 0;
+      size_t found_fields = 0;
       for (auto i=0u; i<genomic_fields.size(); i++) {
         if (genomic_fields[i].name == "REF") {
           found_fields++;
@@ -393,7 +393,7 @@ class OneQueryIntervalProcessor : public GenomicsDBVariantCallProcessor {
     }
   };
 
-  int m_attributes_size;
+  size_t m_attributes_size;
   int m_num_query_intervals = 0;
   int m_processed_rows = 0;
   int m_sample_found = false;
@@ -859,16 +859,16 @@ TEST_CASE("api generate_vcf with json multiple threads", "[query_generate_with_j
     delete gdb;
   };
 
-  int num_threads = 8;
+  size_t num_threads = 8;
   std::vector<std::thread> threads;
-  for (auto i=0; i<num_threads; i++) {
+  for (auto i=0ul; i<num_threads; i++) {
     std::thread thread_object(test_genomicsdb_fn, i);
     threads.push_back(std::move(thread_object));
   }
 
   CHECK(num_threads == threads.size());
 
-  for (auto i=0; i<num_threads; i++) {
+  for (auto i=0ul; i<num_threads; i++) {
     threads[i].join();
   }
 }
