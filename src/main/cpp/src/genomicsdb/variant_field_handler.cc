@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -858,7 +859,7 @@ bool HistogramFieldHandlerBase::compute_valid_histogram_sum_2D_vector(
     const FieldInfo* vid_field_info_bin,
     const FieldInfo* vid_field_info_count,
     std::vector<std::map<T1, CombineResultType>>& histogram_map_vec) {
-  // TODO: not sure how num_valid_elements is used!
+  // TODO: not sure how num_valid_elements was meant to be used, until then leave this out.
 #if 0
   auto num_valid_elements = 0ull;
 #endif
