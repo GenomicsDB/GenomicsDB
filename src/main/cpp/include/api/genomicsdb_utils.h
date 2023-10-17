@@ -34,7 +34,7 @@
 #pragma once
 
 // Override global project visibility which is set to hidden
-#  define GENOMICSDB_EXPORT __attribute__((visibility("default")))
+#define GENOMICSDB_EXPORT __attribute__((visibility("default")))
 
 #include <string>
 #include "genomicsdb_status.h"
