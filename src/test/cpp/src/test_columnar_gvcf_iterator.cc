@@ -3,6 +3,7 @@
  *
  * The MIT License (MIT)
  * Copyright (c) 2020 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -387,7 +388,7 @@ TEST_CASE("columnar_gvcf_iterator_test", "[gvcf_iterator]") {
   REQUIRE(bag.hdr[GoldTestEnum::GOLD] != 0);
   if(!query_config.sites_only_query())
   {
-    REQUIRE(bcf_hdr_nsamples(bag.hdr[GoldTestEnum::GOLD]) == query_config.get_num_rows_to_query());
+    REQUIRE((uint64_t)bcf_hdr_nsamples(bag.hdr[GoldTestEnum::GOLD]) == query_config.get_num_rows_to_query());
     //Map between samples in gold hdr[GoldTestEnum::GOLD] and test output
     bag.vcf_sample_idx_to_row_query_idx.resize(bcf_hdr_nsamples(bag.hdr[GoldTestEnum::GOLD]));
     for(auto i=0;i<bcf_hdr_nsamples(bag.hdr[GoldTestEnum::GOLD]);++i)

@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2019, 2023 Omics Data Automation, Inc
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -68,7 +69,7 @@ ContigInfo GenomicsDBImportConfig::get_contig_info(const ContigPosition* contig_
     logger.fatal(GenomicsDBConfigException(logger.format("Could not locate contig({}) position({}) in the vid mapper",
                                                          contig_position->contig(), contig_position->position())));
   }
-  return std::move(contig_info);
+  return contig_info;
 }
 
 

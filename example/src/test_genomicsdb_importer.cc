@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of 
  * this software and associated documentation files (the "Software"), to deal in 
@@ -218,9 +219,7 @@ int main(int argc, char *argv[]) {
     ++num_iterations;
   }
   importer.finish();
-#ifdef DEBUG
   std::cerr << "Num iterations in importer "<<num_iterations<<"\n";
-#endif
   MPI_Finalize();
   return 0;
 }

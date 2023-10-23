@@ -361,7 +361,7 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProc
     const std::string& array = query_config->get_array_name(m_concurrency_rank);
     return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, query_config, processor)),
                                 create_genomic_field_types(*query_config, m_annotation_service));
-  } catch(GenomicsDBIteratorException e) {
+  } catch(const GenomicsDBIteratorException& e) {
     throw GenomicsDBException(e.what());
   }
 }

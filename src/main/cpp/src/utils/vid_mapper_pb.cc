@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
  * Copyright (c) 2023 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -156,7 +157,7 @@ int VidMapper::parse_vidmap_protobuf(
   m_is_contig_and_field_info_initialized = true;
   m_is_initialized = m_is_callset_mapping_initialized;
 
-  return GENOMICSDB_VID_MAPPER_SUCCESS;
+  return ret;
 }
 
 int VidMapper::parse_contigs_from_vidmap(

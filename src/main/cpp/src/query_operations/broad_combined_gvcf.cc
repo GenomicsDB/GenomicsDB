@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
  * Copyright (c) 2019-2020 Omics Data Automation, Inc.
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -439,8 +440,11 @@ bool BroadCombinedGVCFOperator::remap_if_needed_and_combine(const Variant& varia
       && check_if_too_many_alleles_and_print_message(variant, *(length_descriptors[0u])))
     return false;
   //Remapper for m_remapped_variant
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
   RemappedVariant remapper_variants[2] = { RemappedVariant(m_remapped_variant, query_field_idxs[0u], true),
     RemappedVariant(m_remapped_variant, query_field_idxs[1u], true) };
+#pragma GCC diagnostic pop
   //Get HistogramFieldHandlerBase ptr for histogram combine operation
   HistogramFieldHandlerBase* handler_ptr = 0;
   if(is_histogram) {
