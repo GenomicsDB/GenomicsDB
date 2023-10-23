@@ -173,12 +173,12 @@ public class GenomicsDBQueryTest {
     long genomicsDBHandle = connectWithDPAttribute();
 
     List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName);
-    assert(intervals.size() == 0);
+    assert(intervals.size() == 1);
 
     List<Pair>columnRanges = new ArrayList<>();
     columnRanges.add(new Pair(0L, 1000000000L));
     intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges);
-    assert(intervals.size() == 0);
+    assert(intervals.size() == 1);
 
     List<Pair>rowRanges = new ArrayList<>();
     rowRanges.add(new Pair(0L, 3L));
@@ -201,7 +201,7 @@ public class GenomicsDBQueryTest {
     long genomicsDBHandle = connectWithDPandGTAttribute();
 
     List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName);
-    Assert.assertEquals(intervals.size(), 0);
+    Assert.assertEquals(intervals.size(), 1);
 
     List<Pair> columnRanges = new ArrayList<>();
     columnRanges.add(new Pair(0L, 1000000000L));
@@ -499,7 +499,7 @@ public class GenomicsDBQueryTest {
     Assert.assertTrue(genomicsDBHandle > 0);
 
     List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName);
-    assert (intervals.size() == 0);
+    assert (intervals.size() == 2);
 
     List<Pair> columnRanges = new ArrayList<>();
     columnRanges.add(new Pair(0L, 1000000000L));

@@ -722,13 +722,17 @@ bool VariantFieldHandler<DataType, CombineResultType>::concatenate_field(const V
       auto& vec = ptr->get();
       if (curr_result_size + vec.size() > m_concatenation_result.size())
         m_concatenation_result.resize(curr_result_size+vec.size());
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wclass-memaccess"
+#if !defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
       /* suppress gcc warnings for now:
          src/main/cpp/include/utils/headers.h:56:54: warning: ‘void* memcpy(void*, const void*, size_t)’ writing to an object of type ‘__gnu_cxx::__alloc_traits<std::allocator<std::__cxx11::basic_string<char> >, std::__cxx11::basic_string<char> >::value_type’ {aka ‘class std::__cxx11::basic_string<char>’} with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess] */
       memcpy_s(&(m_concatenation_result[curr_result_size]), vec.size()*sizeof(DataType), &(vec[0]),
 	  vec.size()*sizeof(DataType));
-#pragma GCC diagnostic pop
+#if !defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif
       curr_result_size += vec.size();
     }
   }
@@ -800,11 +804,15 @@ bool VariantFieldHandler<DataType, CombineResultType>::collect_and_extend_fields
     //Valid field in a valid call
     if (curr_call.is_valid() && field_ptr.get() && field_ptr->is_valid()) {
       assert(field_ptr->get_raw_pointer());
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wclass-memaccess"
+#if !defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
       memcpy_s(&(m_extended_field_vector[extended_field_vector_idx]), field_ptr->length()*sizeof(DataType),
                field_ptr->get_raw_pointer(), field_ptr->length()*sizeof(DataType));
-#pragma GCC diagnostic pop
+#if !defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif
       num_elements_inserted = field_ptr->length();
       extended_field_vector_idx += num_elements_inserted;
     }

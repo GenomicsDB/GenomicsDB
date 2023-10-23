@@ -322,10 +322,21 @@ class OneQueryIntervalProcessor : public GenomicsDBVariantCallProcessor {
     CHECK(m_sample_found);
   }
 
+  void reinitialize(int max_int_check =false) {
+    m_num_query_intervals = 0;
+    m_processed_rows = 0;
+    m_sample_found = false;
+    m_max_int_check = max_int_check;
+  }
+
   void process(const interval_t& interval) {
     m_num_query_intervals++;
     CHECK(interval.first == 0);
-    CHECK(interval.second == 1000000000);
+    if (m_max_int_check) {
+      CHECK(interval.second == INT64_MAX - 1);
+    } else {
+      CHECK(interval.second == 1000000000);
+    }
   };
 
   void process(const std::string& sample_name,
@@ -398,6 +409,7 @@ class OneQueryIntervalProcessor : public GenomicsDBVariantCallProcessor {
   int m_processed_rows = 0;
   int m_sample_found = false;
   int m_is_PP;
+  bool m_max_int_check = false;
 };
 
 class TwoQueryIntervalsProcessor : public GenomicsDBVariantCallProcessor {
@@ -407,6 +419,11 @@ class TwoQueryIntervalsProcessor : public GenomicsDBVariantCallProcessor {
   ~TwoQueryIntervalsProcessor() {
     CHECK(m_num_query_intervals == 2);
     CHECK(m_processed_rows == 5);
+  }
+
+  void reinitialize() {
+    m_num_query_intervals = 0;
+    m_processed_rows = 0;
   }
 
   void process(const interval_t& interval) {
@@ -446,11 +463,14 @@ TEST_CASE("api query_variant_calls direct", "[query_variant_calls_direct]") {
 
   OneQueryIntervalProcessor one_query_interval_processor(attributes);
   gdb->query_variant_calls(one_query_interval_processor, array, {{0,1000000000}}, {{0,3}});
+  one_query_interval_processor.reinitialize();
   gdb->query_variant_calls(one_query_interval_processor, array, {{0,1000000000}});
+  one_query_interval_processor.reinitialize(true);
   gdb->query_variant_calls(one_query_interval_processor, array);
 
   TwoQueryIntervalsProcessor two_query_intervals_processor;
   gdb->query_variant_calls(two_query_intervals_processor, array, {{0,17000},{17000,18000}}, {{0,3}});
+  two_query_intervals_processor.reinitialize();
   gdb->query_variant_calls(two_query_intervals_processor, array, {{0,17000},{17000,18000}});
 
   delete gdb;
@@ -469,11 +489,14 @@ TEST_CASE("api query_variant_calls direct DP and GT", "[query_variant_calls_dire
 
   OneQueryIntervalProcessor one_query_interval_processor(attributes);
   gdb->query_variant_calls(one_query_interval_processor, array, {{0,1000000000}}, {{0,3}});
+  one_query_interval_processor.reinitialize();
   gdb->query_variant_calls(one_query_interval_processor, array, {{0,1000000000}});
+  one_query_interval_processor.reinitialize(true);
   gdb->query_variant_calls(one_query_interval_processor, array);
 
   TwoQueryIntervalsProcessor two_query_intervals_processor;
   gdb->query_variant_calls(two_query_intervals_processor, array, {{0,17000},{17000,18000}}, {{0,3}});
+  two_query_intervals_processor.reinitialize();
   gdb->query_variant_calls(two_query_intervals_processor, array, {{0,17000},{17000,18000}});
 
   delete gdb;
@@ -492,11 +515,14 @@ TEST_CASE("api query_variant_calls direct DP and GT with PP", "[query_variant_ca
 
   OneQueryIntervalProcessor one_query_interval_processor(attributes, true);
   gdb->query_variant_calls(one_query_interval_processor, array, {{0,1000000000}}, {{0,3}});
+  one_query_interval_processor.reinitialize();
   gdb->query_variant_calls(one_query_interval_processor, array, {{0,1000000000}});
+  one_query_interval_processor.reinitialize(true);
   gdb->query_variant_calls(one_query_interval_processor, array);
 
   TwoQueryIntervalsProcessor two_query_intervals_processor;
   gdb->query_variant_calls(two_query_intervals_processor, array, {{0,17000},{17000,18000}}, {{0,3}});
+  two_query_intervals_processor.reinitialize();
   gdb->query_variant_calls(two_query_intervals_processor, array, {{0,17000},{17000,18000}});
 
   delete gdb;

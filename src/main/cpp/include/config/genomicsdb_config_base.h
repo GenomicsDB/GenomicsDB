@@ -76,6 +76,9 @@ class GenomicsDBConfigBase {
   inline const std::string& get_query_filter() const {
     return m_query_filter;
   }
+  void set_query_filter(const std::string& filter) {
+    m_query_filter = filter;
+  }
   inline size_t get_segment_size() const {
     return m_segment_size;
   }
@@ -185,6 +188,7 @@ class GenomicsDBConfigBase {
   void read_from_PB_binary_string(const std::string& str, const int rank=0);
   int read_from_PB_file(const std::string& filename, const int rank=0) { return -1; }
   void read_from_PB(const genomicsdb_pb::ExportConfiguration* x, const int rank=0);
+  void set_query_ranges_from_PB(const genomicsdb_pb::ExportConfiguration* x, const int rank=0);
   static int get_pb_from_json_file(google::protobuf::Message* pb_config, const std::string& json_file);
   static bool output_to_stdout(const std::string& name) {
     return name.empty() || name == "-";

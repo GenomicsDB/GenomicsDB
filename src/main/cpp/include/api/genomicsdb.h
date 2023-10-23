@@ -296,7 +296,7 @@ class GENOMICSDB_EXPORT GenomicsDBVariantProcessor {
  */
 class GenomicsDB {
  public:
-  enum GENOMICSDB_EXPORT query_config_type_t { JSON_FILE=0, JSON_STRING=1, PROTOBUF_BINARY_STRING=2 };
+  enum GENOMICSDB_EXPORT query_config_type_t { NONE=-1, JSON_FILE=0, JSON_STRING=1, PROTOBUF_BINARY_STRING=2 };
 
   /**
    * Constructor to the GenomicsDB Query API
@@ -315,8 +315,8 @@ class GenomicsDB {
 
   /**
    * Constructor to the GenomicsDB Query API with configuration json files
-   *   query_configuration - describe the query configuration in either a JSON file or string
-   *   query_configuration_type - type of query configuration, could be a JSON_FILE or JSON_STRING
+   *   query_configuration - describe the query configuration in either a JSON file or JSON string or protobuf binary
+   *   query_configuration_type - type of query configuration, could be a JSON_FILE or JSON_STRING or PROTOBUF_BINARY_STRING
    *   loader_config_json_file, optional - describe the loader configuration in a JSON file.
    *           If a configuration key exists in both the query and the loader configuration, the query
    *           configuration takes precedence
@@ -383,8 +383,14 @@ class GenomicsDB {
   /**
    * Query using set configuration for variant calls. Useful when using parallelism paradigms(MPI, Intel TBB)
    * Variant Calls are similar to GACall in GA4GH API.
+   *   processor
+   *   is_pb 
+   *   query_configuration protobuf export configuration as binary string, optional. If not specified, the
+   *                       configuration specified during class construction will be used with the query
    */
-  GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls(GenomicsDBVariantCallProcessor& processor);
+  GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls(GenomicsDBVariantCallProcessor& processor,
+                                                               const query_config_type_t query_configuration_type = NONE,
+                                                               const std::string& query_configuration = std::string());
 
   /**
    * Generate multi-sample vcf files from GenomicsDB in the Broad GVCF format for given array constrained by

@@ -74,8 +74,8 @@ void check(const std::string& workspace,
 }
 
 void check(const std::string& workspace,
-                  const uint64_t segment_size,
-                  const std::string& callset_mapping_file,
+           const uint64_t segment_size,
+           const std::string& callset_mapping_file,
            const std::string& vid_mapping_file) {
   check(workspace, segment_size);
   VERIFY(!callset_mapping_file.empty() && "Callset Mapping File cannot be empty");
@@ -341,8 +341,14 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProc
   VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   VariantQueryConfig query_config(*base_query_config);
   query_config.set_array_name(array);
-  query_config.set_query_column_ranges(column_ranges);
-  query_config.set_query_row_ranges(row_ranges);
+  if (column_ranges.size() == 0) {
+    query_config.set_query_column_ranges(SCAN_FULL);
+  } else {
+    query_config.set_query_column_ranges(column_ranges);
+  }
+  if (row_ranges.size() > 0) {
+    query_config.set_query_row_ranges(row_ranges);
+  }
 
   query_config.validate();
 
@@ -355,12 +361,38 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls() {
   return query_variant_calls(processor);
 }
 
-GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProcessor& processor) {
+GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProcessor& processor,
+                                                       const query_config_type_t query_configuration_type,
+                                                       const std::string& query_configuration) {
   try {
-    VariantQueryConfig* query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
-    const std::string& array = query_config->get_array_name(m_concurrency_rank);
-    return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, query_config, processor)),
-                                create_genomic_field_types(*query_config, m_annotation_service));
+    // Create Variant Config for given concurrency_rank
+    VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
+    VariantQueryConfig query_config(*base_query_config);
+
+    if (query_configuration_type != NONE && query_configuration_type != PROTOBUF_BINARY_STRING) {
+      throw GenomicsDBException("Unsupported query configuration type specified to query_variant_calls()");
+    }
+
+    if (query_configuration_type != PROTOBUF_BINARY_STRING && query_configuration.size() > 0) {
+      genomicsdb_pb::ExportConfiguration export_config;
+      auto status = export_config.ParseFromString(query_configuration);
+      if(!status || !export_config.IsInitialized()) {
+        throw GenomicsDBException("Could not parse query_configuration. Only protobuf ExportConfiguration binary strings accepted as input argument");
+      }
+      if (export_config.has_array_name()) {
+        query_config.set_array_name(export_config.array_name());
+      } else {
+        // Construct file name from say loader json
+      }
+      query_config.set_query_ranges_from_PB(&export_config);
+      if(export_config.has_query_filter()) {
+        query_config.set_query_filter(export_config.query_filter());
+      }
+    }
+
+    const std::string& array = query_config.get_array_name(m_concurrency_rank);
+    return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, &query_config, processor)),
+                                  create_genomic_field_types(query_config, m_annotation_service));
   } catch(const GenomicsDBIteratorException& e) {
     throw GenomicsDBException(e.what());
   }

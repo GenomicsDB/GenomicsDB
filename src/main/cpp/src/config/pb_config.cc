@@ -235,6 +235,126 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
   }
 }
 
+void GenomicsDBConfigBase::set_query_ranges_from_PB(const genomicsdb_pb::ExportConfiguration* export_config, const int rank) {
+  if (m_scan_whole_array) return;
+  
+  if (export_config->query_column_ranges_size() > 0 && export_config->query_contig_intervals_size() > 0) {
+    logger.fatal(GenomicsDBConfigException("Protobuf query object cannot have both query_column_ranges and query_contig_intervals set"));
+  }
+
+  if (export_config->query_column_ranges_size() > 0) {
+    if (export_config->query_column_ranges_size() == 1) m_single_query_column_ranges_vector = true;
+    m_column_ranges.resize(export_config->query_column_ranges_size());
+    for (auto i=0;i<export_config->query_column_ranges_size();++i) {
+      const auto& inner_list_wrapper = export_config->query_column_ranges(i);
+      m_column_ranges[i].resize(inner_list_wrapper.column_or_interval_list_size());
+      for (auto j=0;j<inner_list_wrapper.column_or_interval_list_size();++j) {
+        const auto& gdb_column_or_interval = inner_list_wrapper.column_or_interval_list(j);
+        if (gdb_column_or_interval.has_column()) {
+          const auto& gdb_column = gdb_column_or_interval.column();
+          if (gdb_column.has_tiledb_column()) {
+            m_column_ranges[i][j].first = gdb_column.tiledb_column();
+            m_column_ranges[i][j].second = gdb_column.tiledb_column();
+          } else {
+            if (!gdb_column.has_contig_position())
+              logger.fatal(GenomicsDBConfigException("Protobuf object GenomicsDBColumn must have either tiledb_column \
+		    or contig_position defined"));
+            const auto& contig_position = gdb_column.contig_position();
+            assert(m_vid_mapper.is_initialized());
+            ContigInfo contig_info;
+            if (!m_vid_mapper.get_contig_info(contig_position.contig(), contig_info)) {
+              logger.fatal(VidMapperException(), "JSONConfigBase::read_from_file: Invalid contig name : {}",
+                           contig_position.contig());
+            }
+            m_column_ranges[i][j] = verify_contig_position_and_get_tiledb_column_interval(contig_info,
+                                                                                          contig_position.position(), contig_position.position());
+          }
+        } else {
+          if (!gdb_column_or_interval.has_column_interval()) {
+            logger.fatal(GenomicsDBConfigException("Protobuf object GenomicsDBColumnOrInterval must have either column \
+		  or column_interval set"));
+          }
+          const auto& gdb_column_interval = gdb_column_or_interval.column_interval();
+          if (gdb_column_interval.has_tiledb_column_interval()) {
+            m_column_ranges[i][j].first = gdb_column_interval.tiledb_column_interval().begin();
+            m_column_ranges[i][j].second = gdb_column_interval.tiledb_column_interval().end();
+          } else {
+            if (!gdb_column_interval.has_contig_interval()) {
+              logger.fatal(GenomicsDBConfigException("GenomicsDBColumnInterval Protobuf object must have tiledb_column_interval\
+		    or contig_interval"));
+            }
+            const auto& contig_interval = gdb_column_interval.contig_interval();
+            assert(m_vid_mapper.is_initialized());
+            ContigInfo contig_info;
+            if (!m_vid_mapper.get_contig_info(contig_interval.contig(), contig_info)) {
+              logger.fatal(VidMapperException(), "JSONConfigBase::read_from_file: Invalid contig name : {}",
+                           contig_interval.contig());
+            }
+            m_column_ranges[i][j] = verify_contig_position_and_get_tiledb_column_interval(contig_info,
+                                                                                          contig_interval.begin(),
+                                                                                          contig_interval.end());
+          }
+        }
+        if (m_column_ranges[i][j].first > m_column_ranges[i][j].second)
+          std::swap(m_column_ranges[i][j].first, m_column_ranges[i][j].second);
+      }
+    }
+  }
+
+  if(export_config->query_contig_intervals_size() > 0) {
+    m_single_query_column_ranges_vector = true;
+    m_column_ranges.resize(1u);
+    m_column_ranges[0].resize(export_config->query_contig_intervals_size());
+    for(auto i=0;i<export_config->query_contig_intervals_size();++i) {
+      const auto& contig_interval = export_config->query_contig_intervals(i);
+      ContigInfo contig_info;
+      if (!m_vid_mapper.get_contig_info(contig_interval.contig(), contig_info))
+        throw VidMapperException("JSONConfigBase::read_from_file: Invalid contig name : "
+                                 + contig_interval.contig());
+      if(!contig_interval.has_begin() && contig_interval.has_end())
+        throw GenomicsDBConfigException("ContigInterval must have begin if end is specified");
+      auto begin = contig_interval.has_begin() ? contig_interval.begin() : 1ll;
+      auto end = contig_interval.has_end() ? contig_interval.end()
+          : (contig_interval.has_begin() ? contig_interval.begin() : contig_info.m_length);
+      m_column_ranges[0][i] = verify_contig_position_and_get_tiledb_column_interval(contig_info, begin, end);
+    }
+  }
+
+  if(export_config->query_row_ranges_size() > 0 && export_config->query_sample_names_size() > 0) {
+    logger.fatal(GenomicsDBConfigException("Protobuf query object cannot have both query_row_ranges and query_sample_names set"));
+  }
+  
+  if(export_config->query_sample_names_size() > 0) {
+    m_single_query_row_ranges_vector = true;
+    m_row_ranges.resize(1u);
+    m_row_ranges[0].resize(export_config->query_sample_names_size());
+    for(auto i=0;i<export_config->query_sample_names_size();++i) {
+      int64_t row_idx = -1;
+      auto status = m_vid_mapper.get_tiledb_row_idx(row_idx, export_config->query_sample_names(i));
+      if(!status)
+        throw GenomicsDBConfigException(std::string("Unknown sample name ") + export_config->query_sample_names(i));
+      m_row_ranges[0][i].first = row_idx;
+      m_row_ranges[0][i].second = row_idx;
+    }
+  }
+    
+  if(export_config->query_row_ranges_size() > 0) {
+    m_row_ranges.resize(export_config->query_row_ranges_size());
+    m_single_query_row_ranges_vector = (m_row_ranges.size() == 1u);
+    for(auto i=0;i<export_config->query_row_ranges_size();++i) {
+      auto& row_range_vec = m_row_ranges[i];
+      const auto& pb_row_range_list = export_config->query_row_ranges(i);
+      row_range_vec.resize(pb_row_range_list.range_list_size());
+      for(auto j=0;j<pb_row_range_list.range_list_size();++j) {
+        row_range_vec[j].first = pb_row_range_list.range_list(j).low();
+        row_range_vec[j].second = pb_row_range_list.range_list(j).high();
+        if(row_range_vec[j].second < row_range_vec[j].first)
+          std::swap(row_range_vec[j].first, row_range_vec[j].second);
+      }
+    }
+  }
+}
+
 void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration* export_config, const int rank) {
   base_read_from_PB(export_config);
   
@@ -259,127 +379,13 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
     ? export_config->vcf_output_filename() : "-"; //else stdout
   m_vcf_output_format = export_config->has_vcf_output_format()
     ? export_config->vcf_output_format() : "";
-  if(!m_scan_whole_array
-      && export_config->query_column_ranges_size() == 0
-      && export_config->query_contig_intervals_size() == 0
-      && export_config->query_row_ranges_size() == 0
-      && export_config->query_sample_names_size() == 0)
-    throw GenomicsDBConfigException("Must have one of \"scan_full\" or \"query_column_ranges\" or \
-	\"query_contig_intervals\" or \"query_row_ranges\" \
-	or \"query_sample_names\" in the Protobuf query config object");
-  if(!m_scan_whole_array) {
-    if(export_config->query_column_ranges_size() > 0 && export_config->query_contig_intervals_size() > 0)
-      throw GenomicsDBConfigException("Protobuf query object cannot have both query_column_ranges and query_contig_intervals at the same time");
-    if(export_config->query_column_ranges_size() > 0) {
-      if(export_config->query_column_ranges_size() == 1)
-	m_single_query_column_ranges_vector = true;
-      m_column_ranges.resize(export_config->query_column_ranges_size());
-      for(auto i=0;i<export_config->query_column_ranges_size();++i) {
-	const auto& inner_list_wrapper = export_config->query_column_ranges(i);
-	m_column_ranges[i].resize(inner_list_wrapper.column_or_interval_list_size());
-	for(auto j=0;j<inner_list_wrapper.column_or_interval_list_size();++j) {
-	  const auto& gdb_column_or_interval = inner_list_wrapper.column_or_interval_list(j);
-	  if(gdb_column_or_interval.has_column()) {
-	    const auto& gdb_column = gdb_column_or_interval.column();
-	    if(gdb_column.has_tiledb_column()) {
-	      m_column_ranges[i][j].first = gdb_column.tiledb_column();
-	      m_column_ranges[i][j].second = gdb_column.tiledb_column();
-	    }
-	    else {
-	      if(!gdb_column.has_contig_position())
-		throw GenomicsDBConfigException("Protobuf object GenomicsDBColumn must have either tiledb_column \
-		    or contig_position defined");
-	      const auto& contig_position = gdb_column.contig_position();
-	      assert(m_vid_mapper.is_initialized());
-	      ContigInfo contig_info;
-	      if (!m_vid_mapper.get_contig_info(contig_position.contig(), contig_info))
-		throw VidMapperException("JSONConfigBase::read_from_file: Invalid contig name : "
-		    + contig_position.contig());
-	      m_column_ranges[i][j] = verify_contig_position_and_get_tiledb_column_interval(contig_info,
-		  contig_position.position(), contig_position.position());
-	    }
-	  }
-	  else {
-	    if(!gdb_column_or_interval.has_column_interval())
-	      throw GenomicsDBConfigException("Protobuf object GenomicsDBColumnOrInterval must have either column \
-		  or column_interval set");
-	    const auto& gdb_column_interval = gdb_column_or_interval.column_interval();
-	    if(gdb_column_interval.has_tiledb_column_interval()) {
-	      m_column_ranges[i][j].first = gdb_column_interval.tiledb_column_interval().begin();
-	      m_column_ranges[i][j].second = gdb_column_interval.tiledb_column_interval().end();
-	    }
-	    else {
-	      if(!gdb_column_interval.has_contig_interval())
-		throw GenomicsDBConfigException("GenomicsDBColumnInterval Protobuf object must have tiledb_column_interval\
-		    or contig_interval");
-	      const auto& contig_interval = gdb_column_interval.contig_interval();
-	      assert(m_vid_mapper.is_initialized());
-	      ContigInfo contig_info;
-	      if (!m_vid_mapper.get_contig_info(contig_interval.contig(), contig_info))
-		throw VidMapperException("JSONConfigBase::read_from_file: Invalid contig name : "
-		    + contig_interval.contig());
-	      m_column_ranges[i][j] = verify_contig_position_and_get_tiledb_column_interval(contig_info,
-		  contig_interval.begin(), contig_interval.end());
-	    }
-	  }
-	  if(m_column_ranges[i][j].first > m_column_ranges[i][j].second)
-	    std::swap(m_column_ranges[i][j].first, m_column_ranges[i][j].second);
-	}
-      }
-    }
-    if(export_config->query_contig_intervals_size() > 0) {
-      m_single_query_column_ranges_vector = true;
-      m_column_ranges.resize(1u);
-      m_column_ranges[0].resize(export_config->query_contig_intervals_size());
-      for(auto i=0;i<export_config->query_contig_intervals_size();++i) {
-	const auto& contig_interval = export_config->query_contig_intervals(i);
-	ContigInfo contig_info;
-	if (!m_vid_mapper.get_contig_info(contig_interval.contig(), contig_info))
-	  throw VidMapperException("JSONConfigBase::read_from_file: Invalid contig name : "
-	      + contig_interval.contig());
-	if(!contig_interval.has_begin() && contig_interval.has_end())
-	  throw GenomicsDBConfigException("ContigInterval must have begin if end is specified");
-	auto begin = contig_interval.has_begin() ? contig_interval.begin() : 1ll;
-	auto end = contig_interval.has_end() ? contig_interval.end()
-	  : (contig_interval.has_begin() ? contig_interval.begin() : contig_info.m_length);
-	m_column_ranges[0][i] = verify_contig_position_and_get_tiledb_column_interval(contig_info, begin, end);
-      }
-    }
 
-    if(export_config->query_row_ranges_size() > 0 && export_config->query_sample_names_size() > 0)
-      throw GenomicsDBConfigException("Protobuf query object cannot have both query_row_ranges and query_sample_names at the same time");
-    if(export_config->query_sample_names_size() > 0) {
-      m_single_query_row_ranges_vector = true;
-      m_row_ranges.resize(1u);
-      m_row_ranges[0].resize(export_config->query_sample_names_size());
-      for(auto i=0;i<export_config->query_sample_names_size();++i) {
-	int64_t row_idx = -1;
-	auto status = m_vid_mapper.get_tiledb_row_idx(row_idx, export_config->query_sample_names(i));
-	if(!status)
-	  throw GenomicsDBConfigException(std::string("Unknown sample name ") + export_config->query_sample_names(i));
-	m_row_ranges[0][i].first = row_idx;
-	m_row_ranges[0][i].second = row_idx;
-      }
-    }
-    if(export_config->query_row_ranges_size() > 0) {
-      m_row_ranges.resize(export_config->query_row_ranges_size());
-      m_single_query_row_ranges_vector = (m_row_ranges.size() == 1u);
-      for(auto i=0;i<export_config->query_row_ranges_size();++i) {
-	auto& row_range_vec = m_row_ranges[i];
-	const auto& pb_row_range_list = export_config->query_row_ranges(i);
-	row_range_vec.resize(pb_row_range_list.range_list_size());
-	for(auto j=0;j<pb_row_range_list.range_list_size();++j) {
-	  row_range_vec[j].first = pb_row_range_list.range_list(j).low();
-	  row_range_vec[j].second = pb_row_range_list.range_list(j).high();
-	  if(row_range_vec[j].second < row_range_vec[j].first)
-	    std::swap(row_range_vec[j].first, row_range_vec[j].second);
-	}
-      }
-    }
-  }
+  set_query_ranges_from_PB(export_config);
+  
   if(export_config->has_reference_genome()) {
     m_reference_genome = export_config->reference_genome();
   }
+  
   //Limit on max #alt alleles so that PL fields get re-computed
   m_max_diploid_alt_alleles_that_can_be_genotyped = export_config->has_max_diploid_alt_alleles_that_can_be_genotyped()
     ? export_config->max_diploid_alt_alleles_that_can_be_genotyped() : MAX_DIPLOID_ALT_ALLELES_THAT_CAN_BE_GENOTYPED;

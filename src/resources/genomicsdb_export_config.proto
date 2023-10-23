@@ -69,11 +69,11 @@ message AnnotationSource {
 message ExportConfiguration {
   required string workspace = 1;
   oneof array {
-    string array_name = 2;
+    string array_name = 2 [default = "none"];
     bool generate_array_name_from_partition_bounds = 3;
   }
   optional string reference_genome = 4;
-  //Only one of the following two fields must be defined - the seconds one is  a simpler
+  //Only one of the following two fields must be defined - the second one is  a simpler
   //version that I would recommend using
   //Ideally, query_column_ranges should be deprecated
   repeated GenomicsDBColumnOrIntervalList query_column_ranges = 5;
