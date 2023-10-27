@@ -235,13 +235,34 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
   }
 }
 
-void GenomicsDBConfigBase::set_query_ranges_from_PB(const genomicsdb_pb::ExportConfiguration* export_config, const int rank) {
+template<typename T>
+void GenomicsDBConfigBase::subset_query_from_PB(const T* export_config, const int rank) {
+  // Array Name
+  if(export_config->has_array_name()) {
+    set_array_name(export_config->array_name());
+  }
+
+  // Attributes
+  if (export_config->attributes_size()) {
+    m_attributes.resize(export_config->attributes_size());
+    for(auto i=0;i<export_config->attributes_size();++i) {
+      m_attributes[i] = std::move(std::string(export_config->attributes(i)));
+    }
+  }
+
+  // Filter Expression
+  if(export_config->has_query_filter()) {
+    m_query_filter = export_config->query_filter();
+  }
+
+  // Ranges
   if (m_scan_whole_array) return;
-  
+
   if (export_config->query_column_ranges_size() > 0 && export_config->query_contig_intervals_size() > 0) {
     logger.fatal(GenomicsDBConfigException("Protobuf query object cannot have both query_column_ranges and query_contig_intervals set"));
   }
 
+  // Column Ranges
   if (export_config->query_column_ranges_size() > 0) {
     if (export_config->query_column_ranges_size() == 1) m_single_query_column_ranges_vector = true;
     m_column_ranges.resize(export_config->query_column_ranges_size());
@@ -301,6 +322,7 @@ void GenomicsDBConfigBase::set_query_ranges_from_PB(const genomicsdb_pb::ExportC
     }
   }
 
+  // Contig Intervals
   if(export_config->query_contig_intervals_size() > 0) {
     m_single_query_column_ranges_vector = true;
     m_column_ranges.resize(1u);
@@ -308,11 +330,13 @@ void GenomicsDBConfigBase::set_query_ranges_from_PB(const genomicsdb_pb::ExportC
     for(auto i=0;i<export_config->query_contig_intervals_size();++i) {
       const auto& contig_interval = export_config->query_contig_intervals(i);
       ContigInfo contig_info;
-      if (!m_vid_mapper.get_contig_info(contig_interval.contig(), contig_info))
-        throw VidMapperException("JSONConfigBase::read_from_file: Invalid contig name : "
-                                 + contig_interval.contig());
-      if(!contig_interval.has_begin() && contig_interval.has_end())
-        throw GenomicsDBConfigException("ContigInterval must have begin if end is specified");
+      if (!m_vid_mapper.get_contig_info(contig_interval.contig(), contig_info)) {
+        logger.fatal(VidMapperException(), "JSONConfigBase::read_from_file: Invalid contig name : {}",
+                                 contig_interval.contig());
+      }
+      if(!contig_interval.has_begin() && contig_interval.has_end()) {
+        logger.fatal(GenomicsDBConfigException("ContigInterval must have begin if end is specified"));
+      }
       auto begin = contig_interval.has_begin() ? contig_interval.begin() : 1ll;
       auto end = contig_interval.has_end() ? contig_interval.end()
           : (contig_interval.has_begin() ? contig_interval.begin() : contig_info.m_length);
@@ -323,21 +347,8 @@ void GenomicsDBConfigBase::set_query_ranges_from_PB(const genomicsdb_pb::ExportC
   if(export_config->query_row_ranges_size() > 0 && export_config->query_sample_names_size() > 0) {
     logger.fatal(GenomicsDBConfigException("Protobuf query object cannot have both query_row_ranges and query_sample_names set"));
   }
-  
-  if(export_config->query_sample_names_size() > 0) {
-    m_single_query_row_ranges_vector = true;
-    m_row_ranges.resize(1u);
-    m_row_ranges[0].resize(export_config->query_sample_names_size());
-    for(auto i=0;i<export_config->query_sample_names_size();++i) {
-      int64_t row_idx = -1;
-      auto status = m_vid_mapper.get_tiledb_row_idx(row_idx, export_config->query_sample_names(i));
-      if(!status)
-        throw GenomicsDBConfigException(std::string("Unknown sample name ") + export_config->query_sample_names(i));
-      m_row_ranges[0][i].first = row_idx;
-      m_row_ranges[0][i].second = row_idx;
-    }
-  }
-    
+
+  // Row Ranges
   if(export_config->query_row_ranges_size() > 0) {
     m_row_ranges.resize(export_config->query_row_ranges_size());
     m_single_query_row_ranges_vector = (m_row_ranges.size() == 1u);
@@ -353,6 +364,22 @@ void GenomicsDBConfigBase::set_query_ranges_from_PB(const genomicsdb_pb::ExportC
       }
     }
   }
+
+  // Sample Names
+  if(export_config->query_sample_names_size() > 0) {
+    m_single_query_row_ranges_vector = true;
+    m_row_ranges.resize(1u);
+    m_row_ranges[0].resize(export_config->query_sample_names_size());
+    for(auto i=0;i<export_config->query_sample_names_size();++i) {
+      int64_t row_idx = -1;
+      auto status = m_vid_mapper.get_tiledb_row_idx(row_idx, export_config->query_sample_names(i));
+      if(!status) {
+        logger.fatal(GenomicsDBConfigException(), "Unknown sample name : {}", export_config->query_sample_names(i));
+      }
+      m_row_ranges[0][i].first = row_idx;
+      m_row_ranges[0][i].second = row_idx;
+    }
+  }
 }
 
 void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration* export_config, const int rank) {
@@ -361,18 +388,15 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
   m_workspaces.clear();
   m_workspaces.emplace_back(export_config->workspace());
   m_single_workspace_path = true;
+
   m_array_names.clear();
-  if(!export_config->has_array_name())
-    throw GenomicsDBConfigException("PB export config object must have array_name set");
-  m_array_names.emplace_back(export_config->array_name());
-  m_single_array_name = true;
+  m_attributes.resize(export_config->attributes_size());
+
   if(export_config->has_scan_full() && export_config->scan_full())
     scan_whole_array();
-  m_attributes.resize(export_config->attributes_size());
-  for(auto i=0;i<export_config->attributes_size();++i)
-    m_attributes[i] = std::move(std::string(export_config->attributes(i)));
-  if(export_config->has_query_filter())
-    m_query_filter = export_config->query_filter();
+
+  subset_query_from_PB(export_config);
+  
   if(export_config->has_vcf_header_filename())
     m_vcf_header_filename = export_config->vcf_header_filename();
   m_vcf_output_filename = export_config->has_vcf_output_filename()
@@ -380,7 +404,6 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
   m_vcf_output_format = export_config->has_vcf_output_format()
     ? export_config->vcf_output_format() : "";
 
-  set_query_ranges_from_PB(export_config);
   
   if(export_config->has_reference_genome()) {
     m_reference_genome = export_config->reference_genome();
@@ -497,3 +520,10 @@ int GenomicsDBConfigBase::get_pb_from_json_file(
   }
   return GENOMICSDB_OK;
 }
+
+// Explicit instantiations
+template void GenomicsDBConfigBase::subset_query_from_PB<genomicsdb_pb::ExportConfiguration>(
+    const genomicsdb_pb::ExportConfiguration*, const int);
+
+template void GenomicsDBConfigBase::subset_query_from_PB<genomicsdb_pb::QueryConfiguration>(
+    genomicsdb_pb::QueryConfiguration const*, const int);

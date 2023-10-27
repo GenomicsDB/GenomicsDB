@@ -66,26 +66,59 @@ message AnnotationSource {
   repeated string file_chromosomes = 5;
 }
 
-message ExportConfiguration {
-  required string workspace = 1;
+// Simple query configuration for GenomicsDB::query_variant_calls
+// for the class initialized with ExportConfiguration below
+message QueryConfiguration {
   oneof array {
-    string array_name = 2 [default = "none"];
-    bool generate_array_name_from_partition_bounds = 3;
+    string array_name = 2;
+    bool generate_array_name_from_partition_bounds = 3 [default = true];
   }
-  optional string reference_genome = 4;
-  //Only one of the following two fields must be defined - the second one is  a simpler
-  //version that I would recommend using
-  //Ideally, query_column_ranges should be deprecated
+
+  // Only one of the following two fields must be defined
+  // query_contig_intervals is recommended for use
   repeated GenomicsDBColumnOrIntervalList query_column_ranges = 5;
   repeated ContigInterval query_contig_intervals = 6;
-  //Similar to above - query_row_ranges should be deprecated
+
+  // Only one of the following two fields must be defined
   repeated RowRangeList query_row_ranges = 7;
   repeated string query_sample_names = 8;
+
   repeated string attributes = 9;
   optional string query_filter = 10;
+}
+
+message ExportConfiguration {
+  required string workspace = 1;
+  optional string reference_genome = 4;
+
+  // Protobuf does have extensions, but they don't allow for templated C++ methods to operate on
+  // QueryConfiguration and ExportConfiguration interchangeably. We could create yet another
+  // BaseConfiguration and get both Query and ExportConfiguration to extend the Base. But, for now,
+  // copying QueryConfiguration here. Note that the following fields should be identical to QueryConfiguration.
+
+  /**** QueryConfiguration = START */
+  oneof array {
+    string array_name = 2;
+    bool generate_array_name_from_partition_bounds = 3 [default = true];
+  }
+
+  // Only one of the following two fields must be defined
+  // query_contig_intervals is recommended for use
+  repeated GenomicsDBColumnOrIntervalList query_column_ranges = 5;
+  repeated ContigInterval query_contig_intervals = 6;
+
+  // Only one of the following two fields must be defined
+  repeated RowRangeList query_row_ranges = 7;
+  repeated string query_sample_names = 8;
+
+  repeated string attributes = 9;
+  optional string query_filter = 10;
+  /**** QueryConfiguration - END */
+
   optional string vcf_header_filename = 11;
   optional string vcf_output_filename = 12;
   optional string vcf_output_format = 13;
+
   oneof vid_mapping_info {
     string vid_mapping_file = 14;
     VidMappingPB vid_mapping = 15; 
@@ -94,6 +127,8 @@ message ExportConfiguration {
     string callset_mapping_file = 16;
     CallsetMappingPB callset_mapping = 17;
   }
+
+  // Other configuration
   optional uint32 max_diploid_alt_alleles_that_can_be_genotyped = 18;
   optional uint32 max_genotype_count = 19;
   optional bool index_output_VCF = 20; 

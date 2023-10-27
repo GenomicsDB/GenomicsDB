@@ -381,16 +381,19 @@ class GenomicsDB {
   GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls();
 
   /**
-   * Query using set configuration for variant calls. Useful when using parallelism paradigms(MPI, Intel TBB)
+   * Query with a configuration describing the subset for variant calls. Useful with paradigms like MPI, Intel TBB
+   * and when a GenomicsDB instance is cached with multiple, concurrent query_variant_calls with different
+   * subset configurations.
    * Variant Calls are similar to GACall in GA4GH API.
-   *   processor
-   *   is_pb 
+   *   processor custom processor to process variant calls
    *   query_configuration protobuf export configuration as binary string, optional. If not specified, the
-   *                       configuration specified during class construction will be used with the query
+   *                       configuration specified during class construction will be used with the query 
+   *   query_configuration_type Type of configuration, Currently only PROTOBUF_BINARY_STRING is supported and
+   *                            an exception is throwm for other types.
    */
   GENOMICSDB_EXPORT GenomicsDBVariantCalls query_variant_calls(GenomicsDBVariantCallProcessor& processor,
-                                                               const query_config_type_t query_configuration_type = NONE,
-                                                               const std::string& query_configuration = std::string());
+                                                               const std::string& query_configuration,
+                                                               const query_config_type_t query_configuration_type);
 
   /**
    * Generate multi-sample vcf files from GenomicsDB in the Broad GVCF format for given array constrained by

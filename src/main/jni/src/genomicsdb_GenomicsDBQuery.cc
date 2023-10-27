@@ -372,7 +372,7 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniQueryVariantCalls(JNIEnv *env,
   VariantCallProcessor processor(env, cls);
   try {
     if (array_name_cstr == NULL || strlen(array_name_cstr) == 0) {
-      genomicsdb->query_variant_calls(processor);
+      genomicsdb->query_variant_calls(processor, "", GenomicsDB::NONE);
     } else {
       GenomicsDBVariantCalls variant_calls = genomicsdb->query_variant_calls(processor, array_name_cstr,
                                                                              to_genomicsdb_ranges_vector(env, column_ranges),

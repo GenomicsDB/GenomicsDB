@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2023 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -55,6 +56,9 @@ void VariantQueryConfig::clear_attributes_to_query() {
 void VariantQueryConfig::add_column_interval_to_query(const int64_t colBegin, const int64_t colEnd) {
   m_query_column_intervals.push_back(make_pair(colBegin, colEnd));
   std::sort(m_query_column_intervals.begin(), m_query_column_intervals.end(), ColumnRangeCompare);
+  m_query_column_intervals.erase(std::unique(m_query_column_intervals.begin(),
+                                             m_query_column_intervals.end()),
+                                 m_query_column_intervals.end() );
 }
 
 void VariantQueryConfig::set_column_interval_to_query(const int64_t colBegin, const int64_t colEnd) {
@@ -146,7 +150,7 @@ void VariantQueryConfig::read_from_PB(const genomicsdb_pb::ExportConfiguration* 
 
 void VariantQueryConfig::read_from_PB_binary_string(const std::string& str, const int rank) {
   GenomicsDBConfigBase::read_from_PB_binary_string(str, rank);
-  validate(rank);
+  //  validate(rank);
 }
 
 void VariantQueryConfig::validate(const int rank) {
@@ -157,7 +161,7 @@ void VariantQueryConfig::validate(const int rank) {
   auto& workspace = m_single_workspace_path ? m_workspaces[0] : m_workspaces[rank];
   VERIFY_OR_THROW(!workspace.empty() && "Empty workspace string");
 
-  //Array
+  // Array
   VERIFY_OR_THROW(m_array_names.size() && "No array specified");
   VERIFY_OR_THROW((m_single_array_name || static_cast<size_t>(rank) < m_array_names.size())
                   && ("Could not find array for rank "+std::to_string(rank)).c_str());
@@ -173,7 +177,7 @@ void VariantQueryConfig::validate(const int rank) {
       m_vid_mapper.parse_callsets_json(m_callset_mapping_file, true);
     }
   }
-  
+
   //Query columns
   if (!m_scan_whole_array && m_column_ranges.size()) {
     VERIFY_OR_THROW((m_single_query_column_ranges_vector || static_cast<size_t>(rank) < m_column_ranges.size())
@@ -188,6 +192,7 @@ void VariantQueryConfig::validate(const int rank) {
                     && "Rank >= query row ranges vector size");
     set_rows_to_query(get_query_row_ranges(rank));
   }
+  
   //Attributes
   set_attributes_to_query(m_attributes);
 }

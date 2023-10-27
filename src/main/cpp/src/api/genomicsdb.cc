@@ -132,7 +132,6 @@ GenomicsDB::GenomicsDB(const std::string& query_configuration,
       query_config->read_from_JSON_string(query_configuration, concurrency_rank); break;
     case PROTOBUF_BINARY_STRING: {
       query_config->read_from_PB_binary_string(query_configuration, concurrency_rank);
-
       if (query_config->has_annotation_sources()) {
         // Determine which chromosomes are included in the query and pass the list to the annotation service
         // so it knows not to bother opening chromosome-specific vcfs that aren't relevant.
@@ -158,7 +157,9 @@ GenomicsDB::GenomicsDB(const std::string& query_configuration,
         query_config->get_segment_size());
 
   // Discard intervals not part of this partition
-  query_config->subset_query_column_ranges_based_on_partition(loader_config, concurrency_rank);
+  if (!loader_configuration_json_file.empty()) {
+    query_config->subset_query_column_ranges_based_on_partition(loader_config, concurrency_rank);
+  }
 
   // Create storage manager
   m_storage_manager = new VariantStorageManager(query_config->get_workspace(concurrency_rank), query_config->get_segment_size(), query_config->enable_shared_posixfs_optimizations());
@@ -230,14 +231,16 @@ GenomicsDBVariants GenomicsDB::query_variants(const std::string& array,
   VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
   VariantQueryConfig query_config(*base_query_config);
   query_config.set_array_name(array);
-  if (column_ranges.size() > 0) {
+  if (column_ranges.size() == 0) {
+    query_config.set_query_column_ranges(SCAN_FULL);
+  } else {
     query_config.set_query_column_ranges(column_ranges);
   }
   if (row_ranges.size() > 0) {
     query_config.set_query_row_ranges(row_ranges);
   }
 
-  query_config.validate();
+  query_config.validate(m_concurrency_rank);
 
   return GenomicsDBVariants(TO_GENOMICSDB_VARIANT_VECTOR(query_variants(array, &query_config)),
                             create_genomic_field_types(query_config, m_annotation_service, true));
@@ -350,7 +353,7 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProc
     query_config.set_query_row_ranges(row_ranges);
   }
 
-  query_config.validate();
+  query_config.validate(m_concurrency_rank);
 
   return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, &query_config, processor)),
                                 create_genomic_field_types(query_config, m_annotation_service));
@@ -358,40 +361,45 @@ GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProc
 
 GenomicsDBVariantCalls GenomicsDB::query_variant_calls() {
   GenomicsDBVariantCallProcessor processor;
-  return query_variant_calls(processor);
+  return query_variant_calls(processor, "", NONE);
 }
 
 GenomicsDBVariantCalls GenomicsDB::query_variant_calls(GenomicsDBVariantCallProcessor& processor,
-                                                       const query_config_type_t query_configuration_type,
-                                                       const std::string& query_configuration) {
+                                                       const std::string& query_configuration,
+                                                       const query_config_type_t query_configuration_type) {
   try {
     // Create Variant Config for given concurrency_rank
     VariantQueryConfig *base_query_config = TO_VARIANT_QUERY_CONFIG(m_query_config);
     VariantQueryConfig query_config(*base_query_config);
 
-    if (query_configuration_type != NONE && query_configuration_type != PROTOBUF_BINARY_STRING) {
-      throw GenomicsDBException("Unsupported query configuration type specified to query_variant_calls()");
+    if (query_configuration.size() > 0) {
+      if (query_configuration_type != PROTOBUF_BINARY_STRING) {
+        logger.fatal(GenomicsDBException(), "Unsupported query configuration type={} specified to query_variant_calls()",
+                     query_configuration_type);
+      }
+
+      genomicsdb_pb::QueryConfiguration query_config_pb;
+      auto status = query_config_pb.ParseFromString(query_configuration);
+      if(!status || !query_config_pb.IsInitialized()) {
+        logger.fatal(GenomicsDBException("Could not parse query_configuration. Only protobuf QueryConfiguration binary strings accepted as input argument"));
+      }
+      query_config.subset_query_from_PB(&query_config_pb, m_concurrency_rank);
     }
 
-    if (query_configuration_type != PROTOBUF_BINARY_STRING && query_configuration.size() > 0) {
-      genomicsdb_pb::ExportConfiguration export_config;
-      auto status = export_config.ParseFromString(query_configuration);
-      if(!status || !export_config.IsInitialized()) {
-        throw GenomicsDBException("Could not parse query_configuration. Only protobuf ExportConfiguration binary strings accepted as input argument");
-      }
-      if (export_config.has_array_name()) {
-        query_config.set_array_name(export_config.array_name());
+    if (!query_config.has_array_name(m_concurrency_rank)) {
+      auto array_names = TileDBUtils::get_array_names(query_config.get_workspace(m_concurrency_rank));
+      if (array_names.size() == 1) {
+        query_config.set_array_name(array_names[0]);
       } else {
-        // Construct file name from say loader json
-      }
-      query_config.set_query_ranges_from_PB(&export_config);
-      if(export_config.has_query_filter()) {
-        query_config.set_query_filter(export_config.query_filter());
+        // TODO: Should figure out the array names based on contig intervals as done on the JAVA side
+        logger.fatal(GenomicsDBConfigException("Query configuration must either have array_name set or should be a single array in the workspace for now"));
       }
     }
 
-    const std::string& array = query_config.get_array_name(m_concurrency_rank);
-    return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(query_variant_calls(array, &query_config, processor)),
+    query_config.validate(m_concurrency_rank);
+    
+    return GenomicsDBVariantCalls(TO_GENOMICSDB_VARIANT_CALL_VECTOR(
+        query_variant_calls(query_config.get_array_name(m_concurrency_rank), &query_config, processor)),
                                   create_genomic_field_types(query_config, m_annotation_service));
   } catch(const GenomicsDBIteratorException& e) {
     throw GenomicsDBException(e.what());
@@ -442,8 +450,8 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
                                                    const VariantArraySchema& schema) {
   if (cell.at_new_query_column_interval()) {
     auto curr_query_column_interval_idx = cell.get_current_query_column_interval_idx();
-    auto begin = std::max<int64_t>(query_config.get_column_begin(curr_query_column_interval_idx), 0);
-    auto end = std::min<int64_t>(query_config.get_column_end(curr_query_column_interval_idx), INT64_MAX-1);
+    auto begin = query_config.get_num_column_intervals()>0?query_config.get_column_begin(curr_query_column_interval_idx):0;
+    auto end = query_config.get_num_column_intervals()>0?query_config.get_column_end(curr_query_column_interval_idx):INT64_MAX-1;
     // TODO: Change Column/RowRange to be uint64_t intervals instead of int64_t, so we don't have to typecast
     m_variant_call_processor.process(std::make_pair<uint64_t, uint64_t>((uint64_t)begin, (uint64_t)end));
   }
@@ -570,7 +578,7 @@ void GenomicsDB::generate_vcf(const std::string& array,
   query_config.set_reference_genome(reference_genome);
   query_config.set_vcf_header_filename(vcf_header);
 
-  query_config.validate();
+  query_config.validate(m_concurrency_rank);
 
   generate_vcf(array, &query_config, output, output_format, overwrite);
 }

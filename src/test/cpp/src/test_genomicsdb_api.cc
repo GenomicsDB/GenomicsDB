@@ -31,7 +31,6 @@
 #include "genomicsdb.h"
 #include "genomicsdb_config_base.h"
 #include "tiledb_utils.h"
-#include "genomicsdb_logger.h" // REMOVE
 
 #include "genomicsdb_export_config.pb.h"
 
@@ -533,12 +532,12 @@ TEST_CASE("api query_variant_calls with json", "[query_variant_calls_with_json]"
   gdb->query_variant_calls();
 
   OneQueryIntervalProcessor one_query_interval_processor;
-  gdb->query_variant_calls(one_query_interval_processor);
+  gdb->query_variant_calls(one_query_interval_processor, "", GenomicsDB::NONE);
   delete gdb;
 
   OneQueryIntervalProcessor another_query_interval_processor;
   gdb = new GenomicsDB(query_json, GenomicsDB::JSON_FILE, loader_json, 0);
-  gdb->query_variant_calls(another_query_interval_processor);
+  gdb->query_variant_calls(another_query_interval_processor, "", GenomicsDB::NONE);
   delete gdb;
 
   CHECK_THROWS_AS(new GenomicsDB(query_json, GenomicsDB::JSON_FILE, loader_json, 1), GenomicsDBConfigException);
@@ -583,16 +582,20 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
   std::string config_string;
   CHECK(config->SerializeToString(&config_string));
 
-  // no array name set, should throw exception
-  CHECK_THROWS_AS(new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0), GenomicsDBConfigException);
-
-  config->set_array_name(array);
-  CHECK(config->SerializeToString(&config_string));
-
+  OneQueryIntervalProcessor one_query_interval_processor;
+  
+  // Try with no array name set, GenomicsDB should find the single array t0_1_2 during query
   GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
   gdb->query_variant_calls();
-  OneQueryIntervalProcessor one_query_interval_processor;
-  gdb->query_variant_calls(one_query_interval_processor);
+  gdb->query_variant_calls(one_query_interval_processor, "", GenomicsDB::NONE);
+  delete gdb;
+  
+  config->set_array_name(array);
+  CHECK(config->SerializeToString(&config_string));
+  gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
+  gdb->query_variant_calls();
+  one_query_interval_processor.reinitialize();
+  gdb->query_variant_calls(one_query_interval_processor, "", GenomicsDB::NONE);
   delete gdb;
 
   // Filter expressions are supported only for workspaces/arrays with ploidy information
@@ -608,7 +611,7 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
-    gdb->query_variant_calls(count_cells_processor);
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
     CHECK(count_cells_processor.m_intervals == 1);
     CHECK(count_cells_processor.m_count == 5);
     delete gdb;
@@ -619,7 +622,7 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
-    gdb->query_variant_calls(count_cells_processor);
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
     count_cells_processor.check_single_match();
     delete gdb;
   }
@@ -630,7 +633,7 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
-    gdb->query_variant_calls(count_cells_processor);
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
     count_cells_processor.check_single_match();
     delete gdb;
   }
@@ -640,7 +643,7 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
-    gdb->query_variant_calls(count_cells_processor);
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
     count_cells_processor.check_single_match();
     delete gdb;
   }
@@ -650,7 +653,7 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
-    gdb->query_variant_calls(count_cells_processor);
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
     CHECK(count_cells_processor.m_intervals == 0);
     CHECK(count_cells_processor.m_count == 0);
     delete gdb;
@@ -662,7 +665,7 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
-    gdb->query_variant_calls(count_cells_processor);
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
     count_cells_processor.check_single_match();
     delete gdb;
   }
@@ -672,7 +675,7 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
-    gdb->query_variant_calls(count_cells_processor);
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
     CHECK(count_cells_processor.m_intervals == 1);
     CHECK(count_cells_processor.m_count == 2);
     delete gdb;
@@ -683,7 +686,7 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
-    gdb->query_variant_calls(count_cells_processor);
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
     CHECK(count_cells_processor.m_intervals == 1);
     CHECK(count_cells_processor.m_count == 3);
     delete gdb;
@@ -694,7 +697,7 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
-    gdb->query_variant_calls(count_cells_processor);
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
     CHECK(count_cells_processor.m_intervals == 1);
     CHECK(count_cells_processor.m_count == 1);
     delete gdb;
@@ -705,12 +708,126 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
     CHECK(config->SerializeToString(&config_string));
     gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
     CountCellsProcessor count_cells_processor;
-    gdb->query_variant_calls(count_cells_processor);
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
     CHECK(count_cells_processor.m_intervals == 1);
     CHECK(count_cells_processor.m_count == 2);
     delete gdb;
   }
 
+}
+
+TEST_CASE("api query_variant_calls with protobuf and config", "[query_variant_calls_with_protobuf_and_explicit_configuration]") {
+  using namespace genomicsdb_pb;
+
+  ExportConfiguration *config = new ExportConfiguration();
+
+  config->set_workspace(workspace_new);
+  config->set_array_name("t0_1_2");
+  config->set_callset_mapping_file(workspace_new+"/callset.json");
+  config->set_vid_mapping_file(workspace_new+"/vidmap.json");
+  config->set_enable_shared_posixfs_optimizations(true);
+  config->set_bypass_intersecting_intervals_phase(true);
+  // query_attributes
+  config->add_attributes()->assign("REF");
+  config->add_attributes()->assign("ALT");
+  config->add_attributes()->assign("GT");
+  config->set_segment_size(128);
+
+  std::string config_string;
+  CHECK(config->SerializeToString(&config_string));
+  GenomicsDB *gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+
+  SECTION("Base configuration") {
+    CountCellsProcessor count_cells_processor;
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
+    CHECK(count_cells_processor.m_intervals == 1);
+    CHECK(count_cells_processor.m_count == 5);
+  }
+
+  SECTION("Subset Array with pb string that is not Query or ExportConfiguration") {
+    CountCellsProcessor count_cells_processor;
+    CHECK_THROWS_AS(gdb->query_variant_calls(count_cells_processor, "NotAProtobufConfiguration",
+                                             GenomicsDB::PROTOBUF_BINARY_STRING), std::exception);
+  }
+
+  SECTION("Subset Array using QueryConfiguration") {
+    CountCellsProcessor count_cells_processor;
+    QueryConfiguration query_config;
+    query_config.set_array_name("t0_1_2");
+    ContigInterval* contig_interval = query_config.add_query_contig_intervals();
+    contig_interval->set_contig("1");
+    contig_interval->set_begin(1);
+    contig_interval->set_end(100000);
+    RowRangeList* row_ranges = query_config.add_query_row_ranges();
+    RowRange* row_range = row_ranges->add_range_list();
+    row_range->set_low(0);
+    row_range->set_high(3);
+    std::string query_string;
+    CHECK(query_config.SerializeToString(&query_string));
+    gdb->query_variant_calls(count_cells_processor, query_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+    CHECK(count_cells_processor.m_intervals == 1);
+    CHECK(count_cells_processor.m_count == 5);
+  }
+
+  SECTION("Subset Array using ExportConfiguration") {
+    CountCellsProcessor count_cells_processor;
+    ExportConfiguration query_config;
+    ContigInterval* contig_interval = query_config.add_query_contig_intervals();
+    contig_interval->set_contig("1");
+    contig_interval->set_begin(1);
+    contig_interval->set_end(100000);
+    std::string query_string;
+    CHECK(query_config.SerializeToString(&query_string));
+    gdb->query_variant_calls(count_cells_processor, query_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+    CHECK(count_cells_processor.m_intervals == 1);
+    CHECK(count_cells_processor.m_count == 5);
+  }
+
+  SECTION("Subset Array using QueryConfiguration - two intervals") {
+    CountCellsProcessor count_cells_processor;
+    QueryConfiguration query_config;
+    ContigInterval* contig_interval = query_config.add_query_contig_intervals();
+    contig_interval->set_contig("1");
+    contig_interval->set_begin(1);
+    contig_interval->set_end(17000);
+    contig_interval = query_config.add_query_contig_intervals();
+    contig_interval->set_contig("1");
+    contig_interval->set_begin(17000);
+    contig_interval->set_end(18000);
+    std::string query_string;
+    CHECK(query_config.SerializeToString(&query_string));
+    gdb->query_variant_calls(count_cells_processor, query_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+    CHECK(count_cells_processor.m_intervals == 2);
+    CHECK(count_cells_processor.m_count == 5);
+  }
+
+   SECTION("Subset Array using QueryConfiguration - multiple queries") {
+    QueryConfiguration query_config;
+
+    // First query
+    CountCellsProcessor count_cells_processor;
+    ContigInterval* contig_interval = query_config.add_query_contig_intervals();
+    contig_interval->set_contig("1");
+    contig_interval->set_begin(1);
+    contig_interval->set_end(17000);
+    std::string query_string;
+    CHECK(query_config.SerializeToString(&query_string));
+    gdb->query_variant_calls(count_cells_processor, query_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+    CHECK(count_cells_processor.m_intervals == 1);
+    CHECK(count_cells_processor.m_count == 2);
+
+    // Second query
+    CountCellsProcessor another_count_cells_processor;
+    contig_interval->set_contig("1");
+    contig_interval->set_begin(17000);
+    contig_interval->set_end(18000);
+    CHECK(query_config.SerializeToString(&query_string));
+    gdb->query_variant_calls(another_count_cells_processor, query_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+    CHECK(another_count_cells_processor.m_intervals == 1);
+    CHECK(another_count_cells_processor.m_count == 3);
+  }
+
+  delete gdb;
 }
 
 TEST_CASE("api query_variant_calls with protobuf new", "[query_variant_calls_with_protobuf_new]") {
@@ -753,7 +870,7 @@ TEST_CASE("api query_variant_calls with protobuf new", "[query_variant_calls_wit
       GenomicsDB *gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
 
       CountCellsProcessor count_cells_processor;
-      gdb->query_variant_calls(count_cells_processor);
+      gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
 
       CHECK(count_cells_processor.m_intervals == 1);
       CHECK(count_cells_processor.m_count == 1);
@@ -824,7 +941,7 @@ TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
 
         GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
         CountCellsProcessor count_cells_processor;
-        gdb->query_variant_calls(count_cells_processor);
+        gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
 
         CHECK(count_cells_processor.m_intervals == 1);
         CHECK(count_cells_processor.m_count == counts[i]);
@@ -1091,14 +1208,14 @@ TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_
   GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
 
   VariantAnnotationCallProcessor variant_annotation_processor;
-  gdb->query_variant_calls(variant_annotation_processor);
+  gdb->query_variant_calls(variant_annotation_processor, "", GenomicsDB::NONE);
   delete gdb;
 
   // Check if exception thrown when annotation buffer size is too small to hold the annotated field values
   config->set_annotation_buffer_size(4);
   CHECK(config->SerializeToString(&config_string));
   gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
-  CHECK_THROWS_AS(gdb->query_variant_calls(variant_annotation_processor), GenomicsDBException);
+  CHECK_THROWS_AS(gdb->query_variant_calls(variant_annotation_processor, "", GenomicsDB::NONE), GenomicsDBException);
   delete gdb;
 
   // Add an info field that doesn't exist to the configuration; expect custom exception
@@ -1106,6 +1223,6 @@ TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_
   annotation_source0->add_attributes()->assign("no_exist_field0");
   CHECK(config->SerializeToString(&config_string));
   gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, loader_json, 0);
-  CHECK_THROWS_AS(gdb->query_variant_calls(variant_annotation_processor), GenomicsDBException);
+  CHECK_THROWS_AS(gdb->query_variant_calls(variant_annotation_processor, "", GenomicsDB::NONE), GenomicsDBException);
   delete gdb;
 }
