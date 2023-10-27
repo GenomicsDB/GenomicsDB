@@ -723,13 +723,14 @@ bool VariantFieldHandler<DataType, CombineResultType>::concatenate_field(const V
       if (curr_result_size + vec.size() > m_concatenation_result.size())
         m_concatenation_result.resize(curr_result_size+vec.size());
 #if !defined(__clang__)
+      /* suppress gcc warnings for now:
+         src/main/cpp/include/utils/headers.h:56:54: warning: ‘void* memcpy(void*, const void*, size_t)’ writing to an object of type ‘__gnu_cxx::__alloc_traits<std::allocator<std::__cxx11::basic_string<char> >, std::__cxx11::basic_string<char> >::value_type’ {aka ‘class std::__cxx11::basic_string<char>’} with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess] */
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wclass-memaccess"
 #endif
-      /* suppress gcc warnings for now:
-         src/main/cpp/include/utils/headers.h:56:54: warning: ‘void* memcpy(void*, const void*, size_t)’ writing to an object of type ‘__gnu_cxx::__alloc_traits<std::allocator<std::__cxx11::basic_string<char> >, std::__cxx11::basic_string<char> >::value_type’ {aka ‘class std::__cxx11::basic_string<char>’} with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess] */
       memcpy_s(&(m_concatenation_result[curr_result_size]), vec.size()*sizeof(DataType), &(vec[0]),
 	  vec.size()*sizeof(DataType));
+
 #if !defined(__clang__)
 #  pragma GCC diagnostic pop
 #endif
