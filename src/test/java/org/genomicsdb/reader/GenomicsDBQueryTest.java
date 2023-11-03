@@ -173,12 +173,12 @@ public class GenomicsDBQueryTest {
     long genomicsDBHandle = connectWithDPAttribute();
 
     List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName);
-    assert(intervals.size() == 0);
+    assert(intervals.size() == 1);
 
     List<Pair>columnRanges = new ArrayList<>();
     columnRanges.add(new Pair(0L, 1000000000L));
     intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges);
-    assert(intervals.size() == 0);
+    assert(intervals.size() == 1);
 
     List<Pair>rowRanges = new ArrayList<>();
     rowRanges.add(new Pair(0L, 3L));
@@ -201,7 +201,7 @@ public class GenomicsDBQueryTest {
     long genomicsDBHandle = connectWithDPandGTAttribute();
 
     List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName);
-    Assert.assertEquals(intervals.size(), 0);
+    Assert.assertEquals(intervals.size(), 1);
 
     List<Pair> columnRanges = new ArrayList<>();
     columnRanges.add(new Pair(0L, 1000000000L));
@@ -499,7 +499,8 @@ public class GenomicsDBQueryTest {
     Assert.assertTrue(genomicsDBHandle > 0);
 
     List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle, arrayName);
-    assert (intervals.size() == 0);
+    Assert.assertEquals(intervals.size(), 1);
+    Assert.assertEquals(intervals.get(0).calls.size(), 5);
 
     List<Pair> columnRanges = new ArrayList<>();
     columnRanges.add(new Pair(0L, 1000000000L));
@@ -508,7 +509,7 @@ public class GenomicsDBQueryTest {
     rowRanges.add(new Pair(0L, 3L));
 
     intervals = query.queryVariantCalls(genomicsDBHandle, arrayName, columnRanges, rowRanges);
-    assert (intervals.size() == 2);
+    Assert.assertEquals(intervals.size(), 1);
 
     int variantsAnnotated = 0;
 
@@ -545,7 +546,7 @@ public class GenomicsDBQueryTest {
       }
     }
 
-    Assert.assertEquals(variantsAnnotated, 6, "Expected six variants to have annotations");
+    Assert.assertEquals(variantsAnnotated, 3, "Expected six variants to have annotations");
 
     query.disconnect(genomicsDBHandle);
   }

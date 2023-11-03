@@ -96,6 +96,15 @@ void GenomicsDBConfigBase::set_workspace(const std::string& workspace) {
   m_workspaces.push_back(workspace);
 }
 
+const bool GenomicsDBConfigBase::has_array_name(const int rank) const {
+  if ((m_single_array_name && m_array_names.size() > 0) ||
+      (!m_single_array_name && m_array_names.size() > rank)) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 const std::string& GenomicsDBConfigBase::get_array_name(const int rank) const {
   VERIFY_OR_THROW((m_single_array_name || static_cast<size_t>(rank) < m_array_names.size())
                   && ("Could not find array for rank "+std::to_string(rank)).c_str());

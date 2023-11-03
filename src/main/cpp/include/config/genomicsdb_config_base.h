@@ -62,6 +62,7 @@ class GenomicsDBConfigBase {
   GenomicsDBConfigBase();
   const std::string& get_workspace(const int rank) const;
   void set_workspace(const std::string& workspace);
+  const bool has_array_name(const int rank) const;
   const std::string& get_array_name(const int rank) const;
   void set_array_name(const std::string& array_name);
   ColumnRange get_column_partition(const int rank, const unsigned idx=0u) const;
@@ -75,6 +76,9 @@ class GenomicsDBConfigBase {
   void set_query_row_ranges(const std::vector<TileDBRowRange>& row_ranges);
   inline const std::string& get_query_filter() const {
     return m_query_filter;
+  }
+  void set_query_filter(const std::string& filter) {
+    m_query_filter = filter;
   }
   inline size_t get_segment_size() const {
     return m_segment_size;
@@ -185,6 +189,8 @@ class GenomicsDBConfigBase {
   void read_from_PB_binary_string(const std::string& str, const int rank=0);
   int read_from_PB_file(const std::string& filename, const int rank=0) { return -1; }
   void read_from_PB(const genomicsdb_pb::ExportConfiguration* x, const int rank=0);
+  template<typename T>
+  void subset_query_from_PB(const T* x, const int rank=0);
   static int get_pb_from_json_file(google::protobuf::Message* pb_config, const std::string& json_file);
   static bool output_to_stdout(const std::string& name) {
     return name.empty() || name == "-";
