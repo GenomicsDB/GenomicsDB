@@ -92,7 +92,6 @@ const char *JSONVariantCallProcessor::construct_json_output() {
     }
   }
 
-  
   rapidjson::StringBuffer *buffer = reinterpret_cast<rapidjson::StringBuffer *>(m_json_buffer);
   buffer->Clear();
   rapidjson::Writer<rapidjson::StringBuffer> writer(*buffer);
