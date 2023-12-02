@@ -982,15 +982,15 @@ TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
   config->set_enable_shared_posixfs_optimizations(true);
 
   // filters
-  std::vector<std::string> filters = {""/*, // zlib arm64 - 1s
+  std::vector<std::string> filters = {"", // zlib arm64 - 1s
     "REF==\"A\"", // 2s
     "REF==\"A\" && ALT|=\"T\"", // 2s
     "REF==\"A\" &&  ALT|=\"T\" && ISHOMALT", // 3s
-    "REF==\"A\" && ALT|=\"T\" && resolve(GT, REF, ALT) &= \"T|T\"" // 3s*/
+    "REF==\"A\" && ALT|=\"T\" && resolve(GT, REF, ALT) &= \"T|T\"" // 3s
   };
 
   // sizes
-  std::vector<size_t> segment_sizes = { 0/*, 10240, 20480, 40960*/ };
+  std::vector<size_t> segment_sizes = { 0, 10240, 20480, 40960 };
 
   // results
   std::vector<int64_t> counts = { 2962039, 400432, 82245, 82245, 69548 };
