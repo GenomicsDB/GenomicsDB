@@ -256,6 +256,7 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
       throw GenomicsDBException("Genomic Field="+name+" does not seem to have an associated type");
     }
   }
+  const std::string resolve_gt(const std::vector<genomic_field_t>& genomic_fields) const;
   virtual void process(const interval_t& interval);
   virtual void process(const std::string& sample_name,
                        const int64_t* coordinates,
@@ -263,6 +264,29 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
                        const std::vector<genomic_field_t>& genomic_fields);
  private:
   std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
+};
+
+class GENOMICSDB_EXPORT JSONVariantCallProcessor : public GenomicsDBVariantCallProcessor {
+ public:
+  enum payload_t {all=0, samples_with_ncalls=1, just_ncalls=2};
+  JSONVariantCallProcessor() : JSONVariantCallProcessor(all) {}
+  JSONVariantCallProcessor(payload_t payload_mode);
+  ~JSONVariantCallProcessor();
+  void set_payload_mode(payload_t payload_mode) { m_payload_mode = payload_mode; }
+  void process(const interval_t& interval);
+  void process(const std::string& sample_name,
+               const int64_t* coordinates,
+               const genomic_interval_t& genomic_interval,
+               const std::vector<genomic_field_t>& genomic_fields);
+  const char *construct_json_output();
+ private:
+  payload_t m_payload_mode;
+  bool m_is_initialized = false;
+  void *m_json_document;
+  void *m_json_buffer;
+  size_t m_num_calls = 0ul;
+  std::vector<std::string> m_field_names;
+  std::map<std::string, std::vector<void *>> m_sample_info;
 };
 
 class GENOMICSDB_EXPORT GenomicsDBVariantProcessor {

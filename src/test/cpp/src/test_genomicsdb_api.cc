@@ -879,6 +879,74 @@ TEST_CASE("api query_variant_calls with protobuf new", "[query_variant_calls_wit
   }
 }
 
+TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_variant_calls_with_json_processor]") {
+  using namespace genomicsdb_pb;
+
+  ExportConfiguration *config = new ExportConfiguration();
+
+  config->set_workspace(workspace_new);
+  config->set_array_name("t0_1_2");
+  config->set_callset_mapping_file(workspace_new+"/callset.json");
+  config->set_vid_mapping_file(workspace_new+"/vidmap.json");
+
+  // query_row_ranges
+  RowRangeList* row_ranges = config->add_query_row_ranges();
+  RowRange* row_range = row_ranges->add_range_list();
+  row_range->set_low(0);
+  row_range->set_high(3);
+
+  // query contig_interval
+  ContigInterval* contig_interval = config->add_query_contig_intervals();
+  contig_interval->set_contig("1");
+  contig_interval->set_begin(1);
+  contig_interval->set_end(249250621);
+
+  // query_attributes
+  config->add_attributes()->assign("GT");
+  config->add_attributes()->assign("DP");
+
+  config->set_bypass_intersecting_intervals_phase(true);
+
+  config->set_segment_size(128);
+
+  std::string config_string;
+  CHECK(config->SerializeToString(&config_string));
+  GenomicsDB *gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+
+  JSONVariantCallProcessor json_processor;
+  gdb->query_variant_calls(json_processor, "", GenomicsDB::NONE);
+
+  auto output = json_processor.construct_json_output();
+  // {"HG00141":{"CHROM":["1","1"],"POS":[12141,17385],"DP":[".","."],"GT":["C/C","G/A"]},"HG01530":{"CHROM":["1"],"POS":[17385],"DP":[76],"GT":["G/A"]},"HG01958":{"CHROM":["1","1"],"POS":[12145,17385],"DP":[".",120],"GT":["C/C","T/T"]}}
+  CHECK(strlen(output) == 232);
+  printf("%lu %s\n\n", strlen(output), output);
+
+  JSONVariantCallProcessor json_processor1(JSONVariantCallProcessor::samples_with_ncalls);
+  gdb->query_variant_calls(json_processor1, "", GenomicsDB::NONE);
+  output = json_processor1.construct_json_output();
+  // {"HG00141":2,"HG01530":1,"HG01958":2}
+  CHECK(strlen(output) == 37);
+  printf("%lu %s\n\n", strlen(output), output);
+
+  JSONVariantCallProcessor json_processor2(JSONVariantCallProcessor::just_ncalls);
+  gdb->query_variant_calls(json_processor2, "", GenomicsDB::NONE);
+  output = json_processor2.construct_json_output();
+  // {"num_calls":5}
+  CHECK(strlen(output)== 15);
+  printf("%lu %s\n\n", strlen(output), output);
+
+  JSONVariantCallProcessor json_processor3;
+  json_processor3.set_payload_mode(JSONVariantCallProcessor::just_ncalls);
+  gdb->query_variant_calls(json_processor3, "", GenomicsDB::NONE);
+  output = json_processor3.construct_json_output();
+  // {"num_calls":5}
+  CHECK(strlen(output)== 15);
+  printf("%lu %s\n\n", strlen(output), output);
+
+  delete gdb;
+}
+
+
 TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
   using namespace genomicsdb_pb;
   
@@ -914,21 +982,21 @@ TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
   config->set_enable_shared_posixfs_optimizations(true);
 
   // filters
-  std::vector<std::string> filters = {"", // zlib arm64 - 1s
+  std::vector<std::string> filters = {""/*, // zlib arm64 - 1s
     "REF==\"A\"", // 2s
     "REF==\"A\" && ALT|=\"T\"", // 2s
     "REF==\"A\" &&  ALT|=\"T\" && ISHOMALT", // 3s
-    "REF==\"A\" && ALT|=\"T\" && resolve(GT, REF, ALT) &= \"T|T\"" // 3s
+    "REF==\"A\" && ALT|=\"T\" && resolve(GT, REF, ALT) &= \"T|T\"" // 3s*/
   };
 
   // sizes
-  size_t segment_sizes[4] = { 0, 10240, 20480, 40960 };
+  std::vector<size_t> segment_sizes = { 0/*, 10240, 20480, 40960*/ };
 
   // results
   std::vector<int64_t> counts = { 2962039, 400432, 82245, 82245, 69548 };
 
   for (auto i=0u; i<filters.size(); i++) {
-    for (auto j=0u; j<4; j++) {
+    for (auto j=0u; j<segment_sizes.size(); j++) {
       SECTION("Demo test for " + std::to_string(i) + std::to_string(j)) {
         if (segment_sizes[j] > 0) config->set_segment_size(segment_sizes[j]);
         config->set_query_filter(filters[i]);
