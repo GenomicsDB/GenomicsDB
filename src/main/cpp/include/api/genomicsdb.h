@@ -284,7 +284,7 @@ class GENOMICSDB_EXPORT JSONVariantCallProcessor : public GenomicsDBVariantCallP
   bool m_is_initialized = false;
   void *m_json_document;
   void *m_json_buffer;
-  size_t m_num_calls = 0ul;
+  int64_t m_num_calls = 0ul;
   std::vector<std::string> m_field_names;
   std::map<std::string, std::vector<void *>> m_sample_info;
 };
