@@ -56,7 +56,7 @@ struct partition_config_t {
 };
 
 typedef struct import_config_t {
-  std::set<std::string> samples;
+  std::unordered_set<std::string> samples;
   bool append_samples = false;
   std::string workspace;
   std::string vidmap_output;
@@ -663,9 +663,9 @@ static int update_json(import_config_t import_config) {
   return OK;
 }
 
-std::set<std::string> process_samples(const std::string& sample_list, const std::string& samples_dir) {
+std::unordered_set<std::string> process_samples(const std::string& sample_list, const std::string& samples_dir) {
   // Create a unified samples list
-  std::set<std::string> samples;
+  std::unordered_set<std::string> samples;
 
   // Process sample_list first
   if (!sample_list.empty()) {
@@ -694,34 +694,9 @@ std::set<std::string> process_samples(const std::string& sample_list, const std:
     return samples;
   }
 
-  // TODO: This part is hacky and should be handled by TileDB. Currently, TileDBUtils.get_files() returns
-  // only the path for cloud URIs, but the entire URI for hdfs for TileDBUtils::get_files. Gets container/bucket
-  // prefix and query suffix using regu.ar expressions to reconstruct filename later!
-  // See https://github.com/datma-health/TileDB/issues/159
-  std::string suffix;
-  auto pos = samples_dir.find('?');
-  if (pos != std::string::npos) {
-    suffix = samples_dir.substr(pos);
-  } else {
-    pos = samples_dir.length();
-  }
-  std::regex uri_pattern("^(.*//.*?/)(.*$)", std::regex_constants::ECMAScript);
-  std::string prefix;
-  std::string uri = samples_dir.substr(0, pos);
-  if (std::regex_search(uri, uri_pattern)) {
-    prefix = std::regex_replace(uri, uri_pattern, "$1");
-  }
-
-  std::vector<std::string> sample_files = TileDBUtils::get_files(samples_dir);
-  for (auto sample_file: sample_files) {
-    std::regex pattern("^.*(.vcf.gz$|.bcf.gz$)");
-    if (std::regex_search(sample_file, pattern)) {
-      if (sample_file.find("hdfs://") == std::string::npos) { 
-        sample_file = prefix+sample_file+suffix;
-      }
-      samples.insert(sample_file);
-    }
-  }
+  std::vector<std::string> get_files_uri = TileDBUtils::get_files_uri(samples_dir);
+  samples.insert(get_files_uri.begin(),get_files_uri.end());
+  
 
   return samples;
 }
