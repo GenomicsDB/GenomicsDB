@@ -241,7 +241,7 @@ class VariantCall;
 class VariantQueryConfig;
 
 // Utility funtion to resolve GT w.r.t REF/ALT
-const std::string resolve_gt(const std::vector<genomic_field_t>& genomic_fields);
+GENOMICSDB_EXPORT const std::string resolve_gt(const std::vector<genomic_field_t>& genomic_fields);
 
 class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
  public:
