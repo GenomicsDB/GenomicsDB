@@ -915,33 +915,39 @@ TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_varia
 
   JSONVariantCallProcessor json_processor;
   gdb->query_variant_calls(json_processor, "", GenomicsDB::NONE);
-
   auto output = json_processor.construct_json_output();
-  // {"HG00141":{"CHROM":["1","1"],"POS":[12141,17385],"DP":[".","."],"GT":["C/C","G/A"]},"HG01530":{"CHROM":["1"],"POS":[17385],"DP":[76],"GT":["G/A"]},"HG01958":{"CHROM":["1","1"],"POS":[12145,17385],"DP":[".",120],"GT":["C/C","T/T"]}}
-  CHECK(strlen(output) == 232);
-  printf("%lu %s\n\n", strlen(output), output);
+  // {"HG00141":{"CHR":["1","1"],"POS":[12141,17385],"DP":[null,null],"GT":["C/C","G/A"]},"HG01530":{"CHR":["1"],"POS":[17385],"DP":[76],"GT":["G/A"]},"HG01958":{"CHR":["1","1"],"POS":[12145,17385],"DP":[null,120],"GT":["C/C","T/T"]}}
+  CHECK(output.length() == 229);
+  printf("%lu %s\n\n", output.length(), output.c_str());
+
+  JSONVariantCallProcessor json_processor0(JSONVariantCallProcessor::all_by_calls);
+  gdb->query_variant_calls(json_processor0, "", GenomicsDB::NONE);
+  output = json_processor0.construct_json_output();
+  // {"FIELD":["CHR","POS","DP","GT"],"HG00141":[["1",12141,null,"C/C"],["1",17385,null,"G/A"]],"HG01530":[["1",17385,76,"G/A"]],"HG01958":[["1",12145,null,"C/C"],["1",17385,120,"T/T"]]}
+  CHECK(output.length() == 181);
+  printf("%lu %s\n\n", output.length(), output.c_str());
 
   JSONVariantCallProcessor json_processor1(JSONVariantCallProcessor::samples_with_ncalls);
   gdb->query_variant_calls(json_processor1, "", GenomicsDB::NONE);
   output = json_processor1.construct_json_output();
   // {"HG00141":2,"HG01530":1,"HG01958":2}
-  CHECK(strlen(output) == 37);
-  printf("%lu %s\n\n", strlen(output), output);
+  CHECK(output.length() == 37);
+  printf("%lu %s\n\n", output.length(), output.c_str());
 
   JSONVariantCallProcessor json_processor2(JSONVariantCallProcessor::just_ncalls);
   gdb->query_variant_calls(json_processor2, "", GenomicsDB::NONE);
   output = json_processor2.construct_json_output();
   // {"num_calls":5}
-  CHECK(strlen(output)== 15);
-  printf("%lu %s\n\n", strlen(output), output);
+  CHECK(output.length()== 15);
+  printf("%lu %s\n\n", output.length(), output.c_str());
 
   JSONVariantCallProcessor json_processor3;
   json_processor3.set_payload_mode(JSONVariantCallProcessor::just_ncalls);
   gdb->query_variant_calls(json_processor3, "", GenomicsDB::NONE);
   output = json_processor3.construct_json_output();
   // {"num_calls":5}
-  CHECK(strlen(output)== 15);
-  printf("%lu %s\n\n", strlen(output), output);
+  CHECK(output.length() == 15);
+  printf("%lu %s\n\n", output.length(), output.c_str());
 
   delete gdb;
 }

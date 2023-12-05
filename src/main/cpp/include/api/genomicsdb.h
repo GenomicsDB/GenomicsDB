@@ -268,7 +268,7 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
 
 class GENOMICSDB_EXPORT JSONVariantCallProcessor : public GenomicsDBVariantCallProcessor {
  public:
-  enum payload_t {all=0, samples_with_ncalls=1, just_ncalls=2};
+  enum payload_t {all=0, all_by_calls=1, samples_with_ncalls=2, just_ncalls=3};
   JSONVariantCallProcessor() : JSONVariantCallProcessor(all) {}
   JSONVariantCallProcessor(payload_t payload_mode);
   ~JSONVariantCallProcessor();
@@ -278,15 +278,18 @@ class GENOMICSDB_EXPORT JSONVariantCallProcessor : public GenomicsDBVariantCallP
                const int64_t* coordinates,
                const genomic_interval_t& genomic_interval,
                const std::vector<genomic_field_t>& genomic_fields);
-  const char *construct_json_output();
+  std::string construct_json_output();
  private:
   payload_t m_payload_mode;
   bool m_is_initialized = false;
   void *m_json_document;
-  void *m_json_buffer;
+  // payload num_calls
   int64_t m_num_calls = 0ul;
+  // payload samples_with_ncalls
+  std::unique_ptr<std::map<std::string, int64_t>> m_samples;
+  // payload all
   std::vector<std::string> m_field_names;
-  std::map<std::string, std::vector<void *>> m_sample_info;
+  std::unique_ptr<std::map<std::string, std::vector<void *>>> m_samples_info;
 };
 
 class GENOMICSDB_EXPORT GenomicsDBVariantProcessor {
