@@ -819,7 +819,7 @@ std::string resolve(std::vector<int32_t>& gt, std::string_view ref, std::string_
   return resolved_gt;
 }
 
-const std::string GenomicsDBVariantCallProcessor::resolve_gt(const std::vector<genomic_field_t>& genomic_fields) const {
+const std::string resolve_gt(const std::vector<genomic_field_t>& genomic_fields)  {
   std::string ref;
   std::string alt;
   std::vector<int32_t> gt_vec;

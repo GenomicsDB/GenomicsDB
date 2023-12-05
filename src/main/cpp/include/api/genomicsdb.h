@@ -240,6 +240,9 @@ class Variant;
 class VariantCall;
 class VariantQueryConfig;
 
+// Utility funtion to resolve GT w.r.t REF/ALT
+const std::string resolve_gt(const std::vector<genomic_field_t>& genomic_fields);
+
 class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
  public:
   GenomicsDBVariantCallProcessor() {};
@@ -256,7 +259,6 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
       throw GenomicsDBException("Genomic Field="+name+" does not seem to have an associated type");
     }
   }
-  const std::string resolve_gt(const std::vector<genomic_field_t>& genomic_fields) const;
   virtual void process(const interval_t& interval);
   virtual void process(const std::string& sample_name,
                        const int64_t* coordinates,
