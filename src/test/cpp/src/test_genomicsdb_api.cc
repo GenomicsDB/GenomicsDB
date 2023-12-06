@@ -916,14 +916,18 @@ TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_varia
   JSONVariantCallProcessor json_processor;
   gdb->query_variant_calls(json_processor, "", GenomicsDB::NONE);
   auto output = json_processor.construct_json_output();
-  // {"HG00141":{"CHR":["1","1"],"POS":[12141,17385],"DP":[null,null],"GT":["C/C","G/A"]},"HG01530":{"CHR":["1"],"POS":[17385],"DP":[76],"GT":["G/A"]},"HG01958":{"CHR":["1","1"],"POS":[12145,17385],"DP":[null,120],"GT":["C/C","T/T"]}}
+  // {"HG00141":{"CHR":["1","1"],"POS":[12141,17385],"DP":[null,null],"GT":["C/C","G/A"]},
+  // "HG01530":{"CHR":["1"],"POS":[17385],"DP":[76],"GT":["G/A"]},
+  // "HG01958":{"CHR":["1","1"],"POS":[12145,17385],"DP":[null,120],"GT":["C/C","T/T"]}}
   CHECK(output.length() == 229);
   printf("%lu %s\n\n", output.length(), output.c_str());
 
   JSONVariantCallProcessor json_processor0(JSONVariantCallProcessor::all_by_calls);
   gdb->query_variant_calls(json_processor0, "", GenomicsDB::NONE);
   output = json_processor0.construct_json_output();
-  // {"FIELD":["CHR","POS","DP","GT"],"HG00141":[["1",12141,null,"C/C"],["1",17385,null,"G/A"]],"HG01530":[["1",17385,76,"G/A"]],"HG01958":[["1",12145,null,"C/C"],["1",17385,120,"T/T"]]}
+  // {"FIELD":["CHR","POS","DP","GT"],
+  // "HG00141":[["1",12141,null,"C/C"],["1",17385,null,"G/A"]],
+  // "HG01530":[["1",17385,76,"G/A"]],"HG01958":[["1",12145,null,"C/C"],["1",17385,120,"T/T"]]}
   CHECK(output.length() == 181);
   printf("%lu %s\n\n", output.length(), output.c_str());
 
@@ -949,6 +953,23 @@ TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_varia
   CHECK(output.length() == 15);
   printf("%lu %s\n\n", output.length(), output.c_str());
 
+  delete gdb;
+
+  config->clear_attributes();
+  CHECK(config->SerializeToString(&config_string));
+  gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+  JSONVariantCallProcessor json_processor4(JSONVariantCallProcessor::all);
+  gdb->query_variant_calls(json_processor4, "", GenomicsDB::NONE);
+  output = json_processor4.construct_json_output();
+  // {"HG00141":{"CHR":["1","1"],"POS":[12141,17385],"AD":[null,58],"BaseQRankSum":[null,-2.0959999561309816],
+  //     "ClippingRankSum":[null,-1.8589999675750733],"DP":[null,null],"DP_FORMAT":[2,80],"DS":["1","1"],
+  //     "FILTER":[null,0],"GQ":[0,99],"GT":["C/C","G/A"],"HaplotypeScore":[null,null],
+  //     "InbreedingCoeff":[null,null],"MIN_DP":[0,null],"MLEAC":[null,1],"MLEAF":[null,0.5],
+  //     "MQ":[null,31.719999313354493],"MQ0":[null,8],"MQRankSum":[null,-0.32899999618530276],
+  //     "PGT":[null,"0|1"],"PID":[null,"17385_G_A"],"PL":[0,504],"QUAL":[null,475.7699890136719],
+  //     "RAW_MQ":[null,5.5],"ReadPosRankSum":[null,0.004999999888241291],"SB":[null,"[58, 0, 22, 0]"]},...}
+  CHECK(output.length() == 1761);
+  printf("%lu %s\n\n", output.length(), output.c_str());
   delete gdb;
 }
 
