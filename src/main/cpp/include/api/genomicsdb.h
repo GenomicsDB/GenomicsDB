@@ -240,6 +240,9 @@ class Variant;
 class VariantCall;
 class VariantQueryConfig;
 
+// Utility funtion to resolve GT w.r.t REF/ALT
+GENOMICSDB_EXPORT const std::string resolve_gt(const std::vector<genomic_field_t>& genomic_fields);
+
 class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
  public:
   GenomicsDBVariantCallProcessor() {};
@@ -263,6 +266,32 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
                        const std::vector<genomic_field_t>& genomic_fields);
  private:
   std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
+};
+
+class GENOMICSDB_EXPORT JSONVariantCallProcessor : public GenomicsDBVariantCallProcessor {
+ public:
+  enum payload_t {all=0, all_by_calls=1, samples_with_ncalls=2, just_ncalls=3};
+  JSONVariantCallProcessor() : JSONVariantCallProcessor(all) {}
+  JSONVariantCallProcessor(payload_t payload_mode);
+  ~JSONVariantCallProcessor();
+  void set_payload_mode(payload_t payload_mode) { m_payload_mode = payload_mode; }
+  void process(const interval_t& interval);
+  void process(const std::string& sample_name,
+               const int64_t* coordinates,
+               const genomic_interval_t& genomic_interval,
+               const std::vector<genomic_field_t>& genomic_fields);
+  std::string construct_json_output();
+ private:
+  payload_t m_payload_mode;
+  bool m_is_initialized = false;
+  void *m_json_document;
+  // payload num_calls
+  int64_t m_num_calls = 0ul;
+  // payload samples_with_ncalls
+  std::unique_ptr<std::map<std::string, int64_t>> m_samples;
+  // payload all
+  std::vector<std::string> m_field_names;
+  std::unique_ptr<std::map<std::string, std::vector<void *>>> m_samples_info;
 };
 
 class GENOMICSDB_EXPORT GenomicsDBVariantProcessor {
