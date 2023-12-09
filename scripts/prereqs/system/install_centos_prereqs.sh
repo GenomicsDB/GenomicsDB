@@ -87,7 +87,7 @@ install_minimum_prerequisites() {
      yum install -y -q cmake3 patch &&
      yum install -y -q perl perl-IPC-Cmd &&
      yum install -y -q libuuid libuuid-devel &&
-     yum install -y -q curl libcurl-devel &&
+     yum install -y -q curl libcurl-devel
 }
 
 install_openssl() {

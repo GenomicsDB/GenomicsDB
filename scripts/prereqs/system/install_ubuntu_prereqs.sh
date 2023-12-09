@@ -103,15 +103,30 @@ install_openssl() {
 
 # Sufficient to build/install the genomicsdb libraries
 install_minimum_prerequisites() {
-   yum install -y -q deltarpm
-   yum update -y -q &&
-     yum install -y -q epel-release &&
-     yum install -y -q which wget git &&
-     yum install -y -q autoconf automake libtool unzip &&
-     yum install -y -q cmake3 patch &&
-     yum install -y -q perl perl-IPC-Cmd &&
-     yum install -y -q libuuid libuuid-devel &&
-     yum install -y -q curl libcurl-devel &&
+  apt-get update -q &&
+    apt install -y tzdata \
+        zlib1g-dev \
+        libssl-dev \
+        rsync \
+        libidn11-dev \
+        uuid-dev \
+        libcurl4-openssl-dev \
+        wget \
+        autoconf \
+        automake \
+        libtool \
+        zip \
+        unzip \
+        curl \
+        git \
+        zstd \
+        sudo &&
+    apt-get update -q &&
+    install_gcc &&
+    install_cmake3 &&
+    apt-get clean &&
+    apt-get purge -y &&
+    rm -rf /var/lib/apt/lists*
 }
 
 install_system_prerequisites() {
