@@ -77,6 +77,7 @@ option(BUILD_FOR_R "Build GenomicsDB library with minimal runtime, no jvm/openss
 
 option(DISABLE_MPI "Disable use of any MPI compiler/libraries")
 option(DISABLE_OPENMP "Disable OpenMP")
+option(DISABLE_TOOLS "Disable build of tools")
 
 set(HTSLIB_INSTALL_DIR "" CACHE PATH "Path to htslib install directory")
 
@@ -162,7 +163,10 @@ endif()
 if(BUILD_DISTRIBUTABLE_LIBRARY OR BUILD_BINDINGS)
     set(DISABLE_MPI True)
     set(DISABLE_OPENMP True)
-endif()
+    set(DISABLE_TOOLS True)
+    set(DISABLE_EXAMPLES True)
+  endif()
+  
 if (BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_BINDINGS)
     #For the GNU compiler, link in static gcc libraries
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -472,8 +476,14 @@ endfunction()
 
 add_subdirectory(src)
 include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})
-add_subdirectory(tools)
-add_subdirectory(example)
+
+if(NOT DISABLE_TOOLS)
+  add_subdirectory(tools)
+endif()
+
+if(NOT DISABLE_EXAMPLES)
+  add_subdirectory(example)
+endif()
 
 if(BUILD_JAVA)
     set(JAVA_SCALA_SOURCES

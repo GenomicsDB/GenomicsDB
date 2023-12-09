@@ -2,6 +2,7 @@
 
 # The MIT License (MIT)
 # Copyright (c) 2019-2020 Omics Data Automation, Inc.
+# Copyright (c) 2023 dātma, inc™
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -82,6 +83,35 @@ install_R() {
   apt-get -y install libxml2-dev &&
   apt-get update -q &&
   apt-get -y install r-base
+}
+
+install_openssl() {
+  if [[ ! -f $OPENSSL_PREFIX/lib/libcrypto.a ]]; then
+    echo "Installing OpenSSL"
+    pushd /tmp
+    wget $WGET_NO_CERTIFICATE https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz &&
+    tar -xvzf openssl-$OPENSSL_VERSION.tar.gz &&
+    cd openssl-$OPENSSL_VERSION &&
+    CFLAGS=-fPIC ./config -fPIC no-shared --prefix=$OPENSSL_PREFIX --openssldir=$OPENSSL_PREFIX &&
+    make && make install && echo "Installing OpenSSL DONE"
+    rm -fr /tmp/openssl*
+    popd
+  fi
+  add_to_env OPENSSL_ROOT_DIR $OPENSSL_PREFIX
+  add_to_env LD_LIBRARY_PATH $OPENSSL_PREFIX/lib
+}
+
+# Sufficient to build/install the genomicsdb libraries
+install_minimum_prerequisites() {
+   yum install -y -q deltarpm
+   yum update -y -q &&
+     yum install -y -q epel-release &&
+     yum install -y -q which wget git &&
+     yum install -y -q autoconf automake libtool unzip &&
+     yum install -y -q cmake3 patch &&
+     yum install -y -q perl perl-IPC-Cmd &&
+     yum install -y -q libuuid libuuid-devel &&
+     yum install -y -q curl libcurl-devel &&
 }
 
 install_system_prerequisites() {

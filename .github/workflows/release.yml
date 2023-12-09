@@ -47,7 +47,7 @@ jobs:
         run: |
           echo "Installing Prerequistes for MacOS..."
           export INSTALL_PREFIX=$PREREQS_INSTALL_DIR
-          ./install_prereqs.sh
+          BUILD_DISTRIBUTABLE_LIBRARY=true ./install_prereqs.sh
 
       - name: Build GenomicsDB distributable
         shell: bash
@@ -56,9 +56,14 @@ jobs:
           export INSTALL_PREFIX=$PREREQS_INSTALL_DIR
           mkdir -p $GENOMICSDB_BUILD_DIR
           source $PREREQS_ENV
-          cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
-            -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION         \
-            -DGENOMICSDB_RELEASE_VERSION=${VERSION_NUMBER} -DBUILD_JAVA=1 -DUSE_HDFS=1 -DBUILD_DISTRIBUTABLE_LIBRARY=1
+          cmake $GITHUB_WORKSPACE \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
+            -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR \
+            -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION \
+            -DGENOMICSDB_RELEASE_VERSION=${VERSION_NUMBER} \
+            -DBUILD_JAVA=1 -DUSE_HDFS=0 -DBUILD_DISTRIBUTABLE_LIBRARY=1
           make -j4
           make install
           cp $CMAKE_INSTALL_PREFIX/lib/libtiledbgenomicsdb.dylib .
