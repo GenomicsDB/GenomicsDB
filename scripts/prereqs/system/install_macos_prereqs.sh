@@ -32,7 +32,7 @@ HOMEBREW_NO_INSTALL_CLEANUP=1
 
 build_openssl() {
   pushd openssl-$OPENSSL_VERSION &&
-    ./Configure darwin64-$ARCH-cc no-tests -fPIC --prefix=$OPENSSL_PREFIX/$ARCH &&
+    ./Configure darwin64-$ARCH-cc no-tests no-shared -fPIC --prefix=$OPENSSL_PREFIX/$ARCH &&
     make && make install_sw && make clean &&
     popd
 }
@@ -40,9 +40,7 @@ build_openssl() {
 install_universal_openssl() {
   mkdir -p $OPENSSL_PREFIX/lib &&
     mkdir -p $OPENSSL_PREFIX/include &&
-    lipo -create $OPENSSL_PREFIX/x86_64/lib/libcrypto.dylib $OPENSSL_PREFIX/arm64/lib/libcrypto.dylib -output $OPENSSL_PREFIX/lib/libcrypto.dylib &&
     lipo -create $OPENSSL_PREFIX/x86_64/lib/libcrypto.a $OPENSSL_PREFIX/arm64/lib/libcrypto.a -output $OPENSSL_PREFIX/lib/libcrypto.a &&
-    lipo -create $OPENSSL_PREFIX/x86_64/lib/libssl.dylib $OPENSSL_PREFIX/arm64/lib/libssl.dylib -output $OPENSSL_PREFIX/lib/libssl.dylib &&
     lipo -create $OPENSSL_PREFIX/x86_64/lib/libssl.a $OPENSSL_PREFIX/arm64/lib/libssl.a -output $OPENSSL_PREFIX/lib/libssl.a &&
     mv $OPENSSL_PREFIX/x86_64/include/openssl $OPENSSL_PREFIX/include
 }
