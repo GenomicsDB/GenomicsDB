@@ -51,22 +51,26 @@ function(build_universal_htslib arch1 arch2)
 endfunction()
 
 function(build_htslib arch)
-  set(ARCH_C_FLAGS "-arch ${arch} ${HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS}")
-  if (NOT arch STREQUAL CMAKE_SYSTEM_PROCESSOR)
-    set(ARCH_HOST_FLAGS "--host=${CMAKE_SYSTEM_PROCESSOR}")
+  if (NOT ${arch} STREQUAL "")
+    set(SUFFIX _${arch})
+    set(ARCH_C_FLAGS "-arch ${arch} ${HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS}")
+    if (NOT arch STREQUAL CMAKE_SYSTEM_PROCESSOR)
+      set(ARCH_HOST_FLAGS "--host=${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
+  else()
+    set(ARCH_C_FLAGS ${HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS})
   endif()
-  ExternalProject_Add(htslib_${arch}
-    PREFIX ${HTSLIB_BUILD_PREFIX}_${arch}
+  ExternalProject_Add(htslib${SUFFIX}
+    PREFIX ${HTSLIB_BUILD_PREFIX}${SUFFIX}
     DOWNLOAD_COMMAND ""
     SOURCE_DIR ${HTSLIB_SOURCE_DIR}
-    BINARY_DIR ${HTSLIB_BUILD_PREFIX}_${arch}
+    BINARY_DIR ${HTSLIB_BUILD_PREFIX}${SUFFIX}
     UPDATE_COMMAND autoreconf -i ${HTSLIB_SOURCE_DIR}
     PATCH_COMMAND ""
-    CONFIGURE_COMMAND pwd && echo "Configuring in $(pwd)..." && ${HTSLIB_ENV} ${HTSLIB_SOURCE_DIR}/configure
-      ${ARCH_HOST_FLAGS}
-      CFLAGS=${ARCH_C_FLAGS} LDFLAGS=${HTSLIB_${CMAKE_BUILD_TYPE}_LDFLAGS}
+    CONFIGURE_COMMAND ${HTSLIB_ENV} ${HTSLIB_SOURCE_DIR}/configure ${ARCH_HOST_FLAGS}
+      CFLAGS=${ARCH_C_FLAGS}
+      LDFLAGS=${HTSLIB_${CMAKE_BUILD_TYPE}_LDFLAGS}
       CC=${CMAKE_C_COMPILER} AR=${CMAKE_AR} RANLIB=${CMAKE_RANLIB}
-      ${ARCH_CPP_FLAGS}
       --disable-lzma --disable-bz2 --disable-s3 --disable-gcs --without-libdeflate
     BUILD_COMMAND
       COMMAND ${CMAKE_COMMAND} -E make_directory cram
@@ -80,7 +84,7 @@ endfunction()
 if(HTSLIB_SOURCE_DIR)
     set(HTSLIB_Debug_CFLAGS " -Wall -fPIC -DDEBUG  -g3 -gdwarf-3 -DVCF_ALLOW_INT64=1")  #will be picked if compiling in debug mode
     if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-        set(HTSLIB_Debug_CFLAGS "${HTSLIB_Debug_CFLAGS} -Wno-expansion-to-defined -Wno-nullability-completeness")
+      set(HTSLIB_Debug_CFLAGS "${HTSLIB_Debug_CFLAGS} -Wno-expansion-to-defined -Wno-nullability-completeness")
     endif()
     set(HTSLIB_Coverage_CFLAGS "${HTSLIB_Debug_CFLAGS}")
     set(HTSLIB_Release_CFLAGS " -Wall -fPIC -O3 -DVCF_ALLOW_INT64=1")
@@ -110,10 +114,8 @@ if(HTSLIB_SOURCE_DIR)
       build_htslib("arm64")
       build_universal_htslib("x86_64" "arm64")
     else()
-      build_htslib(${CMAKE_SYSTEM_PROCESSOR})
-      add_custom_target(htslib COMMAND
-        cp ${HTSLIB_BUILD_PREFIX}_${CMAKE_SYSTEM_PROCESSOR}/libhts.a ${HTSLIB_LIBRARY})
-      add_dependencies(htslib htslib_${CMAKE_SYSTEM_PROCESSOR})
+      build_htslib("")
+      add_custom_command(TARGET htslib POST_BUILD COMMAND cp ${HTSLIB_BUILD_PREFIX}/libhts.a ${HTSLIB_LIBRARY})
     endif()
     find_path(HTSLIB_INCLUDE_DIR NAMES htslib/vcf.h HINTS "${HTSLIB_SOURCE_DIR}" CMAKE_FIND_ROOT_PATH_BOTH NO_DEFAULT_PATH)
     find_package_handle_standard_args(htslib "Could not find htslib headers ${DEFAULT_MSG}" HTSLIB_INCLUDE_DIR)
