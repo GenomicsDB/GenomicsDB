@@ -75,7 +75,7 @@ function(build_htslib arch)
     BUILD_COMMAND
       COMMAND ${CMAKE_COMMAND} -E make_directory cram
       COMMAND ${CMAKE_COMMAND} -E copy ${HTSLIB_SOURCE_DIR}/version.sh .
-      COMMAND ${HTSLIB_ENV} $(MAKE) -f ${HTSLIB_SOURCE_DIR}/Makefile VPATH=${HTSLIB_SOURCE_DIR} SOURCE_DIR=${HTSLIB_SOURCE_DIR} AR=${CMAKE_AR} libhts.dylib libhts.a
+      COMMAND ${HTSLIB_ENV} $(MAKE) -f ${HTSLIB_SOURCE_DIR}/Makefile VPATH=${HTSLIB_SOURCE_DIR} SOURCE_DIR=${HTSLIB_SOURCE_DIR} AR=${CMAKE_AR} libhts.a
     INSTALL_COMMAND ""
     )
 endfunction()
@@ -115,7 +115,7 @@ if(HTSLIB_SOURCE_DIR)
       build_universal_htslib("x86_64" "arm64")
     else()
       build_htslib("")
-      add_custom_command(TARGET htslib POST_BUILD COMMAND cp ${HTSLIB_BUILD_PREFIX}/libhts.a ${HTSLIB_LIBRARY})
+      add_custom_command(TARGET htslib POST_BUILD COMMAND cp ${HTSLIB_BUILD_PREFIX}/libhts.a ${HTSLIB_LIBRARY} VERBATIM)
     endif()
     find_path(HTSLIB_INCLUDE_DIR NAMES htslib/vcf.h HINTS "${HTSLIB_SOURCE_DIR}" CMAKE_FIND_ROOT_PATH_BOTH NO_DEFAULT_PATH)
     find_package_handle_standard_args(htslib "Could not find htslib headers ${DEFAULT_MSG}" HTSLIB_INCLUDE_DIR)
