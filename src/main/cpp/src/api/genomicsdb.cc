@@ -784,6 +784,60 @@ void GenomicsDBResults<genomicsdb_variant_call_t>::free() {
   // NOP: free'ing is done at the Variant(genomicsdb_variant_t) level
 }
 
+#define PIPED_SEP '|'
+#define SLASHED_SEP '/'
+std::string_view get_segment(std::string_view str, int segment_pos) {
+  std::string::size_type pos;
+  std::string::size_type next_pos = -1;
+  for (int j=0; j<segment_pos; j++) {
+    pos = next_pos + 1;
+    next_pos = str.find(PIPED_SEP);
+    if (next_pos == std::string::npos) {
+      if (j != segment_pos-1) {
+        return ".";
+      } else {
+        return str.substr(pos, str.length());
+      }
+    }
+  }
+  return str.substr(pos, next_pos);
+}
+
+std::string resolve(std::vector<int32_t>& gt, std::string_view ref, std::string_view alt) {
+  std::string resolved_gt;
+  for (auto i=0ul; i<gt.size(); i++) {
+    if (i%2) { // Phase
+      if (gt[i]) resolved_gt += PIPED_SEP; else resolved_gt += SLASHED_SEP;
+    } else if (gt[i] > 0) { // ALT
+      resolved_gt += get_segment(alt, gt[i]);
+    } else if (gt[i] == 0) { // REF
+      resolved_gt += ref;
+    } else { // UNKNOWN
+      resolved_gt += ".";
+    }
+  }
+  return resolved_gt;
+}
+
+const std::string resolve_gt(const std::vector<genomic_field_t>& genomic_fields)  {
+  std::string ref;
+  std::string alt;
+  std::vector<int32_t> gt_vec;
+  for (auto genomic_field: genomic_fields) {
+    if (genomic_field.name == "REF") {
+      ref = genomic_field.str_value();
+    } else if (genomic_field.name == "ALT") {
+      alt = genomic_field.str_value();
+    } else if (genomic_field.name == "GT") {
+      for (auto i=0u; i<genomic_field.num_elements; i++) {
+        gt_vec.push_back(genomic_field.int_value_at(i));
+      }
+    }
+  }
+  return resolve(gt_vec, ref, alt);
+}
+
+
 void GenomicsDBVariantCallProcessor::process(const std::string& sample_name,
                                              const int64_t* coords,
                                              const genomic_interval_t& genomic_interval,
