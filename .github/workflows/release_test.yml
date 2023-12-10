@@ -50,7 +50,7 @@ jobs:
       - name: Run smoke test
         shell: bash
         run: |
-          sw_vers
+          if [ $(uname) == "Darwin" ]; then sw_vers; fi
           mvn install:install-file -Dfile=genomicsdb-${VERSION_NUMBER}.jar \
             -DgroupId=org.genomicsdb -DartifactId=genomicsdb -Dversion=${VERSION_NUMBER} \
             -Dpackaging=jar -DpomFile=genomicsdb-${VERSION_NUMBER}.pom
