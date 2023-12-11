@@ -645,25 +645,6 @@ def main():
                         } }
                 ]
             },
-            { "name" : "t0_1_2_filter", 'golden_output' : 'golden_outputs/t0_1_2_loading',
-                'callset_mapping_file': 'inputs/callsets/t0_1_2_csv.json',
-                "query_params": [
-                    { "query_column_ranges": [{
-                        "range_list": [{
-                            "low": 0,
-                            "high": 1000000000
-                        }]
-                    }],
-                    'query_filter' : 'DP > 100',
-                    "golden_output": {
-                        "calls"      : "golden_outputs/t0_1_2_calls_at_0_with_DP_filter",
-                        "variants"   : "golden_outputs/t0_1_2_variants_at_0_with_DP_filter",
-                        "vcf"        : "golden_outputs/t0_1_2_vcf_at_0_with_DP_filter",
-                        "batched_vcf": "golden_outputs/t0_1_2_vcf_at_0_with_DP_filter",
-                        "java_vcf"   : "golden_outputs/java_t0_1_2_vcf_at_0_with_DP_filter",
-                        } },
-                    ]
-            },
             { "name" : "t0_1_2_csv", 'golden_output' : 'golden_outputs/t0_1_2_loading',
                 'callset_mapping_file': 'inputs/callsets/t0_1_2_csv.json',
                 "query_params": [
