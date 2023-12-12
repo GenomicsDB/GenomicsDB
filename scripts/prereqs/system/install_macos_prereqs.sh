@@ -74,6 +74,7 @@ install_system_prerequisites() {
   echo "Installing system prerequisites..."
   brew list mpich &>/dev/null || brew install mpich
   brew list openssl@3 &> /dev/null || brew install openssl@3
+  brew list libcsv &>/dev/null || brew install libcsv
   add_to_env OPENSSL_ROOT_DIR $(brew --prefix openssl@3)
 
   # brew has started installing lcov 2.0 and some GenomicsDB sources are erroring out while running lcov
