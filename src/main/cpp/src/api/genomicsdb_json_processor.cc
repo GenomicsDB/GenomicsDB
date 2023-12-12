@@ -132,7 +132,7 @@ void JSONVariantCallProcessor::process(const interval_t& interval) {
     auto& genomic_field_types = get_genomic_field_types();
     for (auto& field_type_pair : *genomic_field_types) {
       std::string field_name = field_type_pair.first;
-      if (field_name.compare("END") && field_name.compare("REF") && field_name.compare("ALT")) {
+      if (field_name.compare("END") && field_name.compare("ALT")) {
         m_field_names.push_back(field_name);
       }
     }

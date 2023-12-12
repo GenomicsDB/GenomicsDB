@@ -916,19 +916,20 @@ TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_varia
   JSONVariantCallProcessor json_processor;
   gdb->query_variant_calls(json_processor, "", GenomicsDB::NONE);
   auto output = json_processor.construct_json_output();
-  // {"HG00141":{"CHR":["1","1"],"POS":[12141,17385],"DP":[null,null],"GT":["C/C","G/A"]},
-  // "HG01530":{"CHR":["1"],"POS":[17385],"DP":[76],"GT":["G/A"]},
-  // "HG01958":{"CHR":["1","1"],"POS":[12145,17385],"DP":[null,120],"GT":["C/C","T/T"]}}
-  CHECK(output.length() == 229);
+  // {"HG00141":{"CHR":["1","1"],"POS":[12141,17385],"DP":[null,null],"GT":["C/C","G/A"],"REF":["C","G"]},
+  //  "HG01530":{"CHR":["1"],"POS":[17385],"DP":[76],"GT":["G/A"],"REF":["G"]},
+  //  "HG01958":{"CHR":["1","1"],"POS":[12145,17385],"DP":[null,120],"GT":["C/C","T/T"],"REF":["C","G"]}}
+  CHECK(output.length() == 273);
   printf("%lu %s\n\n", output.length(), output.c_str());
 
   JSONVariantCallProcessor json_processor0(JSONVariantCallProcessor::all_by_calls);
   gdb->query_variant_calls(json_processor0, "", GenomicsDB::NONE);
   output = json_processor0.construct_json_output();
-  // {"FIELD":["CHR","POS","DP","GT"],
-  // "HG00141":[["1",12141,null,"C/C"],["1",17385,null,"G/A"]],
-  // "HG01530":[["1",17385,76,"G/A"]],"HG01958":[["1",12145,null,"C/C"],["1",17385,120,"T/T"]]}
-  CHECK(output.length() == 181);
+  // {"FIELD":["CHR","POS","DP","GT","REF"],
+  //  "HG00141":[["1",12141,null,"C/C","C"],["1",17385,null,"G/A","G"]],
+  //  "HG01530":[["1",17385,76,"G/A","G"]],
+  //  "HG01958":[["1",12145,null,"C/C","C"],["1",17385,120,"T/T","G"]]}
+  CHECK(output.length() == 207);
   printf("%lu %s\n\n", output.length(), output.c_str());
 
   JSONVariantCallProcessor json_processor1(JSONVariantCallProcessor::samples_with_ncalls);
@@ -962,13 +963,25 @@ TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_varia
   gdb->query_variant_calls(json_processor4, "", GenomicsDB::NONE);
   output = json_processor4.construct_json_output();
   // {"HG00141":{"CHR":["1","1"],"POS":[12141,17385],"AD":[null,58],"BaseQRankSum":[null,-2.0959999561309816],
-  //     "ClippingRankSum":[null,-1.8589999675750733],"DP":[null,null],"DP_FORMAT":[2,80],"DS":["1","1"],
-  //     "FILTER":[null,0],"GQ":[0,99],"GT":["C/C","G/A"],"HaplotypeScore":[null,null],
-  //     "InbreedingCoeff":[null,null],"MIN_DP":[0,null],"MLEAC":[null,1],"MLEAF":[null,0.5],
-  //     "MQ":[null,31.719999313354493],"MQ0":[null,8],"MQRankSum":[null,-0.32899999618530276],
-  //     "PGT":[null,"0|1"],"PID":[null,"17385_G_A"],"PL":[0,504],"QUAL":[null,475.7699890136719],
-  //     "RAW_MQ":[null,5.5],"ReadPosRankSum":[null,0.004999999888241291],"SB":[null,"[58, 0, 22, 0]"]},...}
-  CHECK(output.length() == 1761);
+  //             "ClippingRankSum":[null,-1.8589999675750733],"DP":[null,null],"DP_FORMAT":[2,80],"DS":["1","1"],
+  //             "FILTER":[null,0],"GQ":[0,99],"GT":["C/C","G/A"],"HaplotypeScore":[null,null],"InbreedingCoeff":[null,null],
+  //             "MIN_DP":[0,null],"MLEAC":[null,1],"MLEAF":[null,0.5],"MQ":[null,31.719999313354493],"MQ0":[null,8],
+  //             "MQRankSum":[null,-0.32899999618530276],"PGT":[null,"0|1"],"PID":[null,"17385_G_A"],"PL":[0,504],
+  //             "QUAL":[null,475.7699890136719],"RAW_MQ":[null,5.5],"REF":["C","G"],
+  //             "ReadPosRankSum":[null,0.004999999888241291],"SB":[null,"[58, 0, 22, 0]"]},
+  //  "HG01530":{"CHR":["1"],"POS":[17385],"AD":[40],"BaseQRankSum":[1.0460000038146973],"ClippingRankSum":[-2.242000102996826],
+  //             "DP":[76],"DP_FORMAT":[76],"DS":[null],"FILTER":[null],"GQ":[99],"GT":["G/A"],"HaplotypeScore":[null],
+  //             "InbreedingCoeff":[null],"MIN_DP":[null],"MLEAC":[1],"MLEAF":[0.5],"MQ":[59.369998931884769],"MQ0":[0],
+  //             "MQRankSum":[-0.4320000112056732],"PGT":[null],"PID":[null],"PL":[1018],"QUAL":[989.77001953125],
+  //             "RAW_MQ":[null],"REF":["G"],"ReadPosRankSum":[2.055000066757202],"SB":["[9, 31, 13, 23]"]},
+  //  "HG01958":{"CHR":["1","1"],"POS":[12145,17385],"AD":[null,0],"BaseQRankSum":[null,-2.0739998817443849],
+  //             "ClippingRankSum":[null,0.5550000071525574],"DP":[null,120],"DP_FORMAT":[3,120],"DS":["1",null],
+  //             "FILTER":[null,0],"GQ":[0,99],"GT":["C/C","T/T"],"HaplotypeScore":[null,null],"InbreedingCoeff":[null,null],
+  //             "MIN_DP":[0,null],"MLEAC":[null,2],"MLEAF":[null,1.0],"MQ":[null,29.81999969482422],"MQ0":[null,3],
+  //             "MQRankSum":[null,-1.36899995803833],"PGT":[null,"0|1"],"PID":[null,"17385_G_T"],"PL":[0,3336],
+  //             "QUAL":[null,3302.77001953125],"RAW_MQ":[null,2.5],"REF":["C","G"],"ReadPosRankSum":[null,-0.10100000351667404],
+  //             "SB":[null,"[0, 0, 0, 0]"]}}
+  CHECK(output.length() == 1805);
   printf("%lu %s\n\n", output.length(), output.c_str());
   delete gdb;
 }
