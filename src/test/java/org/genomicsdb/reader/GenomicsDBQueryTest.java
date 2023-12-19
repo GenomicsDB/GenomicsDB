@@ -450,7 +450,7 @@ public class GenomicsDBQueryTest {
       Assert.assertTrue(genomicsDBHandle > 0);
       List<Interval> intervals = query.queryVariantCalls(genomicsDBHandle);
       Assert.assertEquals(intervals.size(), 1);
-      Assert.assertEquals(intervals.get(0).calls.size(), expected_calls[i]);
+      Assert.assertEquals(intervals.get(0).calls.size(), expected_calls[i].longValue());
       System.out.println("Elapsed Time for "+filters[i]+(System.currentTimeMillis()-startTime)/1000+"s");
       query.disconnect(genomicsDBHandle);
     }
