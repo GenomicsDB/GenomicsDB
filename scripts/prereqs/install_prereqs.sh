@@ -2,6 +2,7 @@
 
 # The MIT License (MIT)
 # Copyright (c) 2019-2022 Omics Data Automation, Inc.
+# Copyright (c) 2023 dātma, inc™
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -26,7 +27,7 @@ set -e
 # Arguments to the script
 #  $1 - 'full' if build prerequisites should be installed, 'release' if only runtime prerequisites should be installed
 
-OPENSSL_VERSION=${OPENSSL_VERSION:-1.1.1o}
+OPENSSL_VERSION=${OPENSSL_VERSION:-3.0.12}
 MAVEN_VERSION=${MAVEN_VERSION:-3.9.2}
 CURL_VERSION=${CURL_VERSION:-7.83.1}
 UUID_VERSION=${UUID_VERSION:-1.0.3}
@@ -59,8 +60,8 @@ fi
 touch $PREREQS_ENV
 
 if [[ `uname` == "Darwin" && $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
-  export MACOSX_DEPLOYMENT_TARGET=10.13
-  echo "export MACOSX_DEPLOYMENT_TARGET=10.13" >> $PREREQS_ENV
+  export MACOSX_DEPLOYMENT_TARGET=12.7
+  echo "export MACOSX_DEPLOYMENT_TARGET=12.7" >> $PREREQS_ENV
 fi
 
 ################################# Should not have to change anything below ############################
@@ -113,27 +114,6 @@ install_mvn() {
     add_to_env PATH "\${M2_HOME}/bin"
 }
 
-OPENSSL_PREFIX=$INSTALL_PREFIX/ssl
-install_openssl() {
-  if [[ ! -d $OPENSSL_PREFIX ]]; then
-    echo "Installing OpenSSL"
-    pushd /tmp
-    wget $WGET_NO_CERTIFICATE https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz &&
-      tar -xvzf openssl-$OPENSSL_VERSION.tar.gz &&
-      cd openssl-$OPENSSL_VERSION &&
-      if [[ `uname` == "Linux" ]]; then
-	  CFLAGS=-fPIC ./config -fPIC no-shared --prefix=$OPENSSL_PREFIX --openssldir=$OPENSSL_PREFIX
-      else
-	  ./Configure darwin64-x86_64-cc no-shared -fPIC --prefix=$OPENSSL_PREFIX
-      fi
-      make && make install && echo "Installing OpenSSL DONE"
-    rm -fr /tmp/openssl*
-    popd
-  fi
-  add_to_env OPENSSL_ROOT_DIR $OPENSSL_PREFIX
-  add_to_env LD_LIBRARY_PATH $OPENSSL_PREFIX/lib
-}
-
 CURL_PREFIX=$INSTALL_PREFIX
 install_curl() {
   if [[ `uname` == "Darwin" ]]; then
@@ -158,7 +138,7 @@ install_curl() {
 UUID_PREFIX=$INSTALL_PREFIX
 install_uuid() {
   if [[ `uname` == "Darwin" ]]; then
-    # libuuid comes via brew install ossp-uuid; it might even be supported natively in macOS now
+    # libuuid is supported natively in macOS now
     return 0
   fi
   if [[ ! -f $UUID_PREFIX/libuuid.a ]]; then
@@ -248,7 +228,11 @@ install_os_prerequisites() {
       fi
       ;;
     Darwin )
-      $PARENT_DIR/system/install_macos_prereqs.sh
+      source $PARENT_DIR/system/install_macos_prereqs.sh
+      install_minimum_prerequisites
+      if [[ $BUILD_DISTRIBUTABLE_LIBRARY != true ]]; then
+        install_system_prerequisites
+      fi
       ;;
     * )
       echo "OS=`uname` not supported"
@@ -293,19 +277,19 @@ elif [[ $CENTOS_VERSION -eq 6 ]]; then
 fi
 
 RC=1
+export -f add_to_env
 install_prerequisites $BUILD_TYPE &&
+  if [[  $BUILD_DISTRIBUTABLE_LIBRARY == true || $INSTALL_OPENSSL == true ]]; then
+    echo "Installing openssl $OPENSSL_VERSION"
+    OPENSSL_PREFIX=$INSTALL_PREFIX/ssl install_openssl
+  fi &&
   if [[ $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
     echo "Installing static libraries"
-    install_openssl &&
       install_curl &&
       install_uuid &&
       if [[ $CENTOS_VERSION -eq 6 ]]; then
         install_intel_zlib
       fi
-  fi &&
-  if [[ $INSTALL_OPENSSL == true ]]; then
-    echo "Installing openssl $OPENSSL_VERSION"
-    install_openssl
   fi &&
   RC=0
 finalize $RC

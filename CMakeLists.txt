@@ -77,6 +77,7 @@ option(BUILD_FOR_R "Build GenomicsDB library with minimal runtime, no jvm/openss
 
 option(DISABLE_MPI "Disable use of any MPI compiler/libraries")
 option(DISABLE_OPENMP "Disable OpenMP")
+option(DISABLE_TOOLS "Disable build of tools")
 
 set(HTSLIB_INSTALL_DIR "" CACHE PATH "Path to htslib install directory")
 
@@ -162,7 +163,10 @@ endif()
 if(BUILD_DISTRIBUTABLE_LIBRARY OR BUILD_BINDINGS)
     set(DISABLE_MPI True)
     set(DISABLE_OPENMP True)
-endif()
+    set(DISABLE_TOOLS True)
+    set(DISABLE_EXAMPLES True)
+  endif()
+  
 if (BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_BINDINGS)
     #For the GNU compiler, link in static gcc libraries
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
@@ -198,10 +202,26 @@ endif()
 
 #MPI library/compiler etc
 if(NOT DISABLE_MPI)
-    find_package(MPI REQUIRED)
-    include_directories(${MPI_CXX_INCLUDE_PATH})
+  find_package(MPI)
+  if (NOT MPI_FOUND)
+    # see https://gitlab.kitware.com/cmake/cmake/issues/21955
+    # Usually happens off and on Apple, so try again explicitly
+    message(STATUS "Could not find MPI using find_package, trying to find MPI explicitly")
+    find_file(MPI_H_FILE mpi.h REQUIRED)
+    find_library(MPICXX_LIB_FILE NAMES mpichcxx REQUIRED)
+    find_library(MPICH_LIB_FILE NAMES mpich REQUIRED)
+    if(MPI_H_FILE AND MPICXX_LIB_FILE AND MPICH_LIB_FILE)
+      set(MPI_FOUND True)
+      cmake_path(GET MPI_H_FILE PARENT_PATH MPI_CXX_INCLUDE_PATH)
+      set(MPI_CXX_LIBRARIES ${MPICXX_LIB_FILE} ${MPICH_LIB_FILE})
+      message(STATUS "Found MPI ${MPI_H_FILE}")
+    else()
+      message(FATAL "Could not find MPI include files and libraries")
+    endif()
+  endif()
+  include_directories(${MPI_CXX_INCLUDE_PATH})
 else()
-    add_definitions(-DDISABLE_MPI=1)
+  add_definitions(-DDISABLE_MPI=1)
 endif()
 
 if(NOT DISABLE_OPENMP)
@@ -472,8 +492,14 @@ endfunction()
 
 add_subdirectory(src)
 include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})
-add_subdirectory(tools)
-add_subdirectory(example)
+
+if(NOT DISABLE_TOOLS)
+  add_subdirectory(tools)
+endif()
+
+if(NOT DISABLE_EXAMPLES)
+  add_subdirectory(example)
+endif()
 
 if(BUILD_JAVA)
     set(JAVA_SCALA_SOURCES

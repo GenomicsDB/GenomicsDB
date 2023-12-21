@@ -48,14 +48,25 @@ if(NOT Protobuf_FOUND AND NOT PROTOBUF_PREFIX)
 elseif(Protobuf_FOUND)
   message(CHECK_PASS "found ${Protobuf_VERSION}")
 else()
-   # Try building from source
+  # Try building from source
+
+  # Workaround for issues with semicolon separated substrings to ExternalProject_Add
+  # https://discourse.cmake.org/t/how-to-pass-cmake-osx-architectures-to-externalproject-add/2262
+  if(CMAKE_OSX_ARCHITECTURES)
+    if(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64" AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
+      set(CMAKE_OSX_ARGS -DCMAKE_OSX_ARCHITECTURES=arm64$<SEMICOLON>x86_64)
+    else()
+      set(CMAKE_OSX_ARGS -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES})
+    endif()
+  endif()
+
   message(CHECK_PASS "not found, building Protobuf ${GENOMICSDB_PROTOBUF_VERSION} as an external project")
   include(ExternalProject)
   ExternalProject_Add(protobuf_build
     PREFIX ${PROTOBUF_PREFIX}
     URL ${PROTOBUF_URL}
     SOURCE_SUBDIR cmake
-    CMAKE_ARGS
+    CMAKE_ARGS ${CMAKE_OSX_ARGS}
     -Dprotobuf_BUILD_TESTS=OFF
     -DCMAKE_BUILD_TYPE=Release
     -DCMAKE_INSTALL_PREFIX=${PROTOBUF_PREFIX}
@@ -66,6 +77,7 @@ else()
     -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_OSX_DEPLOYMENT_TARGET}
     )
   add_dependencies(protobuf_ep protobuf_build)
+
 endif()
 
 set(PROTOBUF_PROTOC_EXECUTABLE ${PROTOBUF_BIN_DIR}/protoc)
