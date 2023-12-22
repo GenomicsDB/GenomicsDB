@@ -33,6 +33,20 @@
 #define GET_GENOMICSDB_IMPORTER_FROM_HANDLE(X) \
     (reinterpret_cast<GenomicsDBImporter*>(static_cast<std::uintptr_t>(X)))
 
+void handleJNIImporterException(JNIEnv *env, std::exception& exception) {
+  std::string msg = std::string("GenomicsDB JNI Importer Error: ") + exception.what();
+  jclass io_exception_class = env->FindClass("java/io/IOException");
+  if (io_exception_class) {
+    jboolean flag = env->ExceptionCheck();
+    if (flag) {
+      env->ExceptionClear();
+    }
+    env->ThrowNew(io_exception_class, msg.c_str());
+  } else {
+    throw std::runtime_error(msg);
+  }
+}
+
 JNIEXPORT jint JNICALL
 Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniGenomicsDBImporter(
   JNIEnv* env,
@@ -40,6 +54,7 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniGenomicsDBImporter(
   jstring loader_configuration_file,
   jint rank) {
 
+  try {
   //Java string to char*
   auto loader_configuration_file_cstr =
       env->GetStringUTFChars(loader_configuration_file, NULL);
@@ -53,6 +68,9 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniGenomicsDBImporter(
   env->ReleaseStringUTFChars(
     loader_configuration_file,
     loader_configuration_file_cstr);
+  } catch (std::exception &exception) {
+    handleJNIImporterException(env, exception);
+  }
   return 0;
 }
 
@@ -63,6 +81,7 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniInitializeGenomicsDBImport
   jstring loader_configuration_file,
   jint rank) {
 
+  try {
   //Java string to char*
   auto loader_configuration_file_cstr =
       env->GetStringUTFChars(loader_configuration_file, NULL);
@@ -78,6 +97,9 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniInitializeGenomicsDBImport
 
   //Cast pointer to 64-bit int and return to Java
   return static_cast<jlong>(reinterpret_cast<std::uintptr_t>(importer));
+  } catch (std::exception &exception) {
+    handleJNIImporterException(env, exception);
+  }
 }
 
 JNIEXPORT void JNICALL
@@ -120,6 +142,7 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniSetupGenomicsDBLoader(
   jlong handle,
   jstring buffer_stream_callset_mapping_json_string) {
 
+  try {
   auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
   //Java string to char*
   auto buffer_stream_callset_mapping_json_string_cstr =
@@ -131,6 +154,9 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniSetupGenomicsDBLoader(
     buffer_stream_callset_mapping_json_string,
     buffer_stream_callset_mapping_json_string_cstr);
   return importer->get_max_num_buffer_stream_identifiers();
+   } catch (std::exception &exception) {
+    handleJNIImporterException(env, exception);
+  }
 }
 
 JNIEXPORT void JNICALL
@@ -143,6 +169,7 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniWriteDataToBufferStream(
   jbyteArray buffer,
   jlong num_valid_bytes_in_buffer) {
 
+  try {
   auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
   assert(importer);
   if(importer->is_done())
@@ -157,6 +184,9 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniWriteDataToBufferStream(
     num_valid_bytes_in_buffer);
   //Cleanup
   env->ReleaseByteArrayElements(buffer, native_buffer_ptr, 0);
+  } catch (std::exception &exception) {
+    handleJNIImporterException(env, exception);
+  }
 }
 
 JNIEXPORT jboolean JNICALL
@@ -165,6 +195,8 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniImportBatch(
   jobject obj,
   jlong handle,
   jlongArray exhausted_buffer_stream_identifiers) {
+
+  try {
 
   auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
   assert(importer);
@@ -196,6 +228,9 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniImportBatch(
   }
   else
     return false;
+  } catch (std::exception &exception) {
+    handleJNIImporterException(env, exception);
+  }
 }
 
 JNIEXPORT jstring JNICALL

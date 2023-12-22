@@ -82,7 +82,7 @@ void *genomicsdb_filesystem_init(const char *filename, int mode) {
       tiledb_config.home_ = filename;
       if (tiledb_ctx_init(&tiledb_ctx, &tiledb_config)) {
         logger.error("htslib_plugin could not open file {} {}", filename,
-                     tiledb_errmsg[0]?tiledb_errmsg:"");
+                     tiledb_errmsg[0]?std::string("\n")+tiledb_errmsg:"");
         errno = EIO;
         return NULL;
       }
