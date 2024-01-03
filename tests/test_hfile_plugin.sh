@@ -170,4 +170,25 @@ if [[ $ACTUAL_FILESIZE_NEW/10 -ne $ACTUAL_FILESIZE/10 ]]; then
   die "vcf2genomicsdb with vcf2genomicsdb_init did not generate the expected vcf"
 fi
 
+# check some error conditions
+# modify callset.json to include non-existent vcf
+mv $WORKSPACE/callset.json $WORKSPACE/callset.json_save
+sed -e "s?t0?txxx?g" $WORKSPACE/callset.json_save > $WORKSPACE/callset.json
+vcf2genomicsdb $WORKSPACE/loader.json
+if [[ $? -eq 0 ]]; then
+  die "Test with txxx should have failed"
+fi
+
+sed -E "s?(.*\"filename\": \")(.*t0.vcf.gz)?\1\az://non-existent-bucket/non-existent.vcf.gz?g" $WORKSPACE/callset.json_save > $WORKSPACE/callset.json
+vcf2genomicsdb $WORKSPACE/loader.json
+if [[ $? -eq 0 ]]; then
+  die "Test with bogus az URI hould have failed"
+fi 
+
+sed -E "s?(.*\"filename\": \")(.*t0.vcf.gz)?\1\az://non-existent-bucket@non-existent-account.blob/non-existent.vcf.gz?g" $WORKSPACE/callset.json_save > $WORKSPACE/callset.json
+vcf2genomicsdb $WORKSPACE/loader.json
+if [[ $? -eq 0 ]]; then
+  die "Test with bogus az URI hould have failed"
+fi
+
 cleanup

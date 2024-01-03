@@ -81,7 +81,7 @@ void *genomicsdb_filesystem_init(const char *filename, int mode) {
       TileDB_Config tiledb_config = {};
       tiledb_config.home_ = filename;
       if (tiledb_ctx_init(&tiledb_ctx, &tiledb_config)) {
-        logger.error("htslib_plugin could not open file {} {}", filename,
+        logger.error("htslib_plugin could not open {} {}", filename,
                      tiledb_errmsg[0]?std::string("\n")+tiledb_errmsg:"");
         errno = EIO;
         return NULL;
@@ -94,6 +94,10 @@ void *genomicsdb_filesystem_init(const char *filename, int mode) {
       // Check file exists for O_RDONLY, otherwise return NULL
       if (is_file(tiledb_ctx, filename)) {
 	return tiledb_ctx;
+      } else {
+        logger.error("hts_plugin could not find {}", filename);
+        errno = EIO;
+        return NULL;
       }
     } else {
       return tiledb_ctx;
