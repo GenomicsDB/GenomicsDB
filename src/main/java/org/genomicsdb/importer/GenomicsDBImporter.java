@@ -595,7 +595,7 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     /**
      * Import multiple chromosome interval
      */
-    public void executeImport()  {
+    public void executeImport() throws IOException {
         executeImport(0);
     }
 
@@ -603,7 +603,7 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
      * Import multiple chromosome interval
      * @param numThreads number of threads used to import partitions
      */
-    public void executeImport(final int numThreads) {
+    public void executeImport(final int numThreads) throws IOException {
         final int batchSize = this.config.getBatchSize();
         final int sampleCount = this.config.getSampleNameToVcfPath().size();
         final int updatedBatchSize = (batchSize <= 0) ? sampleCount : Math.min(batchSize, sampleCount);
@@ -646,7 +646,7 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
     }
 
     private void iterateOverSamplesInBatches(final int sampleCount, final int updatedBatchSize, final int numberPartitions,
-                                             final ExecutorService executor, final boolean performConsolidation) {
+                                             final ExecutorService executor, final boolean performConsolidation) throws IOException {
         final boolean failIfUpdating = this.config.getImportConfiguration().getFailIfUpdating();
         final int totalBatchCount = (sampleCount + updatedBatchSize - 1)/updatedBatchSize; //ceil
         BatchCompletionCallbackFunctionArgument callbackFunctionArgument = new BatchCompletionCallbackFunctionArgument(0, totalBatchCount);
@@ -670,7 +670,7 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
 
             if (result.contains(false)) {
                 executor.shutdown();
-                throw new IllegalStateException("There was an unhandled exception during chromosome interval import.");
+                throw new IOException("Exception during chromosome interval import.");
             }
             if(this.config.getFunctionToCallOnBatchCompletion() != null) {
                 callbackFunctionArgument.batchCount = batchCount;
@@ -724,7 +724,8 @@ public class GenomicsDBImporter extends GenomicsDBImporterJni implements JsonFil
                         }
                         return result;
                     } catch (IOException ex) {
-                        throw new IllegalStateException("There was an unhandled exception during chromosome interval import.", ex);
+                        logger.error(ex.getMessage());
+                        return Boolean.valueOf(false);
                     }
                 }, executor)
         ).collect(Collectors.toList());

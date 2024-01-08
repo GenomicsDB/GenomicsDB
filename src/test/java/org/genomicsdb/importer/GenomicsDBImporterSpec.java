@@ -98,7 +98,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     }
 
     @Test(expectedExceptions = GenomicsDBException.class)
-    public void testWriteVidMapJSONToNonexistentFolders() throws FileNotFoundException, InterruptedException {
+    public void testWriteVidMapJSONToNonexistentFolders() throws IOException, FileNotFoundException, InterruptedException {
         GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A  =
                 GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder().build();
         Set<VCFHeaderLine> mergedHeader = new LinkedHashSet<VCFHeaderLine>();
@@ -113,7 +113,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     }
 
     @Test(expectedExceptions = GenomicsDBException.class)
-    public void testWriteCallsetJSONToNonexistentFolders() throws FileNotFoundException, InterruptedException {
+    public void testWriteCallsetJSONToNonexistentFolders() throws IOException, FileNotFoundException, InterruptedException {
         GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A  =
                 GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder().build();
         Set<VCFHeaderLine> mergedHeader = new LinkedHashSet<VCFHeaderLine>();
@@ -127,7 +127,7 @@ public final class GenomicsDBImporterSpec implements CallSetMapExtensions, VidMa
     }
 
     @Test(expectedExceptions = GenomicsDBException.class)
-    public void testVCFHeaderToNonexistentFolders() throws FileNotFoundException, InterruptedException {
+    public void testVCFHeaderToNonexistentFolders() throws IOException, FileNotFoundException, InterruptedException {
         GenomicsDBCallsetsMapProto.CallsetMappingPB callsetMappingPB_A  =
                 GenomicsDBCallsetsMapProto.CallsetMappingPB.newBuilder().build();
         Set<VCFHeaderLine> mergedHeader = new LinkedHashSet<VCFHeaderLine>();

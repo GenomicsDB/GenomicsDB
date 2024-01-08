@@ -133,7 +133,7 @@ void VCFReader::initialize(const char* filename,
   //Needed to fix traversal order of indexed reader
   //So parse the header first
   m_fptr = bcf_open(filename, "r");
-  VERIFY_OR_THROW(m_fptr && (std::string("Cannot open VCF/BCF file ")+filename).c_str());
+  if (!m_fptr) logger.fatal(VCF2BinaryException(logger.format("Cannot open VCF/BCF file {}", filename)));
   m_hdr = bcf_hdr_read(m_fptr);
   bcf_close(m_fptr);
   m_fptr = 0;
@@ -380,10 +380,10 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
   //Get reader from column partition struct if parallel partitions, else use common base reader ptr
   auto base_reader_ptr = (m_parallel_partitions && m_base_partition_ptrs.size()) ? m_base_partition_ptrs[0]->get_base_reader_ptr()
                          : m_base_reader_ptr;
-  VERIFY_OR_THROW(base_reader_ptr && (std::string("Could not find valid VCF reader for ")+m_filename).c_str());
+  if (!base_reader_ptr) logger.fatal(VCF2BinaryException(logger.format("Could not find valid VCF reader for {}", m_filename)));
   assert(dynamic_cast<VCFReader*>(base_reader_ptr) || dynamic_cast<VCFBufferReader*>(base_reader_ptr));
   auto hdr = dynamic_cast<VCFReaderBase*>(base_reader_ptr)->get_header();
-  VERIFY_OR_THROW(hdr && (std::string("Could not find valid VCF header for ")+m_filename).c_str());
+  if (!hdr) logger.fatal(VCF2BinaryException(logger.format("Could not find valid VCF header for {}", m_filename)));
   //Callset mapping
   //Length might be more than what's available in hdr due to JSON error
   m_local_callset_idx_to_tiledb_row_idx.resize(bcf_hdr_nsamples(hdr), -1ll);
