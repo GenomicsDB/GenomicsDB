@@ -270,7 +270,7 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
 
 class GENOMICSDB_EXPORT JSONVariantCallProcessor : public GenomicsDBVariantCallProcessor {
  public:
-  enum payload_t {all=0, all_by_calls=1, samples_with_ncalls=2, just_ncalls=3};
+  enum payload_t {all=0, all_by_calls=1, samples_with_ncalls=2, just_ncalls=3, just_samples=4};
   JSONVariantCallProcessor() : JSONVariantCallProcessor(all) {}
   JSONVariantCallProcessor(payload_t payload_mode);
   ~JSONVariantCallProcessor();
@@ -287,6 +287,8 @@ class GENOMICSDB_EXPORT JSONVariantCallProcessor : public GenomicsDBVariantCallP
   void *m_json_document;
   // payload num_calls
   int64_t m_num_calls = 0ul;
+  // payload samples set
+  std::unique_ptr<std::set<std::string>> m_samples_set;
   // payload samples_with_ncalls
   std::unique_ptr<std::map<std::string, int64_t>> m_samples;
   // payload all

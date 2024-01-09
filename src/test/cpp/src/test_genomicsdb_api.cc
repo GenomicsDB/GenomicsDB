@@ -954,14 +954,22 @@ TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_varia
   CHECK(output.length() == 15);
   printf("%lu %s\n\n", output.length(), output.c_str());
 
+  JSONVariantCallProcessor json_processor4;
+  json_processor4.set_payload_mode(JSONVariantCallProcessor::just_samples);
+  gdb->query_variant_calls(json_processor4, "", GenomicsDB::NONE);
+  output = json_processor4.construct_json_output();
+  // ["HG00141","HG01530","HG01958"]
+  CHECK(output.length() == 31);
+  printf("%lu %s\n\n", output.length(), output.c_str());
+
   delete gdb;
 
   config->clear_attributes();
   CHECK(config->SerializeToString(&config_string));
   gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
-  JSONVariantCallProcessor json_processor4(JSONVariantCallProcessor::all);
-  gdb->query_variant_calls(json_processor4, "", GenomicsDB::NONE);
-  output = json_processor4.construct_json_output();
+  JSONVariantCallProcessor json_processor5(JSONVariantCallProcessor::all);
+  gdb->query_variant_calls(json_processor5, "", GenomicsDB::NONE);
+  output = json_processor5.construct_json_output();
   // {"HG00141":{"CHR":["1","1"],"POS":[12141,17385],"AD":[null,58],"BaseQRankSum":[null,-2.0959999561309816],
   //             "ClippingRankSum":[null,-1.8589999675750733],"DP":[null,null],"DP_FORMAT":[2,80],"DS":["1","1"],
   //             "FILTER":[null,0],"GQ":[0,99],"GT":["C/C","G/A"],"HaplotypeScore":[null,null],"InbreedingCoeff":[null,null],
