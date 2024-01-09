@@ -46,7 +46,7 @@
 JSONVariantCallProcessor::JSONVariantCallProcessor(payload_t payload_mode)
     : m_payload_mode(payload_mode) {
   m_json_document = new rapidjson::Document();
-  TO_JSON_DOCUMENT(m_json_document)->SetArray();
+  TO_JSON_DOCUMENT(m_json_document)->SetObject();
 }
 
 JSONVariantCallProcessor::~JSONVariantCallProcessor() {
@@ -62,11 +62,18 @@ JSONVariantCallProcessor::~JSONVariantCallProcessor() {
 
 std::string JSONVariantCallProcessor::construct_json_output() {
   rapidjson::Document *json_doc = TO_JSON_DOCUMENT(m_json_document);
-  json_doc->SetObject();
   auto& allocator = json_doc->GetAllocator();
   switch(m_payload_mode) {
     case just_ncalls: {
       json_doc->AddMember("num_calls", m_num_calls, allocator);
+      break;
+    }
+    case just_samples: {
+      json_doc->SetArray();
+      for (auto const& sample : *m_samples_set.get()) {
+        rapidjson::Value sample_value(rapidjson::StringRef(sample.c_str()), allocator);
+        json_doc->PushBack(sample_value, allocator);
+      }
       break;
     }
     case samples_with_ncalls: {
@@ -129,6 +136,14 @@ std::string JSONVariantCallProcessor::construct_json_output() {
 void JSONVariantCallProcessor::process(const interval_t& interval) {
   if (!m_is_initialized) {
     m_is_initialized = true;
+    switch (m_payload_mode) {
+      case just_samples:
+        m_samples_set = std::make_unique<std::set<std::string>>();
+      case just_ncalls:
+        return;
+      default:
+        ;
+    }
     auto& genomic_field_types = get_genomic_field_types();
     for (auto& field_type_pair : *genomic_field_types) {
       std::string field_name = field_type_pair.first;
@@ -137,13 +152,13 @@ void JSONVariantCallProcessor::process(const interval_t& interval) {
       }
     }
     switch (m_payload_mode) {
-      case just_ncalls:
-        break;
       case samples_with_ncalls:
         m_samples = std::make_unique<std::map<std::string, int64_t>>();
         break;
       case all_by_calls: case all:
         m_samples_info = std::make_unique<std::map<std::string, std::vector<void *>>>();
+      default:
+        ;
     }
   }
 }
@@ -191,6 +206,9 @@ void JSONVariantCallProcessor::process(const std::string& sample_name,
   switch (m_payload_mode) {
     case just_ncalls:
       m_num_calls++;
+      break;
+    case just_samples:
+      m_samples_set->insert(sample_name);
       break;
     case samples_with_ncalls: {
       auto sample = m_samples->find(sample_name);
