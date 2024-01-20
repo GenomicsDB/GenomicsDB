@@ -36,6 +36,7 @@ BUILD_TYPE=${1:-"full"}
 # BUILD_DISTRIBUTABLE_LIBRARY, if true will build/install OpenSSL/CURL/UUID/Intel zlib libs
 BUILD_DISTRIBUTABLE_LIBRARY=${BUILD_DISTRIBUTABLE_LIBRARY:-false}
 INSTALL_OPENSSL=${INSTALL_OPENSSL:-$BUILD_DISTRIBUTABLE_LIBRARY}
+INSTALL_MINIMAL_DEPENDENCIES=${INSTALL_MINIMAL_DEPENDECIES:-$BUILD_DISTRIBUTABLE_LIBRARY}
 
 # Check for the following overriding env variables
 #    $INSTALL_PREFIX allows for dependencies maven/protobuf/etc. that are built to be installed to $INSTALL_PREFIX for user installs
@@ -229,15 +230,15 @@ install_os_prerequisites() {
       ;;
     Darwin )
       source $PARENT_DIR/system/install_macos_prereqs.sh
-      install_minimum_prerequisites
-      if [[ $BUILD_DISTRIBUTABLE_LIBRARY != true ]]; then
-        install_system_prerequisites
-      fi
       ;;
     * )
       echo "OS=`uname` not supported"
       exit 1
   esac
+  install_minimum_prerequisites
+  if [[ $BUILD_DISTRIBUTABLE_LIBRARY == false && $INSTALL_MINIMUM_DEPENDENCIES == false ]]; then
+    install_system_prerequisites
+  fi
 }
 
 install_prerequisites() {

@@ -109,8 +109,6 @@ install_minimum_prerequisites() {
         libssl-dev \
         rsync \
         libidn11-dev \
-        uuid-dev \
-        libcurl4-openssl-dev \
         wget \
         autoconf \
         automake \
@@ -121,6 +119,10 @@ install_minimum_prerequisites() {
         git \
         zstd \
         sudo &&
+    if [[ $BUILD_DISTRIBUTABLE_LIBRARY == false ]]; then
+      apt install -y uuid-dev \
+          libcurl4-openssl-dev
+    fi &&       
     apt-get update -q &&
     install_gcc &&
     install_cmake3 &&

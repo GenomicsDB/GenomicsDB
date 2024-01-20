@@ -82,12 +82,17 @@ install_minimum_prerequisites() {
    yum install -y -q deltarpm
    yum update -y -q &&
      yum install -y -q epel-release &&
-     yum install -y -q which wget git &&
+     yum install -y -q which wget git make &&
+     install_devtoolset &&
      yum install -y -q autoconf automake libtool unzip &&
-     yum install -y -q cmake3 patch &&
-     yum install -y -q perl perl-IPC-Cmd &&
+     yum install -y zlib-devel &&
+     install_cmake3 &&
+     yum install -y -q patch &&
+     yum install -y -q perl perl-IPC-Cmd
+   if [[ $BUILD_DISTRIBUTABLE_LIBRARY == false ]]; then
      yum install -y -q libuuid libuuid-devel &&
-     yum install -y -q curl libcurl-devel
+       yum install -y -q curl libcurl-devel
+   fi
 }
 
 install_openssl() {
@@ -111,20 +116,12 @@ install_system_prerequisites() {
   yum install -y -q deltarpm
   yum update -y -q &&
     yum install -y -q sudo &&
-    yum install -y -q which wget git make &&
     install_mpi &&
-    install_devtoolset &&
     install_openjdk &&
-    yum install -y -q autoconf automake libtool unzip &&
-    yum update -y -q autoconf &&
-    yum install -y -q epel-release &&
-    yum install -y zlib-devel &&
     yum install -y -q openssl-devel &&
-    install_cmake3 &&
-    yum install -y -q libuuid libuuid-devel &&
-    yum install -y -q patch &&
     yum install -y -q zstd &&
-    yum install -y -q curl libcurl-devel &&
+    yum install -y -q libuuid libuuid-devel &&
+    yum install -y -q curl libcurl-devel
     install_csv
 }
 
