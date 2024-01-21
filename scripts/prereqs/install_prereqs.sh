@@ -36,7 +36,7 @@ BUILD_TYPE=${1:-"full"}
 # BUILD_DISTRIBUTABLE_LIBRARY, if true will build/install OpenSSL/CURL/UUID/Intel zlib libs
 BUILD_DISTRIBUTABLE_LIBRARY=${BUILD_DISTRIBUTABLE_LIBRARY:-false}
 INSTALL_OPENSSL=${INSTALL_OPENSSL:-$BUILD_DISTRIBUTABLE_LIBRARY}
-INSTALL_MINIMAL_DEPENDENCIES=${INSTALL_MINIMAL_DEPENDECIES:-$BUILD_DISTRIBUTABLE_LIBRARY}
+INSTALL_MINIMAL_DEPENDENCIES=${INSTALL_MINIMAL_DEPENDENCIES:-$BUILD_DISTRIBUTABLE_LIBRARY}
 
 # Check for the following overriding env variables
 #    $INSTALL_PREFIX allows for dependencies maven/protobuf/etc. that are built to be installed to $INSTALL_PREFIX for user installs
@@ -93,6 +93,10 @@ add_to_env() {
 }
 
 install_mvn() {
+  if [[ $INSTALL_MINIMAL_DEPENDENCIES == false ]]; then
+    # Minimal dependencies do not need to build Java...
+    return 0
+  fi
   MVN=`which mvn`
   if [ -z $MVN ]; then
     if [ ! -d $MAVEN_INSTALL_PREFIX/apache-maven-$MAVEN_VERSION ]; then
