@@ -31,12 +31,12 @@ install_devtoolset() {
   else
     yum install -y centos-release-scl &&
       if [[ $CENTOS_VERSION -ge 6 ]]; then
-        yum install -y devtoolset-11
+        yum install -y devtoolset-11 &&
         echo "source /opt/rh/devtoolset-11/enable" >> $PREREQS_ENV
       else
-        yum install -y devtoolset-7
+        yum install -y devtoolset-7 &&
         echo "source /opt/rh/devtoolset-7/enable" >> $PREREQS_ENV
-      fi &&
+      fi
   fi
 }
 
