@@ -395,27 +395,22 @@ static int generate_json(import_config_t import_config) {
   auto loader_output = import_config.loader_json;
   auto callset_output = import_config.callset_output;
 
-  
-  htsFile* fptr = 0;
-  bcf_hdr_t* hdr = 0;
-  if (!merged_header.empty()) {
-    fptr = hts_open(merged_header.c_str(), "r");
-    if (!fptr) {
-      g_logger.error("Could not hts_open {} file in read mode {}", merged_header, strerror(errno));
-      return ERR;
-    }
+  htsFile* fptr = hts_open(merged_header.c_str(), "r");
+  if (!fptr) {
+    g_logger.error("Could not hts_open {} file in read mode {}", merged_header, strerror(errno));
+    return ERR;
+  }
 
-    hdr = bcf_hdr_read(fptr);
-    if (!hdr) {
-      g_logger.error("Could not read header file {}", merged_header);
-      return ERR;
-    }
+  bcf_hdr_t* hdr = bcf_hdr_read(fptr);
+  if (!hdr) {
+    g_logger.error("Could not read header file {}", merged_header);
+    return ERR;
+  }
 
-    // Only need the header, so can set samples to NULL to bypass optimization
-    if (bcf_hdr_set_samples(hdr, NULL, 1)) {
-      g_logger.error("Error in bcf_hdr_set_samples");
-      return ERR;
-    }
+  // Only need the header, so can set samples to NULL to bypass optimization
+  if (bcf_hdr_set_samples(hdr, NULL, 1)) {
+    g_logger.error("Error in bcf_hdr_set_samples");
+    return ERR;
   }
 
   ImportConfiguration* import_config_protobuf = new ImportConfiguration();
@@ -498,11 +493,9 @@ static int generate_json(import_config_t import_config) {
 
   !rc && (rc = add_contigs(regions, import_config, vidmap_pb, import_config_protobuf));
   g_logger.info("Total number of partitions in loader.json={}", import_config_protobuf->column_partitions_size());
-
-  if (merged_hdr) {
-    bcf_hdr_destroy(hdr);
-    hts_close(fptr);
-  }
+  
+  bcf_hdr_destroy(hdr);
+  hts_close(fptr);
 
   if (!rc) {
     std::string json;
@@ -738,19 +731,16 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
   auto merged_header = import_config.merged_header;
   auto callset_output = import_config.callset_output;
 
-  bcf_hdr_t* merged_hdr = 0;
-  htsFile* merged_header_fptr = 0;
-  if (merged_header.empty()) {
-    merged_header_fptr = hts_open(merged_header.c_str(), "w");
-    if (!merged_header_fptr) {
-      g_logger.error("Could not hts_open {} file in write mode {}", merged_header, strerror(errno));
-      return ERR;
-    }
-    merged_hdr = bcf_hdr_init("w");
-    if (!merged_hdr) {
-      g_logger.error("Could not initialize using bcf_hdr_init in write mode for {}", merged_header);
-      return ERR;
-    }
+  htsFile* merged_header_fptr = hts_open(merged_header.c_str(), "w");
+  if (!merged_header_fptr) {
+    g_logger.error("Could not hts_open {} file in write mode {}", merged_header, strerror(errno));
+    return ERR;
+  }
+
+  bcf_hdr_t* merged_hdr = bcf_hdr_init("w");
+  if (!merged_hdr) {
+    g_logger.error("Could not initialize using bcf_hdr_init in write mode for {}", merged_header);
+    return ERR;
   }
 
   int64_t row_index = 0;
@@ -772,22 +762,17 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
       processed_samples++;
     }
 
-    htsFile* fptr = 0;
-    bcf_hdr_t* hdr = 0;
-    if (merged_hdr) {
-      fptr = hts_open(sample_uri.c_str(), "r");
-      if (!fptr) {
-        g_logger.error("Could not open sample {} with hts_open {}", sample_uri, strerror(errno));
-        return ERR;
-      }
-
-      hdr = bcf_hdr_read(fptr);
-      if (!hdr) {
-        g_logger.error("Could not read sample {} with htslib", sample_uri);
-        return ERR;
-      }
+    htsFile* fptr = hts_open(sample_uri.c_str(), "r");
+    if (!fptr) {
+      g_logger.error("Could not open sample {} with hts_open {}", sample_uri, strerror(errno));
+      return ERR;
     }
-    
+
+    bcf_hdr_t* hdr = bcf_hdr_read(fptr);
+    if (!hdr) {
+      g_logger.error("Could not read sample {} with htslib", sample_uri);
+      return ERR;
+    }
     for (auto i=0; i<bcf_hdr_nsamples(hdr); i++) {
       auto* callset = callset_protobuf->add_callsets();
       callset->set_sample_name(hdr->samples[i]);
@@ -796,29 +781,27 @@ static int merge_headers_and_generate_callset(import_config_t import_config) {
       callset->set_filename(sample_uri);
     }
 
-    if (merged_hdr) {
-      // no need to set samples for just creating a vcf header file, so invoke with samples=NULL
-      if (bcf_hdr_set_samples(hdr, NULL, 1)) {
-        g_logger.error("Could not set samples for {} with htslib", sample_uri);
-        return ERR;
-      }
-
-      bcf_hdr_t* resultant_hdr = bcf_hdr_merge(merged_hdr, hdr);
-      assert(resultant_hdr = merged_hdr);
-    
-      bcf_hdr_destroy(hdr);
-      hts_close(fptr);
-    }
-    g_logger.info("Merging headers to create template header DONE");
-
-    g_logger.debug("Writing out template header file to {}", merged_header);
-    if (bcf_hdr_write(merged_header_fptr, merged_hdr)) {
-      g_logger.error("Error while writing out merged header file at {}", merged_header);
+    // no need to set samples for just creating a vcf header file, so invoke with samples=NULL
+    if (bcf_hdr_set_samples(hdr, NULL, 1)) {
+      g_logger.error("Could not set samples for {} with htslib", sample_uri);
       return ERR;
     }
-    bcf_hdr_destroy(merged_hdr);
-    hts_close(merged_header_fptr);
+
+    bcf_hdr_t* resultant_hdr = bcf_hdr_merge(merged_hdr, hdr);
+    assert(resultant_hdr = merged_hdr);
+    
+    bcf_hdr_destroy(hdr);
+    hts_close(fptr);
   }
+  g_logger.info("Merging headers to create template header DONE");
+
+  g_logger.debug("Writing out template header file to {}", merged_header);
+  if (bcf_hdr_write(merged_header_fptr, merged_hdr)) {
+    g_logger.error("Error while writing out merged header file at {}", merged_header);
+    return ERR;
+  }
+  bcf_hdr_destroy(merged_hdr);
+  hts_close(merged_header_fptr);
 
   // Write out callset.json
   std::string json;
