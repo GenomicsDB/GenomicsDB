@@ -285,7 +285,7 @@ export -f add_to_env
 install_prerequisites $BUILD_TYPE &&
   if [[  $BUILD_DISTRIBUTABLE_LIBRARY == true || $INSTALL_OPENSSL == true ]]; then
     echo "Installing openssl $OPENSSL_VERSION"
-    OPENSSL_PREFIX=$INSTALL_PREFIX/ssl install_openssl
+    OPENSSL_PREFIX=$INSTALL_PREFIX install_openssl
   fi &&
   if [[ $BUILD_DISTRIBUTABLE_LIBRARY == true ]]; then
     echo "Installing static libraries"
