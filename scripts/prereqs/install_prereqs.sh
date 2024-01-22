@@ -93,7 +93,7 @@ add_to_env() {
 }
 
 install_mvn() {
-  if [[ $INSTALL_MINIMAL_DEPENDENCIES == false ]]; then
+  if [[ $INSTALL_MINIMAL_DEPENDENCIES == true ]]; then
     # Minimal dependencies do not need to build Java...
     return 0
   fi
