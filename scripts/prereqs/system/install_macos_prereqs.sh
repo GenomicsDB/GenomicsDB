@@ -88,3 +88,8 @@ install_system_prerequisites() {
   #brew list openjdk@17 &> /dev/null || brew install openjdk@17
   echo "Installing system prerequisites DONE"
 }
+
+install_nobuild_prerequisites() {
+  echo "No support for docker builds for macos targets"
+  return -1
+}

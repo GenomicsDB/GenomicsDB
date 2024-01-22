@@ -47,8 +47,8 @@ if [[ `uname` == "Darwin" || `id -u` -ne 0 ]]; then
   PREREQS_ENV=${PREREQS_ENV:-$HOME/genomicsdb_prereqs.sh}
   echo "GenomicsDB dependencies(e.g. maven, protobuf, etc. that are built from source will be installed to \$INSTALL_PREFIX=$INSTALL_PREFIX"
   echo "GenomicsDB environment will be persisted to \$PREREQS_ENV=$PREREQS_ENV"
-  echo "Sleeping for 10 seconds. Ctrl-C if you want to change or setup \$INSTALL_PREFIX or \$PREREQS_ENV"
-  sleep 10
+  echo "Sleeping for 5 seconds. Ctrl-C if you want to change or setup \$INSTALL_PREFIX or \$PREREQS_ENV"
+  sleep 5
 else
   INSTALL_PREFIX=${INSTALL_PREFIX:-/usr/local}
   MAVEN_INSTALL_PREFIX=/opt
@@ -226,11 +226,6 @@ install_os_prerequisites() {
       else
         source $PARENT_DIR/system/install_centos_prereqs.sh
       fi
-      if [[ $1 == "release" ]]; then
-        install_nobuild_prerequisites
-      else 
-        install_system_prerequisites
-      fi
       ;;
     Darwin )
       source $PARENT_DIR/system/install_macos_prereqs.sh
@@ -239,11 +234,14 @@ install_os_prerequisites() {
       echo "OS=`uname` not supported"
       exit 1
   esac
-  install_minimum_prerequisites
-  if [[ $BUILD_DISTRIBUTABLE_LIBRARY == false && $INSTALL_MINIMUM_DEPENDENCIES == false ]]; then
-    install_system_prerequisites
+  if [[ $1 == "release" ]]; then
+    install_nobuild_prerequisites
+  else 
+    install_minimum_prerequisites
+    if [[ $BUILD_DISTRIBUTABLE_LIBRARY == false && $INSTALL_MINIMUM_DEPENDENCIES == false ]]; then
+      install_system_prerequisites
+    fi
   fi
-  exit 0
 }
 
 install_prerequisites() {
