@@ -70,7 +70,7 @@ install_openssl() {
 
 # Sufficient to build/install the genomicsdb libraries
 install_minimum_prerequisites() {
-  echo "Installing minimum prerequisites"
+  echo "Installing minimum prerequisites on $(sw_vers)"
   brew list cmake &>/dev/null || brew install cmake
   brew list automake &> /dev/null || brew install automake
   brew list pkg-config &> /dev/null || brew install pkg-config
