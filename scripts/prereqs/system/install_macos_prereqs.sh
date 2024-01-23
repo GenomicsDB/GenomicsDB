@@ -46,18 +46,19 @@ install_universal_openssl() {
 }
 
 install_openssl() {
-  if [[ ! -d $OPENSSL_PREFIX/include/openssl ]]; then
-    echo "Installing OpenSSL"
-    pushd /tmp
-    wget -nv $WGET_NO_CERTIFICATE https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz &&
-      tar -xzf openssl-$OPENSSL_VERSION.tar.gz &&
-      ARCH=x86_64 build_openssl &&
-      ARCH=arm64 build_openssl &&
-      install_universal_openssl &&
-      echo "Installing Universal OpenSSL DONE"
-    rm -fr /tmp/openssl*
-    popd
-  fi
+  # Installing universal openssl instead of the brew installed one!
+  brew list openssl@1.1 &> /dev/null || brew uninstall openssl@1.1
+  brew list openssl@3 &> /dev/null || brew uninstall openssl@3
+  echo "Installing OpenSSL"
+  pushd /tmp
+  wget -nv $WGET_NO_CERTIFICATE https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz &&
+    tar -xzf openssl-$OPENSSL_VERSION.tar.gz &&
+    ARCH=x86_64 build_openssl &&
+    ARCH=arm64 build_openssl &&
+    install_universal_openssl &&
+    echo "Installing Universal OpenSSL DONE"
+  rm -fr /tmp/openssl*
+  popd
   add_to_env OPENSSL_ROOT_DIR $OPENSSL_PREFIX
 }
 
