@@ -90,7 +90,9 @@ add_to_env() {
   else
     echo "export $1=$2$SEP\$$1" >> $PREREQS_ENV
   fi
-  echo "Env variable $1 set to $(echo $1)"
+  echo "cat PREREQS_ENV=$PREREQS_ENV"
+  cat $PREREQS_ENV
+  echo "cat PREREQS_ENV=$PREREQS_ENV DONE"
 }
 
 install_mvn() {

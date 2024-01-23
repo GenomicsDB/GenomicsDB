@@ -108,7 +108,7 @@ install_openssl() {
     tar -xvzf openssl-$OPENSSL_VERSION.tar.gz &&
     cd openssl-$OPENSSL_VERSION &&
     CFLAGS=-fPIC ./config -fPIC no-shared --prefix=$OPENSSL_PREFIX --openssldir=$OPENSSL_PREFIX &&
-    make && make install && echo "Installing OpenSSL DONE"
+    make && make install_sw && echo "Installing OpenSSL DONE"
     rm -fr /tmp/openssl*
     popd
   fi
