@@ -101,7 +101,7 @@ install_minimum_prerequisites() {
 }
 
 install_openssl() {
-  if [[ ! -d $OPENSSL_PREFIX ]]; then
+  if [[ ! -f $OPENSSL_PREFIX/lib/libcrypto.a ]]; then
     echo "Installing OpenSSL"
     pushd /tmp
     wget $WGET_NO_CERTIFICATE https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz &&
