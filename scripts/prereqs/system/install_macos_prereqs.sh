@@ -46,7 +46,7 @@ install_universal_openssl() {
 }
 
 install_openssl() {
-  if [[ ! -f $OPENSSL_PREFIX/lib/libcrypto.a ]]; then
+  if [[ ! -d $OPENSSL_PREFIX/include/openssl ]]; then
     echo "Installing OpenSSL"
     pushd /tmp
     wget -nv $WGET_NO_CERTIFICATE https://www.openssl.org/source/openssl-$OPENSSL_VERSION.tar.gz &&
