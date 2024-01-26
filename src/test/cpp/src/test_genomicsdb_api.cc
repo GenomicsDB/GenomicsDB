@@ -994,7 +994,6 @@ TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_varia
   delete gdb;
 }
 
-
 TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
   using namespace genomicsdb_pb;
   
@@ -1068,6 +1067,118 @@ TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
       }
     }
   }
+}
+
+TEST_CASE("Test genomicsdb demo test case loop with new gdb", "[genomicsdb_demo_new_gdb]") {
+  using namespace genomicsdb_pb;
+
+  char *genomicsdb_demo_workspace = getenv("GENOMICSDB_DEMO_WS");
+  if (!genomicsdb_demo_workspace) return;
+
+  unsigned num_iterations = 1;
+  char *num_iterations_str = getenv("NUM_ITERATIONS");
+  if (num_iterations_str) num_iterations = std::stoul(num_iterations_str);
+
+  // printf("num_iterations=%u\n", num_iterations);
+
+  ExportConfiguration *config = new ExportConfiguration();
+
+  std::string ws(genomicsdb_demo_workspace);
+  config->set_workspace(ws);
+  config->set_array_name("allcontigs$1$3095677412");
+  config->set_callset_mapping_file(ws+"/callset.json");
+  config->set_vid_mapping_file(ws+"/vidmap.json");
+
+  // query_contig_intervals
+  auto* contig_interval = config->add_query_contig_intervals();
+  contig_interval->set_contig("17");
+  contig_interval->set_begin(7571719);
+  contig_interval->set_end(7590868);
+
+  // query_row_ranges
+  auto* row_range = config->add_query_row_ranges()->add_range_list();
+  row_range->set_low(0);
+  row_range->set_high(200000);
+
+  // query_attributes
+  config->add_attributes()->assign("REF");
+  config->add_attributes()->assign("ALT");
+  config->add_attributes()->assign("GT");
+
+  // other
+  config->set_bypass_intersecting_intervals_phase(true);
+  config->set_enable_shared_posixfs_optimizations(true);
+
+  std::string config_string;
+  CHECK(config->SerializeToString(&config_string));
+
+  for (auto i=0u; i<num_iterations; i++) {
+    GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+    CountCellsProcessor count_cells_processor;
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
+    // printf("count=%d\n", count_cells_processor.m_count);
+    delete gdb;
+  }
+
+  google::protobuf::ShutdownProtobufLibrary();
+}
+
+TEST_CASE("Test genomicsdb demo test case loop with single gdb", "[genomicsdb_demo_single_gdb]") {
+  using namespace genomicsdb_pb;
+
+  char *genomicsdb_demo_workspace = getenv("GENOMICSDB_DEMO_WS");
+  if (!genomicsdb_demo_workspace) return;
+
+  unsigned num_iterations = 1;
+  char *num_iterations_str = getenv("NUM_ITERATIONS");
+  if (num_iterations_str) num_iterations = std::stoul(num_iterations_str);
+
+  // printf("num_iterations=%u\n", num_iterations);
+
+  ExportConfiguration *config = new ExportConfiguration();
+
+  std::string ws(genomicsdb_demo_workspace);
+  config->set_workspace(ws);
+  config->set_array_name("allcontigs$1$3095677412");
+  config->set_callset_mapping_file(ws+"/callset.json");
+  config->set_vid_mapping_file(ws+"/vidmap.json");
+
+  // query_contig_intervals
+  auto* contig_interval = config->add_query_contig_intervals();
+  contig_interval->set_contig("17");
+  contig_interval->set_begin(7571719);
+  contig_interval->set_end(7590868);
+
+  // query_row_ranges
+  auto* row_range = config->add_query_row_ranges()->add_range_list();
+  row_range->set_low(0);
+  row_range->set_high(200000);
+
+  // query_attributes
+  config->add_attributes()->assign("REF");
+  config->add_attributes()->assign("ALT");
+  config->add_attributes()->assign("GT");
+
+  // other
+  config->set_bypass_intersecting_intervals_phase(true);
+  config->set_enable_shared_posixfs_optimizations(true);
+
+  std::string config_string;
+  CHECK(config->SerializeToString(&config_string));
+
+  delete row_range;
+  delete contig_interval;
+  delete config;
+
+  GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+  for (auto i=0u; i<num_iterations; i++) {
+    CountCellsProcessor count_cells_processor;
+    gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
+    // printf("count=%d\n", count_cells_processor.m_count);
+  }
+  delete gdb;
+
+  google::protobuf::ShutdownProtobufLibrary();
 }
 
 TEST_CASE("api generate_vcf direct", "[query_generate_vcf_direct]") {

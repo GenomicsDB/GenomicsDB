@@ -83,3 +83,5 @@ add_custom_command(TARGET api_tests
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../inputs/test.tgz)
 
 add_custom_target(all_ctests COMMAND ${CMAKE_CTEST_COMMAND} -V DEPENDS ctests api_tests)
+
+build_GenomicsDB_executable(test_genomicsdb_demo)

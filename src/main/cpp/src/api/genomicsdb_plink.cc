@@ -48,8 +48,10 @@
 #define TO_VARIANT_QUERY_CONFIG(X) (reinterpret_cast<VariantQueryConfig *>(static_cast<void *>(X)))
 
 // Prototypes to internal methods in genomicsdb.cc declared here instead of header to keep the api opaque
-std::map<std::string, genomic_field_type_t> create_genomic_field_types(const VariantQueryConfig &query_config,
-                                                   void *annotation_service, bool change_alt_to_string=false);
+void create_genomic_field_types(std::map<std::string, genomic_field_type_t>& genomic_field_types,
+                                const VariantQueryConfig &query_config,
+                                void *annotation_service,
+                                bool change_alt_to_string=false);
 void GenomicsDB::generate_plink(const std::string& array,
                                 genomicsdb_ranges_t column_ranges,
                                 genomicsdb_ranges_t row_ranges,
@@ -76,7 +78,8 @@ void GenomicsDB::generate_plink(const std::string& array,
   GenomicsDBPlinkProcessor proc(&query_config, array, format, compression, verbose, progress_interval,
                                 output_prefix, fam_list, m_concurrency_rank);
 
-  proc.initialize(create_genomic_field_types(query_config, m_annotation_service, true));
+  create_genomic_field_types(m_genomic_field_types_for_variants, query_config, m_annotation_service, true);
+  proc.initialize(m_genomic_field_types_for_variants);
 
   if(!one_pass) { // if one_pass is true, skip first pass and get participating samples from callset (will include samples without data)
     query_variants(array, &query_config, proc);
@@ -99,7 +102,8 @@ void GenomicsDB::generate_plink(unsigned char format,
   GenomicsDBPlinkProcessor proc(query_config, array, format, compression, verbose, progress_interval,
                                 output_prefix, fam_list, m_concurrency_rank);
 
-  proc.initialize(create_genomic_field_types(*query_config, m_annotation_service, true));
+  create_genomic_field_types(m_genomic_field_types_for_variants, *query_config, m_annotation_service, true);
+  proc.initialize(m_genomic_field_types_for_variants);
 
   if(!one_pass) { // if one_pass is true, skip first pass and get participating samples from callset (will include samples without data)
     query_variants(array, query_config, proc);

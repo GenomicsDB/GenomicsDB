@@ -522,7 +522,11 @@ class GenomicsDB {
   //TODO: Get VariantFields to have names instead of indices at the point of building the data structure, so
   //      we don't have to maintain m_query_configs_map
   // Associate array names with VariantQueryConfig 
-  std::map<std::string, VariantQueryConfig> m_query_configs_map; 
+  std::map<std::string, VariantQueryConfig> m_query_configs_map;
+
+  // Maintain m_genomic_fields_types map to use with queries
+  std::map<std::string, genomic_field_type_t> m_genomic_field_types_for_variants;
+  std::map<std::string, genomic_field_type_t> m_genomic_field_types_for_variant_calls;
 };
 
 // genomicsdb_variant_t specialization of GenomicsDBResults template
