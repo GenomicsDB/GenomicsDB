@@ -69,6 +69,7 @@ std::string JSONVariantCallProcessor::construct_json_output() {
       break;
     }
     case just_samples: {
+      if (m_samples_set == nullptr) break;
       json_doc->SetArray();
       for (auto const& sample : *m_samples_set.get()) {
         rapidjson::Value sample_value(rapidjson::StringRef(sample.c_str()), allocator);
@@ -77,6 +78,7 @@ std::string JSONVariantCallProcessor::construct_json_output() {
       break;
     }
     case samples_with_ncalls: {
+      if (m_samples == nullptr) break;
       for (auto const& [sample_name, num_calls] : *m_samples.get()) {
         rapidjson::Value sample_name_value(rapidjson::StringRef(sample_name.c_str()), allocator);
         json_doc->AddMember(sample_name_value, rapidjson::Value(num_calls).Move(), allocator);
@@ -84,6 +86,7 @@ std::string JSONVariantCallProcessor::construct_json_output() {
       break;
     }
     case all_by_calls: {
+      if (m_samples_info == nullptr) break;
       // Create header with names of the fields in the JSON output
       rapidjson::Value field_names = rapidjson::Value(rapidjson::kArrayType);
       field_names.PushBack("CHR", allocator);
@@ -105,6 +108,7 @@ std::string JSONVariantCallProcessor::construct_json_output() {
       break;
     }
     case all: {
+      if (m_samples_info == nullptr) break;
       for (auto const& [sample_name, fields] : *m_samples_info.get()) {
         auto i = 0u;
         rapidjson::Value field_values = rapidjson::Value(rapidjson::kObjectType);

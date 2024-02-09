@@ -992,6 +992,26 @@ TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_varia
   CHECK(output.length() == 1805);
   printf("%lu %s\n\n", output.length(), output.c_str());
   delete gdb;
+
+  // Test return of empty output
+  config->clear_query_contig_intervals();
+  contig_interval = config->add_query_contig_intervals();
+  contig_interval->set_contig("22");
+  
+  CHECK(config->SerializeToString(&config_string));
+  gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+  for (auto payload=0; payload < 5; payload++) {
+    JSONVariantCallProcessor json_processor;
+    json_processor.set_payload_mode(static_cast<JSONVariantCallProcessor::payload_t>(payload));
+    gdb->query_variant_calls(json_processor, "", GenomicsDB::NONE);
+    output = json_processor.construct_json_output();
+    if (payload == JSONVariantCallProcessor::just_ncalls) {
+      CHECK(output == "{\"num_calls\":0}");
+    } else {
+      CHECK(output == "{}");
+    }
+  }
+  delete gdb;
 }
 
 
