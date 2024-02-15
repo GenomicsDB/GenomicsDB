@@ -116,7 +116,7 @@ jobs:
           echo "cmake BUILD_JAVA set to 1"
           JAVA_BUILD_ARGS="-DBUILD_JAVA=1"
         fi
-        if [[ ${{matrix.type}} == hdfs ]];
+        if [[ ${{matrix.type}} == 'hdfs' ]];
           HDFS_BUILD_ARGS="-DUSE_HDFS=1"
         fi
         cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
