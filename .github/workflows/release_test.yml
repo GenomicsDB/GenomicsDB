@@ -34,7 +34,7 @@ jobs:
           echo ${{github.ref_name}}
           echo VERSION_NUMBER=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
           echo GENOMICSDB_VERSION=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
-          echo GENOMICSDB_MIN_TAG=v1.5.0-SNAPSHOT >> $GITHUB_ENV
+          echo GENOMICSDB_MIN_TAG=v1.5.2-SNAPSHOT >> $GITHUB_ENV
 
 
       - uses: actions/setup-java@v3
