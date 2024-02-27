@@ -69,8 +69,8 @@ std::string JSONVariantCallProcessor::construct_json_output() {
       break;
     }
     case just_samples: {
-      if (m_samples_set == nullptr) break;
       json_doc->SetArray();
+      if (m_samples_set == nullptr) break;
       for (auto const& sample : *m_samples_set.get()) {
         rapidjson::Value sample_value(rapidjson::StringRef(sample.c_str()), allocator);
         json_doc->PushBack(sample_value, allocator);
