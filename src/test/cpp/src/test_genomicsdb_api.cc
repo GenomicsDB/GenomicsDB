@@ -1007,6 +1007,8 @@ TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_varia
     output = json_processor.construct_json_output();
     if (payload == JSONVariantCallProcessor::just_ncalls) {
       CHECK(output == "{\"num_calls\":0}");
+    } else if (payload == JSONVariantCallProcessor::just_samples) {
+      CHECK(output == "[]");
     } else {
       CHECK(output == "{}");
     }
