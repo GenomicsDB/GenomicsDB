@@ -88,7 +88,7 @@ set(PROTOBUF_URL "https://github.com/protocolbuffers/protobuf/archive/v${GENOMIC
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
 set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf files in build directory")
 
-set(USE_LIBCSV False CACHE BOOL "Disable library components that import data from csv files")
+set(USE_LIBCSV False CACHE BOOL "Enable library components that import data from csv files")
 set(LIBCSV_DIR "" CACHE PATH "Path to libcsv header and library")
 
 #Testing
@@ -119,7 +119,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 message(STATUS "CMAKE_BUILD_TYPE=" ${CMAKE_BUILD_TYPE})
 
-set(USE_HDFS True CACHE BOOL "Enables HDFS support")
+set(USE_HDFS False CACHE BOOL "Enables HDFS support")
 set(BUILD_FOR_ARCH "" CACHE STRING "Arch for which to build - values passed to -march= option for gcc")
 
 # The DOWNLOAD_EXTRACT_TIMESTAMP option to the ExternalProject_Add() command is used to explicitly specify
@@ -161,18 +161,18 @@ if(BUILD_FOR_PYTHON OR BUILD_FOR_GO OR BUILD_FOR_R)
 endif()
 
 if(BUILD_DISTRIBUTABLE_LIBRARY OR BUILD_BINDINGS)
-    set(DISABLE_MPI True)
-    set(DISABLE_OPENMP True)
-    set(DISABLE_TOOLS True)
-    set(DISABLE_EXAMPLES True)
-  endif()
+  set(DISABLE_MPI True)
+  set(DISABLE_OPENMP True)
+  set(DISABLE_TOOLS True)
+  set(DISABLE_EXAMPLES True)
+endif()
   
 if (BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_BINDINGS)
-    #For the GNU compiler, link in static gcc libraries
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-    endif()
+  #For the GNU compiler, link in static gcc libraries
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+  endif()
 endif()
 
 #Check for minimum C++11 support, but use C++17 if possible
