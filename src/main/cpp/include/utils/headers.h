@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <typeinfo>
 #include <stdlib.h>
+#include <cstdint>
 #include <string.h>
 #include <iostream>
 #include <sys/stat.h>
