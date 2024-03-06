@@ -53,8 +53,10 @@ else()
   # Workaround for issues with semicolon separated substrings to ExternalProject_Add
   # https://discourse.cmake.org/t/how-to-pass-cmake-osx-architectures-to-externalproject-add/2262
   if(CMAKE_OSX_ARCHITECTURES)
-    # For Protobuf, we need to compile for both architectures as we need the host compiler for generation
-    if(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64" OR CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
+    if(CMAKE_OSX_ARCHITECTURES MATCHES "x86_64" AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
+      set(CMAKE_OSX_ARGS -DCMAKE_OSX_ARCHITECTURES=arm64$<SEMICOLON>x86_64)
+    elseif(NOT CMAKE_OSX_ARCHITECTURES STREQUAL CMAKE_SYSTEM_PROCESSOR))
+      # Compile for both architectures as protoc is a binary and needs to run on the host for source code generation
       set(CMAKE_OSX_ARGS -DCMAKE_OSX_ARCHITECTURES=arm64$<SEMICOLON>x86_64)
     else()
       set(CMAKE_OSX_ARGS -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES})
