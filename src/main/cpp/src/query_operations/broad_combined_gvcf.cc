@@ -663,7 +663,14 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
   //Pointer to extended vector inside field handler object
   const void* ptr = 0;
   uint64_t num_elements = 0ull;
-  int* int_vec = 0;     //will point to same address as ptr, but as int*
+  int* GT_vec = 0; // will point to same address as ptr, but as int*
+  int* DP_vec = 0; // ditto
+  //Hold values to figure out if any samples have GQ==0 and PL[0]==0 after the loop
+  // see see https://github.com/broadinstitute/gatk/pull/8715
+  std::vector<bool> GQ_val(variant.get_num_calls(), false);
+  std::vector<bool> PL_val(variant.get_num_calls(), false);
+  bool some_GQ_vals_zero = false;
+  bool some_PL_first_vals_zero = false;
   //Handle all fields - simply need to extend to the largest size
   for (auto i=0u; i<m_FORMAT_fields_vec.size(); ++i) {
     auto& curr_tuple = m_FORMAT_fields_vec[i];
@@ -693,20 +700,26 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
       auto do_insert = !(m_query_config->sites_only_query());    //by default, insert into VCF record if !sites_only
       switch (known_field_enum) {
       case GVCF_GT_IDX: { //GT field is a pita
-        int_vec = const_cast<int*>(reinterpret_cast<const int*>(ptr));
+        GT_vec = const_cast<int*>(reinterpret_cast<const int*>(ptr));
         auto num_elements_per_sample = num_elements/variant.get_num_calls();
         //GT of type 0/2 is stored as [0,0,2] in GenomicsDB if phased ploidy is used, else [0, 2]
         //GT of type 0|2 is stored as [0,1,2] in GenomicsDB if phased ploidy is used, else [0, 2]
         auto max_ploidy = length_descriptor.get_ploidy(num_elements_per_sample);
         uint64_t output_idx = 0ull;
         for (j=0ull; j<num_elements; j+=num_elements_per_sample)
-          (*m_encode_GT_vector_function_ptr)(int_vec, j, num_elements_per_sample, output_idx);
+          (*m_encode_GT_vector_function_ptr)(GT_vec, j, num_elements_per_sample, output_idx);
         num_elements = max_ploidy*variant.get_num_calls();
         break;
       }
-      case GVCF_GQ_IDX:
+      case GVCF_GQ_IDX: {
+        int *GQ_vec = const_cast<int*>(reinterpret_cast<const int*>(ptr));
+        for (auto i=0ul; i<variant.get_num_calls(); i++) {
+          if (*(GQ_vec+i) == 0) GQ_val[i] = true;
+          some_GQ_vals_zero = true;
+        }
         do_insert = m_should_add_GQ_field;
         break;
+      }
       case GVCF_MIN_DP_IDX: //simply copy over min-dp values
         memcpy_s(&(m_MIN_DP_vector[0]), m_remapped_variant.get_num_calls()*sizeof(int),
                  ptr, m_remapped_variant.get_num_calls()*sizeof(int));
@@ -719,10 +732,20 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
         do_insert = false; //Do not insert DP_FORMAT, wait till DP is read
         break;
       case GVCF_DP_IDX:
-        int_vec = const_cast<int*>(reinterpret_cast<const int*>(ptr));
+        DP_vec = const_cast<int*>(reinterpret_cast<const int*>(ptr));
         valid_DP_found = true;
         do_insert = false; //Do not insert DP, handle DP related garbage at the end
         break;
+      case GVCF_PL_IDX: {
+        int *PL_vec = const_cast<int*>(reinterpret_cast<const int*>(ptr));
+        for (auto i=0ul; i<variant.get_num_calls(); i++) {
+          if (*(PL_vec+i*num_elements/variant.get_num_calls()) == 0) {
+            PL_val[i] = true;
+            some_PL_first_vals_zero = true;
+          }
+        }
+        break;
+      }
       default:
         break;
       }
@@ -733,12 +756,34 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
       }
     }
   }
+  // Set GT to . when GQ==0 and PL[0]==0 see https://github.com/broadinstitute/gatk/pull/8715
+  if (m_query_config->produce_GT_field() && some_GQ_vals_zero && some_PL_first_vals_zero) {
+    int32_t *GT_arr = NULL, num_GT_arr = 0;
+    for (auto i=0ul; i<variant.get_num_calls(); i++) {
+      int ploidy;
+      if (!GT_arr && !num_GT_arr) {
+        auto ngt = bcf_get_genotypes(m_vcf_hdr, m_bcf_out, &GT_arr, &num_GT_arr);
+        assert(ngt > 0);
+        assert(num_GT_arr);
+        ploidy = num_GT_arr/variant.get_num_calls();
+      }
+      if (GT_arr && GQ_val[i] && PL_val[i]) {
+        for (auto j= 0ul; j<ploidy; j++) {
+          if (GT_arr[i*ploidy+j] == bcf_int32_vector_end) break;
+          GT_arr[i*ploidy+j] = bcf_gt_missing;
+        }
+      }
+    }
+    if (GT_arr && num_GT_arr) {
+      bcf_update_genotypes(m_vcf_hdr, m_bcf_out, GT_arr, num_GT_arr);
+    }
+  }
   //Update DP fields
   if (valid_DP_found || valid_DP_FORMAT_found) {
     int64_t sum_INFO_DP = 0;
     auto found_one_valid_DP_FORMAT = false;
     for (auto j=0ull; j<m_remapped_variant.get_num_calls(); ++j) {
-      int dp_info_val = valid_DP_found ? int_vec[j] : get_bcf_missing_value<int>();
+      int dp_info_val = valid_DP_found ? DP_vec[j] : get_bcf_missing_value<int>();
       int dp_format_val = valid_DP_FORMAT_found ? m_DP_FORMAT_vector[j] : get_bcf_missing_value<int>();
       assert(is_bcf_valid_value<int>(dp_format_val) || dp_format_val == get_bcf_missing_value<int>());
       assert(is_bcf_valid_value<int>(dp_info_val) || dp_info_val == get_bcf_missing_value<int>());
