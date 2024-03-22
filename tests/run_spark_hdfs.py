@@ -540,7 +540,10 @@ def main():
                         sys.stdout.write('Query test GenomicsDBSource: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions passed\n');
                     else:
                         sys.stdout.write('Mismatch in query test GenomicsDBSource: '+test_name+' with column ranges: '+str(query_param_dict['query_column_ranges'])+' and loaded with '+str(len(col_part))+' partitions\n');
-                        print(checkdiff);
+                        print(checkdiff)
+                        print("Start...")
+                        print(stdout_json)
+                        print("DONE")
                         sys.stderr.write('Spark stdout was: '+stdout_string+'\n');
                         sys.stderr.write('Spark stderr was: '+stderr_string+'\n');
                         cleanup_and_exit(namenode, tmpdir, -1);
