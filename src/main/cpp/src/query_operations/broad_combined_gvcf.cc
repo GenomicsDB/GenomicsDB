@@ -667,10 +667,6 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
   int* DP_vec = 0; // ditto
   //Hold values to figure out if any samples have GQ==0 and PL[0]==0 after the loop
   //see https://github.com/broadinstitute/gatk/pull/8715
-  std::vector<bool> GQ_val(variant.get_num_calls(), false);
-  std::vector<bool> PL_val(variant.get_num_calls(), false);
-  bool some_GQ_vals_zero = false;
-  bool some_PL_first_vals_zero = false;
   std::set<int> GQ_zero_values;
   std::set<int> PL_zero_values;
   //Handle all fields - simply need to extend to the largest size
@@ -757,6 +753,9 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
     }
   }
   // Set GT to . when GQ==0 and PL[0]==0 see https://github.com/broadinstitute/gatk/pull/8715
+  // TODO: The java tests for mixed ploid and with GQ and PL[0] as zero are ignoring ploidy for the
+  //       samples having haploid in the t0_haploid_triploid_1_2_3_triploid_deletion_java_produce_GT
+  //       tests. Does not seem to affect gatk, need to look at this.
   if (m_query_config->produce_GT_field() && GQ_zero_values.size() > 0 && PL_zero_values.size() > 0) {
     int32_t *GT_arr = NULL, num_GT_arr = 0;
     for (auto i=0ul; i<variant.get_num_calls(); i++) {
