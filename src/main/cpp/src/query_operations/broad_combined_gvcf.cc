@@ -666,11 +666,13 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
   int* GT_vec = 0; // will point to same address as ptr, but as int*
   int* DP_vec = 0; // ditto
   //Hold values to figure out if any samples have GQ==0 and PL[0]==0 after the loop
-  // see see https://github.com/broadinstitute/gatk/pull/8715
+  //see https://github.com/broadinstitute/gatk/pull/8715
   std::vector<bool> GQ_val(variant.get_num_calls(), false);
   std::vector<bool> PL_val(variant.get_num_calls(), false);
   bool some_GQ_vals_zero = false;
   bool some_PL_first_vals_zero = false;
+  std::set<int> GQ_zero_values;
+  std::set<int> PL_zero_values;
   //Handle all fields - simply need to extend to the largest size
   for (auto i=0u; i<m_FORMAT_fields_vec.size(); ++i) {
     auto& curr_tuple = m_FORMAT_fields_vec[i];
@@ -714,8 +716,7 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
       case GVCF_GQ_IDX: {
         int *GQ_vec = const_cast<int*>(reinterpret_cast<const int*>(ptr));
         for (auto i=0ul; i<variant.get_num_calls(); i++) {
-          if (*(GQ_vec+i) == 0) GQ_val[i] = true;
-          some_GQ_vals_zero = true;
+          if (*(GQ_vec+i) == 0) GQ_zero_values.insert(i);
         }
         do_insert = m_should_add_GQ_field;
         break;
@@ -740,8 +741,7 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
         int *PL_vec = const_cast<int*>(reinterpret_cast<const int*>(ptr));
         for (auto i=0ul; i<variant.get_num_calls(); i++) {
           if (*(PL_vec+i*num_elements/variant.get_num_calls()) == 0) {
-            PL_val[i] = true;
-            some_PL_first_vals_zero = true;
+            PL_zero_values.insert(i);
           }
         }
         break;
@@ -757,17 +757,16 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
     }
   }
   // Set GT to . when GQ==0 and PL[0]==0 see https://github.com/broadinstitute/gatk/pull/8715
-  if (m_query_config->produce_GT_field() && some_GQ_vals_zero && some_PL_first_vals_zero) {
+  if (m_query_config->produce_GT_field() && GQ_zero_values.size() > 0 && PL_zero_values.size() > 0) {
     int32_t *GT_arr = NULL, num_GT_arr = 0;
     for (auto i=0ul; i<variant.get_num_calls(); i++) {
-      int ploidy;
+      if (GQ_zero_values.find(i) == GQ_zero_values.end() || PL_zero_values.find(i) == PL_zero_values.end()) continue;
       if (!GT_arr && !num_GT_arr) {
         auto ngt = bcf_get_genotypes(m_vcf_hdr, m_bcf_out, &GT_arr, &num_GT_arr);
-        assert(ngt > 0);
-        assert(num_GT_arr);
-        ploidy = num_GT_arr/variant.get_num_calls();
+        if (ngt <= 0) GT_arr == NULL;
       }
-      if (GT_arr && GQ_val[i] && PL_val[i]) {
+      if (GT_arr) {
+        auto ploidy = num_GT_arr/variant.get_num_calls();
         for (auto j= 0ul; j<ploidy; j++) {
           if (GT_arr[i*ploidy+j] == bcf_int32_vector_end) break;
           GT_arr[i*ploidy+j] = bcf_gt_missing;
