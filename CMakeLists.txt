@@ -36,7 +36,7 @@ execute_process(
     )
 
 #Build versions
-set(GENOMICSDB_RELEASE_VERSION "1.5.2-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+set(GENOMICSDB_RELEASE_VERSION "1.5.3-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+"  GENOMICSDB_BASE_VERSION "${GENOMICSDB_RELEASE_VERSION}")
 
 #GIT_COMMIT_HASH derived from git tag to be used as part of GENOMICSDB_VERSION
