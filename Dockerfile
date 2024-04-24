@@ -53,7 +53,7 @@ WORKDIR /build
 RUN ./install_prereqs.sh release &&\
     useradd -r -U -m ${user}
 
-COPY --from=full /usr/local/bin/*genomicsdb* /usr/local/bin/gt_mpi_gather /usr/local/bin/vcf* ${install_dir}/bin/
+COPY --from=full /usr/local/bin/create_genomicsdb_workspace /usr/local/bin/gt_mpi_gather /usr/local/bin/vcf2genomicsdb* /usr/local/bin/consolidate* ${install_dir}/bin/
 
 USER ${user}
 WORKDIR /home/${user}
