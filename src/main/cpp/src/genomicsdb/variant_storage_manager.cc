@@ -2,7 +2,7 @@
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
  * Copyright (c) 2018-2023 Omics Data Automation, Inc.
- * Copyright (c) 2023 dātma, inc™
+ * Copyright (c) 2023-2024 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -580,8 +580,7 @@ int VariantStorageManager::open_array(const std::string& array_name, const VidMa
 
 void VariantStorageManager::close_array(const int ad, const bool consolidate_tiledb_array,
                                         const int consolidation_batch_size) {
-  VERIFY_OR_THROW(static_cast<size_t>(ad) < m_open_arrays_info_vector.size() &&
-                  m_open_arrays_info_vector[ad].get_array_name().length());
+  VERIFY_OR_THROW(static_cast<size_t>(ad) < m_open_arrays_info_vector.size());
   m_open_arrays_info_vector[ad].close_array(consolidate_tiledb_array, m_segment_size, consolidation_batch_size);
 }
 

@@ -5,7 +5,7 @@
 # The MIT License
 #
 # Copyright (c) 2019 Omics Data Automation, Inc.
-# Copyright (c) 2023 da̅tma, inc.
+# Copyright (c) 2023-2024 da̅tma, inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -83,3 +83,5 @@ add_custom_command(TARGET api_tests
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../inputs/test.tgz)
 
 add_custom_target(all_ctests COMMAND ${CMAKE_CTEST_COMMAND} -V DEPENDS ctests api_tests)
+
+build_GenomicsDB_executable(test_genomicsdb_demo)
