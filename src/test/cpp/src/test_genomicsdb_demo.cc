@@ -29,7 +29,9 @@
 #include "genomicsdb_logger.h"
 #include "memory_measure.h"
 #include "tiledb_utils.h"
-#include <malloc.h>
+#ifdef __linux__
+#  include <malloc.h>
+#endif
 
 #ifdef USE_GPERFTOOLS_HEAP
 #include "gperftools/heap-profiler.h"
