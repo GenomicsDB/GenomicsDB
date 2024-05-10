@@ -548,7 +548,7 @@ std::vector<VariantCall>* GenomicsDB::query_variant_calls(const std::string& arr
 
   // Perform Query over all the intervals
   // This route is not being exercised - std::vector<VariantCall> *pvariant_calls = new std::vector<VariantCall>;
-  std::vector<VariantCall> *pvariant_calls = NULL;
+  std::vector<VariantCall> *pvariant_calls = nullptr;
 
   GatherVariantCalls gather_variant_calls(processor, *query_config, m_annotation_service);
   query_processor->iterate_over_cells(query_processor->get_array_descriptor(), *query_config, gather_variant_calls, true);
@@ -772,7 +772,7 @@ void GenomicsDBResults<genomicsdb_variant_t>::free() {
 
 template<>
 std::size_t GenomicsDBResults<genomicsdb_variant_call_t>::size() const noexcept {
-  return TO_VARIANT_CALL_VECTOR(m_results)->size();
+  return m_results != nullptr?TO_VARIANT_CALL_VECTOR(m_results)->size():0ull;
 }
 
 template<>
