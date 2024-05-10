@@ -20,39 +20,20 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#include "genomicsdb_logger.h"
+#include <catch2/catch.hpp>
+
 #include "memory_measure.h"
-#include <string>
 
-void read_off_memory_status(statm_t& result, const size_t page_size) {
-#ifdef __linux__
-  const char* statm_path = "/proc/self/statm";
-
-  FILE *f = fopen(statm_path,"r");
-  if (!f) {
-    perror(statm_path);
-    abort();
-  }
-  if (7 != fscanf(f,"%lu %lu %lu %lu %lu %lu %lu",
-                  &result.size,&result.resident,&result.share,&result.text,&result.lib,&result.data,&result.dt)) {
-    perror(statm_path);
-    abort();
-  }
-  result.size *= page_size;
-  result.resident *= page_size;
-  result.share *= page_size;
-  result.text *= page_size;
-  result.lib *= page_size;
-  result.data *= page_size;
-  result.dt *= page_size;
-  fclose(f);
+TEST_CASE("check basic memory usage", "[mem_utils]") {
+  statm_t result;
+  read_off_memory_status(result);
+#ifdef __linux
+  CHECK(result.size > 0);
+  CHECK(result.resident > 0);
+  CHECK(result.share > 0);
+  CHECK(result.text > 0);
+  CHECK(result.data > 0);
+  CHECK(result.dt >= 0);
 #endif
-}
-
-void print_memory_usage(const std::string& msg) {
-#ifdef __linux__
-  statm_t mem_result;
-  read_off_memory_status(mem_result);
-  logger.info("Mem usage {} rss={}M", msg, mem_result.resident/1000000);
-#endif
+  print_memory_usage("Check basic memory usage");
 }

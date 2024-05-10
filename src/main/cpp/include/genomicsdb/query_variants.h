@@ -1,6 +1,7 @@
 /**
  * The MIT License (MIT)
  * Copyright (c) 2016-2017 Intel Corporation
+ * Copyright (c) 2024 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -217,6 +218,9 @@ class VariantQueryProcessor {
                         const VidMapper& vid_mapper);
 
   ~VariantQueryProcessor() {
+    if (m_storage_manager && m_ad > -1) {
+      m_storage_manager->close_array(m_ad);
+    }
     if (m_array_schema)
       delete m_array_schema;
     m_array_schema = 0;
@@ -384,7 +388,7 @@ class VariantQueryProcessor {
   /*
    * VariantStorage manager
    */
-  const VariantStorageManager* m_storage_manager;
+  VariantStorageManager* m_storage_manager;
   /**
    * Map the known field enum to cell attribute idx for the given schema
    */
@@ -396,7 +400,7 @@ class VariantQueryProcessor {
   /*
    * Array descriptor and schema
    */
-  int m_ad;
+  int m_ad = -1;
   VariantArraySchema* m_array_schema;
   /*
    * Vid mapper
