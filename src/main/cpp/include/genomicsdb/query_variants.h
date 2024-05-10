@@ -400,7 +400,7 @@ class VariantQueryProcessor {
   /*
    * Array descriptor and schema
    */
-  int m_ad;
+  int m_ad = -1;
   VariantArraySchema* m_array_schema;
   /*
    * Vid mapper
