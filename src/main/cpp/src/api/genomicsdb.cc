@@ -430,6 +430,7 @@ class GatherVariantCalls : public SingleCellOperatorBase {
   void operate(VariantCall& call, const VariantQueryConfig& query_config, const VariantArraySchema& schema);
   void operate_on_columnar_cell(const GenomicsDBColumnarCell& cell, const VariantQueryConfig& query_config,
                                 const VariantArraySchema& schema);
+  void finalize();
  private:
   void initialize(const VariantQueryConfig& query_config);
   GenomicsDBVariantCallProcessor& m_variant_call_processor;
@@ -513,6 +514,10 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
   }
 
   m_variant_call_processor.process(sample_name, coords, genomic_interval, genomic_fields);
+}
+
+void GatherVariantCalls::finalize() {
+  m_variant_call_processor.finalize();
 }
 
 #if(DEBUG)

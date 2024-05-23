@@ -6,7 +6,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2019-2020,2022 Omics Data Automation, Inc.
- * Copyright (c) 2023 dātma, inc™
+ * Copyright (c) 2023-2024 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -246,6 +246,7 @@ GENOMICSDB_EXPORT const std::string resolve_gt(const std::vector<genomic_field_t
 class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
  public:
   GenomicsDBVariantCallProcessor() {};
+  virtual ~GenomicsDBVariantCallProcessor() {};
   void initialize(std::map<std::string, genomic_field_type_t> genomic_field_types) {
     m_genomic_field_types = std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types));
   }
@@ -264,6 +265,7 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
                        const int64_t* coordinates,
                        const genomic_interval_t& genomic_interval,
                        const std::vector<genomic_field_t>& genomic_fields);
+  virtual void finalize() {};
  private:
   std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
 };

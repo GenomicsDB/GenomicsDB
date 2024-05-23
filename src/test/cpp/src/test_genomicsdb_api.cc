@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  * Copyright (c) 2019-2023 Omics Data Automation, Inc.
- * Copyright (c) 2023 dātma, inc™
+ * Copyright (c) 2023-2024 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -415,11 +415,6 @@ class TwoQueryIntervalsProcessor : public GenomicsDBVariantCallProcessor {
  public:
   TwoQueryIntervalsProcessor() {};
 
-  ~TwoQueryIntervalsProcessor() {
-    CHECK(m_num_query_intervals == 2);
-    CHECK(m_processed_rows == 5);
-  }
-
   void reinitialize() {
     m_num_query_intervals = 0;
     m_processed_rows = 0;
@@ -442,6 +437,11 @@ class TwoQueryIntervalsProcessor : public GenomicsDBVariantCallProcessor {
                const std::vector<genomic_field_t>& genomic_fields) {
     m_processed_rows++;
   };
+
+  void finalize() {
+    CHECK(m_num_query_intervals == 2);
+    CHECK(m_processed_rows == 5);
+  }
 
   int m_num_query_intervals = 0;
   int m_processed_rows = 0;
