@@ -762,7 +762,7 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
       if (GQ_zero_values.find(i) == GQ_zero_values.end() || PL_zero_values.find(i) == PL_zero_values.end()) continue;
       if (!GT_arr && !num_GT_arr) {
         auto ngt = bcf_get_genotypes(m_vcf_hdr, m_bcf_out, &GT_arr, &num_GT_arr);
-        if (ngt <= 0) GT_arr == NULL;
+        if (ngt <= 0) GT_arr = NULL;
       }
       if (GT_arr) {
         auto ploidy = num_GT_arr/variant.get_num_calls();
