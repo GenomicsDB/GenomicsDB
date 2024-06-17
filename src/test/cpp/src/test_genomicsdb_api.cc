@@ -37,9 +37,14 @@
 #include "test_base.h"
 
 #include <iostream>
+#include <future>
 #include <string>
 #include <thread>
 #include <utility>
+
+#ifdef USE_NANOARROW
+#  include <nanoarrow/nanoarrow.h>
+#endif
 
 TEST_CASE_METHOD(TempDir, "utils", "[genomicsdb_utils]") {
   REQUIRE(genomicsdb::version().size() > 0);
@@ -1016,6 +1021,133 @@ TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_varia
   delete gdb;
 }
 
+#ifdef USE_NANOARROW
+
+std::vector<std::string> get_array_value(ArrowArray *array, ArrowType type, int index) {
+  std::vector<std::string> values;
+  ArrowArrayView array_view;
+  ArrowArrayViewInitFromType(&array_view, type);
+  ArrowArrayViewSetArray(&array_view, array->children[index], nullptr);
+  for (auto i=0l; i<array->children[index]->length; i++) {
+    if (ArrowArrayViewIsNull(&array_view, i)) {
+      values.push_back("NULL");
+      continue;
+    } 
+    switch (type) {
+      case NANOARROW_TYPE_STRING: {
+        ArrowStringView item;
+        item = ArrowArrayViewGetStringUnsafe(&array_view, i);
+        values.push_back(std::string(item.data, item.size_bytes));
+        break;
+      }
+      case NANOARROW_TYPE_UINT64: {
+        values.push_back(std::to_string(ArrowArrayViewGetUIntUnsafe(&array_view, i)));
+        break;
+      }
+      case NANOARROW_TYPE_INT32: {
+        
+        values.push_back(std::to_string(ArrowArrayViewGetIntUnsafe(&array_view, i)));
+        break;
+      }
+      case NANOARROW_TYPE_FLOAT: {
+        values.push_back(std::to_string(ArrowArrayViewGetDoubleUnsafe(&array_view, i)));
+        break;
+      }
+      default:
+        CHECK(false);
+    }
+  }
+  return values;
+}
+
+TEST_CASE("api query_variant_calls with ArrowVariantCallProcessor", "[query_variant_calls_with_arrow_output]") {
+  using namespace genomicsdb_pb;
+
+  ExportConfiguration *config = new ExportConfiguration();
+
+  config->set_workspace(workspace_new);
+  config->set_array_name("t0_1_2");
+  config->set_callset_mapping_file(workspace_new+"/callset.json");
+  config->set_vid_mapping_file(workspace_new+"/vidmap.json");
+
+  // query_row_ranges
+  RowRangeList* row_ranges = config->add_query_row_ranges();
+  RowRange* row_range = row_ranges->add_range_list();
+  row_range->set_low(0);
+  row_range->set_high(3);
+
+  // query contig_interval
+  ContigInterval* contig_interval = config->add_query_contig_intervals();
+  contig_interval->set_contig("1");
+  contig_interval->set_begin(1);
+  contig_interval->set_end(249250621);
+
+  // query_attributes
+  config->add_attributes()->assign("GT");
+  config->add_attributes()->assign("DP");
+
+  config->set_bypass_intersecting_intervals_phase(true);
+
+  config->set_segment_size(128);
+
+  std::string config_string;
+  CHECK(config->SerializeToString(&config_string));
+  GenomicsDB *gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+
+  ArrowVariantCallProcessor arrow_processor;
+  gdb->query_variant_calls(arrow_processor, "", GenomicsDB::NONE);
+  void *arrow_schema = arrow_processor.arrow_schema();
+  CHECK(arrow_schema != NULL);
+  ArrowSchema *schema = reinterpret_cast<ArrowSchema *>(arrow_schema);
+  ArrowArrayView main_array_view;
+  ArrowArrayViewInitFromSchema(&main_array_view, schema, nullptr);
+
+  std::string out;
+
+  void *arrow_array = NULL;
+  while ((arrow_array = arrow_processor.arrow_array()) != NULL) {
+    ArrowArray *array = reinterpret_cast<ArrowArray *>(arrow_array);
+    CHECK(array->n_children == schema->n_children);
+    for (auto i=0l; i< schema->n_children; i++) {
+      auto results = get_array_value(array, main_array_view.children[i]->storage_type, i);
+      CHECK(results.size() == 5);
+      std::cout << "Results for " << schema->children[i]->name << "\n";
+      for (auto j=0l; j<results.size(); j++) {
+        std::cout << results[j] << std::endl;
+      }
+    }
+    ArrowVariantCallProcessor::cleanup_array(arrow_array);
+    std::cout << "DONE\n";
+  }
+  
+  // Threaded(asynchronous version)
+  ArrowVariantCallProcessor threaded_arrow_processor(true);
+  auto query_thread = std::async(std::launch::async, [&] {
+    gdb->query_variant_calls(threaded_arrow_processor, "", GenomicsDB::NONE);
+  });
+
+  std::cout << "Collecting arrow output..." << std::endl;
+
+  while ((arrow_array = threaded_arrow_processor.arrow_array()) != NULL) {
+    ArrowArray *array = reinterpret_cast<ArrowArray *>(arrow_array);
+    CHECK(array->n_children == schema->n_children);
+    for (auto i=0l; i<3; i++) {
+        auto results = get_array_value(array, main_array_view.children[i]->storage_type, i);
+        std::cout << "Results for " << schema->children[i]->name << "\n";
+        for (auto j=0l; j<results.size(); j++) {
+          std::cout << results[j] << std::endl;
+        }
+    }
+    ArrowVariantCallProcessor::cleanup_array(arrow_array);
+    std::cout << "Batch DONE\n";
+  }
+  ArrowVariantCallProcessor::cleanup_array(arrow_array);
+
+  query_thread.get();
+
+  delete gdb;
+}
+#endif
 
 TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
   using namespace genomicsdb_pb;

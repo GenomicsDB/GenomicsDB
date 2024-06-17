@@ -39,10 +39,6 @@
 
 #define TO_JSON_DOCUMENT(X) (reinterpret_cast<rapidjson::Document *>(X))
 
-#define STRING_FIELD(NAME, TYPE) (TYPE.is_string() || TYPE.is_char() || TYPE.num_elements > 1 || (NAME.compare("GT") == 0))
-#define INT_FIELD(TYPE) (TYPE.is_int())
-#define FLOAT_FIELD(TYPE) (TYPE.is_float())
-
 JSONVariantCallProcessor::JSONVariantCallProcessor(payload_t payload_mode)
     : m_payload_mode(payload_mode) {
   m_json_document = new rapidjson::Document();

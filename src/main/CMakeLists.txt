@@ -72,6 +72,12 @@ set(GenomicsDB_library_sources
     cpp/src/api/genomicsdb_json_processor.cc
     )
 
+if(BUILD_NANOARROW)
+  set(GenomicsDB_library_sources ${GenomicsDB_library_sources}
+    cpp/src/api/genomicsdb_nanoarrow_processor.cc
+    )
+endif()    
+
 include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})
 set(GenomicsDB_library_sources
     ${GenomicsDB_library_sources}
@@ -110,13 +116,15 @@ else()
     target_link_libraries(tiledbgenomicsdb ${TILEDB_LIBRARY})
 endif()
 if(HTSLIB_SOURCE_DIR)
-    add_dependencies(tiledbgenomicsdb htslib)
+  add_dependencies(tiledbgenomicsdb htslib)
 endif()
 target_link_libraries(tiledbgenomicsdb ${HTSLIB_LIBRARY} ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES})
 if(LIBRT_LIBRARY)
     target_link_libraries(tiledbgenomicsdb ${LIBRT_LIBRARY})
 endif()
-
+if(BUILD_NANOARROW)
+  add_dependencies(tiledbgenomicsdb nanoarrow_ep)
+endif()
 if(LIBCSV_FOUND)
     target_link_libraries(tiledbgenomicsdb ${LIBCSV_LIBRARY})
 endif()

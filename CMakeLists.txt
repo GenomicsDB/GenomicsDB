@@ -88,8 +88,17 @@ set(PROTOBUF_URL "https://github.com/protocolbuffers/protobuf/archive/v${GENOMIC
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
 set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf files in build directory")
 
-set(USE_LIBCSV False CACHE BOOL "Enable library components that import data from csv files")
+#Handle csv
+option(USE_LIBCSV "Enable library components that import data from csv files")
 set(LIBCSV_DIR "" CACHE PATH "Path to libcsv header and library")
+
+#nanoarrow
+option(BUILD_NANOARROW "Include nanoarrow into the genomicsdb library")
+if(BUILD_NANOARROW)
+  set(NANOARROW_VERSION "0.5.0" CACHE STRING "Version of the nanoarrow release")
+  set(NANOARROW_ROOT_DIR "$ENV{HOME}/nanoarrow-install/${NANOARROW_VERSION}" CACHE PATH "Path to installed nanoarrow")
+  set(NANOARROW_URL "https://github.com/apache/arrow-nanoarrow/archive/refs/tags/apache-arrow-nanoarrow-${NANOARROW_VERSION}.zip")
+endif()
 
 #Testing
 option(DISABLE_TESTING "Disable testing of builds") 
@@ -301,6 +310,12 @@ else()
 endif()
 include_directories(${PROTOBUF_INCLUDE_DIRS})
 
+if(BUILD_NANOARROW)
+  find_package(nanoarrow REQUIRED)
+  include_directories(${NANOARROW_INCLUDE_DIR})
+  add_definitions("-DUSE_NANOARROW")
+endif()
+
 #JNI
 if(BUILD_JAVA OR USE_HDFS)
   if(CMAKE_CROSSCOMPILING)
@@ -425,6 +440,9 @@ include_directories (
 )
 
 set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${PROTOBUF_LIBRARIES})
+if(BUILD_NANOARROW)
+  set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES} ${NANOARROW_LIBRARY})
+endif()
 if(MPI_FOUND)
   set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES} ${MPI_CXX_LIBRARIES})
 endif()
