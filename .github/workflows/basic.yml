@@ -119,7 +119,7 @@ jobs:
         if [[ ${{matrix.type}} == 'hdfs' ]]; then
           HDFS_BUILD_ARGS="-DUSE_HDFS=1"
         fi
-        if [[ ${{matrix.type}} != 'ubuntu-20.04' ]]; then
+        if [[ ${{matrix.os}} != 'ubuntu-20.04' ]]; then
           NANOARROW_BUILD_ARGS="-DBUILD_NANOARROW=1"
         fi
         cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
