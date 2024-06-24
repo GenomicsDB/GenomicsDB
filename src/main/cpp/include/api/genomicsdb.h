@@ -331,15 +331,15 @@ class GENOMICSDB_EXPORT JSONVariantCallProcessor : public GenomicsDBVariantCallP
  * ArrowVariantCallProcessor gathers the variant calls satisfying the query configuration
  * and outputs an ArrowSchema instance and ArrowArray instances. Each of the ArrowArray instances
  * represent a batch of variant calls. The algorithm to batch is by GenomicsDB column
- * (representing the chromosome+position) for the call for non-blocking modes. For the blocking
+ * (representing the chromosome+position) for the call for batching mode. For the non-batching
  * mode, all the variant calls are returned in a single batch. Both modes return NULL to signal
  * end of ArrowArray instances.
  */
 class GENOMICSDB_EXPORT ArrowVariantCallProcessor : public GenomicsDBVariantCallProcessor {
  public:
   ArrowVariantCallProcessor() : ArrowVariantCallProcessor(false) {}
-  ArrowVariantCallProcessor(bool non_blocking);
-  void set_threaded(bool non_blocking) { m_non_blocking = non_blocking; }
+  ArrowVariantCallProcessor(bool batching);
+  void set_batching(bool batching) { m_is_batching = batching; }
   //set_arrow_batch_callback(batch_callback_fn batch_callback);
   void process(const interval_t& interval);
   void process(const std::string& sample_name,
@@ -374,12 +374,13 @@ class GENOMICSDB_EXPORT ArrowVariantCallProcessor : public GenomicsDBVariantCall
   void *m_arrow_schema = nullptr;
   void *m_arrow_array = nullptr;
   bool m_is_finalized = false;
-  bool m_non_blocking = false;
+  bool m_is_batching = false;
   int64_t m_last_column = -1;
   std::map<std::string, int64_t> m_genomic_fields_map;
   // Semaphores
-  std::binary_semaphore full{0}; // initialize full=false(0)
-  std::binary_semaphore empty{1}; // Initialize empty=true(1)
+  std::binary_semaphore schema_ready{0}; // initially false as schema is not ready
+  std::binary_semaphore array_ready{0}; // initially false as array is not ready
+  std::binary_semaphore array_empty{1}; // initially true as array is empty
   std::mutex m_mtx;
 };
 #endif

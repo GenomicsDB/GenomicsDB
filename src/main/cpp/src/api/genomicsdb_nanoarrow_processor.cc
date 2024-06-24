@@ -39,7 +39,7 @@
 #define TO_ARROW_SCHEMA(X) (reinterpret_cast<ArrowSchema *>(X))
 #define TO_ARROW_ARRAY(X) (reinterpret_cast<ArrowArray *>(X))
 
-ArrowVariantCallProcessor::ArrowVariantCallProcessor(bool non_blocking) : m_non_blocking(non_blocking) {
+ArrowVariantCallProcessor::ArrowVariantCallProcessor(bool batching) : m_is_batching(batching) {
   m_arrow_schema = new ArrowSchema();
 }
 
@@ -105,6 +105,9 @@ int create_arrow_schema(ArrowSchema* schema,
         rc |= set_schema(schema->children[i++], field_name, NANOARROW_TYPE_INT32);
       } else if (FLOAT_FIELD(field_type)) {
         rc |= set_schema(schema->children[i++], field_name, NANOARROW_TYPE_FLOAT);
+      } else {
+        ArrowVariantCallProcessor::cleanup_schema(schema);
+        logger.fatal(GenomicsDBException(), "Type for field={} not yet supported", field_name);
       }
     }
   }
@@ -181,7 +184,8 @@ int ArrowVariantCallProcessor::append_arrow_array(const std::string& sample_name
   for (auto j=num_constant_fields; j<found.size() && !found[j]; j++) {
     NANOARROW_RETURN_NOT_OK(ArrowArrayAppendNull(array->children[j], 1));
   }
-    
+
+  if (m_is_batching) schema_ready.release();
   return NANOARROW_OK;
 }
 
@@ -189,14 +193,14 @@ void ArrowVariantCallProcessor::process(const std::string& sample_name,
                                         const int64_t* coordinates,
                                         const genomic_interval_t& genomic_interval,
                                         const std::vector<genomic_field_t>& genomic_fields) {
-  if (m_non_blocking && m_last_column != -1) {
+  if (m_is_batching && m_last_column != -1) {
     if (m_last_column != coordinates[1]) {
-      full.release();
+      array_ready.release();
     } else {
-      empty.release();
+      array_empty.release();
     }
   }
-  if (m_non_blocking) empty.acquire();
+  if (m_is_batching) array_empty.acquire();
   {
     std::lock_guard<std::mutex> g(m_mtx);
     m_last_column = coordinates[1];
@@ -208,16 +212,17 @@ void ArrowVariantCallProcessor::process(const std::string& sample_name,
 
 void ArrowVariantCallProcessor::finalize() {
   m_is_finalized = true;
-  if (m_non_blocking) full.release();
+  if (m_is_batching) array_ready.release();
 }
 
 void *ArrowVariantCallProcessor::arrow_schema() {
+  if (m_is_batching) schema_ready.acquire();
   return m_arrow_schema;
 }
 
 void *ArrowVariantCallProcessor::arrow_array() {
   if (m_is_finalized && TO_ARROW_ARRAY(m_arrow_array)->children[0]->length == 0) return NULL;
-  if (m_non_blocking) full.acquire();
+  if (m_is_batching) array_ready.acquire();
   ArrowArray *arrow_array = new ArrowArray();
   ArrowArrayInitFromSchema(arrow_array, TO_ARROW_SCHEMA(m_arrow_schema), NULL);
   {
@@ -231,7 +236,7 @@ void *ArrowVariantCallProcessor::arrow_array() {
       m_arrow_array = build_arrow_array(TO_ARROW_ARRAY(m_arrow_array), TO_ARROW_SCHEMA(m_arrow_schema));
     }
   }
-  if (m_non_blocking) empty.release();
+  if (m_is_batching) array_empty.release();
   return arrow_array;
 }
 
