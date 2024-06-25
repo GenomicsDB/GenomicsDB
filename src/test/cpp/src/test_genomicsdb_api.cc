@@ -1162,6 +1162,11 @@ TEST_CASE("api query_variant_calls with ArrowVariantCallProcessor", "[query_vari
 
   query_thread.get();
 
+  // Check helper utils
+  ArrowSchema* allocated_arrow_schema;
+  CHECK(ArrowVariantCallProcessor::allocate_schema((void **)&allocated_arrow_schema, NULL) == GENOMICSDB_OK);
+  CHECK(ArrowVariantCallProcessor::allocate_schema((void **)&allocated_arrow_schema, arrow_schema) == GENOMICSDB_OK);
+
   arrow_processor.cleanup_schema(arrow_schema);
   delete gdb;
 }
