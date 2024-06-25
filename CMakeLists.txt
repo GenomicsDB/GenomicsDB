@@ -4,7 +4,7 @@
 # The MIT License
 #
 # Copyright (c) 2019-2023 Omics Data Automation, Inc.
-# Copyright (c) 2023 dātma, inc™
+# Copyright (c) 2023-2024 dātma, inc™
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -36,7 +36,7 @@ execute_process(
     )
 
 #Build versions
-set(GENOMICSDB_RELEASE_VERSION "1.5.3-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
+set(GENOMICSDB_RELEASE_VERSION "1.5.4-SNAPSHOT" CACHE STRING "GenomicsDB release version") #used in Maven builds
 string(REGEX MATCH "^[0-9]+\\.[0-9]+\\.[0-9]+"  GENOMICSDB_BASE_VERSION "${GENOMICSDB_RELEASE_VERSION}")
 
 #GIT_COMMIT_HASH derived from git tag to be used as part of GENOMICSDB_VERSION
@@ -88,8 +88,17 @@ set(PROTOBUF_URL "https://github.com/protocolbuffers/protobuf/archive/v${GENOMIC
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
 set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf files in build directory")
 
-set(USE_LIBCSV False CACHE BOOL "Enable library components that import data from csv files")
+#Handle csv
+option(USE_LIBCSV "Enable library components that import data from csv files")
 set(LIBCSV_DIR "" CACHE PATH "Path to libcsv header and library")
+
+#nanoarrow
+option(BUILD_NANOARROW "Include nanoarrow into the genomicsdb library")
+if(BUILD_NANOARROW)
+  set(NANOARROW_VERSION "0.5.0" CACHE STRING "Version of the nanoarrow release")
+  set(NANOARROW_ROOT_DIR "$ENV{HOME}/nanoarrow-install/${NANOARROW_VERSION}" CACHE PATH "Path to installed nanoarrow")
+  set(NANOARROW_URL "https://github.com/apache/arrow-nanoarrow/archive/refs/tags/apache-arrow-nanoarrow-${NANOARROW_VERSION}.zip")
+endif()
 
 #Testing
 option(DISABLE_TESTING "Disable testing of builds") 
@@ -179,7 +188,7 @@ endif()
 include(CheckAndSetStdCXX2011Flag)
 CHECK_AND_SET_STD_CXX_2011_FLAG(test_cpp_2011)
 if(NOT test_cpp_2011)
-  message(FATAL_ERROR "Your compiler does not support C++ 2011, exiting")
+  message(FATAL_ERROR "Your compiler does not support at least C++ 2011 version, exiting")
 endif()
 
 #Check for stack-protector-strong
@@ -300,6 +309,17 @@ else()
   set(PROTOBUF_JAVA_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/src/main/java")
 endif()
 include_directories(${PROTOBUF_INCLUDE_DIRS})
+
+if(BUILD_NANOARROW)
+  find_package(nanoarrow REQUIRED)
+  include_directories(${NANOARROW_INCLUDE_DIR})
+  add_definitions("-DUSE_NANOARROW")
+  # genomicsdb_nanoarrow_processor uses semaphores
+  find_package(SemaphoreSupport REQUIRED)
+  if(NOT SEMAPHORE_SUPPORT_FOUND)
+    message(FATAL_ERROR "GenomicsDB with nanoarrow uses semaphores. No support for semaphores in ${CMAKE_CXX_COMPILER_ID} compiler ${CMAKE_CXX_COMPILER_VERSION}")
+  endif()
+endif()
 
 #JNI
 if(BUILD_JAVA OR USE_HDFS)
@@ -425,6 +445,9 @@ include_directories (
 )
 
 set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${PROTOBUF_LIBRARIES})
+if(BUILD_NANOARROW)
+  set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES} ${NANOARROW_LIBRARY})
+endif()
 if(MPI_FOUND)
   set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES} ${MPI_CXX_LIBRARIES})
 endif()

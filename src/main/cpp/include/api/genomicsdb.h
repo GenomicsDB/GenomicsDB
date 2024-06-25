@@ -270,6 +270,33 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
   std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
 };
 
+#define STRING_FIELD(NAME, TYPE) (TYPE.is_string() || TYPE.is_char() || TYPE.num_elements > 1 || (NAME.compare("GT") == 0))
+#define INT_FIELD(TYPE) (TYPE.is_int())
+#define FLOAT_FIELD(TYPE) (TYPE.is_float())
+
+class GENOMICSDB_EXPORT GenomicsDBVariantProcessor {
+ public:
+  GenomicsDBVariantProcessor() {};
+  ~GenomicsDBVariantProcessor() {};
+  void initialize(std::map<std::string, genomic_field_type_t> genomic_field_types) {
+     m_genomic_field_types = std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types));
+  }
+  const std::shared_ptr<std::map<std::string, genomic_field_type_t>> get_genomic_field_types() const {
+    return m_genomic_field_types;
+  }
+  const genomic_field_type_t get_genomic_field_type(const std::string& name) const {
+    if (m_genomic_field_types->find(name) != m_genomic_field_types->end()) {
+      return m_genomic_field_types->at(name);
+    } else {
+      throw GenomicsDBException("Genomic Field="+name+" does not seem to have an associated type");
+    }
+  }
+  virtual void process(const Variant& variant) = 0;
+  void process(const std::vector<Variant>& variants);
+ private:
+  std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
+};
+
 class GENOMICSDB_EXPORT JSONVariantCallProcessor : public GenomicsDBVariantCallProcessor {
  public:
   enum payload_t {all=0, all_by_calls=1, samples_with_ncalls=2, just_ncalls=3, just_samples=4};
@@ -298,28 +325,65 @@ class GENOMICSDB_EXPORT JSONVariantCallProcessor : public GenomicsDBVariantCallP
   std::unique_ptr<std::map<std::string, std::vector<void *>>> m_samples_info;
 };
 
-class GENOMICSDB_EXPORT GenomicsDBVariantProcessor {
+#ifdef USE_NANOARROW
+#include <semaphore>
+/**
+ * ArrowVariantCallProcessor gathers the variant calls satisfying the query configuration
+ * and outputs an ArrowSchema instance and ArrowArray instances. Each of the ArrowArray instances
+ * represent a batch of variant calls. The algorithm to batch is by GenomicsDB column
+ * (representing the chromosome+position) for the call for batching mode. For the non-batching
+ * mode, all the variant calls are returned in a single batch. Both modes return NULL to signal
+ * end of ArrowArray instances.
+ */
+class GENOMICSDB_EXPORT ArrowVariantCallProcessor : public GenomicsDBVariantCallProcessor {
  public:
-  GenomicsDBVariantProcessor() {};
-  ~GenomicsDBVariantProcessor() {};
-  void initialize(std::map<std::string, genomic_field_type_t> genomic_field_types) {
-     m_genomic_field_types = std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types));
-  }
-  const std::shared_ptr<std::map<std::string, genomic_field_type_t>> get_genomic_field_types() const {
-    return m_genomic_field_types;
-  }
-  const genomic_field_type_t get_genomic_field_type(const std::string& name) const {
-    if (m_genomic_field_types->find(name) != m_genomic_field_types->end()) {
-      return m_genomic_field_types->at(name);
-    } else {
-      throw GenomicsDBException("Genomic Field="+name+" does not seem to have an associated type");
-    }
-  }
-  virtual void process(const Variant& variant) = 0;
-  void process(const std::vector<Variant>& variants);
+  ArrowVariantCallProcessor() : ArrowVariantCallProcessor(false) {}
+  ArrowVariantCallProcessor(bool batching);
+  void set_batching(bool batching) { m_is_batching = batching; }
+  //set_arrow_batch_callback(batch_callback_fn batch_callback);
+  void process(const interval_t& interval);
+  void process(const std::string& sample_name,
+               const int64_t* coordinates,
+               const genomic_interval_t& genomic_interval,
+               const std::vector<genomic_field_t>& genomic_fields);
+  void finalize();
+
+  int append_arrow_array(const std::string& sample_name,
+                         const int64_t* coordinates,
+                         const genomic_interval_t& genomic_interval,
+                         const std::vector<genomic_field_t>& genomic_fields);
+  /**
+   * Returns a pointer to the ArrowSchema instance. Onus is on the client to
+   * call cleanup_schema() to release allocated memory after use.
+   */
+  void *arrow_schema();
+
+  /**
+   * Returns a pointer to the ArrowArray instance representing the batch.
+   * Onus is on the client to call cleanup_array() to release memory associated with the array.
+   */
+  void *arrow_array();
+
+  // Helper utilities to share with ArrowVariantCallProcessor clients
+  static void cleanup_schema(void *schema);
+  static void cleanup_array(void *array);
+  static int allocate_schema(void** schema, void *src=NULL);
+
  private:
-  std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
+  bool m_is_initialized = false;
+  void *m_arrow_schema = nullptr;
+  void *m_arrow_array = nullptr;
+  bool m_is_finalized = false;
+  bool m_is_batching = false;
+  int64_t m_last_column = -1;
+  std::map<std::string, int64_t> m_genomic_fields_map;
+  // Semaphores
+  std::binary_semaphore schema_ready{0}; // initially false as schema is not ready
+  std::binary_semaphore array_ready{0}; // initially false as array is not ready
+  std::binary_semaphore array_empty{1}; // initially true as array is empty
+  std::mutex m_mtx;
 };
+#endif
 
 /**
  * Experimental Query Interface to GenomicsDB for Arrays partitioned by columns
