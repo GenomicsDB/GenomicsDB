@@ -1085,6 +1085,7 @@ TEST_CASE("api query_variant_calls with ArrowVariantCallProcessor", "[query_vari
   // query_attributes
   config->add_attributes()->assign("GT");
   config->add_attributes()->assign("DP");
+  config->add_attributes()->assign("PID");
 
   config->set_bypass_intersecting_intervals_phase(true);
 
@@ -1116,6 +1117,8 @@ TEST_CASE("api query_variant_calls with ArrowVariantCallProcessor", "[query_vari
     {"NULL", "NULL", "NULL", "120", "76"},
     // GT
     {"C/C", "C/C", "G/A", "T/T", "G/A"},
+    // PID
+    {"NULL", "NULL", "17385_G_A", "17385_G_T", "NULL" },
     // REF
     {"C", "C", "G", "G", "G"},
   };
@@ -1142,10 +1145,10 @@ TEST_CASE("api query_variant_calls with ArrowVariantCallProcessor", "[query_vari
   std::vector<size_t> expected_batch_sizes = {1, 1, 3};
   std::vector<std::vector<std::vector<std::string>>> results_by_batch;
   std::vector<std::vector<std::vector<std::string>>> expected_results_by_batch = {
-    {{"HG00141"}, {"1"}, {"12141"}, {"NULL"}, {"C/C"}, {"C"}},
-    {{"HG01958"}, {"1"}, {"12145"}, {"NULL"}, {"C/C"}, {"C"}},
+    {{"HG00141"}, {"1"}, {"12141"}, {"NULL"}, {"C/C"}, {"NULL"}, {"C"}},
+    {{"HG01958"}, {"1"}, {"12145"}, {"NULL"}, {"C/C"}, {"NULL"}, {"C"}},
     {{"HG00141", "HG01958", "HG01530"}, {"1", "1", "1"}, {"17385", "17385", "17385"},
-     {"NULL", "120", "76"}, {"G/A", "T/T", "G/A"}, {"G", "G", "G"}}
+     {"NULL", "120", "76"}, {"G/A", "T/T", "G/A"}, {"17385_G_A", "17385_G_T", "NULL"}, {"G", "G", "G"}}
   };
 
   while ((arrow_array = threaded_arrow_processor.arrow_array()) != NULL) {
