@@ -181,8 +181,10 @@ int ArrowVariantCallProcessor::append_arrow_array(const std::string& sample_name
     }
   }
 
-  for (auto j=num_constant_fields; j<found.size() && !found[j]; j++) {
-    NANOARROW_RETURN_NOT_OK(ArrowArrayAppendNull(array->children[j], 1));
+  for (auto j=num_constant_fields; j<found.size(); j++) {
+    if (!found[j]) {
+      NANOARROW_RETURN_NOT_OK(ArrowArrayAppendNull(array->children[j], 1));
+    }
   }
 
   if (m_is_batching) schema_ready.release();
