@@ -24,7 +24,7 @@ jobs:
         run: echo VERSION_NUMBER=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
 
       - name: Download dylib
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: ${{ inputs.dylib_artifact }}
 
