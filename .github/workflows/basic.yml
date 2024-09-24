@@ -162,7 +162,9 @@ jobs:
         lcov --remove coverage.info '/opt*' '/usr*' '*/dependencies/*' '*/src/test*' '*.pb.h' '*.pb.cc' '*/protobuf-install/*' '*/awssdk-install/*' '*/gcssdk-install/*' 'v1/*' '/Library/*' -o coverage.info
 
     - name: Upload Coverage to CodeCov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         files: build/coverage.info, build/target/jacoco-reports/jacoco-ut/jacoco.xml, build/target/jacoco-reports/jacoco-ci/jacoco-ci.xml
         verbose: true
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
