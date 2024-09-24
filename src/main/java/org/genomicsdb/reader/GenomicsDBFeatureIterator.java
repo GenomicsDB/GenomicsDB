@@ -2,6 +2,7 @@
  * The MIT License (MIT)
  * Copyright (c) 2016-2018 Intel Corporation
  * Copyright (c) 2018-2019 Omics Data Automation, Inc.
+ * Copyright (c) 2024 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -28,18 +29,14 @@ import htsjdk.tribble.Feature;
 import htsjdk.tribble.FeatureCodec;
 import htsjdk.tribble.FeatureCodecHeader;
 import htsjdk.variant.bcf2.BCF2Codec;
-
-import org.genomicsdb.model.GenomicsDBExportConfiguration;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.genomicsdb.importer.extensions.JsonFileExtensions;
+import org.genomicsdb.model.GenomicsDBExportConfiguration;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Optional;
-import java.util.OptionalInt;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.Collections;
-import java.lang.RuntimeException;
 
 import static org.genomicsdb.Constants.CHROMOSOME_FOLDER_DELIMITER_SYMBOL_REGEX;
 import static org.genomicsdb.GenomicsDBUtils.getArrayColumnBounds;
@@ -50,6 +47,8 @@ import static org.genomicsdb.GenomicsDBUtils.getArrayColumnBounds;
  * (as BCF2) from TileDB/GenomicsDB
  */
 public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements CloseableTribbleIterator<T>, JsonFileExtensions {
+
+    private static Logger logger = LogManager.getLogger(GenomicsDBFeatureIterator.class);
 
     private class GenomicsDBQueryStreamParamsHolder {
 
@@ -164,7 +163,16 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
                     start.isPresent() ? start.getAsInt() : isChrEmpty ? 0 : 1,
                     end.isPresent() ? end.getAsInt() : isChrEmpty? 0 : Integer.MAX_VALUE));
         }
-        if (queryParamsList.isEmpty()) throw new IllegalStateException("There are no sources based on those query parameters");
+        if (queryParamsList.isEmpty()) {
+            String message = "GenomicsDB workspace does not have sources for input query interval: " + chr;
+            if (start.isPresent()) {
+                message += ":" + start.getAsInt();
+                if (end.isPresent()) {
+                    message += "-" + end.getAsInt();
+                }
+            }
+            logger.warn(message);
+        }
         this.currentIndexInQueryParamsList = -1;
         this.currentSource = null;
         setNextSourceAsCurrent();
@@ -175,7 +183,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
   @Override
   public boolean hasNext() {
     // While loop since the next source might not return any data, but subsequent sources might
-    while (this.codec.isDone(this.currentSource)
+    while ((this.currentSource == null || this.codec.isDone(this.currentSource))
         && this.currentIndexInQueryParamsList < this.queryParamsList.size()) {
       try {
         setNextSourceAsCurrent();
@@ -183,7 +191,7 @@ public class GenomicsDBFeatureIterator<T extends Feature, SOURCE> implements Clo
         throw new RuntimeException(e.getLocalizedMessage());
       }
     }
-    boolean isDone = (this.codec.isDone(this.currentSource));
+    boolean isDone = (this.currentSource == null || this.codec.isDone(this.currentSource));
     if (isDone) close();
     return !isDone;
   }

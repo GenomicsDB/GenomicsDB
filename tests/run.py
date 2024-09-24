@@ -3,6 +3,7 @@
 #The MIT License (MIT)
 #Copyright (c) 2016-2017 Intel Corporation
 #Copyright (c) 2019-2020 Omics Data Automation, Inc.
+#Copyright (c) 2024 dātma, inc™
 
 #Permission is hereby granted, free of charge, to any person obtaining a copy of 
 #this software and associated documentation files (the "Software"), to deal in 
@@ -155,6 +156,7 @@ def create_loader_json(ws_dir, test_name, test_params_dict):
 
 def run_cmd(cmd, expected_to_pass, errstring='Sanity check : ', tmpdir=None, print_if_error=True,
         dont_capture_output=False):
+    print(f"cmd={cmd}")
     if(dont_capture_output):
         returncode = subprocess.call(cmd, shell=True)
         stdout_string = None
@@ -245,7 +247,7 @@ def create_json_file(tmpdir, test_name, query_type, test_dict):
 
 def cleanup_and_exit(tmpdir, exit_code):
     if(exit_code == 0 and tmpdir):
-        shutil.rmtree(tmpdir, ignore_errors=True)
+       shutil.rmtree(tmpdir, ignore_errors=True)
     sys.exit(exit_code);
 
 def substitute_workspace_dir(jsonfile, wsdir):
@@ -609,6 +611,25 @@ def main():
                         "vid_mapping_file": "inputs/vid_phased_GT.json",
                         "golden_output": {
                         "java_vcf"   : "golden_outputs/java_genomicsdb_importer_from_vcfs_t0_1_2_multi_contig_vcf_12150_18000",
+                        } }
+                ]
+            },
+             { "name" : "java_genomicsdb_importer_from_vcfs_t0_1_2_multi_contig_query_non_existent_contig",
+                'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
+                'chromosome_intervals': [ '1:1-12160', '1:12161-12200', '1:12201-18000' ],
+                "vid_mapping_file": "inputs/vid_phased_GT.json",
+                'generate_array_name_from_partition_bounds': True,
+                "query_params": [
+                    {
+                        "query_contig_interval": {
+                            "contig": "2",
+                            "begin": 12151,
+                            "end": 18000
+                        },
+                        'callset_mapping_file': 'inputs/callsets/t0_1_2.json',
+                        "vid_mapping_file": "inputs/vid_phased_GT.json",
+                        "golden_output": {
+                        "java_vcf"   : "golden_outputs/java_empty_vcf",
                         } }
                 ]
             },
