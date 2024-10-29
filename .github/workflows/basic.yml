@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04,ubuntu-22.04,macos-12]
+        os: [ubuntu-20.04,ubuntu-22.04,macos-13]
         type: [basic]
         java: [17]
         include:
@@ -69,7 +69,7 @@ jobs:
 
     - name: Cache Distributed FileSystems
       if: matrix.type == 'hdfs'
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
         key: ${{matrix.os}}-dfs-${{env.HADOOP_VER}}
