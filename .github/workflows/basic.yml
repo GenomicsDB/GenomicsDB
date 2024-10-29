@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04,ubuntu-22.04,macos-12]
+        os: [ubuntu-20.04,ubuntu-22.04,macos-13]
         type: [basic]
         java: [17]
         include:
@@ -43,14 +43,14 @@ jobs:
     runs-on: ${{matrix.os}}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
-    - uses: actions/setup-python@v4
+    - uses: actions/setup-python@v5
       with:
-        python-version: 3.9
+        python-version: 3.11
         cache: 'pip'
 
-    - uses: actions/setup-java@v3
+    - uses: actions/setup-java@v4
       with: 
         java-version: ${{matrix.java}}
         distribution: temurin
@@ -58,7 +58,7 @@ jobs:
         cache: maven
 
     - name: Cache built prerequisites
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ${{env.PREREQS_INSTALL_DIR}}
@@ -69,7 +69,7 @@ jobs:
 
     - name: Cache Distributed FileSystems
       if: matrix.type == 'hdfs'
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
         key: ${{matrix.os}}-dfs-${{env.HADOOP_VER}}
