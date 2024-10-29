@@ -54,7 +54,7 @@ jobs:
           sed -i.bak 's/${genomicsdb.version}/'"${VERSION_NUMBER}"'/' genomicsdb-${VERSION_NUMBER}.pom
 
       - name: Archive libraries as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: release.${{ github.ref_name }}
           path: |
