@@ -29,7 +29,7 @@ jobs:
           name: ${{ inputs.dylib_artifact }}
 
       - name: Build Centos 6 and create release jar
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.release

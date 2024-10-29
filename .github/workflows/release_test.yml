@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout TestGenomicsDBJar
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: GenomicsDB/TestGenomicsDBJar
           ref: master
@@ -63,7 +63,7 @@ jobs:
 
       - name: Checkout GATK
         if: ${{ !contains(inputs.tag_message,'skip-gatk-it') }}
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: broadinstitute/gatk
           lfs: 'true'
