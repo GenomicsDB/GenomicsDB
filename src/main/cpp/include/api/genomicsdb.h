@@ -181,7 +181,7 @@ typedef struct genomic_field_t {
           output = output + separator;
         }
       }
-      return "[" + output + "]";
+      return output;
     }
   }
 } genomic_field_t;
@@ -270,7 +270,7 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
   std::shared_ptr<std::map<std::string, genomic_field_type_t>> m_genomic_field_types;
 };
 
-#define STRING_FIELD(NAME, TYPE) (TYPE.is_string() || TYPE.is_char() || TYPE.num_elements > 1 || (NAME.compare("GT") == 0))
+#define STRING_FIELD(NAME, TYPE) (TYPE.is_string() || TYPE.is_char() || TYPE.num_elements != 1 || (NAME.compare("GT") == 0))
 #define INT_FIELD(TYPE) (TYPE.is_int())
 #define FLOAT_FIELD(TYPE) (TYPE.is_float())
 
