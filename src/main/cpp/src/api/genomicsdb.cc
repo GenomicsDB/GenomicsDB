@@ -440,8 +440,7 @@ class GatherVariantCalls : public SingleCellOperatorBase {
 };
 
 void GatherVariantCalls::initialize(const VariantQueryConfig& query_config) {
-  std::map<std::string, genomic_field_type_t> genomic_field_types = create_genomic_field_types(query_config, m_annotation_service);
-  m_variant_call_processor.initialize(genomic_field_types);
+  m_variant_call_processor.initialize(query_config, m_annotation_service);
 };
 
 void GatherVariantCalls::operate(VariantCall& variant_call,
@@ -848,6 +847,9 @@ const std::string resolve_gt(const std::vector<genomic_field_t>& genomic_fields)
   return resolve(gt_vec, ref, alt);
 }
 
+void GenomicsDBVariantCallProcessor::initialize(const VariantQueryConfig &query_config, void *annotation_service) {
+  m_genomic_field_types = std::make_shared<std::map<std::string, genomic_field_type_t>>(create_genomic_field_types(query_config, annotation_service));
+}
 
 void GenomicsDBVariantCallProcessor::process(const std::string& sample_name,
                                              const int64_t* coords,
@@ -866,6 +868,10 @@ void GenomicsDBVariantCallProcessor::process(const std::string& sample_name,
 
 void GenomicsDBVariantCallProcessor::process(const interval_t& interval) {
   std::cout << "----------------\nInterval:[" << interval.first << "," << interval.second << "]\n\n";
+}
+
+void GenomicsDBVariantProcessor::initialize(const VariantQueryConfig &query_config, void *annotation_service) {
+  m_genomic_field_types = std::make_shared<std::map<std::string, genomic_field_type_t>>(create_genomic_field_types(query_config, annotation_service));
 }
 
 void GenomicsDBVariantProcessor::process(const std::vector<Variant>& variants) {

@@ -250,6 +250,7 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
   void initialize(std::map<std::string, genomic_field_type_t> genomic_field_types) {
     m_genomic_field_types = std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types));
   }
+  virtual void initialize(const VariantQueryConfig &query_config, void *annotation_service);
   const std::shared_ptr<std::map<std::string, genomic_field_type_t>> get_genomic_field_types() const {
     return m_genomic_field_types;
   }
@@ -281,6 +282,7 @@ class GENOMICSDB_EXPORT GenomicsDBVariantProcessor {
   void initialize(std::map<std::string, genomic_field_type_t> genomic_field_types) {
      m_genomic_field_types = std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types));
   }
+  void initialize(const VariantQueryConfig &query_config, void *annotation_service);
   const std::shared_ptr<std::map<std::string, genomic_field_type_t>> get_genomic_field_types() const {
     return m_genomic_field_types;
   }
@@ -303,12 +305,13 @@ class GENOMICSDB_EXPORT JSONVariantCallProcessor : public GenomicsDBVariantCallP
   JSONVariantCallProcessor() : JSONVariantCallProcessor(all) {}
   JSONVariantCallProcessor(payload_t payload_mode);
   ~JSONVariantCallProcessor();
+  void initialize(const VariantQueryConfig &query_config, void *annotation_service) override;
   void set_payload_mode(payload_t payload_mode) { m_payload_mode = payload_mode; }
-  void process(const interval_t& interval);
+  void process(const interval_t& interval) override;
   void process(const std::string& sample_name,
                const int64_t* coordinates,
                const genomic_interval_t& genomic_interval,
-               const std::vector<genomic_field_t>& genomic_fields);
+               const std::vector<genomic_field_t>& genomic_fields) override;
   std::string construct_json_output();
  private:
   payload_t m_payload_mode;
@@ -341,12 +344,12 @@ class GENOMICSDB_EXPORT ArrowVariantCallProcessor : public GenomicsDBVariantCall
   ArrowVariantCallProcessor(bool batching);
   void set_batching(bool batching) { m_is_batching = batching; }
   //set_arrow_batch_callback(batch_callback_fn batch_callback);
-  void process(const interval_t& interval);
+  void process(const interval_t& interval) override;
   void process(const std::string& sample_name,
                const int64_t* coordinates,
                const genomic_interval_t& genomic_interval,
-               const std::vector<genomic_field_t>& genomic_fields);
-  void finalize();
+               const std::vector<genomic_field_t>& genomic_fields) override;
+  void finalize() override;
 
   int append_arrow_array(const std::string& sample_name,
                          const int64_t* coordinates,

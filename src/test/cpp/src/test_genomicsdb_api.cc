@@ -934,8 +934,8 @@ TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_varia
   //  "HG00141":[["1",12141,null,"C/C","C"],["1",17385,null,"G/A","G"]],
   //  "HG01530":[["1",17385,76,"G/A","G"]],
   //  "HG01958":[["1",12145,null,"C/C","C"],["1",17385,120,"T/T","G"]]}
-  CHECK(output.length() == 207);
   printf("%lu %s\n\n", output.length(), output.c_str());
+  CHECK(output.length() == 207);
 
   JSONVariantCallProcessor json_processor1(JSONVariantCallProcessor::samples_with_ncalls);
   gdb->query_variant_calls(json_processor1, "", GenomicsDB::NONE);
