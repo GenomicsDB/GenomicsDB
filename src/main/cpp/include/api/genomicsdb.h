@@ -247,6 +247,7 @@ class GENOMICSDB_EXPORT GenomicsDBVariantCallProcessor {
  public:
   GenomicsDBVariantCallProcessor() {};
   virtual ~GenomicsDBVariantCallProcessor() {};
+  // TODO remove this and consolidate to a single version of initialize
   void initialize(std::map<std::string, genomic_field_type_t> genomic_field_types) {
     m_genomic_field_types = std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types));
   }
@@ -279,6 +280,7 @@ class GENOMICSDB_EXPORT GenomicsDBVariantProcessor {
  public:
   GenomicsDBVariantProcessor() {};
   ~GenomicsDBVariantProcessor() {};
+  // TODO remove this and consolidate to a single version of initialize
   void initialize(std::map<std::string, genomic_field_type_t> genomic_field_types) {
      m_genomic_field_types = std::make_shared<std::map<std::string, genomic_field_type_t>>(std::move(genomic_field_types));
   }

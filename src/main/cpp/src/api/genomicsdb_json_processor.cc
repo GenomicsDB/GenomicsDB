@@ -40,9 +40,6 @@
 
 #define TO_JSON_DOCUMENT(X) (reinterpret_cast<rapidjson::Document *>(X))
 
-// Prototypes to internal methods in genomicsdb.cc declared here instead of header to keep the api opaque
-std::map<std::string, genomic_field_type_t> create_genomic_field_types(const VariantQueryConfig &query_config,
-                                                   void *annotation_service, bool change_alt_to_string=false);
 JSONVariantCallProcessor::JSONVariantCallProcessor(payload_t payload_mode)
     : m_payload_mode(payload_mode) {
   m_json_document = new rapidjson::Document();
@@ -102,7 +99,7 @@ std::string JSONVariantCallProcessor::construct_json_output() {
     }
     case just_samples: {
       json_doc->SetArray();
-      if (m_samples_set == nullptr || m_samples_set->size() == 0) break;
+      if (m_samples_set == nullptr) break;
       for (auto const& sample : *m_samples_set.get()) {
         rapidjson::Value sample_value(rapidjson::StringRef(sample.c_str()), allocator);
         json_doc->PushBack(sample_value, allocator);
@@ -110,7 +107,7 @@ std::string JSONVariantCallProcessor::construct_json_output() {
       break;
     }
     case samples_with_ncalls: {
-      if (m_samples == nullptr || m_samples->size() == 0) break;
+      if (m_samples == nullptr) break;
       for (auto const& [sample_name, num_calls] : *m_samples.get()) {
         rapidjson::Value sample_name_value(rapidjson::StringRef(sample_name.c_str()), allocator);
         json_doc->AddMember(sample_name_value, rapidjson::Value(num_calls).Move(), allocator);
@@ -140,7 +137,7 @@ std::string JSONVariantCallProcessor::construct_json_output() {
       break;
     }
     case all: {
-      if (m_samples_info == nullptr || m_samples_info->size() == 0) break;
+      if (m_samples_info == nullptr) break;
       for (auto const& [sample_name, fields] : *m_samples_info.get()) {
         auto i = 0u;
         rapidjson::Value field_values = rapidjson::Value(rapidjson::kObjectType);
