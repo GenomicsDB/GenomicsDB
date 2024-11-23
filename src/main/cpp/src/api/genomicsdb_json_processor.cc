@@ -30,6 +30,7 @@
  *
  **/
 #include "genomicsdb.h"
+#include "variant_query_config.h"
 
 #include "rapidjson/document.h"
 #include "rapidjson/reader.h"
@@ -54,6 +55,38 @@ JSONVariantCallProcessor::~JSONVariantCallProcessor() {
     }
   }
   delete TO_JSON_DOCUMENT(m_json_document);
+}
+
+
+void JSONVariantCallProcessor::initialize(const VariantQueryConfig &query_config,
+                                          void *annotation_service) {
+  GenomicsDBVariantCallProcessor::initialize(query_config, annotation_service);
+  if (!m_is_initialized) {
+    m_is_initialized = true;
+    switch (m_payload_mode) {
+      case just_samples:
+        m_samples_set = std::make_unique<std::set<std::string>>();
+      case just_ncalls:
+        return;
+      default:
+        ;
+    }
+    for (auto i=0u; i<query_config.get_num_queried_attributes(); i++) {
+      const std::string attribute_name = query_config.get_query_attribute_name(i);
+      if (attribute_name.compare("END") && attribute_name.compare("ALT")) {
+        m_field_names.push_back(attribute_name);
+      }
+    }
+    switch (m_payload_mode) {
+      case samples_with_ncalls:
+        m_samples = std::make_unique<std::map<std::string, int64_t>>();
+        break;
+      case all_by_calls: case all:
+        m_samples_info = std::make_unique<std::map<std::string, std::vector<void *>>>();
+      default:
+        ;
+    }
+  }
 }
 
 std::string JSONVariantCallProcessor::construct_json_output() {
@@ -82,7 +115,7 @@ std::string JSONVariantCallProcessor::construct_json_output() {
       break;
     }
     case all_by_calls: {
-      if (m_samples_info == nullptr) break;
+      if (m_samples_info == nullptr || m_samples_info->size() == 0) break;
       // Create header with names of the fields in the JSON output
       rapidjson::Value field_names = rapidjson::Value(rapidjson::kArrayType);
       field_names.PushBack("CHR", allocator);
@@ -134,33 +167,14 @@ std::string JSONVariantCallProcessor::construct_json_output() {
 }
 
 void JSONVariantCallProcessor::process(const interval_t& interval) {
-  if (!m_is_initialized) {
-    m_is_initialized = true;
-    switch (m_payload_mode) {
-      case just_samples:
-        m_samples_set = std::make_unique<std::set<std::string>>();
-      case just_ncalls:
-        return;
-      default:
-        ;
-    }
-    auto& genomic_field_types = get_genomic_field_types();
-    for (auto& field_type_pair : *genomic_field_types) {
-      std::string field_name = field_type_pair.first;
-      if (field_name.compare("END") && field_name.compare("ALT")) {
-        m_field_names.push_back(field_name);
-      }
-    }
-    switch (m_payload_mode) {
-      case samples_with_ncalls:
-        m_samples = std::make_unique<std::map<std::string, int64_t>>();
-        break;
-      case all_by_calls: case all:
-        m_samples_info = std::make_unique<std::map<std::string, std::vector<void *>>>();
-      default:
-        ;
-    }
+}
+
+static std::vector<void *> create_value_arrays(size_t narrays) {
+  std::vector<void *> fields;
+  for (auto i = 0ull; i<narrays; i++) {
+    fields.push_back(new rapidjson::Value(rapidjson::kArrayType));
   }
+  return fields;
 }
 
 static rapidjson::Value get_chr_value(const genomic_interval_t& genomic_interval,
@@ -175,27 +189,51 @@ static rapidjson::Value get_chr_value(const genomic_interval_t& genomic_interval
 static rapidjson::Value get_value(const std::string& field_name,
                             genomic_field_type_t field_type,
                             const std::vector<genomic_field_t>& genomic_fields,
+                            size_t genomic_idx,
                             rapidjson::Document::AllocatorType& allocator) {
-  for (auto genomic_field: genomic_fields) {
-    if (genomic_field.name.compare(field_name) == 0) {
-      if (STRING_FIELD(field_name, field_type)) {
-        std::string str;
-        if (field_name == "GT") {
-          str = resolve_gt(genomic_fields);
-        } else {
-          str = genomic_field.to_string(field_type);
-        }
-        rapidjson::Value value(rapidjson::kStringType);
-        value.SetString(str.c_str(), str.length(), allocator);
-        return value;
-      } else if (INT_FIELD(field_type)) {
-        return rapidjson::Value(genomic_field.int_value_at(0));
-      } else if (FLOAT_FIELD(field_type)) {
-        return rapidjson::Value(genomic_field.float_value_at(0));
-      }
+  if (STRING_FIELD(field_name, field_type)) {
+    std::string str;
+    if (field_name == "GT") {
+      str = resolve_gt(genomic_fields);
+    } else {
+      str = genomic_fields[genomic_idx].to_string(field_type);
     }
+    rapidjson::Value value(rapidjson::kStringType);
+    value.SetString(str.c_str(), str.length(), allocator);
+    return value;
+  } else if (INT_FIELD(field_type)) {
+    return rapidjson::Value(genomic_fields[genomic_idx].int_value_at(0));
+  } else if (FLOAT_FIELD(field_type)) {
+    return rapidjson::Value(genomic_fields[genomic_idx].float_value_at(0));
   }
   return rapidjson::Value(rapidjson::kNullType);
+}
+
+static rapidjson::Value *get_values(const genomic_interval_t& genomic_interval,
+                                                const std::vector<genomic_field_t>& genomic_fields,
+                                                const std::vector<std::string>& field_names,
+                                                std::shared_ptr<std::map<std::string, genomic_field_type_t>> genomic_field_types,
+                                                rapidjson::Document *json_document) {
+  auto& allocator = json_document->GetAllocator();
+  rapidjson::Value *values = new rapidjson::Value(rapidjson::kArrayType);
+  // CHR value
+  values->PushBack(get_chr_value(genomic_interval, allocator).Move(), allocator);
+  // POS value
+  values->PushBack(rapidjson::Value(genomic_interval.interval.first).Move(), allocator);
+  auto idx = 0u;
+  for (auto field_name : field_names) {
+    if (idx < genomic_fields.size() && genomic_fields[idx].name.compare("ALT") == 0) {
+      idx++;
+    }
+    if (idx < genomic_fields.size() && genomic_fields[idx].name.compare(field_name) == 0) {
+      auto field_type = genomic_field_types->at(field_name);
+      values->PushBack(get_value(field_name, field_type, genomic_fields, idx, allocator).Move(), allocator);
+      idx++;
+    } else {
+      values->PushBack(rapidjson::Value(rapidjson::kNullType), allocator);
+    }
+  }
+  return values;
 }
 
 void JSONVariantCallProcessor::process(const std::string& sample_name,
@@ -222,48 +260,31 @@ void JSONVariantCallProcessor::process(const std::string& sample_name,
     case all_by_calls: {
       auto sample_info = m_samples_info->find(sample_name);
       if (sample_info == m_samples_info->end()) {
-        // Create Value Arrays and add to map
-        m_samples_info->emplace(sample_name, std::vector<void *>());
-        sample_info = m_samples_info->find(sample_name);
+          m_samples_info->emplace(sample_name, std::vector<void *>());
+          sample_info = m_samples_info->find(sample_name);
       }
-      rapidjson::Value *fields = new rapidjson::Value(rapidjson::kArrayType);
-      // CHR value
-      fields->PushBack(get_chr_value(genomic_interval, allocator).Move(), allocator);
-      // POS value
-      fields->PushBack(rapidjson::Value(genomic_interval.interval.first).Move(), allocator);
-      for (auto field_name : m_field_names) {
-        auto field_type = get_genomic_field_types()->at(field_name);
-        fields->PushBack(get_value(field_name, field_type, genomic_fields, allocator).Move(), allocator);
-      }
-      sample_info->second.push_back(fields);
+      sample_info->second.push_back(get_values(genomic_interval, genomic_fields, m_field_names,
+                                               get_genomic_field_types(),
+                                               TO_JSON_DOCUMENT(m_json_document)));
       break;
     }
     case all: {
       auto sample_info = m_samples_info->find(sample_name);
       if (sample_info == m_samples_info->end()) {
-        // Create Value Arrays and add to map
-        std::vector<void *> fields;
-        rapidjson::Value *chr = new rapidjson::Value(rapidjson::kArrayType);
-        fields.push_back(chr);
-        rapidjson::Value *pos = new rapidjson::Value(rapidjson::kArrayType);
-        fields.push_back(pos);
-        for (auto field_name : m_field_names) {
-          rapidjson::Value *field_array = new rapidjson::Value(rapidjson::kArrayType);
-          fields.push_back(field_array);
-        }
+        // Create Value Arrays and add to m_samples_info, one each for chr, pos plus genomic fields
+        auto fields = create_value_arrays(m_field_names.size() + 2);
         m_samples_info->emplace(sample_name, std::move(fields));
         sample_info = m_samples_info->find(sample_name);
       }
-      auto i = 0u;
+      auto values = get_values(genomic_interval, genomic_fields, m_field_names,
+                               get_genomic_field_types(),
+                               TO_JSON_DOCUMENT(m_json_document));
       auto& fields = sample_info->second;
-      rapidjson::Value *chr = reinterpret_cast<rapidjson::Value *>(fields[i++]);
-      chr->PushBack(get_chr_value(genomic_interval, allocator).Move(), allocator);
-      rapidjson::Value *pos = reinterpret_cast<rapidjson::Value *>(fields[i++]);
-      pos->PushBack(rapidjson::Value(genomic_interval.interval.first).Move(), allocator);
-      for (auto field_name : m_field_names) {
-        auto field_type = get_genomic_field_types()->at(field_name);
-        rapidjson::Value *values = reinterpret_cast<rapidjson::Value *>(fields[i++]);
-        values->PushBack(get_value(field_name, field_type, genomic_fields, allocator).Move(), allocator);
+      assert(values->Size() == fields.size());
+      auto i = 0u;
+      for (auto& value : values->GetArray()) {
+        auto field = reinterpret_cast<rapidjson::Value *>(fields[i++]);
+        field->PushBack(value.Move(), allocator);
       }
     }
   }
