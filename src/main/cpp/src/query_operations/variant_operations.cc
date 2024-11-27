@@ -541,7 +541,7 @@ bool GA4GHOperator::check_if_too_many_alleles_and_print_message(
     std::stringstream ss;
     if (contig_status)
       ss << "Chromosome "<<contig_name<<" position "<<contig_position+1<<" ("; //VCF contig coords are 1 based
-    ss << "TileDB column "<<variant.get_column_begin();
+    ss << "GenomicsDB mapped column "<<variant.get_column_begin();
     if (contig_status)
       ss << ")";
     ss << " has too many alleles in the combined VCF record : "<<num_merged_alleles-1
@@ -578,14 +578,14 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
 	  orig_call.get_row_idx(), callset_name);
       std::stringstream ss;
       if(callset_status)
-	ss << "Sample/Callset "<<callset_name << "( ";
-      ss << "TileDB row idx "<<orig_call.get_row_idx();
+	ss << "Sample/Callset "<<callset_name << "(";
+      ss << "GenomicsDB mapped row idx "<<orig_call.get_row_idx();
       if(callset_status)
 	ss << ")";
       ss << " at ";
       if (contig_status)
 	ss << "Chromosome "<<contig_name<<" position "<<contig_position+1<<" ("; //VCF contig coords are 1 based
-      ss << "TileDB column "<<variant.get_column_begin();
+      ss << "GenomicsDB mapped column "<<variant.get_column_begin();
       if (contig_status)
 	ss << ")";
       ss << " has too many genotypes in the combined VCF record : ";
@@ -596,8 +596,8 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
 	ss << num_genotypes;
       ss  << " : current limit : "<<m_max_genotype_count
 	<< " (num_alleles, ploidy) = ("<<num_merged_alleles<< ", "<<curr_ploidy
-	<< "). Fields, such as  PL, with length equal to the number of genotypes will NOT be added \
-	for this sample for this location.\n";
+	<< "). Fields, such as  PL, with length equal to the number of genotypes will NOT be added "
+	<< "for this sample for this location.\n";
       logger.warn(ss.str());
       remapped_field->set_valid(false);
       return false; //no remapping done

@@ -223,7 +223,7 @@ void *ArrowVariantCallProcessor::arrow_schema() {
 }
 
 void *ArrowVariantCallProcessor::arrow_array() {
-  if (m_is_finalized && TO_ARROW_ARRAY(m_arrow_array)->children[0]->length == 0) return NULL;
+  if (m_is_finalized && (!m_arrow_array || TO_ARROW_ARRAY(m_arrow_array)->children[0]->length == 0)) return NULL;
   if (m_is_batching) array_ready.acquire();
   ArrowArray *arrow_array = new ArrowArray();
   ArrowArrayInitFromSchema(arrow_array, TO_ARROW_SCHEMA(m_arrow_schema), NULL);
