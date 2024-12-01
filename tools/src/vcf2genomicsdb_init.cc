@@ -384,7 +384,6 @@ static int write_json(google::protobuf::Message *message, const std::vector<std:
     LOG_TILEDB_ERRMSG;
     status = ERR;
   }
-  delete message;
   return status;
 }
 
@@ -568,8 +567,8 @@ static int update_json(import_config_t import_config) {
   google::protobuf::util::JsonParseOptions json_options;
   json_options.ignore_unknown_fields = true;
 
-  CallsetMappingPB* callset_protobuf = new CallsetMappingPB();
-  auto status = google::protobuf::util::JsonStringToMessage(callset_string, callset_protobuf, json_options);
+  CallsetMappingPB callset_protobuf;
+  auto status = google::protobuf::util::JsonStringToMessage(callset_string, &callset_protobuf, json_options);
   if (!status.ok()) {
     g_logger.error("Protobuf could not apply {} to CallsetMappingPB {}", import_config.callset_output, status.message().as_string());
     free(callset_contents);
@@ -577,12 +576,12 @@ static int update_json(import_config_t import_config) {
   }
   free(callset_contents);
 
-  auto existing_callset_size = callset_protobuf->callsets_size();
+  auto existing_callset_size = callset_protobuf.callsets_size();
   std::set<std::string> existing_samples;
-  for (auto callset:callset_protobuf->callsets()) {
+  for (auto callset:callset_protobuf.callsets()) {
     existing_samples.insert(callset.sample_name());
   }
-  auto row_index = callset_protobuf->callsets()[existing_callset_size-1].row_idx() + 1;
+  auto row_index = callset_protobuf.callsets()[existing_callset_size-1].row_idx() + 1;
 
   bool found_new_samples = false;
   for (auto sample_uri: import_config.samples) {
@@ -606,7 +605,7 @@ static int update_json(import_config_t import_config) {
       }
       if (validated) {
         found_new_samples = true;
-        auto* callset = callset_protobuf->add_callsets();
+        auto* callset = callset_protobuf.add_callsets();
         callset->set_sample_name(hdr->samples[i]);
         callset->set_row_idx(row_index++);
         callset->set_idx_in_file(i);
@@ -619,7 +618,7 @@ static int update_json(import_config_t import_config) {
 
   if (found_new_samples) {
     // Deserialize loader json
-    ImportConfiguration* import_config_protobuf = new ImportConfiguration();
+    ImportConfiguration import_config_protobuf;
     char *loader_json_contents;
     size_t loader_json_length;
     if (TileDBUtils::read_entire_file(import_config.loader_json, (void **)&loader_json_contents, &loader_json_length)) {
@@ -628,7 +627,7 @@ static int update_json(import_config_t import_config) {
       return ERR;
     }
     google::protobuf::StringPiece loader_json_string(loader_json_contents, loader_json_length);
-    auto status = google::protobuf::util::JsonStringToMessage(loader_json_string, import_config_protobuf, json_options);
+    auto status = google::protobuf::util::JsonStringToMessage(loader_json_string, &import_config_protobuf, json_options);
     if (!status.ok()) {
       g_logger.error("Protobuf could not apply {} to ImportConfiguration {}", import_config.loader_json, status.message().as_string());
       free(loader_json_contents);
@@ -636,7 +635,7 @@ static int update_json(import_config_t import_config) {
     }
     free(loader_json_contents);
     // Update loader.json with lb_row_idx
-    import_config_protobuf->set_lb_callset_row_idx(existing_callset_size);
+    import_config_protobuf.set_lb_callset_row_idx(existing_callset_size);
 
     if (rename_file(import_config.callset_output, import_config.callset_output+".old")) {
       g_logger.error("Could not rename existing callset json file {} to {}", import_config.callset_output, import_config.callset_output+".old");
@@ -651,8 +650,8 @@ static int update_json(import_config_t import_config) {
     }
 
     // Write out callset.json and loader.json
-    if (write_json(callset_protobuf, {"row_idx", "idx_in_file"}, import_config.callset_output)
-        || write_json(import_config_protobuf, {"tiledb_column", "size_per_column_partition", "segment_size",
+    if (write_json(&callset_protobuf, {"row_idx", "idx_in_file"}, import_config.callset_output)
+        || write_json(&import_config_protobuf, {"tiledb_column", "size_per_column_partition", "segment_size",
                 "num_cells_per_tile", "lb_callset_row_idx"}, import_config.loader_json)) {
       return ERR;
     }
@@ -872,10 +871,13 @@ void print_usage() {
 #define SLASHIFY(path) (path.back()!='/'?path+'/':path)
 #define UNSLASHIFY(path) (path.back()=='/'?path.substr(0,path.length()-2):path)
 
+#define RETURN_OK google::protobuf::ShutdownProtobufLibrary(); return OK
+#define RETURN_ERR google::protobuf::ShutdownProtobufLibrary(); return ERR
+
 int main(int argc, char** argv) {
   if (argc < 2) {
     print_usage();
-    return ERR;
+    RETURN_ERR;
   }
   
   static struct option long_options[] = {
@@ -953,27 +955,27 @@ int main(int argc, char** argv) {
         break;
       case 'h':
         print_usage();
-        return 0;
+        RETURN_OK;
       case VERSION:
         std::cout << GENOMICSDB_VERSION << "\n";
-        return OK;
+        RETURN_OK;
       default:
         std::cerr << "Unknown command line argument\n";
         print_usage();
-        return ERR;
+        RETURN_ERR;
     }
   }
 
   // Validate options
   if (workspace.empty()) {
     g_logger.error("Workspace(--workspace/-w) required to be specified");
-    return ERR;
+    RETURN_ERR;
   } else if (sample_list.empty() && samples_dir.empty()) {
     g_logger.error("One of either a samples list file(--sample-list/-s) or directory(--samples-dir/-S) is required to be specified");
-    return ERR;
+    RETURN_ERR;
   } else if (!import_config.template_loader_json.empty() && !TileDBUtils::is_file(import_config.template_loader_json)) {
     g_logger.error("Specified Template Loader Json(--template-loader-json/-t) {} not found", import_config.template_loader_json);
-    return ERR;
+    RETURN_ERR;
   }
 
   workspace = TileDBUtils::real_dir(workspace);
@@ -991,20 +993,20 @@ int main(int argc, char** argv) {
   } else if (TileDBUtils::workspace_exists(workspace)) {
     if (!overwrite_workspace) {
       g_logger.error("Workspace {} exists, retry with --overwrite-workspace/-o option", workspace);
-      return ERR;
+      RETURN_ERR;
     }
   }
 
   if (!sample_list.empty() && !TileDBUtils::is_file(sample_list)) {
     g_logger.error("Sample list {} specified with --sample-list/-s option cannot be accessed", sample_list);
     LOG_TILEDB_ERRMSG;
-    return ERR;
+    RETURN_ERR;
   }
 
   if (!samples_dir.empty() && !TileDBUtils::is_dir(samples_dir)) {
     g_logger.error("Samples dir {} specified with --samples-dir/-S option cannot be accessed", samples_dir);
     LOG_TILEDB_ERRMSG;
-    return ERR;
+    RETURN_ERR;
   }
 
   genomicsdb_htslib_plugin_initialize();
@@ -1015,14 +1017,14 @@ int main(int argc, char** argv) {
     auto samples = process_samples(sample_list, samples_dir);
     if (samples.size() == 0) {
       g_logger.info("No samples found in the input sample list/directory. Nothing to process!");
-      return ERR;
+      RETURN_ERR;
     }
 
     if (generate) {
       if (TileDBUtils::create_workspace(workspace, overwrite_workspace) != TILEDB_OK) {
         g_logger.error("Could not create workspace {}", workspace);
         LOG_TILEDB_ERRMSG;
-        return ERR;
+        RETURN_ERR;
       }
     }
 
@@ -1035,14 +1037,14 @@ int main(int argc, char** argv) {
 
     if (generate) {
       if (merge_headers_and_generate_callset(import_config)) {
-        return ERR;
+        RETURN_ERR;
       }
       if (generate_json(import_config)) {
-        return ERR;
+        RETURN_ERR;
       }
     } else {
       if (update_json(import_config)) {
-        return ERR;
+        RETURN_ERR;
       }
     }
 
@@ -1050,12 +1052,12 @@ int main(int argc, char** argv) {
 
   } catch(const GenomicsDBConfigException& genomicsdb_ex) {
     g_logger.error("GenomicsDBConfigException: {}", genomicsdb_ex.what());
-    return ERR;
+    RETURN_ERR;
   } catch (const std::exception& ex) {
     g_logger.error(ex.what());
-    return ERR;
+    RETURN_ERR;
   } 
 
   g_logger.info("Success!");
-  return OK;
+  RETURN_OK;
 }
