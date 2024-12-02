@@ -1,0 +1,84 @@
+#
+# valgrind.yml
+#
+# The MIT License
+#
+# Copyright (c) 2024 dātma, inc™
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+#
+
+name: Valgrind
+
+on:
+  push:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.rst'
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.rst'
+
+env:
+  PREREQS_ENV: ${{github.workspace}}/prereqs.sh
+  PREREQS_INSTALL_DIR: ${{github.workspace}}/prereqs
+  CMAKE_INSTALL_PREFIX: ${{github.workspace}}/install
+  GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
+
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Cache built prerequisites
+      uses: actions/cache@v4
+      with:
+        path: |
+          ${{env.PREREQS_INSTALL_DIR}}
+          ~/awssdk-install
+          ~/gcssdk-install
+          ~/protobuf-install/${{env.PROTOBUF_VERSION}}
+        key: ubuntu-22.04-cache-prereqs-${{env.PROTOBUF_VERSION}}-v1
+
+    - name: Install Prerequisites
+      shell: bash
+      working-directory: ${{github.workspace}}/scripts/prereqs
+      run: |
+        $GITHUB_WORKSPACE/.github/scripts/cleanup_hosts.sh
+        sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
+        source $PREREQS_ENV
+        sudo apt-get update -q
+        sudo apt-get -y install valgrind
+
+    - name: Run valgrind
+      shell: bash
+      run: |
+        source $PREREQS_ENV
+        mkdir -p $GENOMICSDB_BUILD_DIR
+        cd $GENOMICSDB_BUILD_DIR
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX $GITHUB_WORKSPACE
+        make -j4
+        make install
+        export VALGRIND="valgrind --leak-check=full --suppressions=$GITHUB_WORKSPACE/src/test/inputs/valgrind_mpi.supp"
+        cd $GITHUB_WORKSPACE/tests
+        ./test_tools.sh inputs/vcfs $CMAKE_INSTALL_PREFIX

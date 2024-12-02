@@ -2,7 +2,7 @@
 #
 # The MIT License (MIT)
 # Copyright (c) 2021-2023 Omics Data Automation Inc.
-# Copyright (c) 2023 da̅tma, inc.
+# Copyright (c) 2023-2024 da̅tma, inc.
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -204,7 +204,14 @@ run_command() {
     EXPECT_NZ=1
   fi
   # Execute the command redirecting all output to $TEMP_DIR/output
-  $($1 &> $TEMP_DIR/output)
+  if [[ $EXPECT_NZ -eq 0 ]] && [[ -n $VALGRIND ]]; then
+    echo $VALGRIND $1
+    $VALGRIND $1 &> $TEMP_DIR/output
+    grep "All heap blocks were freed -- no leaks are possible" $TEMP_DIR/output ||
+      grep "definitely lost: 0 bytes in 0 blocks" $TEMP_DIR/output
+  else
+    $($1 &> $TEMP_DIR/output)
+  fi
   retval=$?
 
   if [[ $retval -ne 0 ]]; then
@@ -428,6 +435,11 @@ run_command "gt_mpi_gather --rank 1 -l $WORKSPACE/loader.json -j $QUERY_JSON" ER
 # $3 Expected Result(OK or ERR)
 # $4 Error Message
 diff_gt_mpi_gather_output() {
+  if [[ -n $VALGRIND ]]; then
+    # Ignore results for valgrind as they cannot be interpreted by
+    # the following commands
+    return
+  fi
   sed "1 d" $1 > $1.cut
   sed -i -e '/MD5/d' $1.cut
   sed "1 d" $2 > $2.cut
