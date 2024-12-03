@@ -41,7 +41,7 @@ env:
   PREREQS_INSTALL_DIR: ${{github.workspace}}/prereqs
   CMAKE_INSTALL_PREFIX: ${{github.workspace}}/install
   GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
-
+  PROTOBUF_VERSION: 3.21.7
 
 jobs:
   build:
