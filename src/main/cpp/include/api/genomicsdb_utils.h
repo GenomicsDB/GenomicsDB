@@ -70,6 +70,22 @@ GENOMICSDB_EXPORT ssize_t file_size(const std::string& filename);
  */
 GENOMICSDB_EXPORT int read_entire_file(const std::string& filename, void **buffer, size_t *length);
 
+/**
+ * Get all array names under a workspace
+ * @param workspace storage URL
+ * @return vector of array names in the workspace
+ */
+GENOMICSDB_EXPORT std::vector<std::string> get_array_names(const std::string& workspace);
+
+/**
+ * Cache fragment metadata associated with array in a workspace. Used by the underlying storage system only
+ * when the workspace is a cloud URL for now.
+ * @param workspace storage URL
+ * @param array URL under workspace
+ * @return GENOMICSDB_OK for success, GENOMICSDB_ERR otherwise
+ */
+GENOMICSDB_EXPORT int cache_fragment_metadata(const std::string& workspace, const std::string& array_name);
+
 }
 
 
