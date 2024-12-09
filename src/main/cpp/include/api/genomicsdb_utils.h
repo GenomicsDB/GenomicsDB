@@ -37,6 +37,8 @@
 #define GENOMICSDB_EXPORT __attribute__((visibility("default")))
 
 #include <string>
+#include <vector>
+
 #include "genomicsdb_status.h"
 
 namespace genomicsdb {
