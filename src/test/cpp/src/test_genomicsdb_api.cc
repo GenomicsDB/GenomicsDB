@@ -46,6 +46,8 @@
 #  include <nanoarrow/nanoarrow.h>
 #endif
 
+static std::string ctests_input_dir(GENOMICSDB_CTESTS_DIR);
+
 TEST_CASE_METHOD(TempDir, "utils", "[genomicsdb_utils]") {
   REQUIRE(genomicsdb::version().size() > 0);
   REQUIRE_THAT(genomicsdb::version(), Catch::Equals(GENOMICSDB_VERSION));
@@ -66,6 +68,12 @@ TEST_CASE_METHOD(TempDir, "utils", "[genomicsdb_utils]") {
   CHECK(length == 11);
   CHECK(hello_world == txt);
   CHECK(genomicsdb::read_entire_file(filename+".another", (void **)txt, &length) == TILEDB_ERR);
+
+  auto ws = ctests_input_dir+"ws";
+  auto arrays = genomicsdb::get_array_names(ws);
+  CHECK(arrays.size() == 1);
+  CHECK(arrays[0] == "t0_1_2");
+  CHECK(genomicsdb::cache_fragment_metadata(ws, "t0_1_2") == GENOMICSDB_OK);
 }
 
 TEST_CASE("api empty_args", "[empty_args]") {
@@ -91,8 +99,6 @@ TEST_CASE("api empty_args", "[empty_args]") {
     CHECK(strlen(e.what()) > 0);
   }
 }
-
-static std::string ctests_input_dir(GENOMICSDB_CTESTS_DIR);
 
 static std::string workspace(ctests_input_dir+"ws");
 static std::string callset_mapping(ctests_input_dir+"callset_t0_1_2.json");

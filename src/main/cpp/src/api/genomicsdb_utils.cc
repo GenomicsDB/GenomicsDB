@@ -51,4 +51,12 @@ int read_entire_file(const std::string& filename, void **buffer, size_t *length)
   return TileDBUtils::read_entire_file(filename, buffer, length);
 }
 
+std::vector<std::string> get_array_names(const std::string& workspace) {
+  return TileDBUtils::get_array_names(workspace);
+}
+
+int cache_fragment_metadata(const std::string& workspace, const std::string& array_name) {
+  return TileDBUtils::cache_fragment_metadata(workspace, array_name);
+}
+
 }
