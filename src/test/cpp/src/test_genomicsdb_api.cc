@@ -58,22 +58,41 @@ TEST_CASE_METHOD(TempDir, "utils", "[genomicsdb_utils]") {
 
   CHECK(genomicsdb::is_file(filename));
   CHECK(!genomicsdb::is_file(filename+".nonexistent"));
+  CHECK(!genomicsdb::is_file("az://non-existent-container/non-existent-file"));
   
   CHECK(genomicsdb::file_size(filename) == 11);
   CHECK(genomicsdb::file_size(filename+".new") == -1);
+  CHECK(genomicsdb::file_size("az://non-existent-container/non-existent-file") == -1);
   
   char *txt;
   size_t length;
   CHECK(genomicsdb::read_entire_file(filename, (void **)&txt, &length) == GENOMICSDB_OK);
   CHECK(length == 11);
   CHECK(hello_world == txt);
-  CHECK(genomicsdb::read_entire_file(filename+".another", (void **)txt, &length) == TILEDB_ERR);
+  CHECK(genomicsdb::read_entire_file(filename+".another", (void **)txt, &length) == GENOMICSDB_ERR);
+  CHECK(genomicsdb::read_entire_file("az://non-existent-container/non-existent-file", (void **)txt, &length) == GENOMICSDB_ERR);
 
   auto ws = ctests_input_dir+"ws";
+
+  CHECK(genomicsdb::workspace_exists(ws));
+  CHECK(!genomicsdb::workspace_exists("non-existent-ws"));
+  CHECK(!genomicsdb::workspace_exists("az://non-existent-container/ws"));
+
+  auto array = "t0_1_2";
+  CHECK(genomicsdb::array_exists(ws, array));
+  CHECK(!genomicsdb::array_exists(ws, "non-existent-array"));
+  CHECK(!genomicsdb::array_exists("non-existent-ws", array));
+  CHECK(!genomicsdb::array_exists("az://non-existent-ws", array));
+
   auto arrays = genomicsdb::get_array_names(ws);
   CHECK(arrays.size() == 1);
   CHECK(arrays[0] == "t0_1_2");
+  CHECK(genomicsdb::get_array_names("non-existent-ws").size() == 0);
+  CHECK(genomicsdb::get_array_names("az://non-existent-container/ws").size() == 0);
+
   CHECK(genomicsdb::cache_fragment_metadata(ws, "t0_1_2") == GENOMICSDB_OK);
+  CHECK(genomicsdb::cache_fragment_metadata("non-existent-ws", "t0_1_2") == GENOMICSDB_ERR);
+  CHECK(genomicsdb::cache_fragment_metadata("az://non-existent-container/ws", "t0_1_2") == GENOMICSDB_ERR);
 }
 
 TEST_CASE("api empty_args", "[empty_args]") {
