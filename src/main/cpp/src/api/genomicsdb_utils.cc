@@ -39,7 +39,7 @@ std::string version() {
   return GENOMICSDB_VERSION;
 }
 
-#define LOG_ERRMSG if (strlen(tiledb_errmsg)) logger.error(std::string("\n")+tiledb_errmsg)
+#define LOG_ERRMSG if (strlen(tiledb_errmsg)) logger.error(tiledb_errmsg)
 
 bool is_file(const std::string& filename) {
   bool found =  TileDBUtils::is_file(filename);
