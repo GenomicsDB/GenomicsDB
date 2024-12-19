@@ -72,6 +72,19 @@ GENOMICSDB_EXPORT ssize_t file_size(const std::string& filename);
  */
 GENOMICSDB_EXPORT int read_entire_file(const std::string& filename, void **buffer, size_t *length);
 
+/** Check whether workspace exists
+ * @param workspace storage URL
+ * @return true if given workspace exists, false otherwise
+ */ 
+GENOMICSDB_EXPORT bool workspace_exists(const std::string& workspace);
+
+/** Check whether an array in a given workspace exists
+ * @param workspace storage URL
+ * @param array_name
+ * @return true if array exists in the workspace, false otherwise
+ */
+GENOMICSDB_EXPORT bool array_exists(const std::string& workspace, const std::string& array_name);
+
 /**
  * Get all array names under a workspace
  * @param workspace storage URL
