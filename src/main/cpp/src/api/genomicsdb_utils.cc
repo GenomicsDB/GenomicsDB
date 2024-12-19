@@ -52,11 +52,11 @@ bool is_file(const std::string& filename) {
 }
 
 ssize_t file_size(const std::string& filename) {
-  auto size = TileDBUtils::file_size(filename);
-  if (size == -1) {
-    LOG_ERRMSG;
+  if (is_file(filename)) {
+    return TileDBUtils::file_size(filename);;
+  } else {
+    return GENOMICSDB_ERR;
   }
-  return size;
 }
 
 int read_entire_file(const std::string& filename, void **buffer, size_t *length) {
