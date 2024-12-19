@@ -33,8 +33,6 @@
 #include "tiledb_utils.h"
 #include "genomicsdb_logger.h"
 
-#include "string.h"
-
 namespace genomicsdb {
 
 std::string version() {
