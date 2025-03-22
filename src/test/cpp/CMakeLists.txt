@@ -78,10 +78,9 @@ target_link_libraries_for_GenomicsDB_tests(api_tests)
 target_compile_definitions(api_tests PRIVATE -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/")
 add_test(api_tests api_tests -d yes)
 
-add_custom_command(TARGET api_tests
+add_custom_command(TARGET api_tests POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E tar xzf ${CMAKE_CURRENT_SOURCE_DIR}/../inputs/test.tgz
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/../inputs/test.tgz)
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 add_custom_target(all_ctests COMMAND ${CMAKE_CTEST_COMMAND} -V DEPENDS ctests api_tests)
 
