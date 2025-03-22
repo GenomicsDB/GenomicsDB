@@ -62,8 +62,9 @@ message AnnotationSource {
   required string filename = 1;
   required string data_source = 2;
   repeated string attributes = 3;
-  optional bool is_vcf = 4 [default = true];
-  repeated string file_chromosomes = 5;
+  optional string filter = 4 [default = ""];
+  optional bool is_vcf = 5 [default = true];
+  repeated string file_chromosomes = 6;
 }
 
 // Simple query configuration for GenomicsDB::query_variant_calls
@@ -143,5 +144,6 @@ message ExportConfiguration {
   optional bool bypass_intersecting_intervals_phase = 29 [default = false];
   optional SparkConfig spark_config = 30;
   repeated AnnotationSource annotation_source = 31;
-  optional uint32 annotation_buffer_size = 32 [default = 10240];
+  optional string annotation_filter = 32 [default = ""];
+  optional uint32 annotation_buffer_size = 33 [default = 10240];
 }
