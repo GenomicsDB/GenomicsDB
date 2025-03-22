@@ -30,7 +30,6 @@
 
 #include "genomicsdb.h"
 #include "genomicsdb_config_base.h"
-#include "hfile_genomicsdb.h"
 #include "tiledb_utils.h"
 
 #include "genomicsdb_export_config.pb.h"
@@ -1601,7 +1600,6 @@ TEST_CASE("api query_variant_calls with annotation and filters", "[annotate_filt
 }
 
 TEST_CASE("api query_variant_calls with annotation and the tcga dataset", "[annotate_tcga]") {
-  genomicsdb_htslib_plugin_initialize();
   char *tcga_ws = getenv("TCGA_WS");
   if (!tcga_ws) {
     return;
