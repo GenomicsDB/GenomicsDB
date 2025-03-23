@@ -6,6 +6,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2021 Omics Data Automation, Inc.
+ * Copyright (c) 2025 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -40,6 +41,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "genomicsdb_export_config.pb.h"
@@ -50,16 +52,18 @@ typedef struct annotation_source_t {
   std::string filename;
   std::string datasource;
   std::set<std::string> fields;
-
-  // Indicate spcific chromosomes that are in the datasource, or leave blank when all chromosomes are present.
+  std::string filter;
+  // Indicate specific chromosomes that are in the datasource, blank when all chromosomes are present.
   std::set<std::string> file_chromosomes;
 
   // Constructor
   annotation_source_t(const std::string& filename, const std::string& datasource,
-                      const std::set<std::string>& fields, const std::set<std::string>& file_chromosomes) {
+                      const std::set<std::string>& fields, const std::string filter,
+                      const std::set<std::string>& file_chromosomes) {
     this->filename = std::move(filename);
     this->datasource = std::move(datasource);
     this->fields = std::move(fields);
+    this->filter = std::move(filter);
     this->file_chromosomes = std::move(file_chromosomes);
   }
 
@@ -138,16 +142,57 @@ class AnnotationService {
    **/
   AnnotationService(const std::string& export_configuration, std::set<std::string> contigs);
 
+  ~AnnotationService() {
+    cleanup();
+  }
+
+  void initialize();
+
+  void cleanup() {
+    for (const auto& pair : m_tbx_ptrs) {
+      delete pair.second;
+    }
+    for (const auto& pair : m_bcf_hdr_ptrs) {
+      bcf_hdr_destroy(pair.second);
+    }
+    for (const auto& pair : m_htsfile_ptrs) {
+      hts_close(pair.second);
+    }
+  }
+
   std::vector<annotation_source_t>& get_annotation_sources();
 
-  void annotate(genomic_interval_t &genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields);
+  bool has_filter() {
+    return m_annotation_has_filter;
+  }
 
-  genomic_field_t get_genomic_field(const std::string &data_source, const std::string &info_attribute, const char *value, const int32_t value_length, int bcf_ht_type=BCF_HT_STR);
+  bool annotate(genomic_interval_t &genomic_interval, const std::string& ref, const std::string& alt,
+                std::vector<genomic_field_t>& genomic_fields);
+
+  genomic_field_t get_genomic_field(const std::string &data_source, const std::string &info_attribute,
+                                    const char *value, const int32_t value_length, int bcf_ht_type=BCF_HT_STR);
 
  private:
   // List of configured annotation data sources
   std::vector<annotation_source_t> m_annotation_sources;
 
+  // Initialize hts file level pointers
+  bool m_initialize_htsfile_ptrs = true;
+  std::map<std::string, htsFile *> m_htsfile_ptrs;
+  std::map<std::string, bcf_hdr_t *> m_bcf_hdr_ptrs;
+  std::map<std::string, tbx_t *> m_tbx_ptrs;
+
+  // TODO: Should make the following fields thread-specific
+  std::pair<genomic_interval_t, std::string>  m_last_genomic_range;
+  // Map of annotation sources to map of annotation fields
+  std::map<std::string, std::map<std::string, genomic_field_t>> m_last_annotations;
+  bool m_last_evaluation = true;
+
+  // Filter to evaluate all fields from all annotation sources. If any of the fields evaluate to false,
+  // genomicsdb::process_interval() will not invoke genomicsdb::GenomicsDBVariantCallProcessor.process()
+  // for downstream processing.
+  bool m_annotation_has_filter = false;
+  
   // Buffer to store annotated field values
   std::vector<uint8_t> m_annotation_buffer;
   size_t m_annotation_buffer_size = 0;

@@ -6,7 +6,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2019-2020,2022 Omics Data Automation, Inc.
- * Copyright (c) 2023-2024 dātma, inc™
+ * Copyright (c) 2023-2025 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -54,9 +54,14 @@ typedef std::pair<uint64_t, uint64_t> interval_t;
 typedef struct genomic_interval_t {
   std::string contig_name;
   interval_t interval;
+  genomic_interval_t() {}
   genomic_interval_t(std::string contig_name, interval_t interval) {
     this->contig_name = contig_name;
     this->interval = interval;
+  }
+  // Member function overload
+  bool operator==(const genomic_interval_t& other) const {
+    return (this->contig_name == other.contig_name) && (this->interval.first == other.interval.first) && (this->interval.second == other.interval.second);
   }
 } genomic_interval_t;
 
@@ -116,6 +121,7 @@ typedef struct genomic_field_t {
   std::string name;
   const void* ptr;
   size_t num_elements;
+  genomic_field_t() {}
   genomic_field_t(std::string name, const void* ptr, size_t num_elements) {
     this->name = name;
     this->ptr = ptr;

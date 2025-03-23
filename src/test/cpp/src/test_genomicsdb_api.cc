@@ -3,7 +3,7 @@
  *
  * The MIT License (MIT)
  * Copyright (c) 2019-2023 Omics Data Automation, Inc.
- * Copyright (c) 2023-2024 dātma, inc™
+ * Copyright (c) 2023-2025 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -45,6 +45,8 @@
 #ifdef USE_NANOARROW
 #  include <nanoarrow/nanoarrow.h>
 #endif
+
+using namespace genomicsdb_pb;
 
 static std::string ctests_input_dir(GENOMICSDB_CTESTS_DIR);
 
@@ -313,6 +315,11 @@ class CountCellsProcessor : public GenomicsDBVariantCallProcessor {
   CountCellsProcessor() {
   };
 
+  void reset() {
+    m_intervals = 0;
+    m_count = 0;
+  }
+
   void process(const interval_t& interval) {
     m_intervals++;
   };
@@ -574,8 +581,6 @@ TEST_CASE("api query_variant_calls with json", "[query_variant_calls_with_json]"
 }
 
 TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_protobuf]") {
-  using namespace genomicsdb_pb;
-
   ExportConfiguration *config = new ExportConfiguration();
 
   config->set_workspace(workspace);
@@ -747,8 +752,6 @@ TEST_CASE("api query_variant_calls with protobuf", "[query_variant_calls_with_pr
 }
 
 TEST_CASE("api query_variant_calls with protobuf and config", "[query_variant_calls_with_protobuf_and_explicit_configuration]") {
-  using namespace genomicsdb_pb;
-
   ExportConfiguration *config = new ExportConfiguration();
 
   config->set_workspace(workspace_new);
@@ -861,8 +864,6 @@ TEST_CASE("api query_variant_calls with protobuf and config", "[query_variant_ca
 }
 
 TEST_CASE("api query_variant_calls with protobuf new", "[query_variant_calls_with_protobuf_new]") {
-  using namespace genomicsdb_pb;
-
   ExportConfiguration *config = new ExportConfiguration();
 
   config->set_workspace(workspace_new);
@@ -910,8 +911,6 @@ TEST_CASE("api query_variant_calls with protobuf new", "[query_variant_calls_wit
 }
 
 TEST_CASE("api query_variant_calls with JSONVariantCallProcessor", "[query_variant_calls_with_json_processor]") {
-  using namespace genomicsdb_pb;
-
   ExportConfiguration *config = new ExportConfiguration();
 
   config->set_workspace(workspace_new);
@@ -1086,8 +1085,6 @@ std::vector<std::string> get_array_value(ArrowArray *array, ArrowType type, int 
 }
 
 TEST_CASE("api query_variant_calls with ArrowVariantCallProcessor", "[query_variant_calls_with_arrow_output]") {
-  using namespace genomicsdb_pb;
-
   ExportConfiguration *config = new ExportConfiguration();
 
   config->set_workspace(workspace_new);
@@ -1201,8 +1198,6 @@ TEST_CASE("api query_variant_calls with ArrowVariantCallProcessor", "[query_vari
 #endif
 
 TEST_CASE("Test genomicsdb demo test case", "[genomicsdb_demo]") {
-  using namespace genomicsdb_pb;
-  
   char *genomicsdb_demo_workspace = getenv("GENOMICSDB_DEMO_WS");
   if (!genomicsdb_demo_workspace) return;
 
@@ -1455,8 +1450,6 @@ class VariantAnnotationCallProcessor : public GenomicsDBVariantCallProcessor {
 };
 
 TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_variant_calls_with_tds0]") {
-  using namespace genomicsdb_pb;
-
   ExportConfiguration *config = new ExportConfiguration();
 
   config->set_workspace(workspace);
@@ -1547,3 +1540,110 @@ TEST_CASE("api annotate query_variant_calls with test datasource 0", "[annotate_
   CHECK_THROWS_AS(gdb->query_variant_calls(variant_annotation_processor, "", GenomicsDB::NONE), GenomicsDBException);
   delete gdb;
 }
+
+ExportConfiguration* get_pb_export_config() {
+  ExportConfiguration *config = new ExportConfiguration();
+  config->set_workspace(workspace_new);
+  config->set_callset_mapping_file(workspace_new+"/callset.json");
+  config->set_vid_mapping_file(workspace_new+"/vidmap.json");
+  config->set_bypass_intersecting_intervals_phase(true);
+  config->set_enable_shared_posixfs_optimizations(true);
+  config->add_attributes()->assign("REF");
+  config->add_attributes()->assign("ALT");
+  config->add_attributes()->assign("GT");
+  ContigInterval* contig_interval = config->add_query_contig_intervals();
+  contig_interval->set_contig("1");
+  contig_interval->set_begin(1);
+  contig_interval->set_end(20000);
+  return config;
+}
+
+AnnotationSource* get_pb_annotation_source(ExportConfiguration *config, const std::string& field) {
+  AnnotationSource* annotation_source = config->add_annotation_source();
+  annotation_source->set_filename(ctests_input_dir+"test_datasource0.vcf.bgz");
+  annotation_source->set_data_source("datasource0");
+  annotation_source->add_attributes()->assign(field);
+  return annotation_source;
+}
+
+void check_query_with_filter(ExportConfiguration *config, AnnotationSource *source, std::string filter, int count) {
+  if (!filter.empty()) {
+    source->set_filter(filter);
+  }
+  std::string config_string;
+  CHECK(config->SerializeToString(&config_string));
+  GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, "", 0);
+  CountCellsProcessor count_cells_processor;
+  gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
+  CHECK(count_cells_processor.m_intervals == 1);
+  CHECK(count_cells_processor.m_count == count);
+  delete gdb; 
+}
+
+TEST_CASE("api query_variant_calls with annotation and filters", "[annotate_filters]") {
+  auto* config = get_pb_export_config();
+  auto* annotation_source = get_pb_annotation_source(config, "field3");
+  // With no filters
+  check_query_with_filter(config, annotation_source, "", 5);
+  // With filters
+  check_query_with_filter(config, annotation_source, "not_existent", 0);
+  check_query_with_filter(config, annotation_source, "foo", 0);
+  check_query_with_filter(config, annotation_source, "noot", 2);
+  check_query_with_filter(config, annotation_source, "waldo", 1);
+  check_query_with_filter(config, annotation_source, "noot|waldo", 3);
+  // With annotation field that is not a string
+  config = get_pb_export_config();
+  annotation_source = get_pb_annotation_source(config, "field7");
+  check_query_with_filter(config, annotation_source, "", 5);
+  // No support for filters if any of the fields are not strings
+  CHECK_THROWS_AS(check_query_with_filter(config, annotation_source, ">3", 2), std::exception);
+}
+
+TEST_CASE("api query_variant_calls with annotation and the tcga dataset", "[annotate_tcga]") {
+  char *tcga_ws = getenv("TCGA_WS");
+  if (!tcga_ws) {
+    return;
+  }
+  std::string tcgaws(tcga_ws);
+  ExportConfiguration *config = new ExportConfiguration();
+  config->set_workspace(tcgaws);
+  config->set_callset_mapping_file(tcgaws + "/callset.json");
+  config->set_vid_mapping_file(tcgaws + "/vidmap.json");
+  config->set_array_name("1$1$3137454");
+  config->set_bypass_intersecting_intervals_phase(true);
+  config->set_enable_shared_posixfs_optimizations(true);
+  config->add_attributes()->assign("REF");
+  config->add_attributes()->assign("ALT");
+  config->add_attributes()->assign("GT");
+  ContigInterval* contig_interval = config->add_query_contig_intervals();
+  contig_interval->set_contig("1");
+  contig_interval->set_begin(865664);
+  contig_interval->set_end(865738);
+  //contig_interval->set_end(965700);
+  char *annotate = getenv("ANNOTATE");
+  char *filter = getenv("FILTER");
+  if (annotate) {
+    // Annotation
+    AnnotationSource* annotation_source = config->add_annotation_source();
+    annotation_source->set_filename(tcgaws + "/clinvar_hg37.vcf.gz");
+    annotation_source->set_data_source("clinvar");
+    annotation_source->add_attributes()->assign("MC");
+    if (filter) {
+      annotation_source->set_filter("missense");
+    }
+  }
+  std::string config_string;
+  CHECK(config->SerializeToString(&config_string));
+  GenomicsDB* gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING, "", 0);
+  CountCellsProcessor count_cells_processor;
+  gdb->query_variant_calls(count_cells_processor, "", GenomicsDB::NONE);
+  CHECK(count_cells_processor.m_intervals == 1);
+  if (annotate && filter) {
+    CHECK(count_cells_processor.m_count == 250);
+  } else {
+    CHECK(count_cells_processor.m_count == 278);
+  }
+}
+
+
+  

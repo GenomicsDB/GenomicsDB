@@ -6,7 +6,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2021 Omics Data Automation, Inc.
- * Copyright (c) 2023 dātma, inc™
+ * Copyright (c) 2023, 2025 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -40,6 +40,8 @@
 #include "genomicsdb_logger.h"
 #include "tiledb_utils.h"
 #include "vid_mapper.h"
+
+#include <regex>
 
 int set_length_descriptor(FieldLengthDescriptor& length_descr, const std::string& field_type, char *field_number) {
   auto found_ht_map = VidMapper::m_typename_string_to_bcf_ht_type.find(field_type);
@@ -97,6 +99,7 @@ genomic_field_type_t annotation_source_t::construct_field_type(bcf_hrec_t* hrec)
 
 AnnotationService::AnnotationService(const std::string& export_configuration, std::set<std::string> contigs) {
   genomicsdb_pb::ExportConfiguration export_config;
+  genomicsdb_htslib_plugin_initialize();
   export_config.ParseFromString(export_configuration);
   for(auto i=0; i<export_config.annotation_source_size(); ++i) {
     auto filename  = export_config.annotation_source(i).filename();
@@ -123,8 +126,6 @@ AnnotationService::AnnotationService(const std::string& export_configuration, st
       }
     }
 
-    genomicsdb_htslib_plugin_initialize();
-
     std::set<std::string> fields;
     for(auto field : export_config.annotation_source(i).attributes()) {
       fields.insert(field);
@@ -137,10 +138,13 @@ AnnotationService::AnnotationService(const std::string& export_configuration, st
 
     m_annotation_sources.emplace_back(filename,
                                       export_config.annotation_source(i).data_source(),
-                                      fields,
+                                      fields, export_config.annotation_source(i).filter(),
                                       file_chromosomes);
+    if (!export_config.annotation_source(i).filter().empty()) {
+      m_annotation_has_filter = true;
+    }
   }
-
+  
   m_annotation_buffer_size = export_config.annotation_buffer_size();
   m_annotation_buffer.resize(m_annotation_buffer_size);
 }
@@ -177,45 +181,76 @@ genomic_field_t AnnotationService::get_genomic_field(const std::string &data_sou
   }
 }
 
+void AnnotationService::initialize() {
+  if (m_initialize_htsfile_ptrs) {
+    m_initialize_htsfile_ptrs = false;
+    for(auto annotation_source: m_annotation_sources) {
+      if (m_htsfile_ptrs.find(annotation_source.filename) != m_htsfile_ptrs.end()) {
+        continue;
+      }
+      htsFile *htsfile_ptr = hts_open(annotation_source.filename.c_str(), "r");
+      VERIFY2(htsfile_ptr!=NULL, logger.format("Could not hts_open {} file in read mode", annotation_source.filename));
+      // Only supporting vcf files now
+      enum htsExactFormat format = hts_get_format(htsfile_ptr)->format;
+      VERIFY2(format==vcf, logger.format("File {} is not VCF (a)", annotation_source.filename));
+      // Read in the header information
+      bcf_hdr_t *hdr = bcf_hdr_read(htsfile_ptr);
+      VERIFY2(hdr!=NULL, logger.format("Could not read header in file {}", annotation_source.filename));
+      // Read the tbi index file to help with reading the annotation vcfs
+      tbx_t *tbx = tbx_index_load3(annotation_source.filename.c_str(), NULL, 0);
+      VERIFY2(tbx, logger.format("Could not load the index file for {}", annotation_source.filename));
+      // Cache pointers
+      m_htsfile_ptrs[annotation_source.filename] = htsfile_ptr;
+      m_bcf_hdr_ptrs[annotation_source.filename] = hdr;
+      m_tbx_ptrs[annotation_source.filename] = tbx;
+    }
+  }
+}
+
 /**
   Annotate a genomic location using all of the configured data sources. Annotations
   are stored in the genomic_fields vector with the name of the field set to the result of
   concatonating the dataSource (ie ClinVar) with a separator (see AnnotationService.DATA_SOURCE_FIELD_SEPARATOR),
   and the INFO field label.
  */
-void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) {
+bool AnnotationService::annotate(genomic_interval_t& genomic_interval, const std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) {
+  if (genomic_interval == m_last_genomic_range.first && alt == m_last_genomic_range.second) {
+    if (m_annotation_has_filter) return m_last_evaluation;
+    for (auto annotation_source: m_annotation_sources) {
+      if (m_last_annotations.find(annotation_source.filename) == m_last_annotations.end()) {
+        continue;
+      }
+      auto& source = m_last_annotations[annotation_source.filename];
+      for (auto field: annotation_source.fields) {
+        if (source.find(field) != source.end()) {
+          auto& value = source.at(field);
+          genomic_fields.push_back(value);
+        }
+      }
+    }
+    return m_last_evaluation;
+  }
+
+  m_last_genomic_range = {genomic_interval, alt};
+  m_last_annotations.clear();
+  m_last_evaluation = !m_annotation_has_filter;
   assert(m_annotation_buffer_size); // Should have been initialized in constructor
   m_annotation_buffer_remaining = m_annotation_buffer_size;
 
+  // Query using chromosome and position range
+  std::string query_range = genomic_interval.contig_name + ":" +
+      std::to_string(genomic_interval.interval.first) + "-" + std::to_string(genomic_interval.interval.second);
+ 
   for(auto annotation_source: m_annotation_sources) {
-    htsFile *htsfile_ptr = hts_open(annotation_source.filename.c_str(), "r");
-    VERIFY2(htsfile_ptr!=NULL, logger.format("Could not hts_open {} file in read mode", annotation_source.filename));
+    auto* htsfile_ptr = m_htsfile_ptrs[annotation_source.filename];
+    auto* hdr = m_bcf_hdr_ptrs[annotation_source.filename];
+    auto* tbx = m_tbx_ptrs[annotation_source.filename];
+    std::regex pattern(annotation_source.filter);
 
-    // Only supporting vcf files now
-    enum htsExactFormat format = hts_get_format(htsfile_ptr)->format;
-    VERIFY2(format==vcf, logger.format("File {} is not VCF (a)", annotation_source.filename));
-
-    bcf_hdr_t *hdr = bcf_hdr_read(htsfile_ptr);
-    VERIFY2(hdr!=NULL, logger.format("Could not read header in file {}", annotation_source.filename));
-
-    // Read the tbi index file to help with reading the annotation vcfs
-    tbx_t *tbx = tbx_index_load3(annotation_source.filename.c_str(), NULL, 0);
-    VERIFY2(tbx, logger.format("Could not load the index file for {}", annotation_source.filename));
-
-    // Query using chromosome and position range
-    std::string query_range = genomic_interval.contig_name + ":" + std::to_string(genomic_interval.interval.first) + "-" + std::to_string(genomic_interval.interval.second);
     hts_itr_t *itr = tbx_itr_querys(tbx, query_range.c_str());
-
-    VERIFY2(itr, "Could not obtain tbx query iterator. Possibly caused by the vcf not having any variants on the requested chromosome.");
-
-    regidx_t *reg_idx = NULL;
-    // reg_idx = regidx_init(annotation_source.filename().c_str(), NULL, NULL, 0, NULL);
-    // VERIFY2(reg_idx, "Unable to read file");
-
-    const char **seq = NULL;
-    int nseq;
-    if (reg_idx) {
-      seq = tbx_seqnames(tbx, &nseq);
+    if (!itr) {
+      logger.warn("Could not obtain tbx query iterator from {} for interval({})", annotation_source.filename, query_range);
+      continue;
     }
 
     kstring_t str = {0,0,0};
@@ -224,16 +259,11 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
 
     // Iterate over each matching position in the VCF
     while (tbx_itr_next(htsfile_ptr, tbx, itr, &str) >= 0) {
-      if (reg_idx && !regidx_overlap(reg_idx,seq[itr->curr_tid],itr->curr_beg,itr->curr_end-1, NULL) ) {
-        continue;
-      }
-
       VERIFY2(vcf_parse1(&str, hdr, rec) == 0, "Problem parsing current line of VCF");
 
       bcf_unpack((bcf1_t*)rec, BCF_UN_ALL); // Using BCF_UN_INFO is probably a little faster
-      // bcf_unpack((bcf1_t*)rec, BCF_UN_INFO); // Using BCF_UN_INFO is probably a little faster
 
-      if(ref.compare(rec->d.allele[0]) != 0) {
+      if (ref.compare(rec->d.allele[0]) != 0) {
         // REF doesn't match
         continue;
       } else if(alt.compare(rec->d.allele[1])) {
@@ -243,34 +273,53 @@ void AnnotationService::annotate(genomic_interval_t& genomic_interval, std::stri
       }
 
       // iteration over the list of INFO fields we are interested in
+      bool not_found = false;
       for(auto info_attribute: annotation_source.fields) {
         if(info_attribute == "ID") {
-          genomic_fields.push_back(get_genomic_field(annotation_source.datasource, info_attribute, rec->d.id, strlen(rec->d.id)));
+          auto field_value = get_genomic_field(annotation_source.datasource, info_attribute,
+                                               rec->d.id, strlen(rec->d.id));
+          genomic_fields.push_back(field_value);
+          m_last_annotations[annotation_source.filename][info_attribute] = field_value;
         } else {
           void* info_value = NULL;
           int32_t info_value_length = 0;
           int info_index = bcf_hdr_id2int(hdr, BCF_DT_ID, info_attribute.c_str());
           VERIFY2(info_index != -1, logger.format("Info field {} not found in annotation source {}", info_attribute,
-                                                 annotation_source.filename));
+                                                  annotation_source.filename));
           int info_type = bcf_hdr_id2type(hdr, BCF_HL_INFO, info_index);
           int num_values = bcf_get_info_values(hdr, rec, info_attribute.c_str(), &info_value, &info_value_length, info_type);
           VERIFY2((num_values >= 0 || num_values == -3),
-                 logger.format("bcf_get_info_values returned {}. See vcf.h for error code", num_values));
+                  logger.format("bcf_get_info_values returned {}. See vcf.h for error code", num_values));
           if (num_values > 0) {
             if (info_type == BCF_HT_STR && ((char *)info_value)[info_value_length-1] == 0) {
               info_value_length--;
             }
-            genomic_fields.push_back(get_genomic_field(annotation_source.datasource, info_attribute,
-                                                       (char *)info_value, info_value_length, info_type));
+            // Filtering only supported for strings for now
+            if (!annotation_source.filter.empty()) {
+              if (info_type != BCF_HT_STR) {
+                cleanup();
+                logger.fatal(GenomicsDBException(),
+                             "No support for annotation filters for fields({}) from datasource({}) that are not strings",
+                             info_attribute, annotation_source.datasource);
+              }
+              auto info = std::string((char *)info_value, info_value_length);
+              if (!std::regex_search(info, pattern)) {
+                not_found = true;
+                break;
+              }
+            } else {
+              auto field_value = get_genomic_field(annotation_source.datasource, info_attribute,
+                                                 (char *)info_value, info_value_length, info_type);
+              genomic_fields.push_back(field_value);
+              m_last_annotations[annotation_source.filename][info_attribute] = field_value;
+            }
             free(info_value);
           }
         }
       }
+      m_last_evaluation = !not_found;
     }
-
-   regidx_destroy(reg_idx);
-   bcf_itr_destroy(itr);
-   bcf_hdr_destroy(hdr);
-   hts_close(htsfile_ptr);
+    bcf_itr_destroy(itr);
   }
+  return m_last_evaluation;
 }

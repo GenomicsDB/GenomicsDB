@@ -62,8 +62,9 @@ message AnnotationSource {
   required string filename = 1;
   required string data_source = 2;
   repeated string attributes = 3;
-  optional bool is_vcf = 4 [default = true];
-  repeated string file_chromosomes = 5;
+  optional string filter = 4 [default = ""];
+  optional bool is_vcf = 5 [default = true];
+  repeated string file_chromosomes = 6;
 }
 
 // Simple query configuration for GenomicsDB::query_variant_calls

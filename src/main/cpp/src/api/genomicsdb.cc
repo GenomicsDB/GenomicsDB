@@ -6,7 +6,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2019-2020,2022 Omics Data Automation, Inc.
- * Copyright (c) 2023-2024 dātma, inc™
+ * Copyright (c) 2023-2025 dātma, inc™
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -218,7 +218,7 @@ std::map<std::string, genomic_field_type_t> create_genomic_field_types(const Var
       }
     }
   }
-  if (annotation_service) {
+  if (annotation_service && !TO_ANNOTATION_SERVICE(annotation_service)->has_filter()) {
     for(auto annotation_source: TO_ANNOTATION_SERVICE(annotation_service)->get_annotation_sources()) {
       auto field_types = annotation_source.field_types();
       genomic_field_types.insert(field_types.begin(), field_types.end());
@@ -441,6 +441,9 @@ class GatherVariantCalls : public SingleCellOperatorBase {
 
 void GatherVariantCalls::initialize(const VariantQueryConfig& query_config) {
   m_variant_call_processor.initialize(query_config, m_annotation_service);
+  if (m_annotation_service) {
+    TO_ANNOTATION_SERVICE(m_annotation_service)->initialize();
+  }
 };
 
 void GatherVariantCalls::operate(VariantCall& variant_call,
@@ -490,6 +493,7 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
     }
   }
 
+  bool process_interval = true;
   if (m_annotation_service) {
     std::string alt_value;
     std::string ref_value;
@@ -503,16 +507,17 @@ void GatherVariantCalls::operate_on_columnar_cell(const GenomicsDBColumnarCell& 
 
     if (!alt_value.empty()) {
       AnnotationService* annotation_service = TO_ANNOTATION_SERVICE(m_annotation_service);
-      annotation_service->annotate(genomic_interval, ref_value, alt_value, genomic_fields);
+      process_interval = annotation_service->annotate(genomic_interval, ref_value, alt_value, genomic_fields);
     }
   }
-
-  std::string sample_name;
-  if (!m_vid_mapper.get_callset_name(coords[0], sample_name)) {
-    sample_name = "NONE";
+  
+  if (process_interval) {
+    std::string sample_name;
+    if (!m_vid_mapper.get_callset_name(coords[0], sample_name)) {
+      sample_name = "NONE";
+    }
+    m_variant_call_processor.process(sample_name, coords, genomic_interval, genomic_fields);
   }
-
-  m_variant_call_processor.process(sample_name, coords, genomic_interval, genomic_fields);
 }
 
 void GatherVariantCalls::finalize() {
