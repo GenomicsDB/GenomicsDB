@@ -166,9 +166,11 @@ class AnnotationService {
     return m_annotation_has_filter;
   }
 
-  bool annotate(genomic_interval_t &genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields);
+  bool annotate(genomic_interval_t &genomic_interval, const std::string& ref, const std::string& alt,
+                std::vector<genomic_field_t>& genomic_fields);
 
-  genomic_field_t get_genomic_field(const std::string &data_source, const std::string &info_attribute, const char *value, const int32_t value_length, int bcf_ht_type=BCF_HT_STR);
+  genomic_field_t get_genomic_field(const std::string &data_source, const std::string &info_attribute,
+                                    const char *value, const int32_t value_length, int bcf_ht_type=BCF_HT_STR);
 
  private:
   // List of configured annotation data sources

@@ -213,7 +213,7 @@ void AnnotationService::initialize() {
   concatonating the dataSource (ie ClinVar) with a separator (see AnnotationService.DATA_SOURCE_FIELD_SEPARATOR),
   and the INFO field label.
  */
-bool AnnotationService::annotate(genomic_interval_t& genomic_interval, std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) {
+bool AnnotationService::annotate(genomic_interval_t& genomic_interval, const std::string& ref, const std::string& alt, std::vector<genomic_field_t>& genomic_fields) {
   if (genomic_interval == m_last_genomic_range.first && alt == m_last_genomic_range.second) {
     if (m_annotation_has_filter) return m_last_evaluation;
     for (auto annotation_source: m_annotation_sources) {
