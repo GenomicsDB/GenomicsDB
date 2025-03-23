@@ -183,7 +183,6 @@ class AnnotationService {
   std::map<std::string, tbx_t *> m_tbx_ptrs;
 
   // TODO: Should make the following fields thread-specific
-  //genomic_interval_t m_last_genomic_range;
   std::pair<genomic_interval_t, std::string>  m_last_genomic_range;
   // Map of annotation sources to map of annotation fields
   std::map<std::string, std::map<std::string, genomic_field_t>> m_last_annotations;
