@@ -48,6 +48,11 @@
 #include <typeinfo>
 #include <vector>
 #include <functional>
+#include <atomic>
+#include <mutex>
+#include <queue>
+#include <condition_variable>
+#include <semaphore>
 
 typedef std::pair<uint64_t, uint64_t> interval_t;
 
@@ -336,8 +341,58 @@ class GENOMICSDB_EXPORT JSONVariantCallProcessor : public GenomicsDBVariantCallP
   std::unique_ptr<std::map<std::string, std::vector<void *>>> m_samples_info;
 };
 
+// Add VariantInfo struct before the JSONStreamingVariantCallProcessor class
+struct VariantInfo {
+    std::string chr;
+    int64_t pos;
+    std::string ref;
+    std::string alt;
+    
+    // Required for map key comparison
+    bool operator<(const VariantInfo& other) const {
+        if (chr != other.chr) return chr < other.chr;
+        if (pos != other.pos) return pos < other.pos;
+        if (ref != other.ref) return ref < other.ref;
+        return alt < other.alt;
+    }
+};
+
+class JSONStreamingVariantCallProcessor : public GenomicsDBVariantCallProcessor {
+public:
+  JSONStreamingVariantCallProcessor(int batch_threshold = 0);
+  ~JSONStreamingVariantCallProcessor() override;
+
+  void initialize(const VariantQueryConfig &query_config, void *annotation_service) override;
+  void process(const std::string& sample_name,
+              const int64_t* coordinates,
+              const genomic_interval_t& genomic_interval,
+              const std::vector<genomic_field_t>& genomic_fields) override;
+  void process(const interval_t& interval) override;
+  void finalize() override;
+
+  // Get the next batch of results
+  std::string get_next_batch();
+
+private:
+  void flush_current_batch();
+  std::string construct_json_output(const std::map<VariantInfo, std::set<std::string>>& variant_map);
+
+  int m_batch_threshold;
+  int m_variant_count;
+  bool m_is_finalized;
+  int64_t m_last_column;
+  std::mutex m_mtx;
+  std::binary_semaphore m_batch_ready{0};
+  std::binary_semaphore m_batch_empty{1};
+  void *m_json_document;
+  
+  // Current batch being built
+  std::unique_ptr<std::map<VariantInfo, std::set<std::string>>> m_current_batch;
+  // Queue of completed batches
+  std::queue<std::map<VariantInfo, std::set<std::string>>> m_completed_batches;
+};
+
 #ifdef USE_NANOARROW
-#include <semaphore>
 /**
  * ArrowVariantCallProcessor gathers the variant calls satisfying the query configuration
  * and outputs an ArrowSchema instance and ArrowArray instances. Each of the ArrowArray instances

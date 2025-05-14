@@ -1645,5 +1645,234 @@ TEST_CASE("api query_variant_calls with annotation and the tcga dataset", "[anno
   }
 }
 
+TEST_CASE("api query_variant_calls with JSONStreamingVariantCallProcessor", "[query_variant_calls_with_streaming_processor]") {
+  // --- JSONStreamingVariantCallProcessor test using batching and the test workspace ---
+  ExportConfiguration *config = new ExportConfiguration();
+
+  config->set_workspace(workspace_new);
+  config->set_array_name("t0_1_2");
+  config->set_callset_mapping_file(workspace_new+"/callset.json");
+  config->set_vid_mapping_file(workspace_new+"/vidmap.json");
+
+  // query_row_ranges
+  RowRangeList* row_ranges = config->add_query_row_ranges();
+  RowRange* row_range = row_ranges->add_range_list();
+  row_range->set_low(0);
+  row_range->set_high(3);
+
+  // query contig_interval
+  ContigInterval* contig_interval = config->add_query_contig_intervals();
+  contig_interval->set_contig("1");
+  contig_interval->set_begin(1);
+  contig_interval->set_end(249250621);
+
+  // query_attributes
+  config->add_attributes()->assign("GT");
+  config->add_attributes()->assign("DP");
+
+  config->set_bypass_intersecting_intervals_phase(true);
+  config->set_segment_size(128);
+
+  std::string config_string;
+  CHECK(config->SerializeToString(&config_string));
+  GenomicsDB *gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+
+  // JSONStreamingVariantCallProcessor with batching enabled (threshold of 2 variants)
+  JSONStreamingVariantCallProcessor streaming_processor(2);
+
+  // Launch query in a separate thread
+  auto query_thread = std::async(std::launch::async, [&] {
+    gdb->query_variant_calls(streaming_processor, "", GenomicsDB::NONE);
+    streaming_processor.finalize();
+  });
+
+  // Collect batches in main thread
+  std::vector<std::string> batch_jsons;
+  while (true) {
+    auto batch = streaming_processor.get_next_batch();
+    if (batch.empty()) break;
+    batch_jsons.push_back(batch);
+    // Print each batch for inspection
+    printf("Batch JSON: %s\n", batch.c_str());
+  }
+  query_thread.get();
+
+  // Combine all batches into a single variant->samples map
+  std::map<std::string, std::set<std::string>> combined;
+  for (const auto& batch : batch_jsons) {
+    rapidjson::Document doc;
+    doc.Parse(batch.c_str());
+    if (!doc.IsArray()) continue;
+    for (const auto& variant_obj : doc.GetArray()) {
+      if (!variant_obj.HasMember("chr") || !variant_obj.HasMember("pos") ||
+          !variant_obj.HasMember("ref") || !variant_obj.HasMember("alt") ||
+          !variant_obj.HasMember("samples")) continue;
+      std::string key = std::string(variant_obj["chr"].GetString()) + ":" +
+                        std::to_string(variant_obj["pos"].GetInt()) + ":" +
+                        variant_obj["ref"].GetString() + ":" +
+                        variant_obj["alt"].GetString();
+      const auto& samples = variant_obj["samples"].GetArray();
+      for (const auto& s : samples) combined[key].insert(s.GetString());
+    }
+  }
+  printf("Test 0");
+
+  // Now check that the combined map matches the expected output for the test data
+  // For the test workspace, the expected mapping is:
+  // 1:12141:C:C -> HG00141
+  // 1:12145:C:C -> HG01958
+  // 1:17385:G:A -> HG00141,HG01530
+  // 1:17385:G:T -> HG01958
+  // (This is based on the ArrowVariantCallProcessor and JSONVariantCallProcessor test outputs)
+  std::map<std::string, std::set<std::string>> expected = {
+    {"1:12141:C:C", {"HG00141"}},
+    {"1:12145:C:C", {"HG01958"}},
+    {"1:17385:G:A", {"HG00141", "HG01530"}},
+    {"1:17385:T:T", {"HG01958"}}
+  };
+  printf("Test 1");
+  CHECK(combined == expected);
+
+  // Print the combined output for manual inspection
+  printf("Combined variant->samples map:\n");
+  for (const auto& kv : combined) {
+    printf("%s: ", kv.first.c_str());
+    for (const auto& sample : kv.second) printf("%s ", sample.c_str());
+    printf("\n");
+  }
+
+  delete gdb;
+}
+
+TEST_CASE("api query_variant_calls with JSONStreamingVariantCallProcessor - empty results", "[query_variant_calls_with_streaming_processor_empty]") {
+  ExportConfiguration *config = new ExportConfiguration();
+
+  config->set_workspace(workspace_new);
+  config->set_array_name("t0_1_2");
+  config->set_callset_mapping_file(workspace_new+"/callset.json");
+  config->set_vid_mapping_file(workspace_new+"/vidmap.json");
+
+  // query_row_ranges
+  RowRangeList* row_ranges = config->add_query_row_ranges();
+  RowRange* row_range = row_ranges->add_range_list();
+  row_range->set_low(0);
+  row_range->set_high(3);
+
+  // query contig_interval - use a region with no variants
+  ContigInterval* contig_interval = config->add_query_contig_intervals();
+  contig_interval->set_contig("22"); // No variants on chr22 in test data
+  contig_interval->set_begin(1);
+  contig_interval->set_end(1000000);
+
+  // query_attributes
+  config->add_attributes()->assign("GT");
+  config->add_attributes()->assign("DP");
+
+  config->set_bypass_intersecting_intervals_phase(true);
+  config->set_segment_size(128);
+
+  std::string config_string;
+  CHECK(config->SerializeToString(&config_string));
+  GenomicsDB *gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+
+  // JSONStreamingVariantCallProcessor with batching disabled (threshold = 0)
+  JSONStreamingVariantCallProcessor streaming_processor(0);
+
+  // Launch query in a separate thread
+  auto query_thread = std::async(std::launch::async, [&] {
+    gdb->query_variant_calls(streaming_processor, "", GenomicsDB::NONE);
+    streaming_processor.finalize();
+  });
+
+  // Get results - should be empty
+  std::string result = streaming_processor.get_next_batch();
+  CHECK(result.empty());
+
+  query_thread.get();
+  delete gdb;
+}
+
+TEST_CASE("api query_variant_calls with JSONStreamingVariantCallProcessor - column based batching", "[query_variant_calls_with_streaming_processor_column_batching]") {
+  ExportConfiguration *config = new ExportConfiguration();
+
+  config->set_workspace(workspace_new);
+  config->set_array_name("t0_1_2");
+  config->set_callset_mapping_file(workspace_new+"/callset.json");
+  config->set_vid_mapping_file(workspace_new+"/vidmap.json");
+
+  // query_row_ranges
+  RowRangeList* row_ranges = config->add_query_row_ranges();
+  RowRange* row_range = row_ranges->add_range_list();
+  row_range->set_low(0);
+  row_range->set_high(3);
+
+  // query contig_interval - use a region with variants at different positions
+  ContigInterval* contig_interval = config->add_query_contig_intervals();
+  contig_interval->set_contig("1");
+  contig_interval->set_begin(12000);
+  contig_interval->set_end(18000);
+
+  // query_attributes
+  config->add_attributes()->assign("GT");
+  config->add_attributes()->assign("DP");
+
+  config->set_bypass_intersecting_intervals_phase(true);
+  config->set_segment_size(128);
+
+  std::string config_string;
+  CHECK(config->SerializeToString(&config_string));
+  GenomicsDB *gdb = new GenomicsDB(config_string, GenomicsDB::PROTOBUF_BINARY_STRING);
+
+  // JSONStreamingVariantCallProcessor with batching enabled (threshold of 1 variant)
+  JSONStreamingVariantCallProcessor streaming_processor(1);
+
+  // Launch query in a separate thread
+  auto query_thread = std::async(std::launch::async, [&] {
+    gdb->query_variant_calls(streaming_processor, "", GenomicsDB::NONE);
+    streaming_processor.finalize();
+  });
+
+  // Collect batches in main thread
+  std::vector<std::string> batch_jsons;
+  while (true) {
+    auto batch = streaming_processor.get_next_batch();
+    if (batch.empty()) break;
+    batch_jsons.push_back(batch);
+  }
+  query_thread.get();
+
+  // Should have at least 2 batches due to different columns
+  CHECK(batch_jsons.size() >= 2);
+
+  // Verify the batches contain the expected variants
+  std::map<std::string, std::set<std::string>> combined;
+  for (const auto& batch : batch_jsons) {
+    rapidjson::Document doc;
+    doc.Parse(batch.c_str());
+    if (!doc.IsArray()) continue;
+    for (const auto& variant_obj : doc.GetArray()) {
+      if (!variant_obj.HasMember("chr") || !variant_obj.HasMember("pos") ||
+          !variant_obj.HasMember("ref") || !variant_obj.HasMember("alt") ||
+          !variant_obj.HasMember("samples")) continue;
+      std::string key = std::string(variant_obj["chr"].GetString()) + ":" +
+                        std::to_string(variant_obj["pos"].GetInt()) + ":" +
+                        variant_obj["ref"].GetString() + ":" +
+                        variant_obj["alt"].GetString();
+      const auto& samples = variant_obj["samples"].GetArray();
+      for (const auto& s : samples) combined[key].insert(s.GetString());
+    }
+  }
+
+  // Expected variants in the region
+  std::map<std::string, std::set<std::string>> expected = {
+    {"1:12141:C:C", {"HG00141"}},
+    {"1:12145:C:C", {"HG01958"}},
+    {"1:17385:G:A", {"HG00141", "HG01530"}},
+    {"1:17385:T:T", {"HG01958"}}
+  };
+  CHECK(combined == expected);
+
+  delete gdb;
+}
 
   

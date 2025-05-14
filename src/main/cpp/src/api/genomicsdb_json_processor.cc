@@ -289,3 +289,166 @@ void JSONVariantCallProcessor::process(const std::string& sample_name,
     }
   }
 }
+
+JSONStreamingVariantCallProcessor::JSONStreamingVariantCallProcessor(int batch_threshold)
+    : m_batch_threshold(batch_threshold), m_is_finalized(false), m_last_column(-1), m_variant_count(0) {
+    m_json_document = new rapidjson::Document();
+    TO_JSON_DOCUMENT(m_json_document)->SetObject();
+    m_current_batch = std::make_unique<std::map<VariantInfo, std::set<std::string>>>();
+}
+
+JSONStreamingVariantCallProcessor::~JSONStreamingVariantCallProcessor() {
+    delete TO_JSON_DOCUMENT(m_json_document);
+}
+
+void JSONStreamingVariantCallProcessor::initialize(const VariantQueryConfig &query_config, void *annotation_service) {
+    GenomicsDBVariantCallProcessor::initialize(query_config, annotation_service);
+}
+
+void JSONStreamingVariantCallProcessor::process(const interval_t& interval) {
+    // TODO: Implement??
+}
+
+void JSONStreamingVariantCallProcessor::process(const std::string& sample_name,
+            const int64_t* coordinates,
+            const genomic_interval_t& genomic_interval,
+            const std::vector<genomic_field_t>& genomic_fields) {
+    if (m_batch_threshold > 0 && m_last_column != -1) {
+        bool should_flush = m_last_column != coordinates[1] && m_variant_count >= m_batch_threshold;
+        if (should_flush) {
+            flush_current_batch();  // Flush the current batch before notifying
+        } else {
+            m_batch_empty.release();
+        }
+    }
+    
+    if (m_batch_threshold > 0) {
+        m_batch_empty.acquire();
+    }
+
+    {
+        std::lock_guard<std::mutex> g(m_mtx);
+        m_last_column = coordinates[1];
+        m_variant_count++;
+        
+        VariantInfo variant;
+        variant.chr = genomic_interval.contig_name;
+        variant.pos = genomic_interval.interval.first;
+        
+        // Get the resolved GT string which contains the actual alleles
+        std::string resolved_gt = resolve_gt(genomic_fields);
+        
+        // Split the resolved GT string to get REF and ALT
+        size_t sep_pos = resolved_gt.find_first_of("/|");
+        if (sep_pos != std::string::npos) {
+            variant.ref = resolved_gt.substr(0, sep_pos);
+            variant.alt = resolved_gt.substr(sep_pos + 1);
+        } else {
+            // If no separator found, use the whole string as REF
+            variant.ref = resolved_gt;
+            variant.alt = "";
+        }
+
+        // Add sample to the set for this variant
+        (*m_current_batch)[variant].insert(sample_name);
+    }
+}
+
+void JSONStreamingVariantCallProcessor::finalize() {
+    m_is_finalized = true;
+    if (m_batch_threshold > 0) {
+        flush_current_batch();  // Flush any remaining variants before finalizing
+    }
+}
+
+void JSONStreamingVariantCallProcessor::flush_current_batch() {
+    if (!m_current_batch->empty()) {
+        m_completed_batches.push(std::move(*m_current_batch));
+        m_current_batch = std::make_unique<std::map<VariantInfo, std::set<std::string>>>();
+        m_variant_count = 0;  // Reset variant count after flushing
+    }
+    m_batch_ready.release();
+}
+
+std::string JSONStreamingVariantCallProcessor::get_next_batch() {
+    if (m_is_finalized && m_completed_batches.empty() && (!m_current_batch || m_current_batch->empty())) {
+        return "[]";
+    }
+
+    if (m_batch_threshold > 0) {
+        m_batch_ready.acquire();
+    }
+
+    std::map<VariantInfo, std::set<std::string>> batch;
+    {
+        std::lock_guard<std::mutex> g(m_mtx);
+        if (!m_completed_batches.empty()) {
+            batch = std::move(m_completed_batches.front());
+            m_completed_batches.pop();
+        } else if (m_is_finalized && m_current_batch && !m_current_batch->empty()) {
+            batch = std::move(*m_current_batch);
+            m_current_batch = std::make_unique<std::map<VariantInfo, std::set<std::string>>>();
+        } else {
+            return "[]";  // No data to process
+        }
+    }
+
+    if (m_batch_threshold > 0) {
+        m_batch_empty.release();
+    }
+
+    return construct_json_output(batch);
+}
+
+std::string JSONStreamingVariantCallProcessor::construct_json_output(const std::map<VariantInfo, std::set<std::string>>& variant_map) {
+    if (variant_map.empty()) {
+        return "[]";  // Return empty array for empty batch
+    }
+
+    rapidjson::Document *json_doc = TO_JSON_DOCUMENT(m_json_document);
+    if (json_doc->IsArray()) {
+        json_doc->Clear();
+    }
+    json_doc->SetArray();
+    auto& allocator = json_doc->GetAllocator();
+
+    for (const auto& [variant, samples] : variant_map) {
+        rapidjson::Value variant_obj(rapidjson::kObjectType);
+        
+        // Create string values with proper length checks
+        std::string chr = variant.chr.empty() ? "" : variant.chr;
+        std::string ref = variant.ref.empty() ? "" : variant.ref;
+        std::string alt = variant.alt.empty() ? "" : variant.alt;
+        
+        variant_obj.AddMember("chr", 
+            rapidjson::Value(chr.c_str(), chr.length(), allocator).Move(), 
+            allocator);
+        variant_obj.AddMember("pos", 
+            rapidjson::Value(variant.pos), 
+            allocator);
+        variant_obj.AddMember("ref", 
+            rapidjson::Value(ref.c_str(), ref.length(), allocator).Move(), 
+            allocator);
+        variant_obj.AddMember("alt", 
+            rapidjson::Value(alt.c_str(), alt.length(), allocator).Move(), 
+            allocator);
+        
+        rapidjson::Value samples_array(rapidjson::kArrayType);
+        for (const auto& sample : samples) {
+            if (!sample.empty()) {
+                samples_array.PushBack(
+                    rapidjson::Value(sample.c_str(), sample.length(), allocator).Move(), 
+                    allocator);
+            }
+        }
+        variant_obj.AddMember("samples", samples_array, allocator);
+        
+        json_doc->PushBack(variant_obj, allocator);
+    }
+    
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json_doc->Accept(writer);
+    
+    return std::string(buffer.GetString(), buffer.GetLength());
+}
