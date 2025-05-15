@@ -76,7 +76,7 @@ jobs:
         source $PREREQS_ENV
         mkdir -p $GENOMICSDB_BUILD_DIR
         cd $GENOMICSDB_BUILD_DIR
-        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX $GITHUB_WORKSPACE
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DBUILD_NANOARROW=1 $GITHUB_WORKSPACE
         make -j4
         make install
         export VALGRIND="valgrind --leak-check=full --suppressions=$GITHUB_WORKSPACE/src/test/inputs/valgrind_mpi.supp"

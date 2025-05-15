@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04,ubuntu-22.04,macos-13]
+        os: [ubuntu-24.04,ubuntu-22.04,macos-13]
         type: [basic]
         java: [17]
         include:
@@ -119,9 +119,7 @@ jobs:
         if [[ ${{matrix.type}} == 'hdfs' ]]; then
           HDFS_BUILD_ARGS="-DUSE_HDFS=1"
         fi
-        if [[ ${{matrix.os}} != 'ubuntu-20.04' ]]; then
-          NANOARROW_BUILD_ARGS="-DBUILD_NANOARROW=1"
-        fi
+        NANOARROW_BUILD_ARGS="-DBUILD_NANOARROW=1"
         cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
         -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION         \
         -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION $JAVA_BUILD_ARGS $HDFS_BUILD_ARGS $NANOARROW_BUILD_ARGS
