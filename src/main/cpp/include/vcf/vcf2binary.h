@@ -165,6 +165,7 @@ class VCFColumnPartition : public File2TileDBBinaryColumnPartitionBase {
     m_local_contig_idx = -1;
     m_contig_position = -1;
     m_contig_tiledb_column_offset = -1;
+    m_vcf_reader_ptr = 0;
     //If prefetch is enabled, allocate buffer per field, else single buffer
     //Add 1 buffer for END field
     m_vcf_get_buffer_vec.emplace_back(prefetch_fields ? num_INFO_fields+1u : 1u);
@@ -199,6 +200,9 @@ class VCFColumnPartition : public File2TileDBBinaryColumnPartitionBase {
   int m_local_contig_idx;
   int64_t m_contig_position;  //position in contig (0-based)
   int64_t m_contig_tiledb_column_offset;
+  //m_base_reader_ptr as a VCFReaderBase, set by VCF2Binary::initialize_column_partitions() - converting from the
+  //virtual base class GenomicsDBImportReaderBase needs a dynamic_cast, too slow to repeat for every record
+  VCFReaderBase* m_vcf_reader_ptr;
   //Buffers for obtaining data from htslib
   //Outer vector of size 2 - INFO, FORMAT - if prefetch enabled, else size 1
   //Inner vector depends on #INFO and FORMAT fields imported if prefetch enabled, else size 1
@@ -262,13 +266,19 @@ class VCF2Binary : public File2TileDBBinaryBase {
   //Helper functions
   void update_local_contig_idx(VCFColumnPartition& vcf_partition, const bcf1_t* line);
   //VCF->TileDB conversion functions
+  /*
+   * hdr and line: the header and current record of the partition's reader
+   */
   bool convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer, VCFColumnPartition& vcf_partition,
+                                         bcf_hdr_t* hdr, bcf1_t* line,
                                          size_t size_per_callset, uint64_t enabled_callsets_idx);
   /*
    * field_type_idx: BCF_HL_*
+   * hdr and line: the header and current record of the partition's reader
    */
   template<class FieldType>
   bool convert_field_to_tiledb(std::vector<uint8_t>& buffer, VCFColumnPartition& vcf_partition,
+                               bcf_hdr_t* hdr, bcf1_t* line,
                                int64_t& buffer_offset, const int64_t buffer_offset_limit, int local_callset_idx,
                                const std::string& field_name, unsigned field_type_idx, const unsigned idx_in_vcf_fields_vector);
   template<typename FieldType>

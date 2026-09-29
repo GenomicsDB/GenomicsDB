@@ -251,6 +251,8 @@ VCFColumnPartition::VCFColumnPartition(VCFColumnPartition&& other)
   m_local_contig_idx = other.m_local_contig_idx;
   m_contig_position = other.m_contig_position;
   m_contig_tiledb_column_offset = other.m_contig_tiledb_column_offset;
+  m_vcf_reader_ptr = other.m_vcf_reader_ptr;
+  other.m_vcf_reader_ptr = 0;
   m_vcf_get_buffer_vec = std::move(other.m_vcf_get_buffer_vec);
   m_split_output_fptr = other.m_split_output_fptr;
   other.m_split_output_fptr = 0;
@@ -460,12 +462,11 @@ void VCF2Binary::initialize_column_partitions(const std::vector<ColumnRange>& pa
     if(g_show_import_progress) {
       progress_bar();
     }
+    vcf_column_partition_ptr->m_vcf_reader_ptr = dynamic_cast<VCFReaderBase*>(vcf_column_partition_ptr->m_base_reader_ptr);
+    assert(vcf_column_partition_ptr->m_vcf_reader_ptr);
     //If parallel partitions, each interval gets its own reader
-    if (m_parallel_partitions) {
-      auto vcf_reader_ptr = dynamic_cast<VCFReaderBase*>(vcf_column_partition_ptr->m_base_reader_ptr);
-      assert(vcf_reader_ptr);
-      vcf_reader_ptr->initialize(m_filename.c_str(), *m_vcf_fields, m_vid_mapper, !m_close_file);
-    }
+    if (m_parallel_partitions)
+      vcf_column_partition_ptr->m_vcf_reader_ptr->initialize(m_filename.c_str(), *m_vcf_fields, m_vid_mapper, !m_close_file);
     //Indicates that nothing has been read for this interval
     vcf_column_partition_ptr->m_local_contig_idx = -1;
     vcf_column_partition_ptr->m_contig_position = -1;
@@ -490,9 +491,8 @@ void VCF2Binary::fetch_field_from_vcf_record(VCFColumnPartition::VCFGetBufferWra
 
 bool VCF2Binary::convert_record_to_binary(std::vector<uint8_t>& buffer, File2TileDBBinaryColumnPartitionBase& partition_info) {
   auto buffer_full = false;
-  auto& vcf_partition = dynamic_cast<VCFColumnPartition&>(partition_info);
-  //Cast to VCFReaderBase
-  auto vcf_reader_ptr = dynamic_cast<VCFReaderBase*>(partition_info.get_base_reader_ptr());
+  auto& vcf_partition = static_cast<VCFColumnPartition&>(partition_info);
+  auto vcf_reader_ptr = vcf_partition.m_vcf_reader_ptr;
   assert(vcf_reader_ptr);
   auto* line = vcf_reader_ptr->get_line();
   assert(line);
@@ -550,7 +550,7 @@ bool VCF2Binary::convert_record_to_binary(std::vector<uint8_t>& buffer, File2Til
                                      "END", BCF_HL_INFO, BCF_HT_INT);
   }
   for (auto i=0ull; i<m_enabled_local_callset_idx_vec.size(); ++i) {
-    buffer_full = buffer_full || convert_VCF_to_binary_for_callset(buffer, vcf_partition, m_max_size_per_callset, i);
+    buffer_full = buffer_full || convert_VCF_to_binary_for_callset(buffer, vcf_partition, hdr, line, m_max_size_per_callset, i);
     if (buffer_full)
       break;
   }
@@ -604,8 +604,7 @@ bool VCF2Binary::seek_and_fetch_position(File2TileDBBinaryColumnPartitionBase& p
     bool force_seek, bool advance_reader) {
   auto& vcf_partition = static_cast<VCFColumnPartition&>(partition_info);
   if (!m_get_data_from_file) { //handle VCFBufferReader
-    //Cast to VCFBufferReader
-    auto vcf_reader_ptr = dynamic_cast<VCFBufferReader*>(partition_info.get_base_reader_ptr());
+    auto vcf_reader_ptr = static_cast<VCFBufferReader*>(vcf_partition.m_vcf_reader_ptr);
     assert(vcf_reader_ptr);
     //advance or nothing in the buffer has been deserialized yet
     auto advance_flag = (advance_reader || vcf_reader_ptr->get_offset() == 0u);
@@ -623,8 +622,7 @@ bool VCF2Binary::seek_and_fetch_position(File2TileDBBinaryColumnPartitionBase& p
       return false; //no valid line and the buffer had no valid data at all, this stream is done
   } else { //VCF file
     is_read_buffer_exhausted = false;
-    //Cast to VCFReader
-    auto vcf_reader_ptr = dynamic_cast<VCFReader*>(partition_info.get_base_reader_ptr());
+    auto vcf_reader_ptr = static_cast<VCFReader*>(vcf_partition.m_vcf_reader_ptr);
     assert(vcf_reader_ptr);
     auto hdr = vcf_reader_ptr->get_header();
     //If valid contig, i.e., continuing from a valid previous position
@@ -695,13 +693,9 @@ bool VCF2Binary::seek_and_fetch_position(File2TileDBBinaryColumnPartitionBase& p
 
 template<class FieldType>
 bool VCF2Binary::convert_field_to_tiledb(std::vector<uint8_t>& buffer, VCFColumnPartition& vcf_partition,
+    bcf_hdr_t* hdr, bcf1_t* line,
     int64_t& buffer_offset, const int64_t buffer_offset_limit, int local_callset_idx,
     const std::string& field_name, unsigned field_type_idx, const unsigned idx_in_vcf_fields_vector) {
-  //Cast to VCFReader
-  auto vcf_reader_ptr = dynamic_cast<VCFReaderBase*>(vcf_partition.get_base_reader_ptr());
-  assert(vcf_reader_ptr);
-  auto* hdr = vcf_reader_ptr->get_header();
-  auto* line = vcf_reader_ptr->get_line();
   const auto& field_import_info = m_field_import_info[field_type_idx][idx_in_vcf_fields_vector];
   auto is_GT_field = field_import_info.m_is_GT;
   assert(line);
@@ -937,13 +931,9 @@ bool VCF2Binary::convert_field_to_tiledb(std::vector<uint8_t>& buffer, VCFColumn
 }
 
 bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer, VCFColumnPartition& vcf_partition,
+    bcf_hdr_t* hdr, bcf1_t* line,
     size_t size_per_callset, uint64_t enabled_callsets_idx) {
   m_discard_current_record = false;
-  //Cast to VCFReader
-  auto vcf_reader_ptr = dynamic_cast<VCFReaderBase*>(vcf_partition.get_base_reader_ptr());
-  assert(vcf_reader_ptr);
-  auto* hdr = vcf_reader_ptr->get_header();
-  auto* line = vcf_reader_ptr->get_line();
   assert(line);
   assert(enabled_callsets_idx < m_enabled_local_callset_idx_vec.size());
   auto local_callset_idx = m_enabled_local_callset_idx_vec[enabled_callsets_idx];
@@ -1074,24 +1064,24 @@ bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer,
       const auto& field_name = (*m_vcf_fields)[field_type_idx][j];
       switch (field_import_info.m_fetch_bcf_ht_type) {
       case BCF_HT_INT:
-        buffer_full = buffer_full || convert_field_to_tiledb<int>(buffer, vcf_partition, buffer_offset, buffer_offset_limit, local_callset_idx,
+        buffer_full = buffer_full || convert_field_to_tiledb<int>(buffer, vcf_partition, hdr, line, buffer_offset, buffer_offset_limit, local_callset_idx,
                       field_name, field_type_idx, j);
         if (buffer_full) return true;
         break;
       case BCF_HT_INT64:
-        buffer_full = buffer_full || convert_field_to_tiledb<int64_t>(buffer, vcf_partition, buffer_offset, buffer_offset_limit, local_callset_idx,
+        buffer_full = buffer_full || convert_field_to_tiledb<int64_t>(buffer, vcf_partition, hdr, line, buffer_offset, buffer_offset_limit, local_callset_idx,
                       field_name, field_type_idx, j);
         if (buffer_full) return true;
         break;
       case BCF_HT_REAL:
-        buffer_full = buffer_full || convert_field_to_tiledb<float>(buffer, vcf_partition, buffer_offset, buffer_offset_limit, local_callset_idx,
+        buffer_full = buffer_full || convert_field_to_tiledb<float>(buffer, vcf_partition, hdr, line, buffer_offset, buffer_offset_limit, local_callset_idx,
                       field_name, field_type_idx, j);
         if (buffer_full) return true;
         break;
       case BCF_HT_STR:
       case BCF_HT_CHAR:
       case BCF_HT_FLAG:
-        buffer_full = buffer_full || convert_field_to_tiledb<char>(buffer, vcf_partition, buffer_offset, buffer_offset_limit, local_callset_idx,
+        buffer_full = buffer_full || convert_field_to_tiledb<char>(buffer, vcf_partition, hdr, line, buffer_offset, buffer_offset_limit, local_callset_idx,
                       field_name, field_type_idx, j);
         if (buffer_full) return true;
         break;
