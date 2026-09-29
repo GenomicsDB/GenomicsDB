@@ -347,6 +347,7 @@ VCF2Binary::VCF2Binary(VCF2Binary&& other)
   m_discard_current_record = other.m_discard_current_record;
   m_local_contig_idx_to_global_contig_idx = std::move(other.m_local_contig_idx_to_global_contig_idx);
   m_local_field_idx_to_global_field_idx = std::move(other.m_local_field_idx_to_global_field_idx);
+  m_field_import_info = std::move(other.m_field_import_info);
   m_vcf_buffer_reader_buffer_size = other.m_vcf_buffer_reader_buffer_size;
   m_vcf_buffer_reader_is_bcf = other.m_vcf_buffer_reader_is_bcf;
   //Not useful, but copying to be safe
@@ -361,6 +362,7 @@ VCF2Binary::~VCF2Binary() {
 void VCF2Binary::clear() {
   m_local_contig_idx_to_global_contig_idx.clear();
   m_local_field_idx_to_global_field_idx.clear();
+  m_field_import_info.clear();
 }
 
 GenomicsDBImportReaderBase* VCF2Binary::create_new_reader_object(const std::string& filename, bool open_file) const {
@@ -405,6 +407,31 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
     if (field_name)
       m_vid_mapper->get_global_field_idx(field_name, m_local_field_idx_to_global_field_idx[i]);
   }
+  //Imported INFO/FORMAT fields - the header no longer changes once the readers are initialized
+  m_field_import_info.assign(m_vcf_fields->size(), {});
+  for (auto field_type_idx=BCF_HL_INFO; field_type_idx<=BCF_HL_FMT; ++field_type_idx) {
+    assert(static_cast<size_t>(field_type_idx) < m_vcf_fields->size());
+    const auto& field_names = (*m_vcf_fields)[field_type_idx];
+    auto& field_import_info_vec = m_field_import_info[field_type_idx];
+    field_import_info_vec.resize(field_names.size());
+    for (auto j=0u; j<field_names.size(); ++j) {
+      const auto& field_name = field_names[j];
+      auto& field_import_info = field_import_info_vec[j];
+      field_import_info.m_is_END = (field_type_idx == BCF_HL_INFO && field_name == "END");
+      if (field_import_info.m_is_END)
+        continue;
+      field_import_info.m_is_GT = (field_type_idx == BCF_HL_FMT && field_name == "GT");
+      field_import_info.m_hdr_field_idx = bcf_hdr_id2int(hdr, BCF_DT_ID, field_name.c_str());
+      //Should always pass as VCFReaderBase::initialize() adds missing fields to the header - left in for safety
+      VERIFY_OR_THROW(field_import_info.m_hdr_field_idx >= 0
+                      && bcf_hdr_idinfo_exists(hdr, field_type_idx, field_import_info.m_hdr_field_idx));
+      const auto* field_info_ptr = m_vid_mapper->get_field_info(field_name);
+      assert(field_info_ptr);
+      //GT is a string in the VCF header, but BCF encodes it as integers
+      field_import_info.m_fetch_bcf_ht_type = field_import_info.m_is_GT ? BCF_HT_INT
+                                              : field_info_ptr->get_vcf_type().get_tuple_element_bcf_ht_type(0u);
+    }
+  }
   int ID_field_idx = -1;
   m_import_ID_field = m_vid_mapper->get_global_field_idx("ID", ID_field_idx);
 }
@@ -448,13 +475,13 @@ void VCF2Binary::initialize_column_partitions(const std::vector<ColumnRange>& pa
 template<typename FieldType>
 void VCF2Binary::fetch_field_from_vcf_record(VCFColumnPartition::VCFGetBufferWrapper& vcf_get_buffer_wrapper,
     const bcf_hdr_t* hdr, bcf1_t* line,
-    const std::string& field_name, const int field_type_idx, const int bcf_ht_type) {
+    const char* field_name, const int field_type_idx, const int bcf_ht_type) {
   int max_num_values = vcf_get_buffer_wrapper.m_capacity/sizeof(FieldType);
   vcf_get_buffer_wrapper.m_num_values = (field_type_idx == BCF_HL_INFO)
-                                        ? bcf_get_info_values(hdr, line, field_name.c_str(),
+                                        ? bcf_get_info_values(hdr, line, field_name,
                                             reinterpret_cast<void**>(&(vcf_get_buffer_wrapper.m_buffer)),
                                             &max_num_values, bcf_ht_type)
-                                        : bcf_get_format_values(hdr, line, field_name.c_str(),
+                                        : bcf_get_format_values(hdr, line, field_name,
                                             reinterpret_cast<void**>(&(vcf_get_buffer_wrapper.m_buffer)),
                                             &max_num_values, bcf_ht_type);
   auto returned_capacity = static_cast<size_t>(max_num_values)*sizeof(FieldType);
@@ -480,20 +507,11 @@ bool VCF2Binary::convert_record_to_binary(std::vector<uint8_t>& buffer, File2Til
       for (auto j=0u; j<(*m_vcf_fields)[field_type_idx].size(); ++j) {
         assert(j < vcf_partition.m_vcf_get_buffer_vec[i].size());
         auto& curr_vcf_get_buffer_wrapper = vcf_partition.m_vcf_get_buffer_vec[i][j];
-        const auto& field_name = (*m_vcf_fields)[field_type_idx][j];
-	const auto* field_info_ptr = m_vid_mapper->get_field_info(field_name);
-	assert(field_info_ptr);
-        //FIXME: avoid strings
-        if (field_type_idx == BCF_HL_INFO && field_name == "END")  //ignore END field
+        const auto& field_import_info = m_field_import_info[field_type_idx][j];
+        if (field_import_info.m_is_END)  //ignore END field
           continue;
-        auto field_idx = bcf_hdr_id2int(hdr, BCF_DT_ID, field_name.c_str());
-        //Should always pass - left in for safety
-        VERIFY_OR_THROW(field_idx >= 0 && bcf_hdr_idinfo_exists(hdr, field_type_idx, field_idx));
-	//auto field_ht_type = bcf_hdr_id2type(hdr, field_type_idx, field_idx);
-        auto field_ht_type = field_info_ptr->get_vcf_type().get_tuple_element_bcf_ht_type(0u);
-        //Because GT is encoded type string in VCF - total nonsense
-        //FIXME: avoid strings
-        field_ht_type = (field_type_idx == BCF_HL_FMT && field_name == "GT") ? BCF_HT_INT : field_ht_type;
+        const auto* field_name = (*m_vcf_fields)[field_type_idx][j].c_str();
+        auto field_ht_type = field_import_info.m_fetch_bcf_ht_type;
         switch (field_ht_type) {
         case BCF_HT_INT:
           fetch_field_from_vcf_record<int>(curr_vcf_get_buffer_wrapper,
@@ -518,7 +536,8 @@ bool VCF2Binary::convert_record_to_binary(std::vector<uint8_t>& buffer, File2Til
                                             field_name, field_type_idx, field_ht_type);
           break;
         default: //FIXME: handle other types
-          throw VCF2BinaryException(std::string("Unhandled VCF data type ")+std::to_string(bcf_hdr_id2type(hdr, BCF_DT_ID, field_idx)));
+          throw VCF2BinaryException(std::string("Unhandled VCF data type ")
+                                    +std::to_string(bcf_hdr_id2type(hdr, BCF_DT_ID, field_import_info.m_hdr_field_idx)));
           break;
         }
       }
@@ -683,15 +702,12 @@ bool VCF2Binary::convert_field_to_tiledb(std::vector<uint8_t>& buffer, VCFColumn
   assert(vcf_reader_ptr);
   auto* hdr = vcf_reader_ptr->get_header();
   auto* line = vcf_reader_ptr->get_line();
-  //FIXME: avoid strings
-  auto is_GT_field = (field_type_idx == BCF_HL_FMT && field_name == "GT");
+  const auto& field_import_info = m_field_import_info[field_type_idx][idx_in_vcf_fields_vector];
+  auto is_GT_field = field_import_info.m_is_GT;
   assert(line);
   assert(static_cast<size_t>(local_callset_idx) < m_local_callset_idx_to_tiledb_row_idx.size()
          && local_callset_idx < bcf_hdr_nsamples(hdr));
-  auto field_idx = bcf_hdr_id2int(hdr, BCF_DT_ID, field_name.c_str());
-  //This should always pass as missing fields are added to the header during initialization
-  //Check left in for safety
-  VERIFY_OR_THROW(field_idx >= 0 && bcf_hdr_idinfo_exists(hdr, field_type_idx, field_idx));
+  auto field_idx = field_import_info.m_hdr_field_idx;
   //FIXME: special length descriptors
   auto length_descriptor = is_GT_field
                            ? (m_store_phase_information_for_GT ? BCF_VL_Phased_Ploidy : BCF_VL_P)
@@ -709,7 +725,7 @@ bool VCF2Binary::convert_field_to_tiledb(std::vector<uint8_t>& buffer, VCFColumn
   if (!m_prefetch_all_VCF_fields_in_record)
     fetch_field_from_vcf_record<FieldType>(curr_vcf_get_buffer_wrapper,
                                            hdr, line,
-                                           field_name, field_type_idx, bcf_ht_type);
+                                           field_name.c_str(), field_type_idx, bcf_ht_type);
   auto buffer_full = false;
   auto num_values = static_cast<int>(curr_vcf_get_buffer_wrapper.m_num_values);
   auto* ptr = reinterpret_cast<const FieldType*>(curr_vcf_get_buffer_wrapper.m_buffer);
@@ -1052,21 +1068,11 @@ bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer,
   for (auto field_type_idx=BCF_HL_INFO; field_type_idx<=BCF_HL_FMT; ++field_type_idx) {
     assert(static_cast<size_t>(field_type_idx) < m_vcf_fields->size());
     for (auto j=0u; j<(*m_vcf_fields)[field_type_idx].size(); ++j) {
-      const auto& field_name = (*m_vcf_fields)[field_type_idx][j];
-      //FIXME: avoid strings
-      if (field_type_idx == BCF_HL_INFO && field_name == "END")  //ignore END field
+      const auto& field_import_info = m_field_import_info[field_type_idx][j];
+      if (field_import_info.m_is_END)  //ignore END field
         continue;
-      auto field_idx = bcf_hdr_id2int(hdr, BCF_DT_ID, field_name.c_str());
-      //Should always pass - left in for safety
-      VERIFY_OR_THROW(field_idx >= 0 && bcf_hdr_idinfo_exists(hdr, field_type_idx, field_idx));
-      const auto field_info_ptr = m_vid_mapper->get_field_info(field_name);
-      assert(field_info_ptr);
-      //auto field_ht_type = bcf_hdr_id2type(hdr, field_type_idx, field_idx);
-      auto field_ht_type = field_info_ptr->get_vcf_type().get_tuple_element_bcf_ht_type(0u);
-      //Because GT is encoded type string in VCF - total nonsense
-      //FIXME: avoid strings
-      field_ht_type = (field_type_idx == BCF_HL_FMT && field_name == "GT") ? BCF_HT_INT : field_ht_type;
-      switch (field_ht_type) {
+      const auto& field_name = (*m_vcf_fields)[field_type_idx][j];
+      switch (field_import_info.m_fetch_bcf_ht_type) {
       case BCF_HT_INT:
         buffer_full = buffer_full || convert_field_to_tiledb<int>(buffer, vcf_partition, buffer_offset, buffer_offset_limit, local_callset_idx,
                       field_name, field_type_idx, j);
@@ -1090,7 +1096,8 @@ bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer,
         if (buffer_full) return true;
         break;
       default: //FIXME: handle other types
-        throw VCF2BinaryException(std::string("Unhandled VCF data type ")+std::to_string(bcf_hdr_id2type(hdr, BCF_DT_ID, field_idx)));
+        throw VCF2BinaryException(std::string("Unhandled VCF data type ")
+                                  +std::to_string(bcf_hdr_id2type(hdr, BCF_DT_ID, field_import_info.m_hdr_field_idx)));
         break;
       }
     }

@@ -274,7 +274,7 @@ class VCF2Binary : public File2TileDBBinaryBase {
   template<typename FieldType>
   void fetch_field_from_vcf_record(VCFColumnPartition::VCFGetBufferWrapper& vcf_get_buffer_wrapper,
                                    const bcf_hdr_t* hdr, bcf1_t* line,
-                                   const std::string& field_name, const int field_type_idx, const int bcf_ht_type);
+                                   const char* field_name, const int field_type_idx, const int bcf_ht_type);
   //Print partitions of the file - useful when splitting files into partitions
   /*
    * Opens the file for partition - useful when printing data for a specific partition (splitting files)
@@ -293,6 +293,19 @@ class VCF2Binary : public File2TileDBBinaryBase {
     m_discard_missing_GTs = value;
   }
  private:
+  /*
+   * An imported INFO or FORMAT field, resolved from the VCF header and vid mapping once in initialize()
+   * rather than looked up by name for every record
+   */
+  struct VCFFieldImportInfo {
+    //Index of the field in the header's BCF_DT_ID dictionary, -1 for END
+    int m_hdr_field_idx = -1;
+    //END is imported as the cell's end column, not as an INFO field
+    bool m_is_END = false;
+    bool m_is_GT = false;
+    //Type to fetch values as: the vid type of the field's first tuple element, int for GT
+    int m_fetch_bcf_ht_type = -1;
+  };
   bool m_discard_index;
   bool m_import_ID_field;
   bool m_discard_missing_GTs;
@@ -304,6 +317,8 @@ class VCF2Binary : public File2TileDBBinaryBase {
   std::vector<int> m_local_contig_idx_to_global_contig_idx;
   //Local field idx to global field idx
   std::vector<int> m_local_field_idx_to_global_field_idx;
+  //Indexed [BCF_HL_*][index in (*m_vcf_fields)[BCF_HL_*]]; only BCF_HL_INFO and BCF_HL_FMT are filled
+  std::vector<std::vector<VCFFieldImportInfo>> m_field_import_info;
   //For VCFBufferReader
   size_t m_vcf_buffer_reader_buffer_size;
   bool m_vcf_buffer_reader_is_bcf;
