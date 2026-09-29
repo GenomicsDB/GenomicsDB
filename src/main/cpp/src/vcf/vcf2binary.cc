@@ -101,8 +101,9 @@ void VCFBufferReader::read_and_advance() {
 }
 
 //VCFReader functions
-VCFReader::VCFReader()
+VCFReader::VCFReader(const int read_buffer_size)
   : GenomicsDBImportReaderBase(true), FileReaderBase(), VCFReaderBase(true) {
+  m_read_buffer_size = read_buffer_size;
   m_indexed_reader = 0;
   m_fptr = 0;
   m_vcf_file_buffer.l = 0;
@@ -169,6 +170,9 @@ void VCFReader::add_reader() {
     throw VCF2BinaryException(std::string("Could not open file ")+m_name+" : "
                               + bcf_sr_strerror(m_indexed_reader->errnum) + errmsg);
   }
+  //htslib's default read buffer is the filesystem block size, or 32 KiB for cloud URLs
+  if (m_read_buffer_size > 0)
+    hts_set_opt(m_indexed_reader->readers[0].file, HTS_OPT_BLOCK_SIZE, m_read_buffer_size);
   assert(m_hdr);
   auto tmp_hdr_ptr = bcf_sr_get_header(m_indexed_reader, 0);
   bcf_sr_get_header(m_indexed_reader, 0) = m_hdr;
@@ -288,7 +292,8 @@ VCF2Binary::VCF2Binary(const std::string& vcf_filename, const std::vector<std::v
                        unsigned file_idx, VidMapper& vid_mapper, const std::vector<ColumnRange>& partition_bounds,
                        size_t max_size_per_callset,
                        bool treat_deletions_as_intervals,
-                       bool parallel_partitions, bool noupdates, bool close_file, bool discard_index)
+                       bool parallel_partitions, bool noupdates, bool close_file, bool discard_index,
+                       int vcf_read_buffer_size)
   : File2TileDBBinaryBase(vcf_filename, file_idx, vid_mapper,
                           max_size_per_callset,
                           treat_deletions_as_intervals,
@@ -301,6 +306,7 @@ VCF2Binary::VCF2Binary(const std::string& vcf_filename, const std::vector<std::v
   m_discard_index = discard_index;
   m_import_ID_field = false;
   m_close_file = close_file || discard_index;   //close file if index has to be discarded
+  m_vcf_read_buffer_size = vcf_read_buffer_size;
   m_vcf_buffer_reader_buffer_size = 0;
   m_vcf_buffer_reader_is_bcf = false;
   m_vcf_buffer_reader_init_buffer = 0;
@@ -327,8 +333,9 @@ VCF2Binary::VCF2Binary(const std::string& stream_name, const std::vector<std::ve
   m_discard_missing_GTs = false;
   m_prefetch_all_VCF_fields_in_record = true;
   m_discard_current_record = false;
-  //The next parameter is irrelevant for buffered readers
+  //The next parameters are irrelevant for buffered readers
   m_discard_index = false;
+  m_vcf_read_buffer_size = 0;
   m_import_ID_field = false;
   //VCFBufferReader relevant params
   m_vcf_buffer_reader_buffer_size = vcf_buffer_reader_buffer_size;
@@ -346,6 +353,7 @@ VCF2Binary::VCF2Binary(VCF2Binary&& other)
   m_import_ID_field = other.m_import_ID_field;
   m_discard_missing_GTs = other.m_discard_missing_GTs;
   m_prefetch_all_VCF_fields_in_record = other.m_prefetch_all_VCF_fields_in_record;
+  m_vcf_read_buffer_size = other.m_vcf_read_buffer_size;
   m_discard_current_record = other.m_discard_current_record;
   m_local_contig_idx_to_global_contig_idx = std::move(other.m_local_contig_idx_to_global_contig_idx);
   m_local_field_idx_to_global_field_idx = std::move(other.m_local_field_idx_to_global_field_idx);
@@ -370,7 +378,7 @@ void VCF2Binary::clear() {
 GenomicsDBImportReaderBase* VCF2Binary::create_new_reader_object(const std::string& filename, bool open_file) const {
   //either reading from file or buffer parameters initialized
   assert(m_get_data_from_file || (m_vcf_buffer_reader_init_buffer && m_vcf_buffer_reader_init_num_valid_bytes && m_vcf_buffer_reader_buffer_size));
-  return (m_get_data_from_file ? dynamic_cast<GenomicsDBImportReaderBase*>(new VCFReader())
+  return (m_get_data_from_file ? dynamic_cast<GenomicsDBImportReaderBase*>(new VCFReader(m_vcf_read_buffer_size))
           : dynamic_cast<GenomicsDBImportReaderBase*>(new VCFBufferReader(m_vcf_buffer_reader_buffer_size, m_vcf_buffer_reader_is_bcf,
               m_vcf_buffer_reader_init_buffer,  m_vcf_buffer_reader_init_num_valid_bytes))
          );

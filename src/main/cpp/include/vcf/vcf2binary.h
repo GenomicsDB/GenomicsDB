@@ -104,7 +104,10 @@ class VCFBufferReader : public BufferReaderBase, public VCFReaderBase {
 //Capability of using index only during seek to minimize memory consumption
 class VCFReader : public FileReaderBase, public VCFReaderBase {
  public:
-  VCFReader();
+  /*
+   * read_buffer_size: read buffer size in bytes for the file, replacing htslib's default; 0 keeps the default
+   */
+  VCFReader(const int read_buffer_size);
   //Delete move and copy constructors
   VCFReader(const VCFReader& other) = delete;
   VCFReader& operator=(const VCFReader& other) = delete;
@@ -123,6 +126,7 @@ class VCFReader : public FileReaderBase, public VCFReaderBase {
   bcf_srs_t* m_indexed_reader;
   htsFile* m_fptr;
   kstring_t m_vcf_file_buffer;
+  int m_read_buffer_size;
 };
 
 class VCFColumnPartition : public File2TileDBBinaryColumnPartitionBase {
@@ -217,7 +221,8 @@ class VCF2Binary : public File2TileDBBinaryBase {
              unsigned file_idx, VidMapper& vid_mapper, const std::vector<ColumnRange>& partition_bounds,
              size_t max_size_per_callset,
              bool treat_deletions_as_intervals,
-             bool parallel_partitions=false, bool noupdates=true, bool close_file=false, bool discard_index=false);
+             bool parallel_partitions=false, bool noupdates=true, bool close_file=false, bool discard_index=false,
+             int vcf_read_buffer_size=0);
   VCF2Binary(const std::string& stream_name, const std::vector<std::vector<std::string>>& vcf_fields,
              unsigned file_idx, const int64_t buffer_stream_idx,
              VidMapper& vid_mapper, const std::vector<ColumnRange>& partition_bounds,
@@ -321,6 +326,8 @@ class VCF2Binary : public File2TileDBBinaryBase {
   bool m_discard_missing_GTs;
   bool m_discard_current_record;
   bool m_prefetch_all_VCF_fields_in_record;
+  //Read buffer size for VCFReader, 0 keeps htslib's default
+  int m_vcf_read_buffer_size;
   //Vector of vector of strings, outer vector has 2 elements - 0 for INFO, 1 for FORMAT
   const std::vector<std::vector<std::string>>* m_vcf_fields;
   //Local contig idx to global contig idx

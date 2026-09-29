@@ -190,6 +190,7 @@ GenomicsDBImportConfig::GenomicsDBImportConfig()
   m_max_num_rows_in_array = INT64_MAX;
   //#VCF files to open/process in parallel
   m_num_parallel_vcf_files = 1;
+  m_vcf_read_buffer_size = 64u*1024u; //64KiB default
   //do ping-pong buffering
   m_do_ping_pong_buffering = true;
   //Offload VCF output processing to another thread

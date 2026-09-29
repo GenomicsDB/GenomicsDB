@@ -98,4 +98,9 @@ message ImportConfiguration {
   
   optional string reference_genome = 32;
   optional string vcf_header_filename = 33;
+
+  // Size in bytes of the read buffer for each VCF/BCF file read directly, from local storage or a cloud URL.
+  // It replaces htslib's default, which is the filesystem block size (often 4 KiB) for local files and 32 KiB
+  // for cloud URLs; 0 keeps htslib's default. One buffer is held per open file.
+  optional int32 vcf_read_buffer_size = 34 [default = 65536];
 }
