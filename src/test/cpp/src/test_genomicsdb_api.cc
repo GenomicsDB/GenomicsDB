@@ -36,6 +36,9 @@
 
 #include "test_base.h"
 
+#include <fstream>
+#include <zlib.h>
+#include <algorithm>
 #include <iostream>
 #include <future>
 #include <string>
@@ -1305,6 +1308,62 @@ TEST_CASE("api generate_vcf with json", "[query_generate_with_json]") {
   delete gdb;
 }
 
+
+// Returns the data lines of a (b)gzipped or plain VCF file
+static std::vector<std::string> read_vcf_records(const std::string& vcf_file) {
+  std::vector<std::string> records;
+  gzFile input = gzopen(vcf_file.c_str(), "r");
+  REQUIRE(input);
+  char buffer[65536];
+  while (gzgets(input, buffer, sizeof(buffer))) {
+    std::string line(buffer);
+    if (!line.empty() && line.back() == '\n') line.pop_back();
+    if (!line.empty() && line[0] != '#') records.push_back(line);
+  }
+  gzclose(input);
+  return records;
+}
+
+static std::string vcf_record_alt(const std::string& record) {
+  auto begin = record.find('\t');
+  for (auto i=0; i<3 && begin != std::string::npos; ++i) begin = record.find('\t', begin+1);
+  REQUIRE(begin != std::string::npos);
+  return record.substr(begin+1, record.find('\t', begin+1)-begin-1);
+}
+
+TEST_CASE("api generate_vcf skipping reference-only intervals drops only NON_REF-only records",
+          "[query_generate_vcf_skip_reference_only_intervals]") {
+  TempDir temp_dir;
+  // Two intervals, the second starting inside sample HG00141's reference block at 12141-12295
+  auto query_json_string = [](const bool skip_reference_only_intervals) {
+    return R"({"workspace": ")" + workspace + R"(", "array_name": ")" + array + R"(",
+      "query_column_ranges": [{"range_list": [{"low": 0, "high": 12149}, {"low": 12150, "high": 1000000000}]}],
+      "query_row_ranges": [{"range_list": [{"low": 0, "high": 3}]}],
+      "reference_genome": ")" + reference_genome + R"(",
+      "vcf_header_filename": ["inputs/template_vcf_header.vcf"],
+      "attributes": ["REF", "ALT", "GT", "GQ", "DP", "AD", "PL", "MIN_DP", "DP_FORMAT"],
+      "produce_GT_field": true, "segment_size": 40,
+      "skip_reference_only_intervals": )" + (skip_reference_only_intervals ? "true" : "false") + "}";
+  };
+  auto generate_records = [&](const bool skip_reference_only_intervals, const std::string& vcf_name) {
+    GenomicsDB* gdb = new GenomicsDB(query_json_string(skip_reference_only_intervals), GenomicsDB::JSON_STRING,
+                                     loader_json);
+    const std::string vcf_file = temp_dir.append(vcf_name);
+    gdb->generate_vcf(vcf_file, "z", true);
+    delete gdb;
+    return read_vcf_records(vcf_file);
+  };
+
+  auto all_records = generate_records(false, "all.vcf.gz");
+  auto skipped_records = generate_records(true, "skipped.vcf.gz");
+
+  std::vector<std::string> expected_records;
+  std::copy_if(all_records.begin(), all_records.end(), std::back_inserter(expected_records),
+               [](const std::string& record) { return vcf_record_alt(record) != "<NON_REF>"; });
+  CHECK(expected_records.size() > 0u);
+  CHECK(expected_records.size() < all_records.size());
+  CHECK(skipped_records == expected_records);
+}
 
 TEST_CASE("api generate_vcf with json multiple threads", "[query_generate_with_json_multiple_threads]") {
   // Define a lambda expression

@@ -153,6 +153,7 @@ class VariantQueryProcessorScanState {
     invalidate();
     m_done = false;
     m_num_calls_with_deletions_or_MNVs = 0;
+    m_num_non_reference_block_calls = 0;
     while (!m_end_pq.empty())
       m_end_pq.pop();
   }
@@ -163,10 +164,11 @@ class VariantQueryProcessorScanState {
    * Set state
    */
   void set_scan_state(VariantArrayCellIterator* iter, const int64_t current_start_position,
-      const uint64_t num_calls_with_deletions_or_MNVs) {
+      const uint64_t num_calls_with_deletions_or_MNVs, const uint64_t num_non_reference_block_calls) {
     m_iter = iter;
     m_current_start_position = current_start_position;
     m_num_calls_with_deletions_or_MNVs = num_calls_with_deletions_or_MNVs;
+    m_num_non_reference_block_calls = num_non_reference_block_calls;
   }
   VariantCallEndPQ& get_end_pq() {
     return m_end_pq;
@@ -176,6 +178,9 @@ class VariantQueryProcessorScanState {
   }
   uint64_t get_num_calls_with_deletions_or_MNVs() const {
     return m_num_calls_with_deletions_or_MNVs;
+  }
+  uint64_t get_num_non_reference_block_calls() const {
+    return m_num_non_reference_block_calls;
   }
   void set_done(const bool val) {
     m_done = val;
@@ -192,6 +197,8 @@ class VariantQueryProcessorScanState {
   VariantArrayCellIterator* m_iter;
   int64_t m_current_start_position;
   uint64_t m_num_calls_with_deletions_or_MNVs;
+  //Number of calls in m_end_pq that are not reference blocks
+  uint64_t m_num_non_reference_block_calls;
   VariantCallEndPQ m_end_pq;
   Variant m_variant;
   GTProfileStats m_stats;
@@ -259,14 +266,17 @@ class VariantQueryProcessor {
                         const BufferVariantCell& cell,
                         VariantCallEndPQ& end_pq, std::vector<VariantCall*>& tmp_pq_buffer,
                         int64_t& current_start_position, int64_t& next_start_position,
-                        uint64_t& num_calls_with_deletions_or_MNVs, bool handle_spanning_deletions,
+                        uint64_t& num_calls_with_deletions_or_MNVs, uint64_t& num_non_reference_block_calls,
+                        bool handle_spanning_deletions,
                         GTProfileStats* stats_ptr) const;
-  /** Called by scan_and_operate to handle all ranges for given set of cells */
+  /** Called by scan_and_operate to handle all ranges for given set of cells.
+   *  num_non_reference_block_calls is the number of calls in end_pq that are not reference blocks;
+   *  when it is zero and the query skips reference-only intervals, the operator is not invoked. */
   void handle_gvcf_ranges(VariantCallEndPQ& end_pq,
                           const VariantQueryConfig& queryConfig, Variant& variant,
                           SingleVariantOperatorBase& variant_operator,
                           int64_t& current_start_position, int64_t next_start_position, bool is_last_call,
-			  uint64_t& num_calls_with_deletions_or_MNVs,
+                          uint64_t& num_calls_with_deletions_or_MNVs, uint64_t& num_non_reference_block_calls,
                           GTProfileStats* stats_ptr) const;
   /*
    * Columnar version of scan_and_operate - WIP

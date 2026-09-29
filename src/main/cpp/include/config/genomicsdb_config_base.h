@@ -144,6 +144,9 @@ class GenomicsDBConfigBase {
   const bool bypass_intersecting_intervals_phase() const {
     return m_bypass_intersecting_intervals_phase;
   }
+  const bool skip_reference_only_intervals() const {
+    return m_skip_reference_only_intervals;
+  }
   const VidMapper& get_vid_mapper() const {
     return m_vid_mapper;
   }
@@ -241,6 +244,8 @@ class GenomicsDBConfigBase {
   //Bypass the first intersecting interval phase and use just the simple traversal mode for a fast
   //fuzzy search if that is acceptable
   bool m_bypass_intersecting_intervals_phase;
+  //Do not operate on intervals where every active call is a reference block
+  bool m_skip_reference_only_intervals;
   //Buffer size for combined vcf records
   size_t m_combined_vcf_records_buffer_size_limit;
   //VidMapper
