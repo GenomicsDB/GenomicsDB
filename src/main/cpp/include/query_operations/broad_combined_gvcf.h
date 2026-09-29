@@ -139,6 +139,9 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   std::vector<int> m_MIN_DP_vector;
   //DP_FORMAT values
   std::vector<int> m_DP_FORMAT_vector;
+  //Per-sample GQ==0 and PL[0]==0 flags for the current record - reused to avoid per-record allocations
+  std::vector<bool> m_GQ_is_zero;
+  std::vector<bool> m_PL0_is_zero;
   //Used for handling deletions - remapping PL/AD where a deletion is replaced with *
   CombineAllelesLUT m_reduced_alleles_LUT;
   //vector of field pointers used for handling remapped fields when dealing with spanning deletions
