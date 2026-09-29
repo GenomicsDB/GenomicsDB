@@ -384,9 +384,9 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
     return sizeof(DataType);
   }
   void copy_data_into_vector(const char* buffer, const size_t num_elements) {
-    m_data.resize(num_elements);
-    unsigned data_size = num_elements*sizeof(DataType);
-    memcpy_s(&(m_data[0]), data_size, buffer, data_size);
+    //assign() copies without first value-initialising the elements as resize() would; called per field per cell
+    auto data_ptr = reinterpret_cast<const DataType*>(buffer);
+    m_data.assign(data_ptr, data_ptr+num_elements);
     bool is_missing_flag = true;
     for (auto val : m_data)
       if (!is_tiledb_missing_value<DataType>(val)) {
