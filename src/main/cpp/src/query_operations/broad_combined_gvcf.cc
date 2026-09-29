@@ -775,6 +775,7 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
     if (GT_arr && num_GT_arr) {
       bcf_update_genotypes(m_vcf_hdr, m_bcf_out, GT_arr, num_GT_arr);
     }
+    free(GT_arr);
   }
   //Update DP fields
   if (valid_DP_found || valid_DP_FORMAT_found) {
