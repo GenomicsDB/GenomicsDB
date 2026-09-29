@@ -630,8 +630,29 @@ if(BUILD_JAVA)
     if(MAVEN_QUIET)
         set(MAVEN_QUIET_ARGS "--quiet")
     endif()
+    # The jar holds the native library in a directory per platform, named as
+    # GenomicsDBLibLoader.nativeLibraryPlatform() names it; a multi-architecture
+    # macOS library goes at the root
+    if(APPLE)
+      set(GENOMICSDB_NATIVE_OS macos)
+    else()
+      string(TOLOWER "${CMAKE_SYSTEM_NAME}" GENOMICSDB_NATIVE_OS)
+    endif()
+    if(CMAKE_OSX_ARCHITECTURES)
+      set(GENOMICSDB_NATIVE_ARCH "${CMAKE_OSX_ARCHITECTURES}")
+    else()
+      string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" GENOMICSDB_NATIVE_ARCH)
+    endif()
+    string(REPLACE "amd64" "x86_64" GENOMICSDB_NATIVE_ARCH "${GENOMICSDB_NATIVE_ARCH}")
+    string(REPLACE "arm64" "aarch64" GENOMICSDB_NATIVE_ARCH "${GENOMICSDB_NATIVE_ARCH}")
+    if(GENOMICSDB_NATIVE_ARCH MATCHES ";")
+      set(GENOMICSDB_NATIVE_PLATFORM "")
+    else()
+      set(GENOMICSDB_NATIVE_PLATFORM "${GENOMICSDB_NATIVE_OS}-${GENOMICSDB_NATIVE_ARCH}")
+    endif()
     set(MAVEN_ARGS
         ${MAVEN_QUIET_ARGS}
+        -Dgenomicsdb_native_platform=${GENOMICSDB_NATIVE_PLATFORM}
         -Dgenomicsdb.version=${GENOMICSDB_RELEASE_VERSION}
         -Dgenomicsdb_source_directory=${CMAKE_SOURCE_DIR}
         -Dgenomicsdb_build_directory=${GENOMICSDB_MAVEN_BUILD_DIR}

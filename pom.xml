@@ -73,6 +73,8 @@
     <surefire.plugin.version>3.0.0</surefire.plugin.version>
     <genomicsdb_source_directory>.</genomicsdb_source_directory>
     <genomicsdb_lib_directory>${genomicsdb_build_directory}/src/main</genomicsdb_lib_directory>
+    <!-- Directory in the jar for the native library, e.g. linux-x86_64; see GenomicsDBLibLoader.nativeLibraryPlatform() -->
+    <genomicsdb_native_platform></genomicsdb_native_platform>
     <genomicsdb_build_directory>${project.basedir}/build</genomicsdb_build_directory>
     <protobuf.input.directory>${genomicsdb_source_directory}/src/resources</protobuf.input.directory>
     <protobuf.output.directory>${genomicsdb_build_directory}/src/main/java</protobuf.output.directory>
@@ -441,15 +443,16 @@
             <phase>process-classes</phase>
             <configuration>
               <target>
-                <exec command="cp">
+                <mkdir dir="${genomicsdb_build_directory}/classes/${genomicsdb_native_platform}"/>
+                <exec command="cp" osfamily="mac">
                   <arg value="-LR"/>
                   <arg value="${genomicsdb_lib_directory}/libtiledbgenomicsdb.dylib"/>
-                  <arg value="${genomicsdb_build_directory}/classes/libtiledbgenomicsdb.dylib"/>
+                  <arg value="${genomicsdb_build_directory}/classes/${genomicsdb_native_platform}/libtiledbgenomicsdb.dylib"/>
                 </exec>
-                <exec command="cp">
+                <exec command="cp" os="Linux">
                   <arg value="-LR"/>
                   <arg value="${genomicsdb_lib_directory}/libtiledbgenomicsdb.so"/>
-                  <arg value="${genomicsdb_build_directory}/classes/libtiledbgenomicsdb.so"/>
+                  <arg value="${genomicsdb_build_directory}/classes/${genomicsdb_native_platform}/libtiledbgenomicsdb.so"/>
                 </exec>
               </target>
             </configuration>
