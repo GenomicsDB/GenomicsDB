@@ -24,6 +24,7 @@
 #define GT_LUT_H
 
 #include <assert.h>
+#include <algorithm>
 #include <vector>
 #include <stdlib.h>
 
@@ -69,10 +70,8 @@ class LUTBase {
    * @brief: clear all mappings
    */
   inline void reset_luts() {
-    for (auto& vec : m_inputs_2_merged_lut)
-      reset_vector(vec);
-    for (auto& vec : m_merged_2_inputs_lut)
-      reset_vector(vec);
+    reset_written_region(m_inputs_2_merged_lut, m_inputs_2_merged_written_rows, m_inputs_2_merged_written_cols);
+    reset_written_region(m_merged_2_inputs_lut, m_merged_2_inputs_written_rows, m_merged_2_inputs_written_cols);
   }
   inline void reset_luts_for_sample(const int64_t inputGVCFIdx) {
     reset_inputs_2_merged_lut(inputGVCFIdx);
@@ -201,6 +200,20 @@ class LUTBase {
   //why not unordered_map? because I feel the need, the need for speed
   std::vector<std::vector<int64_t>> m_inputs_2_merged_lut;
   std::vector<std::vector<int64_t>> m_merged_2_inputs_lut;
+  //Extent of the rows and columns set_lut_value() has written since the last reset_luts(): every entry outside
+  //it is missing, so reset_luts() only clears this region rather than the whole matrix, which only ever grows
+  int64_t m_inputs_2_merged_written_rows;
+  int64_t m_inputs_2_merged_written_cols;
+  int64_t m_merged_2_inputs_written_rows;
+  int64_t m_merged_2_inputs_written_cols;
+  inline void reset_written_region(std::vector<std::vector<int64_t>>& lut, int64_t& written_rows, int64_t& written_cols) {
+    for (auto i=0ll; i<written_rows; ++i) {
+      auto& vec = lut[i];
+      std::fill(vec.begin(), vec.begin()+std::min<int64_t>(written_cols, vec.size()), lut_missing_value);
+    }
+    written_rows = 0;
+    written_cols = 0;
+  }
   /**
    * @brief invalidate/reset all mappings in a vector
    * @note sets all elements to missing
@@ -243,12 +256,15 @@ class LUTBase {
    * @param columnIdx column
    * @param value value to write at lut[row][column]
    */
-  inline void set_lut_value(std::vector<std::vector<int64_t>>& lut, int64_t rowIdx, int64_t columnIdx, int64_t value) {
+  inline void set_lut_value(std::vector<std::vector<int64_t>>& lut, int64_t rowIdx, int64_t columnIdx, int64_t value,
+                            int64_t& written_rows, int64_t& written_cols) {
     assert(rowIdx >= 0);
     assert(rowIdx < static_cast<int64_t>(lut.size()));
     assert(columnIdx >= 0);
     assert(columnIdx < static_cast<int64_t>(lut[rowIdx].size()));
     lut[rowIdx][columnIdx] = value;
+    written_rows = std::max(written_rows, rowIdx+1);
+    written_cols = std::max(written_cols, columnIdx+1);
   }
 
   /**
@@ -260,12 +276,14 @@ class LUTBase {
    */
   template <bool M = inputs_2_merged_LUT_is_input_ordered, typename std::enable_if<M>::type* = nullptr>
   inline void set_merged_idx_for_input(int64_t inputGVCFIdx, int64_t inputIdx, int64_t mergedIdx) {
-    set_lut_value(m_inputs_2_merged_lut, inputGVCFIdx, inputIdx, mergedIdx);
+    set_lut_value(m_inputs_2_merged_lut, inputGVCFIdx, inputIdx, mergedIdx,
+                  m_inputs_2_merged_written_rows, m_inputs_2_merged_written_cols);
   }
 
   template <bool M = inputs_2_merged_LUT_is_input_ordered, typename std::enable_if<!M>::type* = nullptr>
   inline void set_merged_idx_for_input(int64_t inputGVCFIdx, int64_t inputIdx, int64_t mergedIdx) {
-    set_lut_value(m_inputs_2_merged_lut, inputIdx, inputGVCFIdx, mergedIdx);
+    set_lut_value(m_inputs_2_merged_lut, inputIdx, inputGVCFIdx, mergedIdx,
+                  m_inputs_2_merged_written_rows, m_inputs_2_merged_written_cols);
   }
 
   /**
@@ -277,12 +295,14 @@ class LUTBase {
    */
   template <bool M = merged_2_inputs_LUT_is_input_ordered, typename std::enable_if<M>::type* = nullptr>
   inline void set_input_idx_for_merged(int64_t inputGVCFIdx, int64_t inputIdx, int64_t mergedIdx) {
-    set_lut_value(m_merged_2_inputs_lut, inputGVCFIdx, mergedIdx, inputIdx);
+    set_lut_value(m_merged_2_inputs_lut, inputGVCFIdx, mergedIdx, inputIdx,
+                  m_merged_2_inputs_written_rows, m_merged_2_inputs_written_cols);
   }
 
   template <bool M = merged_2_inputs_LUT_is_input_ordered, typename std::enable_if<!M>::type* = nullptr>
   inline void set_input_idx_for_merged(int64_t inputGVCFIdx, int64_t inputIdx, int64_t mergedIdx) {
-    set_lut_value(m_merged_2_inputs_lut, mergedIdx, inputGVCFIdx, inputIdx);
+    set_lut_value(m_merged_2_inputs_lut, mergedIdx, inputGVCFIdx, inputIdx,
+                  m_merged_2_inputs_written_rows, m_merged_2_inputs_written_cols);
   }
   //Reset LUTs for specific inputGVCFIdx
   template <bool M = inputs_2_merged_LUT_is_input_ordered, typename std::enable_if<M>::type* = nullptr>
