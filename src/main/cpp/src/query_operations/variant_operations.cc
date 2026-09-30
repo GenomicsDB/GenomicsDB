@@ -140,24 +140,35 @@ void VariantOperations::merge_alt_alleles(const Variant& variant,
   //Get VariantQueryConfig
   //assert(variant.get_query_config());
   //const VariantQueryConfig& query_config = *(variant.get_query_config());
+  const auto REF_query_idx = query_config.get_query_idx_for_known_field_enum(GVCF_REF_IDX);
+  const auto ALT_query_idx = query_config.get_query_idx_for_known_field_enum(GVCF_ALT_IDX);
   //Iterate over valid calls
   for (auto valid_calls_iter=variant.begin(); valid_calls_iter != variant.end(); ++valid_calls_iter) {
     const auto& curr_valid_call = *valid_calls_iter;
     //Not always in sequence, as invalid calls are skipped
     auto curr_call_idx_in_variant = valid_calls_iter.get_call_idx_in_variant();
-    const auto& curr_reference =
-      get_known_field<VariantFieldString, true>(curr_valid_call, query_config, GVCF_REF_IDX)->get();
+    const auto* ALT_field_ptr = curr_valid_call.get_field<VariantFieldALTData>(ALT_query_idx);
+    assert(ALT_field_ptr);
+    const auto& curr_allele_vector = ALT_field_ptr->get();
+    //mapping for reference allele 0 -> 0
+    alleles_LUT.add_input_merged_idx_pair(curr_call_idx_in_variant, 0, 0);
+    //Most calls are reference blocks, whose only ALT allele is <NON_REF>: they add no allele to the merged
+    //alleles, so their REF is not needed
+    if (curr_allele_vector.size() == 1u && IS_NON_REF_ALLELE(curr_allele_vector[0u])) {
+      input_non_reference_allele_idx[curr_call_idx_in_variant] = 1;
+      NON_REF_exists = true;
+      continue;
+    }
+    const auto* REF_field_ptr = curr_valid_call.get_field<VariantFieldString>(REF_query_idx);
+    assert(REF_field_ptr);
+    const auto& curr_reference = REF_field_ptr->get();
     const auto& curr_reference_length = curr_reference.length();
-    const auto& curr_allele_vector =
-      get_known_field<VariantFieldALTData, true>(curr_valid_call, query_config, GVCF_ALT_IDX)->get();
     auto is_suffix_needed = false;
     auto suffix_length = 0u;
     if (curr_reference_length < merged_reference_length) {
       is_suffix_needed = true;
       suffix_length = merged_reference_length - curr_reference_length;
     }
-    //mapping for reference allele 0 -> 0
-    alleles_LUT.add_input_merged_idx_pair(curr_call_idx_in_variant, 0, 0);
     auto input_allele_idx = 1u;	//why 1, ref is index 0, alt begins at 1
     //copy of allele if needed
     std::string copy_allele;
@@ -196,15 +207,10 @@ void VariantOperations::merge_alt_alleles(const Variant& variant,
     auto non_reference_allele_idx = merged_alt_alleles.size(); //why not -1, include reference allele also
     //always check whether LUT is big enough for alleles_LUT (since the #alleles in the merged variant is unknown)
     alleles_LUT.resize_luts_if_needed(non_reference_allele_idx + 1);
-    //Add mappings for non_ref allele
-    //Iterate over valid calls
-    for (auto valid_calls_iter=variant.begin(); valid_calls_iter != variant.end(); ++valid_calls_iter) {
-      //Not always in sequence, as invalid calls are skipped
-      auto curr_call_idx_in_variant = valid_calls_iter.get_call_idx_in_variant();
-      if (input_non_reference_allele_idx[curr_call_idx_in_variant] >= 0)
-        alleles_LUT.add_input_merged_idx_pair(curr_call_idx_in_variant, input_non_reference_allele_idx[curr_call_idx_in_variant],
-                                              non_reference_allele_idx);
-    }
+    //Add mappings for non_ref allele. Only valid calls have an entry, so the calls need not be walked again
+    for (auto call_idx=0ull; call_idx<input_non_reference_allele_idx.size(); ++call_idx)
+      if (input_non_reference_allele_idx[call_idx] >= 0)
+        alleles_LUT.add_input_merged_idx_pair(call_idx, input_non_reference_allele_idx[call_idx], non_reference_allele_idx);
   }
 }
 

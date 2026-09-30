@@ -38,8 +38,8 @@
 
 static std::string tests_src_dir(GENOMICSDB_TESTS_SRC_DIR);
 
-static std::string ref_block(const int begin, const int end) {
-  return "1\t" + std::to_string(begin) + "\t.\tA\t<NON_REF>\t.\t.\tEND=" + std::to_string(end) + "\tGT\t0/0";
+static std::string ref_block(const int begin, const int end, const std::string& GT = "0/0") {
+  return "1\t" + std::to_string(begin) + "\t.\tA\t<NON_REF>\t.\t.\tEND=" + std::to_string(end) + "\tGT\t" + GT;
 }
 
 //A call at pos with REF A, the comma-separated alts followed by <NON_REF>, and the given FORMAT keys and values
@@ -245,4 +245,27 @@ TEST_CASE_METHOD(TempDir, "combined gVCF string FORMAT fields keep each sample's
 
   CHECK(FORMAT_field_values(records, "PGT").at(100) == std::vector<std::string>({"0|1", ".", "1|0"}));
   CHECK(FORMAT_field_values(records, "PID").at(100) == std::vector<std::string>({"100_A_C", ".", "90_T_GAA"}));
+}
+
+//At 100 S0 has alt G and S1 alts C and T, so the merged alleles are A,G,C,T,<NON_REF>. At 200 S1 has alt C and S2
+//alt G, so they are A,C,G,<NON_REF>. The value of <NON_REF> in each AD differs from its other values
+static std::string load_samples_with_different_alts(TempDir& temp_dir) {
+  return load(temp_dir, {
+    {"S0", {ref_block(1, 99), variant(100, "G", "GT:AD", "0/1:5,3,1"), ref_block(101, 1000)}},
+    {"S1", {ref_block(1, 99), variant(100, "C,T", "GT:AD", "1/2:1,4,6,2"), ref_block(101, 199),
+            variant(200, "C", "GT:AD", "0/1:7,2,1"), ref_block(201, 1000)}},
+    {"S2", {ref_block(1, 199, "./."), variant(200, "G", "GT:AD", "1/1:3,8,1"), ref_block(201, 1000)}}
+  });
+}
+
+TEST_CASE_METHOD(TempDir, "combined gVCF AD takes each sample's value for <NON_REF> for merged alleles the sample lacks",
+                 "[broad_combined_gvcf_AD_remap]") {
+  auto loader_json = load_samples_with_different_alts(*this);
+
+  auto records = query_records(*this, loader_json, R"(["END", "REF", "ALT", "GT", "AD"])");
+
+  auto AD = FORMAT_field_values(records, "AD");
+  CHECK(AD.at(100) == std::vector<std::string>({"5,3,1,1,1", "1,2,4,6,2", "."}));
+  //At 100 S1's C was merged allele 2, which at 200 is G, which S1 lacks
+  CHECK(AD.at(200) == std::vector<std::string>({".", "7,2,1,1", "3,1,8,1"}));
 }
