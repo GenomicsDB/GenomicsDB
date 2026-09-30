@@ -444,6 +444,27 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
       //GT is a string in the VCF header, but BCF encodes it as integers
       field_import_info.m_fetch_bcf_ht_type = field_import_info.m_is_GT ? BCF_HT_INT
                                               : field_info_ptr->get_vcf_type().get_tuple_element_bcf_ht_type(0u);
+      const auto is_GT_field = field_import_info.m_is_GT;
+      const auto field_idx = field_import_info.m_hdr_field_idx;
+      //FIXME: special length descriptors
+      auto length_descriptor = is_GT_field
+                               ? (m_store_phase_information_for_GT ? BCF_VL_Phased_Ploidy : BCF_VL_P)
+                               : bcf_hdr_id2length(hdr, field_type_idx, field_idx);
+      auto bcf_ht_type = is_GT_field ? BCF_HT_INT : bcf_hdr_id2type(hdr, field_type_idx, field_idx);
+      auto field_length = bcf_hdr_id2number(hdr, field_type_idx, field_idx);
+      //Flag field lengths are set to 0 in the header :(
+      field_import_info.m_field_length = (bcf_ht_type == BCF_HT_FLAG && field_length == 0) ? 1 : field_length;
+      //The weirdness of VCF - string fields are marked as fixed length fields of size 1 (*facepalm*)
+      field_import_info.m_is_vcf_str_type = ((bcf_ht_type == BCF_HT_CHAR && length_descriptor != BCF_VL_FIXED)
+                                             || bcf_ht_type == BCF_HT_STR) && !is_GT_field;
+      field_import_info.m_length_descriptor = field_import_info.m_is_vcf_str_type ? BCF_VL_VAR : length_descriptor;
+      field_import_info.m_bcf_ht_type = bcf_ht_type;
+      assert(static_cast<size_t>(field_idx) < m_local_field_idx_to_global_field_idx.size());
+      assert(static_cast<size_t>(m_local_field_idx_to_global_field_idx[field_idx]) < m_vid_mapper->get_num_fields());
+      field_import_info.m_vid_field_info_ptr =
+        &(m_vid_mapper->get_field_info(m_local_field_idx_to_global_field_idx[field_idx]));
+      field_import_info.m_is_INFO_field_with_sum_combine_operation = (field_type_idx == BCF_HL_INFO)
+          && field_import_info.m_vid_field_info_ptr->is_VCF_field_combine_operation_sum();
     }
   }
   m_END_hdr_field_idx = bcf_hdr_id2int(hdr, BCF_DT_ID, "END");
@@ -745,19 +766,10 @@ bool VCF2Binary::convert_field_to_tiledb(std::vector<uint8_t>& buffer, VCFColumn
   assert(line);
   assert(static_cast<size_t>(local_callset_idx) < m_local_callset_idx_to_tiledb_row_idx.size()
          && local_callset_idx < bcf_hdr_nsamples(hdr));
-  auto field_idx = field_import_info.m_hdr_field_idx;
-  //FIXME: special length descriptors
-  auto length_descriptor = is_GT_field
-                           ? (m_store_phase_information_for_GT ? BCF_VL_Phased_Ploidy : BCF_VL_P)
-                           : bcf_hdr_id2length(hdr, field_type_idx, field_idx);
-  auto bcf_ht_type = is_GT_field ? BCF_HT_INT : bcf_hdr_id2type(hdr, field_type_idx, field_idx);
-  auto field_length = bcf_hdr_id2number(hdr, field_type_idx, field_idx);
-  //Flag field lengths are set to 0 in the header :(
-  field_length = (bcf_ht_type == BCF_HT_FLAG && field_length == 0) ? 1 : field_length;
-  //The weirdness of VCF - string fields are marked as fixed length fields of size 1 (*facepalm*)
-  auto is_vcf_str_type = ((bcf_ht_type == BCF_HT_CHAR && length_descriptor != BCF_VL_FIXED)
-                          || bcf_ht_type == BCF_HT_STR) && !is_GT_field;
-  length_descriptor =  is_vcf_str_type ? BCF_VL_VAR : length_descriptor;
+  const auto length_descriptor = field_import_info.m_length_descriptor;
+  const auto bcf_ht_type = field_import_info.m_bcf_ht_type;
+  const auto field_length = field_import_info.m_field_length;
+  const auto is_vcf_str_type = field_import_info.m_is_vcf_str_type;
   auto& curr_vcf_get_buffer_wrapper = vcf_partition.get_vcf_get_buffer_wrapper(m_prefetch_all_VCF_fields_in_record,
                                       field_type_idx == BCF_HL_INFO, false, idx_in_vcf_fields_vector);
   if (!m_prefetch_all_VCF_fields_in_record)
@@ -767,14 +779,9 @@ bool VCF2Binary::convert_field_to_tiledb(std::vector<uint8_t>& buffer, VCFColumn
   auto buffer_full = false;
   auto num_values = static_cast<int>(curr_vcf_get_buffer_wrapper.m_num_values);
   auto* ptr = reinterpret_cast<const FieldType*>(curr_vcf_get_buffer_wrapper.m_buffer);
-  //Get vid_field_info object for this VCF field
-  assert(static_cast<size_t>(field_idx) < m_local_field_idx_to_global_field_idx.size());
-  assert(static_cast<size_t>(m_local_field_idx_to_global_field_idx[field_idx])
-         < m_vid_mapper->get_num_fields());
-  auto& vid_field_info = m_vid_mapper->get_field_info(m_local_field_idx_to_global_field_idx[field_idx]);
+  const auto& vid_field_info = *(field_import_info.m_vid_field_info_ptr);
   auto num_elements_in_tuple = vid_field_info.get_genomicsdb_type().get_num_elements_in_tuple();
-  auto is_INFO_field_with_sum_combine_operation = (field_type_idx == BCF_HL_INFO)
-      && vid_field_info.is_VCF_field_combine_operation_sum();
+  auto is_INFO_field_with_sum_combine_operation = field_import_info.m_is_INFO_field_with_sum_combine_operation;
   //Curr line does not have this field or field is missing
   //The second part of the if condition is useful in multi-sample VCFs for FORMAT fields
   //Example GT:PL   0/0:.  0/1:0,0,0

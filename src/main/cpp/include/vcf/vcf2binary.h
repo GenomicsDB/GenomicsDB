@@ -327,6 +327,15 @@ class VCF2Binary : public File2TileDBBinaryBase {
     bool m_is_GT = false;
     //Type to fetch values as: the vid type of the field's first tuple element, int for GT
     int m_fetch_bcf_ht_type = -1;
+    //From the header: the BCF_VL_* length descriptor, BCF_VL_VAR for strings, and the BCF_HT_* type. GT's come from
+    //the loader instead, since BCF encodes GT as integers
+    uint32_t m_length_descriptor = BCF_VL_VAR;
+    uint32_t m_bcf_ht_type = BCF_HT_INT;
+    //Number of values from the header, 1 for flags
+    uint32_t m_field_length = 0u;
+    bool m_is_vcf_str_type = false;
+    bool m_is_INFO_field_with_sum_combine_operation = false;
+    const FieldInfo* m_vid_field_info_ptr = nullptr;
   };
   bool m_discard_index;
   bool m_import_ID_field;
