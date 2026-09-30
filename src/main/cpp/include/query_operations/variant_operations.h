@@ -753,14 +753,15 @@ void remap_allele_specific_annotations(
   const uint64_t input_call_idx,
   const CombineAllelesLUT& alleles_LUT,
   const unsigned num_merged_alleles, const bool NON_REF_exists, const unsigned ploidy,
-  const FieldInfo& vid_field_info);
+  const FieldInfo& vid_field_info, std::vector<uint64_t>& offsets_vec);
 void remap_allele_specific_annotations(
   const std::unique_ptr<VariantFieldBase>& orig_field,
   std::unique_ptr<VariantFieldBase>& remapped_field,
   const uint64_t input_call_idx,
   const CombineAllelesLUT& alleles_LUT,
   const unsigned num_merged_alleles, const bool NON_REF_exists, const unsigned ploidy,
-  const VariantQueryConfig& query_config, const unsigned query_field_idx);
+  const VariantQueryConfig& query_config, const unsigned query_field_idx,
+  std::vector<uint64_t>& offsets_vec);
 
 /*
  * Copies info in Variant object into its result vector
@@ -815,6 +816,8 @@ class GA4GHOperator : public SingleVariantOperatorBase {
   //skip doing remapping for every sample in a different buffer. Used
   //by the GVCF operator to reduce memory consumption for ASA fields
   bool m_skip_remapping_INFO_fields_with_sum_combine_operation;
+  //Scratch offsets for remap_allele_specific_annotations(), reused to avoid an allocation per call
+  std::vector<uint64_t> m_allele_specific_offsets;
 };
 
 class SingleCellOperatorBase {
