@@ -214,6 +214,10 @@ class VCFColumnPartition : public File2TileDBBinaryColumnPartitionBase {
   std::vector<std::vector<VCFGetBufferWrapper> > m_vcf_get_buffer_vec;
   //Reused by every multi-D field parsed from a string, such as the allele-specific annotations
   GenomicsDBMultiDVectorFieldParseScratch m_multi_d_vector_parse_scratch;
+  //Per entry of the header's BCF_DT_ID dictionary, whether the current record has it as an INFO or a FORMAT field.
+  //Set and cleared again by VCF2Binary::convert_record_to_binary()
+  std::vector<uint8_t> m_is_INFO_field_in_record;
+  std::vector<uint8_t> m_is_FORMAT_field_in_record;
   //File pointer to output partition data - useful when splitting files
   htsFile* m_split_output_fptr;
 };
@@ -339,6 +343,8 @@ class VCF2Binary : public File2TileDBBinaryBase {
   std::vector<int> m_local_field_idx_to_global_field_idx;
   //Indexed [BCF_HL_*][index in (*m_vcf_fields)[BCF_HL_*]]; only BCF_HL_INFO and BCF_HL_FMT are filled
   std::vector<std::vector<VCFFieldImportInfo>> m_field_import_info;
+  //Index of END in the header's BCF_DT_ID dictionary, -1 if the header does not have it
+  int m_END_hdr_field_idx;
   //For VCFBufferReader
   size_t m_vcf_buffer_reader_buffer_size;
   bool m_vcf_buffer_reader_is_bcf;

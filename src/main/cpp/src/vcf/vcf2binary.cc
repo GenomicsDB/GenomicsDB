@@ -259,6 +259,8 @@ VCFColumnPartition::VCFColumnPartition(VCFColumnPartition&& other)
   other.m_vcf_reader_ptr = 0;
   m_vcf_get_buffer_vec = std::move(other.m_vcf_get_buffer_vec);
   m_multi_d_vector_parse_scratch = std::move(other.m_multi_d_vector_parse_scratch);
+  m_is_INFO_field_in_record = std::move(other.m_is_INFO_field_in_record);
+  m_is_FORMAT_field_in_record = std::move(other.m_is_FORMAT_field_in_record);
   m_split_output_fptr = other.m_split_output_fptr;
   other.m_split_output_fptr = 0;
 }
@@ -359,6 +361,7 @@ VCF2Binary::VCF2Binary(VCF2Binary&& other)
   m_local_contig_idx_to_global_contig_idx = std::move(other.m_local_contig_idx_to_global_contig_idx);
   m_local_field_idx_to_global_field_idx = std::move(other.m_local_field_idx_to_global_field_idx);
   m_field_import_info = std::move(other.m_field_import_info);
+  m_END_hdr_field_idx = other.m_END_hdr_field_idx;
   m_vcf_buffer_reader_buffer_size = other.m_vcf_buffer_reader_buffer_size;
   m_vcf_buffer_reader_is_bcf = other.m_vcf_buffer_reader_is_bcf;
   //Not useful, but copying to be safe
@@ -443,6 +446,7 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
                                               : field_info_ptr->get_vcf_type().get_tuple_element_bcf_ht_type(0u);
     }
   }
+  m_END_hdr_field_idx = bcf_hdr_id2int(hdr, BCF_DT_ID, "END");
   int ID_field_idx = -1;
   m_import_ID_field = m_vid_mapper->get_global_field_idx("ID", ID_field_idx);
 }
@@ -510,17 +514,39 @@ bool VCF2Binary::convert_record_to_binary(std::vector<uint8_t>& buffer, File2Til
   //Get INFO and FORMAT fields into the read buffers once and re-use for all samples
   //Massive optimization when importing data from multi-sample VCF files
   if (m_prefetch_all_VCF_fields_in_record) {
+    //Only the fields the record has are fetched: htslib looks a field up by name in the header and then scans the
+    //record's fields for it, and most records are reference blocks with few of the imported fields. A field the
+    //record doesn't have gets the result htslib returns for it, 0 for a flag and -3 otherwise
+    auto& is_INFO_field_in_record = vcf_partition.m_is_INFO_field_in_record;
+    auto& is_FORMAT_field_in_record = vcf_partition.m_is_FORMAT_field_in_record;
+    //Parsing VCF text adds any undeclared field to the header
+    const auto num_hdr_fields = hdr->n[BCF_DT_ID];
+    if (is_INFO_field_in_record.size() < static_cast<size_t>(num_hdr_fields)) {
+      is_INFO_field_in_record.resize(num_hdr_fields, 0u);
+      is_FORMAT_field_in_record.resize(num_hdr_fields, 0u);
+    }
+    for (auto i=0u; i<line->n_info; ++i)
+      if (line->d.info[i].key >= 0 && line->d.info[i].key < num_hdr_fields)
+        is_INFO_field_in_record[line->d.info[i].key] = 1u;
+    for (auto i=0u; i<line->n_fmt; ++i)
+      if (line->d.fmt[i].id >= 0 && line->d.fmt[i].id < num_hdr_fields)
+        is_FORMAT_field_in_record[line->d.fmt[i].id] = 1u;
     for (auto i=0u; i<vcf_partition.m_vcf_get_buffer_vec.size(); ++i) {
       auto field_type_idx = (i == 0u) ? BCF_HL_INFO : BCF_HL_FMT;
       assert(static_cast<size_t>(field_type_idx) < (*m_vcf_fields).size());
+      const auto& is_field_in_record = (i == 0u) ? is_INFO_field_in_record : is_FORMAT_field_in_record;
       for (auto j=0u; j<(*m_vcf_fields)[field_type_idx].size(); ++j) {
         assert(j < vcf_partition.m_vcf_get_buffer_vec[i].size());
         auto& curr_vcf_get_buffer_wrapper = vcf_partition.m_vcf_get_buffer_vec[i][j];
         const auto& field_import_info = m_field_import_info[field_type_idx][j];
         if (field_import_info.m_is_END)  //ignore END field
           continue;
-        const auto* field_name = (*m_vcf_fields)[field_type_idx][j].c_str();
         auto field_ht_type = field_import_info.m_fetch_bcf_ht_type;
+        if (!is_field_in_record[field_import_info.m_hdr_field_idx]) {
+          curr_vcf_get_buffer_wrapper.m_num_values = (field_ht_type == BCF_HT_FLAG) ? 0 : -3;
+          continue;
+        }
+        const auto* field_name = (*m_vcf_fields)[field_type_idx][j].c_str();
         switch (field_ht_type) {
         case BCF_HT_INT:
           fetch_field_from_vcf_record<int>(curr_vcf_get_buffer_wrapper,
@@ -551,12 +577,21 @@ bool VCF2Binary::convert_record_to_binary(std::vector<uint8_t>& buffer, File2Til
         }
       }
     }
-    //END buffer
+    //END buffer. A header without END can gain it while parsing VCF text, so then it is always fetched
     auto& curr_vcf_get_buffer_wrapper = vcf_partition.get_vcf_get_buffer_wrapper(true,
                                         true, true, 0u);
-    fetch_field_from_vcf_record<int>(curr_vcf_get_buffer_wrapper,
-                                     hdr, line,
-                                     "END", BCF_HL_INFO, BCF_HT_INT);
+    if (m_END_hdr_field_idx >= 0 && !is_INFO_field_in_record[m_END_hdr_field_idx])
+      curr_vcf_get_buffer_wrapper.m_num_values = -3;
+    else
+      fetch_field_from_vcf_record<int>(curr_vcf_get_buffer_wrapper,
+                                       hdr, line,
+                                       "END", BCF_HL_INFO, BCF_HT_INT);
+    for (auto i=0u; i<line->n_info; ++i)
+      if (line->d.info[i].key >= 0 && line->d.info[i].key < num_hdr_fields)
+        is_INFO_field_in_record[line->d.info[i].key] = 0u;
+    for (auto i=0u; i<line->n_fmt; ++i)
+      if (line->d.fmt[i].id >= 0 && line->d.fmt[i].id < num_hdr_fields)
+        is_FORMAT_field_in_record[line->d.fmt[i].id] = 0u;
   }
   for (auto i=0ull; i<m_enabled_local_callset_idx_vec.size(); ++i) {
     buffer_full = buffer_full || convert_VCF_to_binary_for_callset(buffer, vcf_partition, hdr, line, m_max_size_per_callset, i);
