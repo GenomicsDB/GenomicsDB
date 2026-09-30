@@ -566,10 +566,16 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
     const FieldLengthDescriptor& length_descriptor) {
   auto& orig_call = variant.get_call(curr_call_idx_in_variant);
   auto& orig_field = orig_call.get_field(query_field_idx);
-  const auto is_multi_d_field =
-    query_config.get_length_descriptor_for_query_attribute_idx(query_field_idx).get_num_dimensions() > 1u;
+  //Most calls, e.g. reference blocks, have no AD or PL. Their remapped field is invalidated rather than copied, so it
+  //may keep data from an earlier record: every reader of a field checks that it is valid before reading its data. A
+  //remapped field that doesn't exist yet is still created by copy_field() below, so that it is never left null
+  if (!(orig_field.get() && orig_field->is_valid()) && remapped_field.get()) {
+    remapped_field->set_valid(false);
+    return false;
+  }
+  const auto is_multi_d_field = length_descriptor.get_num_dimensions() > 1u;
   //remap_allele_specific_annotations() rewrites all the data of a valid multi-D field, so copy only its metadata
-  if (is_multi_d_field && remapped_field.get() && orig_field.get() && orig_field->is_valid())
+  if (is_multi_d_field && remapped_field.get())
     remapped_field->VariantFieldBase::copy_from(orig_field.get());
   else
     copy_field(remapped_field, orig_field);
@@ -631,7 +637,7 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
       handler->remap_vector_data(
 	  orig_field, curr_call_idx_in_variant,
 	  m_alleles_LUT, num_merged_alleles, m_NON_REF_exists && remap_missing_with_non_ref, curr_ploidy,
-	  query_config.get_length_descriptor_for_query_attribute_idx(query_field_idx), num_merged_elements, remapper_variant);
+	  length_descriptor, num_merged_elements, remapper_variant);
     }
     return true;
   }

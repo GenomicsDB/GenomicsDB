@@ -789,6 +789,11 @@ class GA4GHOperator : public SingleVariantOperatorBase {
   bool check_if_too_many_alleles_and_print_message(
     const Variant& variant,
     const FieldLengthDescriptor& length_descriptor) const;
+  /*
+   * Remaps field query_field_idx, whose length descriptor is length_descriptor, of call curr_call_idx_in_variant
+   * of variant to the merged alleles, into remapped_field. Returns false, with remapped_field invalid or null, if
+   * the call lacks the field or it has too many genotypes
+   */
   bool remap_if_needed(const Variant& variant,
       const VariantQueryConfig& query_config,
       const uint64_t curr_call_idx_in_variant,
