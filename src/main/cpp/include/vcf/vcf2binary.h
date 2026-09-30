@@ -29,6 +29,7 @@
 #include "gt_common.h"
 #include "histogram.h"
 #include "tiledb_loader_file_base.h"
+#include "genomicsdb_multid_vector_field.h"
 
 //Exceptions thrown
 class VCF2BinaryException : public std::exception {
@@ -211,6 +212,8 @@ class VCFColumnPartition : public File2TileDBBinaryColumnPartitionBase {
   //Outer vector of size 2 - INFO, FORMAT - if prefetch enabled, else size 1
   //Inner vector depends on #INFO and FORMAT fields imported if prefetch enabled, else size 1
   std::vector<std::vector<VCFGetBufferWrapper> > m_vcf_get_buffer_vec;
+  //Reused by every multi-D field parsed from a string, such as the allele-specific annotations
+  GenomicsDBMultiDVectorFieldParseScratch m_multi_d_vector_parse_scratch;
   //File pointer to output partition data - useful when splitting files
   htsFile* m_split_output_fptr;
 };

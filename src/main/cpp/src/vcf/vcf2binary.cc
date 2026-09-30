@@ -258,6 +258,7 @@ VCFColumnPartition::VCFColumnPartition(VCFColumnPartition&& other)
   m_vcf_reader_ptr = other.m_vcf_reader_ptr;
   other.m_vcf_reader_ptr = 0;
   m_vcf_get_buffer_vec = std::move(other.m_vcf_get_buffer_vec);
+  m_multi_d_vector_parse_scratch = std::move(other.m_multi_d_vector_parse_scratch);
   m_split_output_fptr = other.m_split_output_fptr;
   other.m_split_output_fptr = 0;
 }
@@ -837,17 +838,15 @@ bool VCF2Binary::convert_field_to_tiledb(std::vector<uint8_t>& buffer, VCFColumn
           op_ptr = &histogram_op;
         else
           op_ptr = &all_op;
-        multi_d_vector_size_vec = std::move(GenomicsDBMultiDVectorField::parse_and_store_numeric(
-                                              vcf_partition.get_multi_d_vector_buffer_vec(),
-                                              vid_field_info, reinterpret_cast<const char*>(ptr), num_values,
-                                              *op_ptr
-                                            ));
+        GenomicsDBMultiDVectorField::parse_and_store_numeric(vcf_partition.get_multi_d_vector_buffer_vec(),
+            multi_d_vector_size_vec, vcf_partition.m_multi_d_vector_parse_scratch,
+            vid_field_info, reinterpret_cast<const char*>(ptr), num_values,
+            *op_ptr);
       } else
-        multi_d_vector_size_vec = std::move(GenomicsDBMultiDVectorField::parse_and_store_numeric(
-                                              vcf_partition.get_multi_d_vector_buffer_vec(),
-                                              vid_field_info, reinterpret_cast<const char*>(ptr), num_values,
-                                              GenomicsDBMultiDVectorFieldParseAndStoreOperator() //not a sum operation or single sample VCF - use default operator
-                                            ));
+        GenomicsDBMultiDVectorField::parse_and_store_numeric(vcf_partition.get_multi_d_vector_buffer_vec(),
+            multi_d_vector_size_vec, vcf_partition.m_multi_d_vector_parse_scratch,
+            vid_field_info, reinterpret_cast<const char*>(ptr), num_values,
+            GenomicsDBMultiDVectorFieldParseAndStoreOperator()); //not a sum operation or single sample VCF - use default operator
       //#define DEBUG_MULTID_VECTOR_FIELD_LOAD
 #ifdef DEBUG_MULTID_VECTOR_FIELD_LOAD
       GenomicsDBMultiDVectorField debug_field(vid_field_info, &(vcf_partition.get_multi_d_vector_buffer_vec()[0u][0u]),

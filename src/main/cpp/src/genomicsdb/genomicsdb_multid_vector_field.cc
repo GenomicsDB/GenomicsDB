@@ -230,13 +230,42 @@ void fill_with_bcf_missing_values(std::vector<uint8_t>& buffer,
       buffer, reinterpret_cast<int64_t&>(write_offset), get_bcf_missing_value<ElementType>());
 }
 
+void GenomicsDBMultiDVectorFieldParseScratch::reset(const unsigned num_elements_in_tuple,
+    const unsigned num_dimensions) {
+  //The outer vectors only grow: fields with one and two tuple elements alternate, and shrinking would free the
+  //inner vectors' memory. parse_and_store_numeric() loops over num_elements_in_tuple, not the outer sizes
+  if (m_dim_sizes_vec.size() < num_elements_in_tuple)
+    m_dim_sizes_vec.resize(num_elements_in_tuple);
+  if (m_dim_offsets_vec.size() < num_elements_in_tuple)
+    m_dim_offsets_vec.resize(num_elements_in_tuple);
+  if (m_dim_write_begin_offsets_vec.size() < num_elements_in_tuple)
+    m_dim_write_begin_offsets_vec.resize(num_elements_in_tuple);
+  m_num_elements_in_innermost_dim_read_vec.assign(num_elements_in_tuple, 0ull);
+  for (auto tuple_element_idx=0u; tuple_element_idx<num_elements_in_tuple; ++tuple_element_idx) {
+    m_dim_sizes_vec[tuple_element_idx].assign(num_dimensions, 0ull);
+    //Each dimension begins with offset 0
+    auto& dim_offsets = m_dim_offsets_vec[tuple_element_idx];
+    dim_offsets.resize(num_dimensions);
+    for (auto& offsets : dim_offsets)
+      offsets.assign(1u, 0ull);
+    //The first dimension begins writing at offset 0
+    //A 64-bit uint64_t is allocated for each dimension's size
+    auto& dim_write_begin_offsets = m_dim_write_begin_offsets_vec[tuple_element_idx];
+    dim_write_begin_offsets.resize(num_dimensions);
+    for (auto i=0u; i<num_dimensions; ++i)
+      dim_write_begin_offsets[i] = i*sizeof(uint64_t);
+  }
+}
+
 /*
    Given a delimited string, parse and store the data in a binary buffer as described in
    the header.
    1,2,3,4|5,6|7,8$9,10|11|12
 */
-std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(
+void GenomicsDBMultiDVectorField::parse_and_store_numeric(
   std::vector<std::vector<uint8_t>>& buffer_vec, //outer vector - one for each element of tuple
+  std::vector<uint64_t>& total_size_of_multi_d_data_vec,
+  GenomicsDBMultiDVectorFieldParseScratch& scratch,
   const FieldInfo& field_info,
   const char* str, const size_t str_length,
   const GenomicsDBMultiDVectorFieldParseAndStoreOperator& op) {
@@ -247,34 +276,16 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(
   for (auto& buffer : buffer_vec)
     buffer.resize(4096u); //4KiB
   auto r_idx = 0ull; //read idx
-  //#bytes for curr data in dim i
-  std::vector<std::vector<uint64_t>> dim_sizes_vec(num_elements_in_tuple,
-                                  std::vector<uint64_t>(length_descriptor.get_num_dimensions(), 0ull));
-  //Offsets for the data in each dim F[0] offset, F[1] offset etc
-  //Each dimension begins with offset 0
-  std::vector<std::vector<std::vector<uint64_t>>> dim_offsets_vec(
-    num_elements_in_tuple,
-    std::vector<std::vector<uint64_t>>(length_descriptor.get_num_dimensions(),
-                                       std::vector<uint64_t>(1u, 0ull))
-  );
-  //Specifies the current offset in buffer at which the data for dim i should be written
-  //the last 2 dimensions don't get any sizes
-  std::vector<std::vector<uint64_t>> dim_write_begin_offsets_vec(
-                                    num_elements_in_tuple,
-                                    std::vector<uint64_t>(length_descriptor.get_num_dimensions())
-                                  );
-  //The first dimension begins writing at offset 0
-  //A 64-bit uint64_t is allocated for each dimension's size
-  for (auto tuple_element_idx=0u; tuple_element_idx<num_elements_in_tuple; ++tuple_element_idx)
-    for (auto i=0ull; i<dim_write_begin_offsets_vec[tuple_element_idx].size(); ++i)
-      dim_write_begin_offsets_vec[tuple_element_idx][i] = i*sizeof(uint64_t);
+  scratch.reset(num_elements_in_tuple, length_descriptor.get_num_dimensions());
+  auto& dim_sizes_vec = scratch.m_dim_sizes_vec;
+  auto& dim_offsets_vec = scratch.m_dim_offsets_vec;
+  auto& dim_write_begin_offsets_vec = scratch.m_dim_write_begin_offsets_vec;
+  auto& num_elements_in_innermost_dim_read_vec = scratch.m_num_elements_in_innermost_dim_read_vec;
   //Points to the begin of the current element - length
   auto current_element_begin_read_idx = 0ull; //r stands for read
   auto current_element_length = 0ull;
-  std::vector<uint64_t> num_elements_in_innermost_dim_read_vec(
-    num_elements_in_tuple, 0ull);
   auto max_num_elements_in_innermost_dim = 0ull;
-  std::vector<uint64_t> total_size_of_multi_d_data_vec(num_elements_in_tuple, 0ull);
+  total_size_of_multi_d_data_vec.assign(num_elements_in_tuple, 0ull);
   //Idx of entry inside a tuple
   auto curr_element_idx_in_tuple_parsed = 0ull;
   //Whether there is at least one valid element in the tuple
@@ -429,13 +440,13 @@ std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(
       ++current_element_length;
     ++r_idx;
   }
-  return total_size_of_multi_d_data_vec;
 }
 
 std::vector<uint64_t> GenomicsDBMultiDVectorField::parse_and_store_numeric(const char* str, const size_t str_length) {
-  auto total_size_of_multi_d_data_vec = std::move(GenomicsDBMultiDVectorField::parse_and_store_numeric(
-                                          m_rw_field_data, *m_field_info_ptr,
-                                          str, str_length));
+  std::vector<uint64_t> total_size_of_multi_d_data_vec;
+  GenomicsDBMultiDVectorFieldParseScratch scratch;
+  GenomicsDBMultiDVectorField::parse_and_store_numeric(m_rw_field_data, total_size_of_multi_d_data_vec, scratch,
+                                                       *m_field_info_ptr, str, str_length);
   for (auto tuple_element_idx=0u; tuple_element_idx<total_size_of_multi_d_data_vec.size();
        ++tuple_element_idx)
     m_rw_field_data[tuple_element_idx].resize(total_size_of_multi_d_data_vec[tuple_element_idx]);
