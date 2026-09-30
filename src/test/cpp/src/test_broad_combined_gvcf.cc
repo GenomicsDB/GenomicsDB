@@ -64,6 +64,8 @@ static std::string write_gvcf(TempDir& temp_dir, const std::string& sample, cons
                     "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"
                     "##FORMAT=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths\">\n"
                     "##FORMAT=<ID=PL,Number=G,Type=Integer,Description=\"Genotype likelihoods\">\n"
+                    "##FORMAT=<ID=PGT,Number=1,Type=String,Description=\"Physical phasing haplotype\">\n"
+                    "##FORMAT=<ID=PID,Number=1,Type=String,Description=\"Physical phasing ID\">\n"
                     "##contig=<ID=1,length=249250621>\n"
                     "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" + sample + "\n";
   for (const auto& record : records)
@@ -229,4 +231,18 @@ TEST_CASE_METHOD(TempDir, "combined gVCF AD and PL are missing for samples witho
   auto PL = FORMAT_field_values(records, "PL");
   CHECK(PL.at(100) == std::vector<std::string>({"30,0,50,40,60,90", ".", "90,20,0,85,25,99"}));
   CHECK(PL.at(200) == std::vector<std::string>({".", "20,0,70,35,80,95", "25,0,25,40,40,80"}));
+}
+
+TEST_CASE_METHOD(TempDir, "combined gVCF string FORMAT fields keep each sample's value and are missing for samples without them",
+                 "[broad_combined_gvcf_FORMAT_strings]") {
+  auto loader_json = load(*this, {
+    {"S0", {ref_block(1, 99), variant(100, "C", "GT:PGT:PID", "0|1:0|1:100_A_C"), ref_block(101, 1000)}},
+    {"S1", {ref_block(1, 1000)}},
+    {"S2", {ref_block(1, 99), variant(100, "C", "GT:PGT:PID", "1|0:1|0:90_T_GAA"), ref_block(101, 1000)}}
+  });
+
+  auto records = query_records(*this, loader_json, R"(["END", "REF", "ALT", "GT", "PGT", "PID"])");
+
+  CHECK(FORMAT_field_values(records, "PGT").at(100) == std::vector<std::string>({"0|1", ".", "1|0"}));
+  CHECK(FORMAT_field_values(records, "PID").at(100) == std::vector<std::string>({"100_A_C", ".", "90_T_GAA"}));
 }

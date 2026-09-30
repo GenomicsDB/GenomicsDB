@@ -663,6 +663,13 @@ class VariantFieldHandler : public VariantFieldHandlerBase {
   std::vector<DataType> m_median_compute_vector;
   //Vector to hold extended vector to use in BCF format fields
   std::vector<DataType> m_extended_field_vector;
+  //Data of one call's field for collect_and_extend_fields(): null and 0 elements for a call without the field
+  struct CallFieldData {
+    const DataType* m_data;
+    unsigned m_num_elements;
+  };
+  //One per call, reused to avoid an allocation per field
+  std::vector<CallFieldData> m_call_field_data;
   //Datatype to hold sum
   CombineResultType m_sum;
   //Vector to hold data for element wise operations
