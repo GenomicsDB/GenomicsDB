@@ -48,6 +48,10 @@ void LUTBase<inputs_2_merged_LUT_is_input_ordered, merged_2_inputs_LUT_is_input_
   for (auto& vec : m_merged_2_inputs_lut)
     vec.clear();
   m_merged_2_inputs_lut.clear();
+  m_inputs_2_merged_written_rows = 0;
+  m_inputs_2_merged_written_cols = 0;
+  m_merged_2_inputs_written_rows = 0;
+  m_merged_2_inputs_written_cols = 0;
 }
 
 template<bool inputs_2_merged_LUT_is_input_ordered, bool merged_2_inputs_LUT_is_input_ordered>
