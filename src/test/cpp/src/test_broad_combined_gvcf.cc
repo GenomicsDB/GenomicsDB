@@ -28,6 +28,7 @@
 #include <htslib/tbx.h>
 #include <zlib.h>
 
+#include <algorithm>
 #include <map>
 
 #include "genomicsdb.h"
@@ -39,6 +40,11 @@ static std::string tests_src_dir(GENOMICSDB_TESTS_SRC_DIR);
 
 static std::string ref_block(const int begin, const int end) {
   return "1\t" + std::to_string(begin) + "\t.\tA\t<NON_REF>\t.\t.\tEND=" + std::to_string(end) + "\tGT\t0/0";
+}
+
+//A call at pos with REF A, the comma-separated alts followed by <NON_REF>, and the given FORMAT keys and values
+static std::string variant(const int pos, const std::string& alts, const std::string& keys, const std::string& values) {
+  return "1\t" + std::to_string(pos) + "\t.\tA\t" + alts + ",<NON_REF>\t.\t.\t.\t" + keys + "\t" + values;
 }
 
 //as_raw_mq and as_raw_mq_rank_sum hold one entry each for REF, alt and <NON_REF>
@@ -56,6 +62,8 @@ static std::string write_gvcf(TempDir& temp_dir, const std::string& sample, cons
                     "##INFO=<ID=AS_RAW_MQ,Number=1,Type=String,Description=\"Allele-specific raw MQ\">\n"
                     "##INFO=<ID=AS_RAW_MQRankSum,Number=1,Type=String,Description=\"Allele-specific MQ rank sums\">\n"
                     "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"
+                    "##FORMAT=<ID=AD,Number=R,Type=Integer,Description=\"Allelic depths\">\n"
+                    "##FORMAT=<ID=PL,Number=G,Type=Integer,Description=\"Genotype likelihoods\">\n"
                     "##contig=<ID=1,length=249250621>\n"
                     "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" + sample + "\n";
   for (const auto& record : records)
@@ -97,18 +105,29 @@ static std::string load(TempDir& temp_dir, const std::vector<std::pair<std::stri
   return loader_json;
 }
 
-//Queries the combined gVCF of all rows and returns each record's INFO column keyed by position
-static std::map<int, std::string> query_INFO_columns(TempDir& temp_dir, const std::string& loader_json) {
+static std::vector<std::string> split(const std::string& str, const char delimiter) {
+  std::vector<std::string> tokens;
+  for (size_t begin = 0, end = 0; end != std::string::npos; begin = end + 1) {
+    end = str.find(delimiter, begin);
+    tokens.push_back(str.substr(begin, end == std::string::npos ? std::string::npos : end - begin));
+  }
+  return tokens;
+}
+
+//Queries the combined gVCF, with GT, of all rows for the attributes (a JSON list) and returns each record's columns
+//keyed by position
+static std::map<int, std::vector<std::string>> query_records(TempDir& temp_dir, const std::string& loader_json,
+                                                             const std::string& attributes) {
   const std::string query = R"({"workspace": ")" + temp_dir.append("ws") + R"(", "array_name": "as_info",
       "query_column_ranges": [{"range_list": [{"low": 0, "high": 1000000000}]}],
       "query_row_ranges": [{"range_list": [{"low": 0, "high": 2}]}],
       "reference_genome": ")" + tests_src_dir + R"(inputs/chr1_10MB.fasta.gz",
       "vcf_header_filename": [")" + tests_src_dir + R"(inputs/template_vcf_header.vcf"],
-      "attributes": ["END", "REF", "ALT", "GT", "AS_RAW_MQ", "AS_RAW_MQRankSum"], "segment_size": 1048576})";
+      "produce_GT_field": true, "attributes": )" + attributes + R"(, "segment_size": 1048576})";
   auto vcf_file = temp_dir.append("combined.vcf.gz");
   GenomicsDB gdb(query, GenomicsDB::JSON_STRING, loader_json);
   gdb.generate_vcf(vcf_file, "z", true);
-  std::map<int, std::string> INFO_columns;
+  std::map<int, std::vector<std::string>> records;
   gzFile input = gzopen(vcf_file.c_str(), "r");
   REQUIRE(input);
   char buffer[65536];
@@ -116,29 +135,44 @@ static std::map<int, std::string> query_INFO_columns(TempDir& temp_dir, const st
     std::string line(buffer);
     if (line.empty() || line[0] == '#')
       continue;
-    std::vector<std::string> columns;
-    for (size_t begin = 0, end = 0; columns.size() < 8u; begin = end + 1) {
-      end = line.find('\t', begin);
-      REQUIRE(end != std::string::npos);
-      columns.push_back(line.substr(begin, end - begin));
-    }
-    INFO_columns[std::stoi(columns[1])] = columns[7];
+    if (line.back() == '\n')
+      line.pop_back();
+    auto columns = split(line, '\t');
+    REQUIRE(columns.size() >= 8u);
+    records[std::stoi(columns[1])] = columns;
   }
   gzclose(input);
-  return INFO_columns;
+  return records;
 }
 
 //Returns the named field's value at each position whose INFO column has it
-static std::map<int, std::string> INFO_field_values(const std::map<int, std::string>& INFO_columns,
+static std::map<int, std::string> INFO_field_values(const std::map<int, std::vector<std::string>>& records,
                                                     const std::string& field) {
   std::map<int, std::string> values;
   const auto key = field + "=";
-  for (const auto& position_INFO_pair : INFO_columns) {
-    const auto& info = position_INFO_pair.second;
-    for (size_t begin = 0, end = 0; begin < info.length(); begin = end + 1) {
-      end = std::min(info.find(';', begin), info.length());
-      if (info.compare(begin, key.length(), key) == 0)
-        values[position_INFO_pair.first] = info.substr(begin + key.length(), end - begin - key.length());
+  for (const auto& position_columns_pair : records) {
+    for (const auto& key_value : split(position_columns_pair.second[7], ';'))
+      if (key_value.compare(0, key.length(), key) == 0)
+        values[position_columns_pair.first] = key_value.substr(key.length());
+  }
+  return values;
+}
+
+//Returns each sample's value of the named FORMAT field at each position whose record has the field
+static std::map<int, std::vector<std::string>> FORMAT_field_values(
+  const std::map<int, std::vector<std::string>>& records, const std::string& field) {
+  std::map<int, std::vector<std::string>> values;
+  for (const auto& position_columns_pair : records) {
+    const auto& columns = position_columns_pair.second;
+    REQUIRE(columns.size() > 9u);
+    const auto keys = split(columns[8], ':');
+    const auto key_idx = static_cast<size_t>(std::find(keys.begin(), keys.end(), field) - keys.begin());
+    if (key_idx == keys.size())
+      continue;
+    auto& sample_values = values[position_columns_pair.first];
+    for (auto i=9u; i<columns.size(); ++i) {
+      const auto sample_fields = split(columns[i], ':');
+      sample_values.push_back(key_idx < sample_fields.size() ? sample_fields[key_idx] : "");
     }
   }
   return values;
@@ -158,7 +192,7 @@ TEST_CASE_METHOD(TempDir, "combined gVCF allele-specific INFO fields combine onl
             snp(300, "T", "100.00|200.00|300.00", "|2.5,1|NaN"), ref_block(301, 1000)}}
   });
 
-  auto INFO_columns = query_INFO_columns(*this, loader_json);
+  auto records = query_records(*this, loader_json, R"(["END", "REF", "ALT", "GT", "AS_RAW_MQ", "AS_RAW_MQRankSum"])");
 
   const std::map<int, std::string> expected_AS_RAW_MQ = {
     {100, "1.000|2.000|3.000"},
@@ -166,7 +200,7 @@ TEST_CASE_METHOD(TempDir, "combined gVCF allele-specific INFO fields combine onl
     {300, "100.000|200.000|300.000"},
     {400, "11.000|32.000|23.000|33.000"}
   };
-  CHECK(INFO_field_values(INFO_columns, "AS_RAW_MQ") == expected_AS_RAW_MQ);
+  CHECK(INFO_field_values(records, "AS_RAW_MQ") == expected_AS_RAW_MQ);
 
   const std::map<int, std::string> expected_AS_RAW_MQRankSum = {
     {100, "|0.500,1|"},
@@ -174,5 +208,25 @@ TEST_CASE_METHOD(TempDir, "combined gVCF allele-specific INFO fields combine onl
     {300, "|2.500,1|"},
     {400, "|0.500,1|1.500,2|"}
   };
-  CHECK(INFO_field_values(INFO_columns, "AS_RAW_MQRankSum") == expected_AS_RAW_MQRankSum);
+  CHECK(INFO_field_values(records, "AS_RAW_MQRankSum") == expected_AS_RAW_MQRankSum);
+}
+
+TEST_CASE_METHOD(TempDir, "combined gVCF AD and PL are missing for samples without them, even after a record where they had them",
+                 "[broad_combined_gvcf_FORMAT_missing]") {
+  //S0 has AD and PL at 100 only, S1 at 200 only and S2 at both; the others are in reference blocks
+  auto loader_json = load(*this, {
+    {"S0", {ref_block(1, 99), variant(100, "C", "GT:AD:PL", "0/1:5,3,1:30,0,50,40,60,90"), ref_block(101, 1000)}},
+    {"S1", {ref_block(1, 199), variant(200, "C", "GT:AD:PL", "0/1:4,6,2:20,0,70,35,80,95"), ref_block(201, 1000)}},
+    {"S2", {ref_block(1, 99), variant(100, "C", "GT:AD:PL", "1/1:0,7,1:90,20,0,85,25,99"), ref_block(101, 199),
+            variant(200, "C", "GT:AD:PL", "0/1:3,3,0:25,0,25,40,40,80"), ref_block(201, 1000)}}
+  });
+
+  auto records = query_records(*this, loader_json, R"(["END", "REF", "ALT", "GT", "AD", "PL"])");
+
+  auto AD = FORMAT_field_values(records, "AD");
+  CHECK(AD.at(100) == std::vector<std::string>({"5,3,1", ".", "0,7,1"}));
+  CHECK(AD.at(200) == std::vector<std::string>({".", "4,6,2", "3,3,0"}));
+  auto PL = FORMAT_field_values(records, "PL");
+  CHECK(PL.at(100) == std::vector<std::string>({"30,0,50,40,60,90", ".", "90,20,0,85,25,99"}));
+  CHECK(PL.at(200) == std::vector<std::string>({".", "20,0,70,35,80,95", "25,0,25,40,40,80"}));
 }
