@@ -859,7 +859,18 @@ void BroadCombinedGVCFOperator::operate(Variant& variant) {
 #endif
   //Handle spanning deletions - change ALT alleles in calls with deletions to *, <NON_REF>
   handle_deletions(variant);
-  GA4GHOperator::operate(variant);
+  //Compute merged REF and ALT
+  SingleVariantOperatorBase::operate(variant);
+  //Remapping only fills m_remapped_variant, which every record rebuilds, so a skipped record leaves no
+  //state behind; the contig bookkeeping below catches up on the next record that is produced
+  if (m_query_config->skip_spanning_deletion_only_intervals()
+      && merged_alt_alleles_are_only_spanning_deletion_or_NON_REF()) {
+#ifdef DO_PROFILING
+    m_bcf_t_creation_timer.stop();
+#endif
+    return;
+  }
+  remap_to_merged_alleles(variant);
   //Moved to new contig
   if (static_cast<int64_t>(m_remapped_variant.get_column_begin()) >= m_next_contig_begin_position) {
     std::string contig_name;
@@ -975,6 +986,13 @@ void BroadCombinedGVCFOperator::operate(Variant& variant) {
   }
 #endif
   m_vcf_adapter->handoff_output_bcf_line(m_bcf_out, m_bcf_record_size);
+}
+
+bool BroadCombinedGVCFOperator::merged_alt_alleles_are_only_spanning_deletion_or_NON_REF() const {
+  for (const auto& allele : m_merged_alt_alleles)
+    if (allele != g_vcf_SPANNING_DELETION && allele != g_vcf_NON_REF)
+      return false;
+  return true;
 }
 
 void BroadCombinedGVCFOperator::switch_contig() {

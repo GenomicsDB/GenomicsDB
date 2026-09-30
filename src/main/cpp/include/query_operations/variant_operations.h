@@ -796,6 +796,8 @@ class GA4GHOperator : public SingleVariantOperatorBase {
       RemappedVariant& remapper_variant,
       const FieldLengthDescriptor& length_descriptor);
  protected:
+  //Fills m_remapped_variant from variant using the merged alleles computed by SingleVariantOperatorBase::operate
+  void remap_to_merged_alleles(Variant& variant);
   Variant m_remapped_variant;
   //Query idxs of fields that need to be remmaped - PL, AD etc
   std::vector<unsigned> m_remapped_fields_query_idxs;

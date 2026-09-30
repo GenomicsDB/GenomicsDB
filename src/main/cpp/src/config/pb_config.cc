@@ -436,6 +436,8 @@ void GenomicsDBConfigBase::read_from_PB(const genomicsdb_pb::ExportConfiguration
       export_config->has_bypass_intersecting_intervals_phase() ? export_config->bypass_intersecting_intervals_phase() : false;
   m_skip_reference_only_intervals =
       export_config->has_skip_reference_only_intervals() ? export_config->skip_reference_only_intervals() : false;
+  m_skip_spanning_deletion_only_intervals = export_config->has_skip_spanning_deletion_only_intervals()
+      ? export_config->skip_spanning_deletion_only_intervals() : false;
   //Check if any annotation sources are specified
   m_has_annotation_sources = export_config->annotation_source_size() > 0 ? true : false;
 }

@@ -129,6 +129,7 @@ TEST_CASE("Check configuration with json file", "[basic_config_check]") {
   CHECK(query_config_from_file.sites_only_query() == false);
   CHECK(query_config_from_file.bypass_intersecting_intervals_phase() == false);
   CHECK(query_config_from_file.skip_reference_only_intervals() == false);
+  CHECK(query_config_from_file.skip_spanning_deletion_only_intervals() == false);
   CHECK(query_config_from_file.index_output_VCF() ==  false);
   CHECK(query_config_from_file.produce_GT_with_min_PL_value_for_spanning_deletions() == false);
   CHECK(query_config_from_file.get_vid_mapper().is_initialized() ==  true);
@@ -191,6 +192,7 @@ TEST_CASE("Compare configuration with json file and string", "[compare_json_type
   CHECK(query_config_from_file.sites_only_query() == query_config_from_str.sites_only_query());
   CHECK(query_config_from_file.bypass_intersecting_intervals_phase() == query_config_from_str.bypass_intersecting_intervals_phase());
   CHECK(query_config_from_file.skip_reference_only_intervals() == query_config_from_str.skip_reference_only_intervals());
+  CHECK(query_config_from_file.skip_spanning_deletion_only_intervals() == query_config_from_str.skip_spanning_deletion_only_intervals());
   CHECK(query_config_from_file.index_output_VCF() == query_config_from_str.index_output_VCF());
   CHECK(query_config_from_file.produce_GT_with_min_PL_value_for_spanning_deletions() == query_config_from_str.produce_GT_with_min_PL_value_for_spanning_deletions());
   CHECK(query_config_from_file.get_vid_mapper().is_initialized() == query_config_from_str.get_vid_mapper().is_initialized());
@@ -215,4 +217,24 @@ TEST_CASE("Check skip_reference_only_intervals is read from json", "[config_skip
   query_config.update_from_loader(loader_config);
   query_config.read_from_JSON_string(query_json_str);
   CHECK(query_config.skip_reference_only_intervals() == true);
+}
+
+TEST_CASE("Check skip_spanning_deletion_only_intervals is read from json", "[config_skip_spanning_deletion_only_intervals]") {
+  GenomicsDBImportConfig loader_config;
+  loader_config.read_from_file(loader_json);
+
+  char *query_json_buffer=nullptr;
+  size_t query_json_buffer_length;
+  REQUIRE(TileDBUtils::read_entire_file(query_json, (void **)&query_json_buffer, &query_json_buffer_length) == TILEDB_OK);
+  std::string query_json_str(query_json_buffer, query_json_buffer_length);
+  free(query_json_buffer);
+  auto open_brace = query_json_str.find('{');
+  REQUIRE(open_brace != std::string::npos);
+  query_json_str.insert(open_brace+1, "\"skip_spanning_deletion_only_intervals\": true,");
+
+  VariantQueryConfig query_config;
+  query_config.update_from_loader(loader_config);
+  query_config.read_from_JSON_string(query_json_str);
+  CHECK(query_config.skip_spanning_deletion_only_intervals() == true);
+  CHECK(query_config.skip_reference_only_intervals() == false);
 }

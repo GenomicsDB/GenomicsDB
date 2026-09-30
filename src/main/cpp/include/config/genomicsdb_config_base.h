@@ -147,6 +147,9 @@ class GenomicsDBConfigBase {
   const bool skip_reference_only_intervals() const {
     return m_skip_reference_only_intervals;
   }
+  const bool skip_spanning_deletion_only_intervals() const {
+    return m_skip_spanning_deletion_only_intervals;
+  }
   const VidMapper& get_vid_mapper() const {
     return m_vid_mapper;
   }
@@ -246,6 +249,8 @@ class GenomicsDBConfigBase {
   bool m_bypass_intersecting_intervals_phase;
   //Do not operate on intervals where every active call is a reference block
   bool m_skip_reference_only_intervals;
+  //Do not produce combined records whose merged ALT alleles are all * or <NON_REF>
+  bool m_skip_spanning_deletion_only_intervals;
   //Buffer size for combined vcf records
   size_t m_combined_vcf_records_buffer_size_limit;
   //VidMapper

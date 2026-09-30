@@ -84,6 +84,8 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   void handle_INFO_fields(const Variant& variant);
   void handle_FORMAT_fields(const Variant& variant);
   void handle_deletions(Variant& variant);
+  //True if every merged ALT allele is * or <NON_REF>, i.e. the record has no allele that GATK genotypes
+  bool merged_alt_alleles_are_only_spanning_deletion_or_NON_REF() const;
   void merge_ID_field(const Variant& variant, const unsigned query_idx);
   /*
    * Find the GT combination that corresponds to min PL value and update
