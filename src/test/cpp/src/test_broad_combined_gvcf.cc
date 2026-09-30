@@ -269,3 +269,14 @@ TEST_CASE_METHOD(TempDir, "combined gVCF AD takes each sample's value for <NON_R
   //At 100 S1's C was merged allele 2, which at 200 is G, which S1 lacks
   CHECK(AD.at(200) == std::vector<std::string>({".", "7,2,1,1", "3,1,8,1"}));
 }
+
+TEST_CASE_METHOD(TempDir, "combined gVCF GT alleles are renumbered to the merged alleles, keeping REF and no-calls",
+                 "[broad_combined_gvcf_GT_remap]") {
+  auto loader_json = load_samples_with_different_alts(*this);
+
+  auto records = query_records(*this, loader_json, R"(["END", "REF", "ALT", "GT"])");
+
+  auto GT = FORMAT_field_values(records, "GT");
+  CHECK(GT.at(100) == std::vector<std::string>({"0/1", "2/3", "./."}));
+  CHECK(GT.at(200) == std::vector<std::string>({"0/0", "0/1", "2/2"}));
+}
