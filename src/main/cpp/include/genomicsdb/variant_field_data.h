@@ -111,7 +111,8 @@ class VariantFieldBase {
   virtual size_t length() const = 0;
   /* Create copy and return pointer - avoid using as much as possible*/
   virtual VariantFieldBase* create_copy() const = 0;
-  /* Copy from src ptr*/
+  /* Copy from src ptr, which must be the same type as this: callers pair fields of one query attribute, which
+   * the field factory always creates with the same type */
   virtual void copy_from(const VariantFieldBase* base_src) {
     m_valid = base_src->m_valid;
     m_is_variable_length_field = base_src->m_is_variable_length_field;
@@ -206,8 +207,8 @@ class VariantFieldData : public VariantFieldBase {
   }
   virtual void copy_from(const VariantFieldBase* base_src) {
     VariantFieldBase::copy_from(base_src);
-    auto src = dynamic_cast<const VariantFieldData<DataType>*>(base_src);
-    assert(src);
+    assert(dynamic_cast<const VariantFieldData<DataType>*>(base_src));
+    auto src = static_cast<const VariantFieldData<DataType>*>(base_src);
     m_data = src->m_data;
   }
   /* Return address of the offset-th element */
@@ -309,8 +310,8 @@ class VariantFieldData<std::string> : public VariantFieldBase {
   }
   virtual void copy_from(const VariantFieldBase* base_src) {
     VariantFieldBase::copy_from(base_src);
-    auto src = dynamic_cast<const VariantFieldData<std::string>*>(base_src);
-    assert(src);
+    assert(dynamic_cast<const VariantFieldData<std::string>*>(base_src));
+    auto src = static_cast<const VariantFieldData<std::string>*>(base_src);
     m_data.resize(src->m_data.size());
     if (m_data.size())
       memcpy_s(&(m_data[0]), m_data.size()*sizeof(char), &(src->m_data[0]), m_data.size()*sizeof(char));
@@ -478,8 +479,8 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
   }
   void copy_from(const VariantFieldBase* base_src) {
     VariantFieldBase::copy_from(base_src);
-    auto src = dynamic_cast<const VariantFieldPrimitiveVectorData<DataType, PrintType>*>(base_src);
-    assert(src);
+    assert((dynamic_cast<const VariantFieldPrimitiveVectorData<DataType, PrintType>*>(base_src)));
+    auto src = static_cast<const VariantFieldPrimitiveVectorData<DataType, PrintType>*>(base_src);
     m_data.resize(src->m_data.size());
     if (m_data.size())
       memcpy_s(&(m_data[0]), m_data.size()*sizeof(DataType), &(src->m_data[0]), m_data.size()*sizeof(DataType));
@@ -614,8 +615,8 @@ class VariantFieldALTData : public VariantFieldBase {
   }
   virtual void copy_from(const VariantFieldBase* base_src) {
     VariantFieldBase::copy_from(base_src);
-    auto src = dynamic_cast<const VariantFieldALTData*>(base_src);
-    assert(src);
+    assert(dynamic_cast<const VariantFieldALTData*>(base_src));
+    auto src = static_cast<const VariantFieldALTData*>(base_src);
     m_data.resize(src->m_data.size());
     for (auto i=0u; i<m_data.size(); ++i) {
       auto& curr_dst = m_data[i];

@@ -497,8 +497,8 @@ bool VariantFieldHandler<DataType, CombineResultType>::get_valid_median(const Va
     //Valid field
     if (field_ptr.get() && field_ptr->is_valid()) {
       //Must always be vector<DataType>
-      auto* ptr = dynamic_cast<VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
-      assert(ptr);
+      assert(dynamic_cast<VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get()));
+      auto* ptr = static_cast<VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
       assert((ptr->get()).size() > 0u);
       auto val = ptr->get()[0u];
       if (is_bcf_valid_value<DataType>(val))
@@ -543,8 +543,8 @@ bool VariantFieldHandler<DataType, CombineResultType>::get_valid_sum(const std::
   //Valid field
   if (field_ptr.get() && field_ptr->is_valid()) {
     //Must always be vector<DataType>
-    const auto* ptr = dynamic_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
-    assert(ptr);
+    assert(dynamic_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get()));
+    const auto* ptr = static_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
     assert((ptr->get()).size() > 0u);
     auto val = ptr->get()[0u];
     if (is_bcf_valid_value<DataType>(val)) {
@@ -584,8 +584,8 @@ bool VariantFieldHandler<DataType, CombineResultType>::compute_valid_element_wis
   //Valid field
   if (field_ptr.get() && field_ptr->is_valid()) {
     //Must always be vector<DataType>
-    const auto* ptr = dynamic_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
-    assert(ptr);
+    assert(dynamic_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get()));
+    const auto* ptr = static_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
     const auto& vec = ptr->get();
     if (vec.size() > m_element_wise_operations_result.size())
       m_element_wise_operations_result.resize(vec.size(), get_bcf_missing_value<CombineResultType>());
@@ -653,8 +653,8 @@ bool VariantFieldHandler<DataType, CombineResultType>::compute_valid_element_wis
   //Valid field
   if (field_ptr.get() && field_ptr->is_valid()) {
     //Must always be vector<uint8_t>
-    auto* ptr = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr.get());
-    assert(ptr);
+    assert((dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr.get())));
+    auto* ptr = static_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr.get());
     auto& vec = ptr->get();
     GenomicsDBMultiDVectorIdx curr_field_index(&(vec[0u]), &vid_field_info, 0u);
     if (curr_field_index.get_num_entries_in_current_dimension() > m_2D_element_wise_operations_result.size())
@@ -885,10 +885,10 @@ bool HistogramFieldHandlerBase::compute_valid_histogram_sum_2D_vector(
   //Valid field
   if (field_ptr_bin.get() && field_ptr_bin->is_valid()) {
     //Must always be vector<uint8_t>
-    auto* cast_ptr_bin = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_bin.get());
-    assert(cast_ptr_bin);
-    auto* cast_ptr_count = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_count.get());
-    assert(cast_ptr_count);
+    assert((dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_bin.get())));
+    auto* cast_ptr_bin = static_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_bin.get());
+    assert((dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_count.get())));
+    auto* cast_ptr_count = static_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_count.get());
     GenomicsDBMultiDVectorIdx index_bin(&(cast_ptr_bin->get()[0u]), vid_field_info_bin, 0u);
     GenomicsDBMultiDVectorIdx index_count(&(cast_ptr_count->get()[0u]), vid_field_info_count, 0u);
     assert(index_bin.get_num_entries_in_current_dimension() == index_count.get_num_entries_in_current_dimension());
