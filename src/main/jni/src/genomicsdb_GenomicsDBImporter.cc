@@ -28,6 +28,7 @@
 #include "json_config.h"
 #include "genomicsdb_vid_mapping.pb.h"
 #include "genomicsdb_callsets_mapping.pb.h"
+#include "genomicsdb_jni_java_exceptions.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBJNIException(#X);
 #define GET_GENOMICSDB_IMPORTER_FROM_HANDLE(X) \
@@ -53,25 +54,26 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniGenomicsDBImporter(
     jobject obj,
     jstring loader_configuration_file,
     jint rank) {
-
-  try {
-    //Java string to char*
-    auto loader_configuration_file_cstr =
-        env->GetStringUTFChars(loader_configuration_file, NULL);
-    VERIFY_OR_THROW(loader_configuration_file_cstr);
-    //Loader object
-    VCF2TileDBLoader loader(
-        loader_configuration_file_cstr,
-        rank);
-    loader.read_all();
-    //Cleanup
-    env->ReleaseStringUTFChars(
-        loader_configuration_file,
-        loader_configuration_file_cstr);
-  } catch (std::exception &exception) {
-    handleJNIImporterException(env, exception);
-  }
-  return 0;
+  return with_java_exceptions(env, [&]() -> jint {
+    try {
+      //Java string to char*
+      auto loader_configuration_file_cstr =
+          env->GetStringUTFChars(loader_configuration_file, NULL);
+      VERIFY_OR_THROW(loader_configuration_file_cstr);
+      //Loader object
+      VCF2TileDBLoader loader(
+          loader_configuration_file_cstr,
+          rank);
+      loader.read_all();
+      //Cleanup
+      env->ReleaseStringUTFChars(
+          loader_configuration_file,
+          loader_configuration_file_cstr);
+    } catch (std::exception &exception) {
+      handleJNIImporterException(env, exception);
+    }
+    return 0;
+  });
 }
 
 JNIEXPORT jlong JNICALL
@@ -80,26 +82,27 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniInitializeGenomicsDBImport
     jobject obj,
     jstring loader_configuration_file,
     jint rank) {
+  return with_java_exceptions(env, [&]() -> jlong {
+    try {
+      //Java string to char*
+      auto loader_configuration_file_cstr =
+          env->GetStringUTFChars(loader_configuration_file, NULL);
+      VERIFY_OR_THROW(loader_configuration_file_cstr);
+      //GenomicsDBImporter object
+      auto importer = new GenomicsDBImporter(
+          loader_configuration_file_cstr,
+          rank);
+      //Cleanup
+      env->ReleaseStringUTFChars(
+          loader_configuration_file,
+          loader_configuration_file_cstr);
 
-  try {
-    //Java string to char*
-    auto loader_configuration_file_cstr =
-        env->GetStringUTFChars(loader_configuration_file, NULL);
-    VERIFY_OR_THROW(loader_configuration_file_cstr);
-    //GenomicsDBImporter object
-    auto importer = new GenomicsDBImporter(
-        loader_configuration_file_cstr,
-        rank);
-    //Cleanup
-    env->ReleaseStringUTFChars(
-        loader_configuration_file,
-        loader_configuration_file_cstr);
-
-    //Cast pointer to 64-bit int and return to Java
-    return static_cast<jlong>(reinterpret_cast<std::uintptr_t>(importer));
-  } catch (std::exception &exception) {
-    handleJNIImporterException(env, exception);
-  }
+      //Cast pointer to 64-bit int and return to Java
+      return static_cast<jlong>(reinterpret_cast<std::uintptr_t>(importer));
+    } catch (std::exception &exception) {
+      handleJNIImporterException(env, exception);
+    }
+  });
 }
 
 JNIEXPORT void JNICALL
@@ -112,27 +115,28 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniAddBufferStream(
     jlong buffer_capacity,
     jbyteArray buffer,
     jlong num_valid_bytes_in_buffer) {
-
-  //Java string to char*
-  auto stream_name_cstr = env->GetStringUTFChars(stream_name, NULL);
-  VERIFY_OR_THROW(stream_name_cstr);
-  jboolean is_copy = JNI_FALSE;
-  //Since this function is called once per stream, performance
-  //is less of a concern
-  auto native_buffer_ptr = env->GetByteArrayElements(buffer, &is_copy);
-  //Call importer function
-  auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
-  importer->add_buffer_stream(
-      stream_name_cstr,
-      is_bcf ?
-      VidFileTypeEnum::BCF_BUFFER_STREAM_TYPE :
-      VidFileTypeEnum::VCF_BUFFER_STREAM_TYPE,
-      buffer_capacity,
-      reinterpret_cast<uint8_t*>(native_buffer_ptr),
-      num_valid_bytes_in_buffer);
-  //Cleanup
-  env->ReleaseStringUTFChars(stream_name, stream_name_cstr);
-  env->ReleaseByteArrayElements(buffer, native_buffer_ptr, 0);
+  with_java_exceptions(env, [&] {
+    //Java string to char*
+    auto stream_name_cstr = env->GetStringUTFChars(stream_name, NULL);
+    VERIFY_OR_THROW(stream_name_cstr);
+    jboolean is_copy = JNI_FALSE;
+    //Since this function is called once per stream, performance
+    //is less of a concern
+    auto native_buffer_ptr = env->GetByteArrayElements(buffer, &is_copy);
+    //Call importer function
+    auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
+    importer->add_buffer_stream(
+        stream_name_cstr,
+        is_bcf ?
+        VidFileTypeEnum::BCF_BUFFER_STREAM_TYPE :
+        VidFileTypeEnum::VCF_BUFFER_STREAM_TYPE,
+        buffer_capacity,
+        reinterpret_cast<uint8_t*>(native_buffer_ptr),
+        num_valid_bytes_in_buffer);
+    //Cleanup
+    env->ReleaseStringUTFChars(stream_name, stream_name_cstr);
+    env->ReleaseByteArrayElements(buffer, native_buffer_ptr, 0);
+  });
 }
 
 JNIEXPORT jlong JNICALL
@@ -141,22 +145,23 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniSetupGenomicsDBLoader(
     jobject obj,
     jlong handle,
     jstring buffer_stream_callset_mapping_json_string) {
-
-  try {
-    auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
-    //Java string to char*
-    auto buffer_stream_callset_mapping_json_string_cstr =
-        env->GetStringUTFChars(buffer_stream_callset_mapping_json_string, NULL);
-    VERIFY_OR_THROW(buffer_stream_callset_mapping_json_string_cstr);
-    importer->setup_loader(buffer_stream_callset_mapping_json_string_cstr);
-    //Cleanup
-    env->ReleaseStringUTFChars(
-        buffer_stream_callset_mapping_json_string,
-        buffer_stream_callset_mapping_json_string_cstr);
-    return importer->get_max_num_buffer_stream_identifiers();
-  } catch (std::exception &exception) {
-    handleJNIImporterException(env, exception);
-  }
+  return with_java_exceptions(env, [&]() -> jlong {
+    try {
+      auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
+      //Java string to char*
+      auto buffer_stream_callset_mapping_json_string_cstr =
+          env->GetStringUTFChars(buffer_stream_callset_mapping_json_string, NULL);
+      VERIFY_OR_THROW(buffer_stream_callset_mapping_json_string_cstr);
+      importer->setup_loader(buffer_stream_callset_mapping_json_string_cstr);
+      //Cleanup
+      env->ReleaseStringUTFChars(
+          buffer_stream_callset_mapping_json_string,
+          buffer_stream_callset_mapping_json_string_cstr);
+      return importer->get_max_num_buffer_stream_identifiers();
+    } catch (std::exception &exception) {
+      handleJNIImporterException(env, exception);
+    }
+  });
 }
 
 JNIEXPORT void JNICALL
@@ -168,25 +173,26 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniWriteDataToBufferStream(
     jint partition_idx,
     jbyteArray buffer,
     jlong num_valid_bytes_in_buffer) {
-
-  try {
-    auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
-    assert(importer);
-    if(importer->is_done())
-      return;
-    jboolean is_copy = JNI_FALSE;
-    //TODO: Possible performance issues since copy is made
-    auto native_buffer_ptr =
-        env->GetByteArrayElements(buffer, &is_copy);
-    importer->write_data_to_buffer_stream(
-        buffer_stream_idx, partition_idx,
-        reinterpret_cast<uint8_t*>(native_buffer_ptr),
-        num_valid_bytes_in_buffer);
-    //Cleanup
-    env->ReleaseByteArrayElements(buffer, native_buffer_ptr, 0);
-  } catch (std::exception &exception) {
-    handleJNIImporterException(env, exception);
-  }
+  with_java_exceptions(env, [&] {
+    try {
+      auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
+      assert(importer);
+      if(importer->is_done())
+        return;
+      jboolean is_copy = JNI_FALSE;
+      //TODO: Possible performance issues since copy is made
+      auto native_buffer_ptr =
+          env->GetByteArrayElements(buffer, &is_copy);
+      importer->write_data_to_buffer_stream(
+          buffer_stream_idx, partition_idx,
+          reinterpret_cast<uint8_t*>(native_buffer_ptr),
+          num_valid_bytes_in_buffer);
+      //Cleanup
+      env->ReleaseByteArrayElements(buffer, native_buffer_ptr, 0);
+    } catch (std::exception &exception) {
+      handleJNIImporterException(env, exception);
+    }
+  });
 }
 
 JNIEXPORT jboolean JNICALL
@@ -195,40 +201,41 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniImportBatch(
     jobject obj,
     jlong handle,
     jlongArray exhausted_buffer_stream_identifiers) {
-
-  try {
-    auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
-    assert(importer);
-    if(importer->is_done())
-      return true;
-    importer->import_batch();
-    const auto& vec = importer->get_exhausted_buffer_stream_identifiers();
-    //Possible buffer copy
-    auto native_ebsids_ptr =
-        env->GetLongArrayElements(exhausted_buffer_stream_identifiers, 0);
-    for(auto i=0ull, idx=0ull;i<vec.size();++i,idx+=2u)
-    {
-      native_ebsids_ptr[idx] = vec[i].first;
-      native_ebsids_ptr[idx+1] = vec[i].second;
+  return with_java_exceptions(env, [&]() -> jboolean {
+    try {
+      auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
+      assert(importer);
+      if(importer->is_done())
+        return true;
+      importer->import_batch();
+      const auto& vec = importer->get_exhausted_buffer_stream_identifiers();
+      //Possible buffer copy
+      auto native_ebsids_ptr =
+          env->GetLongArrayElements(exhausted_buffer_stream_identifiers, 0);
+      for(auto i=0ull, idx=0ull;i<vec.size();++i,idx+=2u)
+      {
+        native_ebsids_ptr[idx] = vec[i].first;
+        native_ebsids_ptr[idx+1] = vec[i].second;
+      }
+      //Copy number of exhausted stream identifiers in the last element
+      native_ebsids_ptr[2*(importer->get_max_num_buffer_stream_identifiers())] =
+          vec.size();
+      //Cleanup
+      env->ReleaseLongArrayElements(
+          exhausted_buffer_stream_identifiers,
+          native_ebsids_ptr,
+          0);
+      if(importer->is_done()) {
+        importer->finish();
+        delete importer;
+        return true;
+      } else {
+        return false;
+      }
+    } catch (std::exception &exception) {
+      handleJNIImporterException(env, exception);
     }
-    //Copy number of exhausted stream identifiers in the last element
-    native_ebsids_ptr[2*(importer->get_max_num_buffer_stream_identifiers())] =
-        vec.size();
-    //Cleanup
-    env->ReleaseLongArrayElements(
-        exhausted_buffer_stream_identifiers,
-        native_ebsids_ptr,
-        0);
-    if(importer->is_done()) {
-      importer->finish();
-      delete importer;
-      return true;
-    } else {
-      return false;
-    }
-  } catch (std::exception &exception) {
-    handleJNIImporterException(env, exception);
-  }
+  });
 }
 
 JNIEXPORT jstring JNICALL
@@ -237,47 +244,48 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniGetChromosomeIntervalsForC
     jclass currClass,
     jstring loader_configuration_file,
     jint rank) {
-
-  //Java string to char*
-  auto loader_configuration_file_cstr =
-      env->GetStringUTFChars(loader_configuration_file, NULL);
-  VERIFY_OR_THROW(loader_configuration_file_cstr);
-  GenomicsDBImportConfig loader_config;
-  loader_config.read_from_file(loader_configuration_file_cstr, rank);
-  auto contig_intervals =
-      loader_config.get_vid_mapper().get_contig_intervals_for_column_partition(
-          loader_config.get_column_partition(rank).first,
-          loader_config.get_column_partition(rank).second,
-          false);
-  //Create a JSON formatted string
-  rapidjson::Document json_doc;
-  json_doc.SetObject();
-  rapidjson::Value json_contig_intervals(rapidjson::kArrayType);
-  for(const auto& curr_interval : contig_intervals) {
-    rapidjson::Value array(rapidjson::kArrayType);
-    array.PushBack(std::get<1>(curr_interval), json_doc.GetAllocator());
-    array.PushBack(std::get<2>(curr_interval), json_doc.GetAllocator());
-    rapidjson::Value contig_dict(rapidjson::kObjectType);
-    rapidjson::Value contig_name(rapidjson::kStringType);
-    contig_name.SetString(
-        std::get<0>(curr_interval).c_str(),
-        std::get<0>(curr_interval).length(),
+  return with_java_exceptions(env, [&]() -> jstring {
+    //Java string to char*
+    auto loader_configuration_file_cstr =
+        env->GetStringUTFChars(loader_configuration_file, NULL);
+    VERIFY_OR_THROW(loader_configuration_file_cstr);
+    GenomicsDBImportConfig loader_config;
+    loader_config.read_from_file(loader_configuration_file_cstr, rank);
+    auto contig_intervals =
+        loader_config.get_vid_mapper().get_contig_intervals_for_column_partition(
+            loader_config.get_column_partition(rank).first,
+            loader_config.get_column_partition(rank).second,
+            false);
+    //Create a JSON formatted string
+    rapidjson::Document json_doc;
+    json_doc.SetObject();
+    rapidjson::Value json_contig_intervals(rapidjson::kArrayType);
+    for(const auto& curr_interval : contig_intervals) {
+      rapidjson::Value array(rapidjson::kArrayType);
+      array.PushBack(std::get<1>(curr_interval), json_doc.GetAllocator());
+      array.PushBack(std::get<2>(curr_interval), json_doc.GetAllocator());
+      rapidjson::Value contig_dict(rapidjson::kObjectType);
+      rapidjson::Value contig_name(rapidjson::kStringType);
+      contig_name.SetString(
+          std::get<0>(curr_interval).c_str(),
+          std::get<0>(curr_interval).length(),
+          json_doc.GetAllocator());
+      contig_dict.AddMember(contig_name, array, json_doc.GetAllocator());
+      json_contig_intervals.PushBack(contig_dict, json_doc.GetAllocator());
+    }
+    json_doc.AddMember(
+        "contigs",
+        json_contig_intervals,
         json_doc.GetAllocator());
-    contig_dict.AddMember(contig_name, array, json_doc.GetAllocator());
-    json_contig_intervals.PushBack(contig_dict, json_doc.GetAllocator());
-  }
-  json_doc.AddMember(
-      "contigs",
-      json_contig_intervals,
-      json_doc.GetAllocator());
-  rapidjson::StringBuffer buffer;
-  rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-  json_doc.Accept(writer);
-  //Cleanup
-  env->ReleaseStringUTFChars(
-      loader_configuration_file,
-      loader_configuration_file_cstr);
-  return env->NewStringUTF(buffer.GetString());
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json_doc.Accept(writer);
+    //Cleanup
+    env->ReleaseStringUTFChars(
+        loader_configuration_file,
+        loader_configuration_file_cstr);
+    return env->NewStringUTF(buffer.GetString());
+  });
 }
 
 
@@ -287,24 +295,25 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniCopyVidMap(
     jobject obj,
     jlong handle,
     jbyteArray vidmap_as_bytearray) {
+  return with_java_exceptions(env, [&]() -> jlong {
+    // Get GenomicsDBImporter object reference
+    auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
 
-  // Get GenomicsDBImporter object reference
-  auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
+    VidMappingPB vidmap;
+    jbyte *vidmap_elements = env->GetByteArrayElements(vidmap_as_bytearray, 0);
+    int vidmap_length = env->GetArrayLength(vidmap_as_bytearray);
+    vidmap.ParseFromArray(
+        reinterpret_cast<jbyte*>(vidmap_elements), vidmap_length);
 
-  VidMappingPB vidmap;
-  jbyte *vidmap_elements = env->GetByteArrayElements(vidmap_as_bytearray, 0);
-  int vidmap_length = env->GetArrayLength(vidmap_as_bytearray);
-  vidmap.ParseFromArray(
-      reinterpret_cast<jbyte*>(vidmap_elements), vidmap_length);
+    //Cleanup
+    env->ReleaseByteArrayElements(
+        vidmap_as_bytearray,
+        vidmap_elements,
+        JNI_ABORT);
 
-  //Cleanup
-  env->ReleaseByteArrayElements(
-      vidmap_as_bytearray,
-      vidmap_elements,
-      JNI_ABORT);
-
-  //Cast pointer to 64-bit integer and return to Java
-  return static_cast<jlong>(reinterpret_cast<std::uintptr_t>(importer));
+    //Cast pointer to 64-bit integer and return to Java
+    return static_cast<jlong>(reinterpret_cast<std::uintptr_t>(importer));
+  });
 } // end of jniCopyVidMap
 
 
@@ -314,26 +323,27 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniCopyCallsetMap(
     jobject obj,
     jlong handle,
     jbyteArray callsetmap_as_bytearray) {
+  return with_java_exceptions(env, [&]() -> jlong {
+    // Get GenomicsDBImporter object reference
+    auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
 
-  // Get GenomicsDBImporter object reference
-  auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
+    CallsetMappingPB callsetmap;
+    jbyte *callsetmap_elements =
+        env->GetByteArrayElements(callsetmap_as_bytearray, 0);
+    int callsetmap_length = env->GetArrayLength(callsetmap_as_bytearray);
+    callsetmap.ParseFromArray(
+        reinterpret_cast<jbyte*>(callsetmap_elements),
+        callsetmap_length);
 
-  CallsetMappingPB callsetmap;
-  jbyte *callsetmap_elements =
-      env->GetByteArrayElements(callsetmap_as_bytearray, 0);
-  int callsetmap_length = env->GetArrayLength(callsetmap_as_bytearray);
-  callsetmap.ParseFromArray(
-      reinterpret_cast<jbyte*>(callsetmap_elements),
-      callsetmap_length);
+    //Cleanup
+    env->ReleaseByteArrayElements(
+        callsetmap_as_bytearray,
+        callsetmap_elements,
+        JNI_ABORT);
 
-  //Cleanup
-  env->ReleaseByteArrayElements(
-      callsetmap_as_bytearray,
-      callsetmap_elements,
-      JNI_ABORT);
-
-  // Cast pointer to 64-bit integer and return to Java
-  return static_cast<jlong>(reinterpret_cast<std::uintptr_t>(importer));
+    // Cast pointer to 64-bit integer and return to Java
+    return static_cast<jlong>(reinterpret_cast<std::uintptr_t>(importer));
+  });
 } // end of jniCopyCallsetMap
 
 
@@ -343,14 +353,15 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniConsolidateTileDBArray(
     jclass currClass,
     jstring workspace,
     jstring array_name) {
+  with_java_exceptions(env, [&] {
+    auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
+    VERIFY_OR_THROW(workspace_cstr);
+    auto array_name_cstr = env->GetStringUTFChars(array_name, NULL);
+    VERIFY_OR_THROW(array_name_cstr);
+    VCF2TileDBLoader::consolidate_tiledb_array(workspace_cstr, array_name_cstr);
 
-  auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
-  VERIFY_OR_THROW(workspace_cstr);
-  auto array_name_cstr = env->GetStringUTFChars(array_name, NULL);
-  VERIFY_OR_THROW(array_name_cstr);
-  VCF2TileDBLoader::consolidate_tiledb_array(workspace_cstr, array_name_cstr);
-
-  //Cleanup
-  env->ReleaseStringUTFChars(workspace, workspace_cstr);
-  env->ReleaseStringUTFChars(array_name, array_name_cstr);
+    //Cleanup
+    env->ReleaseStringUTFChars(workspace, workspace_cstr);
+    env->ReleaseStringUTFChars(array_name, array_name_cstr);
+  });
 }

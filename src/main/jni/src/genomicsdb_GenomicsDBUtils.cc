@@ -29,192 +29,221 @@
 #include "variant_storage_manager.h"
 
 #include <stdlib.h>
+#include "genomicsdb_jni_java_exceptions.h"
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBJNIException(#X);
 
 JNIEXPORT jstring JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniLibraryVersion(JNIEnv *env, jclass cls) {
-  return env->NewStringUTF(genomicsdb::version().c_str());
+  return with_java_exceptions(env, [&]() -> jstring {
+    return env->NewStringUTF(genomicsdb::version().c_str());
+  });
 }
 
 JNIEXPORT jint JNICALL 
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniCreateTileDBWorkspace
 (JNIEnv *env, jclass currClass, jstring workspace, jboolean replace) 
 {
-  auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
-  VERIFY_OR_THROW(workspace_cstr);
-  auto return_val = TileDBUtils::create_workspace(workspace_cstr, replace);
-  //Cleanup
-  env->ReleaseStringUTFChars(workspace, workspace_cstr);
-  return return_val;
+  return with_java_exceptions(env, [&]() -> jint {
+    auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
+    VERIFY_OR_THROW(workspace_cstr);
+    auto return_val = TileDBUtils::create_workspace(workspace_cstr, replace);
+    //Cleanup
+    env->ReleaseStringUTFChars(workspace, workspace_cstr);
+    return return_val;
+  });
 }
 
 JNIEXPORT jboolean JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniIsTileDBArray
 (JNIEnv *env, jclass currClass, jstring workspace, jstring arrayName)
 {
-  auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
-  VERIFY_OR_THROW(workspace_cstr);
-  auto array_name_cstr = env->GetStringUTFChars(arrayName, NULL);
-  VERIFY_OR_THROW(array_name_cstr);
-  auto return_val = TileDBUtils::array_exists(workspace_cstr, array_name_cstr);
-  //Cleanup
-  env->ReleaseStringUTFChars(arrayName, array_name_cstr);
-  env->ReleaseStringUTFChars(workspace, workspace_cstr);
-  return return_val;
+  return with_java_exceptions(env, [&]() -> jboolean {
+    auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
+    VERIFY_OR_THROW(workspace_cstr);
+    auto array_name_cstr = env->GetStringUTFChars(arrayName, NULL);
+    VERIFY_OR_THROW(array_name_cstr);
+    auto return_val = TileDBUtils::array_exists(workspace_cstr, array_name_cstr);
+    //Cleanup
+    env->ReleaseStringUTFChars(arrayName, array_name_cstr);
+    env->ReleaseStringUTFChars(workspace, workspace_cstr);
+    return return_val;
+  });
 }
 
 JNIEXPORT jobjectArray JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniListTileDBArrays
 (JNIEnv *env, jclass currClass, jstring workspace)
 {
-  auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
-  VERIFY_OR_THROW(workspace_cstr);
-  std::vector<std::string> array_names = TileDBUtils::get_array_names(workspace_cstr);
-  jobjectArray obj_array = (jobjectArray)env->NewObjectArray(array_names.size(),
-							     env->FindClass("java/lang/String"),
-							     env->NewStringUTF(""));
-  for(uint i=0; i<array_names.size(); i++) {
-    env->SetObjectArrayElement(obj_array, i, env->NewStringUTF(array_names[i].c_str()));
-  }
-  env->ReleaseStringUTFChars(workspace, workspace_cstr);
-  return obj_array;
+  return with_java_exceptions(env, [&]() -> jobjectArray {
+    auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
+    VERIFY_OR_THROW(workspace_cstr);
+    std::vector<std::string> array_names = TileDBUtils::get_array_names(workspace_cstr);
+    jobjectArray obj_array = (jobjectArray)env->NewObjectArray(array_names.size(),
+  							     env->FindClass("java/lang/String"),
+  							     env->NewStringUTF(""));
+    for(uint i=0; i<array_names.size(); i++) {
+      env->SetObjectArrayElement(obj_array, i, env->NewStringUTF(array_names[i].c_str()));
+    }
+    env->ReleaseStringUTFChars(workspace, workspace_cstr);
+    return obj_array;
+  });
 }
 
 JNIEXPORT jobjectArray JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniListTileDBFragments
 (JNIEnv *env, jclass currClass, jstring workspace)
 {
-  auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
-  VERIFY_OR_THROW(workspace_cstr);
-  std::vector<std::string> fragment_names = TileDBUtils::get_fragment_names(workspace_cstr);
-  jobjectArray obj_array = (jobjectArray)env->NewObjectArray(fragment_names.size(),
-							     env->FindClass("java/lang/String"),
-							     env->NewStringUTF(""));
-  for(uint i=0; i<fragment_names.size(); i++) {
-    env->SetObjectArrayElement(obj_array, i, env->NewStringUTF(fragment_names[i].c_str()));
-  }
-  env->ReleaseStringUTFChars(workspace, workspace_cstr);
-  return obj_array;
+  return with_java_exceptions(env, [&]() -> jobjectArray {
+    auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
+    VERIFY_OR_THROW(workspace_cstr);
+    std::vector<std::string> fragment_names = TileDBUtils::get_fragment_names(workspace_cstr);
+    jobjectArray obj_array = (jobjectArray)env->NewObjectArray(fragment_names.size(),
+  							     env->FindClass("java/lang/String"),
+  							     env->NewStringUTF(""));
+    for(uint i=0; i<fragment_names.size(); i++) {
+      env->SetObjectArrayElement(obj_array, i, env->NewStringUTF(fragment_names[i].c_str()));
+    }
+    env->ReleaseStringUTFChars(workspace, workspace_cstr);
+    return obj_array;
+  });
 }
 
 JNIEXPORT jint JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniWriteToFile
 (JNIEnv *env, jclass currClass, jstring filename, jstring contents, jlong length)
 {
-  auto filename_cstr = env->GetStringUTFChars(filename, NULL);
-  VERIFY_OR_THROW(filename_cstr);
-  auto contents_cstr = env->GetStringUTFChars(contents, NULL);
-  VERIFY_OR_THROW(contents_cstr);
-  auto return_val =  TileDBUtils::write_file(filename_cstr, (void *)contents_cstr, (size_t)length, true);
-  env->ReleaseStringUTFChars(filename, filename_cstr);
-  env->ReleaseStringUTFChars(contents, contents_cstr);
-  return return_val;
+  return with_java_exceptions(env, [&]() -> jint {
+    auto filename_cstr = env->GetStringUTFChars(filename, NULL);
+    VERIFY_OR_THROW(filename_cstr);
+    auto contents_cstr = env->GetStringUTFChars(contents, NULL);
+    VERIFY_OR_THROW(contents_cstr);
+    auto return_val =  TileDBUtils::write_file(filename_cstr, (void *)contents_cstr, (size_t)length, true);
+    env->ReleaseStringUTFChars(filename, filename_cstr);
+    env->ReleaseStringUTFChars(contents, contents_cstr);
+    return return_val;
+  });
 }
 
 JNIEXPORT jint JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniDeleteFile
 (JNIEnv *env, jclass currClass, jstring filename)
 {
-  auto filename_cstr = env->GetStringUTFChars(filename, NULL);
-  VERIFY_OR_THROW(filename_cstr);
-  auto return_val = TileDBUtils::delete_file(filename_cstr);
-  env->ReleaseStringUTFChars(filename, filename_cstr);
-  return return_val;
+  return with_java_exceptions(env, [&]() -> jint {
+    auto filename_cstr = env->GetStringUTFChars(filename, NULL);
+    VERIFY_OR_THROW(filename_cstr);
+    auto return_val = TileDBUtils::delete_file(filename_cstr);
+    env->ReleaseStringUTFChars(filename, filename_cstr);
+    return return_val;
+  });
 }
 
 JNIEXPORT jint JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniDeleteDir
 (JNIEnv *env, jclass currClass, jstring dirname)
 {
-  auto dirname_cstr = env->GetStringUTFChars(dirname, NULL);
-  VERIFY_OR_THROW(dirname_cstr);
-  auto return_val = TileDBUtils::delete_dir(dirname_cstr);
-  env->ReleaseStringUTFChars(dirname, dirname_cstr);
-  return return_val;
+  return with_java_exceptions(env, [&]() -> jint {
+    auto dirname_cstr = env->GetStringUTFChars(dirname, NULL);
+    VERIFY_OR_THROW(dirname_cstr);
+    auto return_val = TileDBUtils::delete_dir(dirname_cstr);
+    env->ReleaseStringUTFChars(dirname, dirname_cstr);
+    return return_val;
+  });
 }
 
 JNIEXPORT jint JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniMoveFile
 (JNIEnv *env, jclass currClass, jstring source, jstring destination)
 {
-  auto source_cstr = env->GetStringUTFChars(source, NULL);
-  VERIFY_OR_THROW(source_cstr);
-  auto destination_cstr = env->GetStringUTFChars(destination, NULL);
-  VERIFY_OR_THROW(destination_cstr);
-  auto return_val = TileDBUtils::move_across_filesystems(source_cstr, destination_cstr);
-  env->ReleaseStringUTFChars(source, source_cstr);
-  env->ReleaseStringUTFChars(destination, destination_cstr);
-  return return_val;
+  return with_java_exceptions(env, [&]() -> jint {
+    auto source_cstr = env->GetStringUTFChars(source, NULL);
+    VERIFY_OR_THROW(source_cstr);
+    auto destination_cstr = env->GetStringUTFChars(destination, NULL);
+    VERIFY_OR_THROW(destination_cstr);
+    auto return_val = TileDBUtils::move_across_filesystems(source_cstr, destination_cstr);
+    env->ReleaseStringUTFChars(source, source_cstr);
+    env->ReleaseStringUTFChars(destination, destination_cstr);
+    return return_val;
+  });
 }
 
 JNIEXPORT jstring JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniReadEntireFile
 (JNIEnv *env, jclass currClass, jstring filename)
 {
-  auto filename_cstr = env->GetStringUTFChars(filename, NULL);
-  VERIFY_OR_THROW(filename_cstr);
-  char* contents_cstr;
-  size_t length;
-  auto return_val =  TileDBUtils::read_entire_file(filename_cstr, (void **)&contents_cstr, (size_t*)&length);
-  env->ReleaseStringUTFChars(filename, filename_cstr);
-  jstring return_string = env->NewStringUTF(contents_cstr);
-  free(contents_cstr);
-  VERIFY_OR_THROW(!return_val);
-  return return_string;
+  return with_java_exceptions(env, [&]() -> jstring {
+    auto filename_cstr = env->GetStringUTFChars(filename, NULL);
+    VERIFY_OR_THROW(filename_cstr);
+    char* contents_cstr = NULL;
+    size_t length;
+    auto return_val =  TileDBUtils::read_entire_file(filename_cstr, (void **)&contents_cstr, (size_t*)&length);
+    env->ReleaseStringUTFChars(filename, filename_cstr);
+    VERIFY_OR_THROW(!return_val);
+    jstring return_string = env->NewStringUTF(contents_cstr);
+    free(contents_cstr);
+    return return_string;
+  });
 }
 
 JNIEXPORT jint JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetMaxValidRowIndex
 (JNIEnv *env, jclass currClass, jstring workspace, jstring array)
 {
-  auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
-  VERIFY_OR_THROW(workspace_cstr);
-  auto array_cstr = env->GetStringUTFChars(array, NULL);
-  VERIFY_OR_THROW(array_cstr);
-  auto return_val = VariantArrayInfo::get_max_valid_row_idx(workspace_cstr, array_cstr);
-  env->ReleaseStringUTFChars(workspace, workspace_cstr);
-  env->ReleaseStringUTFChars(array, array_cstr);
-  return return_val;
+  return with_java_exceptions(env, [&]() -> jint {
+    auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
+    VERIFY_OR_THROW(workspace_cstr);
+    auto array_cstr = env->GetStringUTFChars(array, NULL);
+    VERIFY_OR_THROW(array_cstr);
+    auto return_val = VariantArrayInfo::get_max_valid_row_idx(workspace_cstr, array_cstr);
+    env->ReleaseStringUTFChars(workspace, workspace_cstr);
+    env->ReleaseStringUTFChars(array, array_cstr);
+    return return_val;
+  });
 }
 
 JNIEXPORT jlongArray JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetArrayColumnBounds
 (JNIEnv *env, jclass currClass, jstring workspace, jstring array)
 {
-  auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
-  VERIFY_OR_THROW(workspace_cstr);
-  auto array_cstr = env->GetStringUTFChars(array, NULL);
-  VERIFY_OR_THROW(array_cstr);
-  int64_t bounds[2];
-  auto return_val = VariantArrayInfo::get_array_column_bounds(workspace_cstr, array_cstr, bounds);
-  VERIFY_OR_THROW(!return_val);
-  jlongArray long_array = (jlongArray)env->NewLongArray(2);
-  env->SetLongArrayRegion(long_array, 0, 2, (jlong*)bounds);
-  env->ReleaseStringUTFChars(workspace, workspace_cstr);
-  env->ReleaseStringUTFChars(array, array_cstr);
-  return long_array;
+  return with_java_exceptions(env, [&]() -> jlongArray {
+    auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
+    VERIFY_OR_THROW(workspace_cstr);
+    auto array_cstr = env->GetStringUTFChars(array, NULL);
+    VERIFY_OR_THROW(array_cstr);
+    int64_t bounds[2];
+    auto return_val = VariantArrayInfo::get_array_column_bounds(workspace_cstr, array_cstr, bounds);
+    VERIFY_OR_THROW(!return_val);
+    jlongArray long_array = (jlongArray)env->NewLongArray(2);
+    env->SetLongArrayRegion(long_array, 0, 2, (jlong*)bounds);
+    env->ReleaseStringUTFChars(workspace, workspace_cstr);
+    env->ReleaseStringUTFChars(array, array_cstr);
+    return long_array;
+  });
 }
 
 JNIEXPORT void JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniUseGcsHdfsConnector
 (JNIEnv *env, jclass currClass, jboolean option)
 {
-  if (option) {
-    setenv("TILEDB_USE_GCS_HDFS_CONNECTOR", "1", 1);
-  } else {
-    unsetenv("TILEDB_USE_GCS_HDFS_CONNECTOR");
-  }
+  with_java_exceptions(env, [&] {
+    if (option) {
+      setenv("TILEDB_USE_GCS_HDFS_CONNECTOR", "1", 1);
+    } else {
+      unsetenv("TILEDB_USE_GCS_HDFS_CONNECTOR");
+    }
+  });
 }
 
 JNIEXPORT jboolean JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniIsUseGcsHdfsConnectorSet
 (JNIEnv *env, jclass currClass)
 {
-  char *value = getenv("TILEDB_USE_GCS_HDFS_CONNECTOR");
-  if (value != NULL && !strcmp(value, "1")) {
-    return 1;
-  } else {
-    return 0;
-  }
+  return with_java_exceptions(env, [&]() -> jboolean {
+    char *value = getenv("TILEDB_USE_GCS_HDFS_CONNECTOR");
+    if (value != NULL && !strcmp(value, "1")) {
+      return 1;
+    } else {
+      return 0;
+    }
+  });
 }
