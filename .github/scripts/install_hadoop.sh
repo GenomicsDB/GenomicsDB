@@ -26,8 +26,30 @@ install_prereqs() {
   echo "install_prereqs successful"
 }
 
+# retry logic from: https://docs.microsoft.com/en-us/azure/hdinsight/hdinsight-hadoop-script-actions-linux
+MAXATTEMPTS=3
+retry() {
+    local -r CMD="$@"
+    local -i ATTEMPTNUM=1
+    local -i RETRYINTERVAL=2
+
+    until $CMD
+    do
+        if (( ATTEMPTNUM == MAXATTEMPTS ))
+        then
+                echo "Attempt $ATTEMPTNUM failed. no more attempts left."
+                return 1
+        else
+                echo "Attempt $ATTEMPTNUM failed! Retrying in $RETRYINTERVAL seconds..."
+                sleep $(( RETRYINTERVAL ))
+                ATTEMPTNUM=$ATTEMPTNUM+1
+        fi
+    done
+}
+
 download_hadoop() {
-  wget -q https://archive.apache.org/dist/hadoop/common/$HADOOP/$HADOOP.tar.gz &&
+  # archive.apache.org can stall mid-download; --timeout turns a stall into a failed attempt so retry can kick in
+  retry wget -nv --timeout=60 -O $HADOOP.tar.gz https://archive.apache.org/dist/hadoop/common/$HADOOP/$HADOOP.tar.gz &&
   tar -xzf $HADOOP.tar.gz --directory $INSTALL_DIR &&
   echo "download_hadoop successful"
 }
@@ -75,14 +97,17 @@ setup_paths() {
 
 install_hadoop() {
   install_prereqs
-  if [[ ! -f $HADOOP_ENV ]]; then
-    download_hadoop &&
-      setup_paths &&
-      cp -fr $GITHUB_WORKSPACE/.github/resources/hadoop/* $HADOOP_DIR/etc/hadoop &&
-      mkdir -p $HADOOP_DIR/logs &&
-      export HADOOP_ROOT_LOGGER=ERROR,console &&
-      echo "install_hadoop with download successful"
-  fi
+  # Check for Hadoop itself, not $HADOOP_ENV, as only $HADOOP_DIR is restored from the workflow cache
+  if [[ -x $HADOOP_DIR/bin/hdfs ]]; then
+    echo "Found cached Hadoop install at $HADOOP_DIR"
+  else
+    download_hadoop
+  fi &&
+    setup_paths &&
+    cp -fr $GITHUB_WORKSPACE/.github/resources/hadoop/* $HADOOP_DIR/etc/hadoop &&
+    mkdir -p $HADOOP_DIR/logs &&
+    export HADOOP_ROOT_LOGGER=ERROR,console &&
+    echo "install_hadoop successful"
   if [[ $? != 0 ]]; then
     echo "Hadoop did not install successfully. Aborting"
     exit 1

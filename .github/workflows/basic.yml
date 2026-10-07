@@ -95,6 +95,8 @@ jobs:
 
     - name: Install spark and hadoop dependencies
       if: matrix.type == 'hdfs'
+      # Usually takes ~2 minutes; fail fast instead of hanging on a stalled download
+      timeout-minutes: 20
       shell: bash
       working-directory:  ${{github.workspace}}
       run: |
@@ -169,5 +171,20 @@ jobs:
       with:
         files: build/coverage.info, build/target/jacoco-reports/jacoco-ut/jacoco.xml, build/target/jacoco-reports/jacoco-ci/jacoco-ci.xml
         verbose: true
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  notify-codecov:
+    # Codecov holds its statuses (manual_trigger in .codecov.yml) until every build job has uploaded
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Send Codecov notifications
+      uses: codecov/codecov-action@v5
+      with:
+        run_command: send-notifications
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

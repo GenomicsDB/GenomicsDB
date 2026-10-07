@@ -33,7 +33,8 @@ retry() {
 }
 
 download_spark() {
-  retry wget -nv --trust-server-names "https://archive.apache.org/dist/spark/spark-$SPARK_VER/$SPARK.tgz"
+  # archive.apache.org can stall mid-download; --timeout turns a stall into a failed attempt so retry can kick in
+  retry wget -nv --timeout=60 -O $SPARK.tgz "https://archive.apache.org/dist/spark/spark-$SPARK_VER/$SPARK.tgz" &&
   sudo tar -zxf $SPARK.tgz --directory $INSTALL_DIR &&
   sudo chown -R $USER:$USER $SPARK_DIR &&
   sudo ln -s $INSTALL_DIR/$SPARK $SPARK_LOCAL_DIR &&
