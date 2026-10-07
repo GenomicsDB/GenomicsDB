@@ -11,6 +11,9 @@ on:
       - '**/*.rst'
 
 env:
+  # CMake 4 rejects cmake_minimum_required < 3.5, which old bundled dependencies
+  # such as aws-c-common from TileDB still declare.
+  CMAKE_POLICY_VERSION_MINIMUM: 3.5
   PREREQS_ENV: ${{github.workspace}}/prereqs.sh
   SPARK_ENV: ${{github.workspace}}/spark_env.sh
   HADOOP_ENV: ${{github.workspace}}/hadoop_env.sh
@@ -28,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04,macos-15]
+        os: [ubuntu-22.04,macos-15-intel]
         type: [basic]
         java: [17]
         include:
