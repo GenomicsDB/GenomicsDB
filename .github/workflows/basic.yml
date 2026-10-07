@@ -70,12 +70,19 @@ jobs:
           ~/protobuf-install/${{env.PROTOBUF_VERSION}}
         key: ${{matrix.os}}-cache-prereqs-${{env.PROTOBUF_VERSION}}-v1
 
-    - name: Cache Distributed FileSystems
+    # Restored and saved separately, so the cache is saved as soon as the installs succeed
+    # rather than only when the whole job passes. Paths must match the Save step exactly.
+    - name: Restore Distributed FileSystems
+      id: dfs-cache
       if: matrix.type == 'hdfs'
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v4
       with:
-        path: ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
-        key: ${{matrix.os}}-dfs-${{env.HADOOP_VER}}
+        path: |
+          ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
+          !${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}/logs
+          ${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}
+          !${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}/logs
+        key: ${{matrix.os}}-dfs-${{env.HADOOP_VER}}-spark-${{env.SPARK_VER}}
 
     - name: Install Prerequisites
       shell: bash
@@ -95,8 +102,8 @@ jobs:
 
     - name: Install spark and hadoop dependencies
       if: matrix.type == 'hdfs'
-      # Usually takes ~2 minutes; fail fast instead of hanging on a stalled download
-      timeout-minutes: 20
+      # Takes ~2 minutes with the cache; an uncached Spark only on archive.apache.org can take ~30
+      timeout-minutes: 45
       shell: bash
       working-directory:  ${{github.workspace}}
       run: |
@@ -105,6 +112,17 @@ jobs:
         JAVA_HOME==$(dirname $(dirname $(readlink -f $(which javac)))) SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
       env:
         INSTALL_DIR: ${{runner.workspace}}
+
+    - name: Cache Distributed FileSystems
+      if: matrix.type == 'hdfs' && steps.dfs-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
+          !${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}/logs
+          ${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}
+          !${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}/logs
+        key: ${{steps.dfs-cache.outputs.cache-primary-key}}
 
     - name: Create Build Directory
       shell: bash

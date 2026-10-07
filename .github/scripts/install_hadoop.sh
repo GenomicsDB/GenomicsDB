@@ -47,9 +47,16 @@ retry() {
     done
 }
 
+# Download $1, a path under Apache's dist/, to $2. dlcdn.apache.org is fast but only carries current
+# releases; archive.apache.org has every release but is slow and can stall mid-download, so --timeout
+# turns a stall into a failed attempt that retry can repeat.
+download_apache() {
+  wget -nv --timeout=60 -O $2 https://dlcdn.apache.org/$1 ||
+    retry wget -nv --timeout=60 -O $2 https://archive.apache.org/dist/$1
+}
+
 download_hadoop() {
-  # archive.apache.org can stall mid-download; --timeout turns a stall into a failed attempt so retry can kick in
-  retry wget -nv --timeout=60 -O $HADOOP.tar.gz https://archive.apache.org/dist/hadoop/common/$HADOOP/$HADOOP.tar.gz &&
+  download_apache hadoop/common/$HADOOP/$HADOOP.tar.gz $HADOOP.tar.gz &&
   tar -xzf $HADOOP.tar.gz --directory $INSTALL_DIR &&
   echo "download_hadoop successful"
 }
