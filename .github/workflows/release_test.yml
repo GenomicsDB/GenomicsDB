@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: GenomicsDB/TestGenomicsDBJar
-          ref: master
+          ref: main
 
       - name: Set version number
         run: |

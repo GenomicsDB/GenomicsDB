@@ -46,22 +46,24 @@ jobs:
     runs-on: ${{matrix.os}}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v7
       with:
         python-version: 3.11
         cache: 'pip'
 
-    - uses: actions/setup-java@v4
+    - uses: actions/setup-java@v6
       with: 
         java-version: ${{matrix.java}}
         distribution: temurin
         java-package: jdk
-        cache: maven
+        # MacOS only builds Java for main/develop and PRs into them (see Configure CMake Build);
+        # caching maven otherwise fails to find ~/.m2/repository
+        cache: ${{ (!startsWith(matrix.os, 'macos') || contains(fromJSON('["main", "develop"]'), github.ref_name) || contains(fromJSON('["main", "develop"]'), github.base_ref)) && 'maven' || '' }}
 
     - name: Cache built prerequisites
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: |
           ${{env.PREREQS_INSTALL_DIR}}
@@ -75,7 +77,7 @@ jobs:
     - name: Restore Distributed FileSystems
       id: dfs-cache
       if: matrix.type == 'hdfs'
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         path: |
           ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
@@ -115,7 +117,7 @@ jobs:
 
     - name: Cache Distributed FileSystems
       if: matrix.type == 'hdfs' && steps.dfs-cache.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v6
       with:
         path: |
           ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
@@ -133,9 +135,9 @@ jobs:
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
         source $PREREQS_ENV
-        # java tests take a very long time to run on MacOS, so limit running the tests to PRs and master/develop branches
+        # java tests take a very long time to run on MacOS, so limit running the tests to PRs and main/develop branches
         BRANCH=${GITHUB_REF##*/}
-        if [[ ${{matrix.os}} != macos* || ${GITHUB_REF##*/} == master || ${GITHUB_REF##*/} == develop || $GITHUB_BASE_REF == master || $GITHUB_BASE_REF == develop ]]; then
+        if [[ ${{matrix.os}} != macos* || ${GITHUB_REF##*/} == main || ${GITHUB_REF##*/} == develop || $GITHUB_BASE_REF == main || $GITHUB_BASE_REF == develop ]]; then
           echo "cmake BUILD_JAVA set to 1"
           JAVA_BUILD_ARGS="-DBUILD_JAVA=1"
         fi
@@ -185,7 +187,7 @@ jobs:
         lcov --remove coverage.info '/opt*' '/usr*' '*/dependencies/*' '*/src/test*' '*.pb.h' '*.pb.cc' '*/protobuf-install/*' '*/awssdk-install/*' '*/gcssdk-install/*' 'v1/*' '/Library/*' -o coverage.info
 
     - name: Upload Coverage to CodeCov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v7
       with:
         files: build/coverage.info, build/target/jacoco-reports/jacoco-ut/jacoco.xml, build/target/jacoco-reports/jacoco-ci/jacoco-ci.xml
         verbose: true
@@ -198,10 +200,10 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Send Codecov notifications
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v7
       with:
         run_command: send-notifications
       env:
