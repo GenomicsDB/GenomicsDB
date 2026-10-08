@@ -2,7 +2,7 @@
 [![readthedocs](https://readthedocs.org/projects/genomicsdb/badge/?version=latest)](https://genomicsdb.readthedocs.io/en/latest/)
 [![Maven Central](https://img.shields.io/maven-central/v/org.genomicsdb/genomicsdb.svg)](https://mvnrepository.com/artifact/org.genomicsdb)
 
-| Master | Develop |
+| Main | Develop |
 | --- | --- |
 | [![actions](https://github.com/GenomicsDB/GenomicsDB/workflows/build/badge.svg?branch=main)](https://github.com/GenomicsDB/GenomicsDB/actions?query=branch%3Amain) | [![actions](https://github.com/GenomicsDB/GenomicsDB/workflows/build/badge.svg?branch=develop)](https://github.com/GenomicsDB/GenomicsDB/actions?query=branch%3Adevelop) |
 | [![codecov](https://codecov.io/gh/GenomicsDB/GenomicsDB/branch/main/graph/badge.svg)](https://codecov.io/gh/GenomicsDB/GenomicsDB) | [![codecov](https://codecov.io/gh/GenomicsDB/GenomicsDB/branch/develop/graph/badge.svg)](https://codecov.io/gh/GenomicsDB/GenomicsDB/tree/develop) |
