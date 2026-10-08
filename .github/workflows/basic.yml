@@ -11,6 +11,9 @@ on:
       - '**/*.rst'
 
 env:
+  # CMake 4 rejects cmake_minimum_required < 3.5, which old bundled dependencies
+  # such as aws-c-common from TileDB still declare.
+  CMAKE_POLICY_VERSION_MINIMUM: 3.5
   PREREQS_ENV: ${{github.workspace}}/prereqs.sh
   SPARK_ENV: ${{github.workspace}}/spark_env.sh
   HADOOP_ENV: ${{github.workspace}}/hadoop_env.sh
@@ -28,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04,ubuntu-22.04,macos-13]
+        os: [ubuntu-22.04,macos-15-intel]
         type: [basic]
         java: [17]
         include:
@@ -43,22 +46,24 @@ jobs:
     runs-on: ${{matrix.os}}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v7
       with:
         python-version: 3.11
         cache: 'pip'
 
-    - uses: actions/setup-java@v4
+    - uses: actions/setup-java@v6
       with: 
         java-version: ${{matrix.java}}
         distribution: temurin
         java-package: jdk
-        cache: maven
+        # MacOS only builds Java for main/develop and PRs into them (see Configure CMake Build);
+        # caching maven otherwise fails to find ~/.m2/repository
+        cache: ${{ (!startsWith(matrix.os, 'macos') || contains(fromJSON('["main", "develop"]'), github.ref_name) || contains(fromJSON('["main", "develop"]'), github.base_ref)) && 'maven' || '' }}
 
     - name: Cache built prerequisites
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: |
           ${{env.PREREQS_INSTALL_DIR}}
@@ -67,12 +72,19 @@ jobs:
           ~/protobuf-install/${{env.PROTOBUF_VERSION}}
         key: ${{matrix.os}}-cache-prereqs-${{env.PROTOBUF_VERSION}}-v1
 
-    - name: Cache Distributed FileSystems
+    # Restored and saved separately, so the cache is saved as soon as the installs succeed
+    # rather than only when the whole job passes. Paths must match the Save step exactly.
+    - name: Restore Distributed FileSystems
+      id: dfs-cache
       if: matrix.type == 'hdfs'
-      uses: actions/cache@v4
+      uses: actions/cache/restore@v6
       with:
-        path: ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
-        key: ${{matrix.os}}-dfs-${{env.HADOOP_VER}}
+        path: |
+          ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
+          !${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}/logs
+          ${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}
+          !${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}/logs
+        key: ${{matrix.os}}-dfs-${{env.HADOOP_VER}}-spark-${{env.SPARK_VER}}
 
     - name: Install Prerequisites
       shell: bash
@@ -92,6 +104,8 @@ jobs:
 
     - name: Install spark and hadoop dependencies
       if: matrix.type == 'hdfs'
+      # Takes ~2 minutes with the cache; an uncached Spark only on archive.apache.org can take ~30
+      timeout-minutes: 45
       shell: bash
       working-directory:  ${{github.workspace}}
       run: |
@@ -100,6 +114,17 @@ jobs:
         JAVA_HOME==$(dirname $(dirname $(readlink -f $(which javac)))) SPARK_ENV=$SPARK_ENV source $GITHUB_WORKSPACE/.github/scripts/install_spark.sh
       env:
         INSTALL_DIR: ${{runner.workspace}}
+
+    - name: Cache Distributed FileSystems
+      if: matrix.type == 'hdfs' && steps.dfs-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          ${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}
+          !${{runner.workspace}}/hadoop-${{env.HADOOP_VER}}/logs
+          ${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}
+          !${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}/logs
+        key: ${{steps.dfs-cache.outputs.cache-primary-key}}
 
     - name: Create Build Directory
       shell: bash
@@ -110,9 +135,9 @@ jobs:
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
         source $PREREQS_ENV
-        # java tests take a very long time to run on MacOS, so limit running the tests to PRs and master/develop branches
+        # java tests take a very long time to run on MacOS, so limit running the tests to PRs and main/develop branches
         BRANCH=${GITHUB_REF##*/}
-        if [[ ${{matrix.os}} != macos* || ${GITHUB_REF##*/} == master || ${GITHUB_REF##*/} == develop || $GITHUB_BASE_REF == master || $GITHUB_BASE_REF == develop ]]; then
+        if [[ ${{matrix.os}} != macos* || ${GITHUB_REF##*/} == main || ${GITHUB_REF##*/} == develop || $GITHUB_BASE_REF == main || $GITHUB_BASE_REF == develop ]]; then
           echo "cmake BUILD_JAVA set to 1"
           JAVA_BUILD_ARGS="-DBUILD_JAVA=1"
         fi
@@ -162,9 +187,24 @@ jobs:
         lcov --remove coverage.info '/opt*' '/usr*' '*/dependencies/*' '*/src/test*' '*.pb.h' '*.pb.cc' '*/protobuf-install/*' '*/awssdk-install/*' '*/gcssdk-install/*' 'v1/*' '/Library/*' -o coverage.info
 
     - name: Upload Coverage to CodeCov
-      uses: codecov/codecov-action@v4
+      uses: codecov/codecov-action@v7
       with:
         files: build/coverage.info, build/target/jacoco-reports/jacoco-ut/jacoco.xml, build/target/jacoco-reports/jacoco-ci/jacoco-ci.xml
         verbose: true
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  notify-codecov:
+    # Codecov holds its statuses (manual_trigger in .codecov.yml) until every build job has uploaded
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Send Codecov notifications
+      uses: codecov/codecov-action@v7
+      with:
+        run_command: send-notifications
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -29,7 +29,7 @@ C++
 * Native interface - See `cpp source code`_
 * Querying CLI tools available - see :ref:`vcf2genomicsdb <CLI Tools vcf2genomicsdb>`
 
-.. _cpp source code: https://github.com/GenomicsDB/GenomicsDB/tree/master/src/main/cpp
+.. _cpp source code: https://github.com/GenomicsDB/GenomicsDB/tree/main/src/main/cpp
 
 API Reference
 ===============================
