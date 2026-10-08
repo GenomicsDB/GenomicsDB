@@ -48,10 +48,10 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Cache built prerequisites
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: |
           ${{env.PREREQS_INSTALL_DIR}}
