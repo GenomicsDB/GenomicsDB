@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# This script is meant to be run from develop or master to add a version+commit hash tag.
+# This script is meant to be run from develop or main to add a version+commit hash tag.
 # The tag will trigger the docker release workflow on Github Actions
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-if [[ "$CURRENT_BRANCH" != "develop" && "$CURRENT_BRANCH" != "master" ]]; then
-    echo "Release should be run from develop or master branch!"
+if [[ "$CURRENT_BRANCH" != "develop" && "$CURRENT_BRANCH" != "main" ]]; then
+    echo "Release should be run from develop or main branch!"
     exit 1
 fi
 

@@ -3,7 +3,7 @@
 	url = https://github.com/GenomicsDB/htslib.git
 [submodule "dependencies/TileDB"]
 	path = dependencies/TileDB
-	url = https://github.com/OmicsDataAutomation/TileDB.git
+	url = https://github.com/GenomicsDB/TileDB.git
 [submodule "dependencies/RapidJSON"]
 	path = dependencies/RapidJSON
 	url = https://github.com/miloyip/rapidjson.git
