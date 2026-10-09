@@ -27,3 +27,8 @@ coverage:
         branches: null
 
 
+codecov:
+  notify:
+    # Statuses are sent by the notify-codecov job in basic.yml once all build jobs finish
+    manual_trigger: true
+

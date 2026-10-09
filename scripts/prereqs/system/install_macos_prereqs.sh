@@ -81,9 +81,13 @@ install_system_prerequisites() {
   # For example -
   # geninfo: ERROR: "/Users/runner/work/GenomicsDB/GenomicsDB/src/main/cpp/include/query_operations/variant_operations.h":50: function _ZN23RemappedDataWrapperBaseC2Ev end line 37 less than start line
   # The errors can be suppressed, but installing the older version 1.16 explicitly for now
-  wget -nv https://github.com/Homebrew/homebrew-core/raw/e92d2ae54954ebf485b484d8522104700b144fee/Formula/lcov.rb
+  # Homebrew only installs formulae from a tap, so install the pinned formula from a local one
+  LCOV_TAP=local/pinned
+  brew tap-new --no-git $LCOV_TAP &> /dev/null || true
+  curl -fsSL --retry 3 --create-dirs -o $(brew --repo $LCOV_TAP)/Formula/lcov.rb \
+    https://raw.githubusercontent.com/Homebrew/homebrew-core/e92d2ae54954ebf485b484d8522104700b144fee/Formula/lcov.rb
   brew list lcov &> /dev/null && brew uninstall lcov
-  brew install -s lcov.rb
+  brew install -s $LCOV_TAP/lcov
 
   #brew list openjdk@17 &> /dev/null || brew install openjdk@17
   echo "Installing system prerequisites DONE"
