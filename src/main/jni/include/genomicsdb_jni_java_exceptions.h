@@ -51,9 +51,9 @@ auto with_java_exceptions(JNIEnv* env, Body&& body) -> decltype(body()) {
   using Result = decltype(body());
   try {
     return body();
-  } catch (const std::exception& exception) {
+  } catch (const std::exception& exception) {  // NOSONAR: catching everything is intentional at the JNI boundary
     throw_genomicsdb_exception_to_java(env, exception.what());
-  } catch (...) {
+  } catch (...) {  // NOSONAR: catching everything is intentional at the JNI boundary
     throw_genomicsdb_exception_to_java(env, "Unknown native exception");
   }
   return Result();

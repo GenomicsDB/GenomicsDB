@@ -211,7 +211,7 @@ void handleJNIException(JNIEnv *env, GenomicsDBException& exception) {
 
 JNIEXPORT jstring JNICALL
 Java_org_genomicsdb_reader_GenomicsDBQuery_jniVersion(JNIEnv *env, jclass cls) {
-  return with_java_exceptions(env, [&]() -> jstring {
+  return with_java_exceptions(env, [&] {
     return env->NewStringUTF(genomicsdb::version().c_str());
   });
 }
@@ -224,7 +224,7 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnect(JNIEnv *env,
                                                       jstring callset_mapping_file,
                                                       jobject attributes,
                                                       jlong segment_size) {
-  return with_java_exceptions(env, [&]() -> jlong {
+  return with_java_exceptions(env, [&] {
     // Convert
     auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
     auto vid_mapping_file_cstr = env->GetStringUTFChars(vid_mapping_file, NULL);
@@ -256,7 +256,7 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnectJSON(JNIEnv *env,
                                                       jclass cls,
                                                       jstring query_json_file,
                                                       jstring loader_json_file) {
-  return with_java_exceptions(env, [&]() -> jlong {
+  return with_java_exceptions(env, [&] {
     // Convert
     auto query_json_file_cstr = env->GetStringUTFChars(query_json_file, NULL);
     auto loader_json_file_cstr = env->GetStringUTFChars(loader_json_file, NULL);
@@ -282,7 +282,7 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniConnectPBBinaryString(JNIEnv *env,
                                                                     jclass cls,
                                                                     jbyteArray query_pb_byte_array,
                                                                     jstring loader_json_file) {
-  return with_java_exceptions(env, [&]() -> jlong {
+  return with_java_exceptions(env, [&] {
     //Convert
     jbyte *query_pb_buffer = env->GetByteArrayElements(query_pb_byte_array, 0);
     std::string query_pb_binary_str(reinterpret_cast<char *>(query_pb_buffer), env->GetArrayLength(query_pb_byte_array));
@@ -378,7 +378,7 @@ Java_org_genomicsdb_reader_GenomicsDBQuery_jniQueryVariantCalls(JNIEnv *env,
                                                                 jstring array_name,
                                                                 jobject column_ranges,
                                                                 jobject row_ranges) {
-  return with_java_exceptions(env, [&]() -> jobject {
+  return with_java_exceptions(env, [&] {
     // Convert
     GenomicsDB *genomicsdb = reinterpret_cast<GenomicsDB *>(static_cast<uintptr_t>(handle));
     auto array_name_cstr = env->GetStringUTFChars(array_name, NULL);

@@ -250,7 +250,7 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniGetChromosomeIntervalsForC
     jclass currClass,
     jstring loader_configuration_file,
     jint rank) {
-  return with_java_exceptions(env, [&]() -> jstring {
+  return with_java_exceptions(env, [&] {
     //Java string to char*
     auto loader_configuration_file_cstr =
         env->GetStringUTFChars(loader_configuration_file, NULL);
@@ -301,7 +301,7 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniCopyVidMap(
     jobject obj,
     jlong handle,
     jbyteArray vidmap_as_bytearray) {
-  return with_java_exceptions(env, [&]() -> jlong {
+  return with_java_exceptions(env, [&] {
     // Get GenomicsDBImporter object reference
     auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
 
@@ -329,7 +329,7 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniCopyCallsetMap(
     jobject obj,
     jlong handle,
     jbyteArray callsetmap_as_bytearray) {
-  return with_java_exceptions(env, [&]() -> jlong {
+  return with_java_exceptions(env, [&] {
     // Get GenomicsDBImporter object reference
     auto importer = GET_GENOMICSDB_IMPORTER_FROM_HANDLE(handle);
 

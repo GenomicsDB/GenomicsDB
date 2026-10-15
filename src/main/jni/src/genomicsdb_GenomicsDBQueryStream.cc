@@ -49,7 +49,7 @@ JNIEXPORT jlong JNICALL Java_org_genomicsdb_reader_GenomicsDBQueryStream_jniGeno
    jboolean is_bcf, jboolean produce_header_only,
    jboolean use_missing_values_only_not_vector_end, jboolean keep_idx_fields_in_bcf_header)
 {
-  return with_java_exceptions(env, [&]() -> jlong {
+  return with_java_exceptions(env, [&] {
     //Java string to char*
     auto loader_configuration_file_cstr = env->GetStringUTFChars(loader_configuration_file, NULL);
     auto chr_cstr = env->GetStringUTFChars(chr, NULL);

@@ -35,7 +35,7 @@
 
 JNIEXPORT jstring JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniLibraryVersion(JNIEnv *env, jclass cls) {
-  return with_java_exceptions(env, [&]() -> jstring {
+  return with_java_exceptions(env, [&] {
     return env->NewStringUTF(genomicsdb::version().c_str());
   });
 }
@@ -75,7 +75,7 @@ JNIEXPORT jobjectArray JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniListTileDBArrays
 (JNIEnv *env, jclass currClass, jstring workspace)
 {
-  return with_java_exceptions(env, [&]() -> jobjectArray {
+  return with_java_exceptions(env, [&] {
     auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
     VERIFY_OR_THROW(workspace_cstr);
     std::vector<std::string> array_names = TileDBUtils::get_array_names(workspace_cstr);
@@ -94,7 +94,7 @@ JNIEXPORT jobjectArray JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniListTileDBFragments
 (JNIEnv *env, jclass currClass, jstring workspace)
 {
-  return with_java_exceptions(env, [&]() -> jobjectArray {
+  return with_java_exceptions(env, [&] {
     auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
     VERIFY_OR_THROW(workspace_cstr);
     std::vector<std::string> fragment_names = TileDBUtils::get_fragment_names(workspace_cstr);
@@ -171,10 +171,10 @@ JNIEXPORT jstring JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniReadEntireFile
 (JNIEnv *env, jclass currClass, jstring filename)
 {
-  return with_java_exceptions(env, [&]() -> jstring {
+  return with_java_exceptions(env, [&] {
     auto filename_cstr = env->GetStringUTFChars(filename, NULL);
     VERIFY_OR_THROW(filename_cstr);
-    char* contents_cstr = NULL;
+    char* contents_cstr = nullptr;
     size_t length;
     auto return_val =  TileDBUtils::read_entire_file(filename_cstr, (void **)&contents_cstr, (size_t*)&length);
     env->ReleaseStringUTFChars(filename, filename_cstr);
@@ -205,7 +205,7 @@ JNIEXPORT jlongArray JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniGetArrayColumnBounds
 (JNIEnv *env, jclass currClass, jstring workspace, jstring array)
 {
-  return with_java_exceptions(env, [&]() -> jlongArray {
+  return with_java_exceptions(env, [&] {
     auto workspace_cstr = env->GetStringUTFChars(workspace, NULL);
     VERIFY_OR_THROW(workspace_cstr);
     auto array_cstr = env->GetStringUTFChars(array, NULL);
