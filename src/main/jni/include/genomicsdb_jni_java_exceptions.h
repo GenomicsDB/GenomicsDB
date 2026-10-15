@@ -26,28 +26,18 @@
 #include <jni.h>
 
 #include <exception>
-#include <string>
 
 /**
- * Throws an org.genomicsdb.exception.GenomicsDBException in the JVM with the message of the C++ exception being
- * handled. A Java exception that is already pending, e.g. from a failed JNI call, is left as the one Java sees.
- * Call only from a catch block.
+ * Throws an org.genomicsdb.exception.GenomicsDBException in the JVM with the given message. A Java exception that is
+ * already pending, e.g. from a failed JNI call, is left as the one Java sees.
  */
-inline void throw_current_exception_to_java(JNIEnv* env) {
+inline void throw_genomicsdb_exception_to_java(JNIEnv* env, const char* message) {
   if (env->ExceptionCheck()) {
     return;
   }
-  std::string message;
-  try {
-    throw;
-  } catch (const std::exception& exception) {
-    message = exception.what();
-  } catch (...) {
-    message = "Unknown native exception";
-  }
   auto exception_class = env->FindClass("org/genomicsdb/exception/GenomicsDBException");
   if (exception_class) {
-    env->ThrowNew(exception_class, message.c_str());
+    env->ThrowNew(exception_class, message);
   }
 }
 
@@ -61,10 +51,12 @@ auto with_java_exceptions(JNIEnv* env, Body&& body) -> decltype(body()) {
   using Result = decltype(body());
   try {
     return body();
+  } catch (const std::exception& exception) {
+    throw_genomicsdb_exception_to_java(env, exception.what());
   } catch (...) {
-    throw_current_exception_to_java(env);
-    return Result();
+    throw_genomicsdb_exception_to_java(env, "Unknown native exception");
   }
+  return Result();
 }
 
 #endif
