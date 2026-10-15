@@ -399,8 +399,12 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
     m_vid_mapper->get_global_contig_idx(bcf_hdr_id2name(hdr, i), m_local_contig_idx_to_global_contig_idx[i]);
   //Field mapping
   m_local_field_idx_to_global_field_idx = std::move(std::vector<int>(hdr->n[BCF_DT_ID], -1));
-  for (auto i=0; i<hdr->n[BCF_DT_ID]; ++i)
-    m_vid_mapper->get_global_field_idx(bcf_hdr_int2id(hdr, BCF_DT_ID, i), m_local_field_idx_to_global_field_idx[i]);
+  for (auto i=0; i<hdr->n[BCF_DT_ID]; ++i) {
+    //A header whose IDX values skip a number has an empty dictionary slot, whose key is NULL
+    auto field_name = bcf_hdr_int2id(hdr, BCF_DT_ID, i);
+    if (field_name)
+      m_vid_mapper->get_global_field_idx(field_name, m_local_field_idx_to_global_field_idx[i]);
+  }
   int ID_field_idx = -1;
   m_import_ID_field = m_vid_mapper->get_global_field_idx("ID", ID_field_idx);
 }

@@ -79,6 +79,9 @@ VCFDiffFile::VCFDiffFile(const std::string& filename, const std::string& regions
   //Fields
   m_field_idx_to_known_field_enum.resize_luts_if_needed(m_hdr->n[BCF_DT_ID], GVCF_NUM_KNOWN_FIELDS);
   for (auto i=0; i<m_hdr->n[BCF_DT_ID]; ++i) {
+    //A header whose IDX values skip a number has an empty dictionary slot, whose key is NULL
+    if (!bcf_hdr_int2id(m_hdr, BCF_DT_ID, i))
+      continue;
     if (m_fields.find(bcf_hdr_int2id(m_hdr, BCF_DT_ID, i)) == m_fields.end()) {
       std::string field_name = std::move(std::string(bcf_hdr_int2id(m_hdr, BCF_DT_ID, i)));
       m_fields.insert(field_name);
@@ -123,7 +126,8 @@ VCFDiffFile::~VCFDiffFile() {
 
 void VCFDiffFile::setup_lut(const std::set<std::string>& gold_set, const std::set<std::string>& test_set,
                             const int bcf_dt_type, GoldLUT& lut, const VCFDiffFile& gold) {
-  lut.resize_luts_if_needed(1u, std::max(gold_set.size(), test_set.size()));
+  //Indexed by position in the header dictionaries, which can have empty slots, so can be larger than the sets
+  lut.resize_luts_if_needed(1u, std::max(gold.m_hdr->n[bcf_dt_type], m_hdr->n[bcf_dt_type]));
   std::vector<std::string> common_elements(std::min(gold_set.size(), test_set.size()));
   //Find common fields
   auto iter = std::set_intersection(gold_set.begin(), gold_set.end(), test_set.begin(), test_set.end(),
@@ -145,8 +149,8 @@ void VCFDiffFile::setup_luts(const VCFDiffFile& gold, const bool use_callsets_fi
   setup_lut(gold.m_fields, m_fields, BCF_DT_ID, m_fields_lut, gold);
   if (!use_callsets_file_for_samples)
     setup_lut(gold.m_samples, m_samples, BCF_DT_SAMPLE, m_samples_lut, gold);
-  m_fields_in_gold_line.resize(std::max(gold.m_fields.size(), m_fields.size()));
-  m_fields_in_test_line.resize(std::max(gold.m_fields.size(), m_fields.size()));
+  m_fields_in_gold_line.resize(std::max(gold.m_hdr->n[BCF_DT_ID], m_hdr->n[BCF_DT_ID]));
+  m_fields_in_test_line.resize(std::max(gold.m_hdr->n[BCF_DT_ID], m_hdr->n[BCF_DT_ID]));
   reset_field_to_line_idx_mapping();
 }
 
