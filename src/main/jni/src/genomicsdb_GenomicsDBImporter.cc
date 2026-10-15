@@ -102,6 +102,8 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniInitializeGenomicsDBImport
     } catch (std::exception &exception) {
       handleJNIImporterException(env, exception);
     }
+    //handleJNIImporterException() leaves a Java exception pending, so the value returned is ignored
+    return 0;
   });
 }
 
@@ -161,6 +163,8 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniSetupGenomicsDBLoader(
     } catch (std::exception &exception) {
       handleJNIImporterException(env, exception);
     }
+    //handleJNIImporterException() leaves a Java exception pending, so the value returned is ignored
+    return 0;
   });
 }
 
@@ -235,6 +239,8 @@ Java_org_genomicsdb_importer_GenomicsDBImporterJni_jniImportBatch(
     } catch (std::exception &exception) {
       handleJNIImporterException(env, exception);
     }
+    //handleJNIImporterException() leaves a Java exception pending, so the value returned is ignored
+    return false;
   });
 }
 
