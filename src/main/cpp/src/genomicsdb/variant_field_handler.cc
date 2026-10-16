@@ -497,8 +497,8 @@ bool VariantFieldHandler<DataType, CombineResultType>::get_valid_median(const Va
     //Valid field
     if (field_ptr.get() && field_ptr->is_valid()) {
       //Must always be vector<DataType>
-      auto* ptr = dynamic_cast<VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
-      assert(ptr);
+      assert(dynamic_cast<VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get()));
+      auto* ptr = static_cast<VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
       assert((ptr->get()).size() > 0u);
       auto val = ptr->get()[0u];
       if (is_bcf_valid_value<DataType>(val))
@@ -543,8 +543,8 @@ bool VariantFieldHandler<DataType, CombineResultType>::get_valid_sum(const std::
   //Valid field
   if (field_ptr.get() && field_ptr->is_valid()) {
     //Must always be vector<DataType>
-    const auto* ptr = dynamic_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
-    assert(ptr);
+    assert(dynamic_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get()));
+    const auto* ptr = static_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
     assert((ptr->get()).size() > 0u);
     auto val = ptr->get()[0u];
     if (is_bcf_valid_value<DataType>(val)) {
@@ -584,8 +584,8 @@ bool VariantFieldHandler<DataType, CombineResultType>::compute_valid_element_wis
   //Valid field
   if (field_ptr.get() && field_ptr->is_valid()) {
     //Must always be vector<DataType>
-    const auto* ptr = dynamic_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
-    assert(ptr);
+    assert(dynamic_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get()));
+    const auto* ptr = static_cast<const VariantFieldPrimitiveVectorData<DataType>*>(field_ptr.get());
     const auto& vec = ptr->get();
     if (vec.size() > m_element_wise_operations_result.size())
       m_element_wise_operations_result.resize(vec.size(), get_bcf_missing_value<CombineResultType>());
@@ -653,8 +653,8 @@ bool VariantFieldHandler<DataType, CombineResultType>::compute_valid_element_wis
   //Valid field
   if (field_ptr.get() && field_ptr->is_valid()) {
     //Must always be vector<uint8_t>
-    auto* ptr = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr.get());
-    assert(ptr);
+    assert((dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr.get())));
+    auto* ptr = static_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr.get());
     auto& vec = ptr->get();
     GenomicsDBMultiDVectorIdx curr_field_index(&(vec[0u]), &vid_field_info, 0u);
     if (curr_field_index.get_num_entries_in_current_dimension() > m_2D_element_wise_operations_result.size())
@@ -773,69 +773,80 @@ bool VariantFieldHandler<char>::concatenate_field(const Variant& variant, const 
   return (curr_result_size > 0u);
 }
 
+//Class of the fields that hold elements of type DataType: the field factory creates a string for char
+template<class DataType>
+struct VariantFieldClass {
+  using type = VariantFieldPrimitiveVectorData<DataType>;
+};
+template<>
+struct VariantFieldClass<char> {
+  using type = VariantFieldString;
+};
+
 template<class DataType, class CombineResultType>
 bool VariantFieldHandler<DataType, CombineResultType>::collect_and_extend_fields(const Variant& variant, const VariantQueryConfig& query_config,
     unsigned query_idx, const void ** output_ptr, uint64_t& num_elements,
     const bool use_missing_values_only_not_vector_end, const bool use_vector_end_only,
     const bool is_GT_field) {
+  using FieldClass = typename VariantFieldClass<DataType>::type;
+  const auto num_calls = variant.get_num_calls();
+  m_call_field_data.resize(num_calls);
   auto max_elements_per_call = 0u;
   auto valid_idx = 0u;
-  //Iterate over valid calls and obtain max fields over all calls
-  for (auto iter=variant.begin(), end_iter = variant.end(); iter != end_iter; ++iter) {
-    auto& curr_call = *iter;
-    auto& field_ptr = curr_call.get_field(query_idx);
-    //Valid field
-    if (field_ptr.get() && field_ptr->is_valid()) {
-      max_elements_per_call = std::max<unsigned>(max_elements_per_call, field_ptr->length());
-      ++valid_idx;
-    }
+  //Record where each valid field's data is, and the most elements in any field, so that extending the fields reads
+  //neither the calls nor their fields again
+  for (auto call_idx=0ull; call_idx<num_calls; ++call_idx) {
+    auto& call_field_data = m_call_field_data[call_idx];
+    call_field_data = { nullptr, 0u };
+    const auto& curr_call = variant.get_call(call_idx);
+    if (!curr_call.is_valid())
+      continue;
+    const auto* field_ptr = curr_call.get_field(query_idx).get();
+    if (!(field_ptr && field_ptr->is_valid()))
+      continue;
+    //Fields are almost always of FieldClass, whose data is found without virtual calls. A field whose VCF type
+    //differs from its type in the array is not
+    if (typeid(*field_ptr) == typeid(FieldClass)) {
+      const auto& data = static_cast<const FieldClass*>(field_ptr)->get();
+      call_field_data = { data.data(), static_cast<unsigned>(data.size()) };
+    } else
+      call_field_data = { static_cast<const DataType*>(field_ptr->get_raw_pointer()),
+                          static_cast<unsigned>(field_ptr->length()) };
+    max_elements_per_call = std::max(max_elements_per_call, call_field_data.m_num_elements);
+    ++valid_idx;
   }
   if (valid_idx == 0u)  //no valid fields found
     return false;
   //Resize the extended field vector
-  if (variant.get_num_calls()*max_elements_per_call > m_extended_field_vector.size())
-    m_extended_field_vector.resize(variant.get_num_calls()*max_elements_per_call);
+  if (num_calls*max_elements_per_call > m_extended_field_vector.size())
+    m_extended_field_vector.resize(num_calls*max_elements_per_call);
+  //WARNING: bunch of horrible hacks to deal with VCF spec and its implementations: htslib and htsjdk
+  //Inserted first for a call with no elements
+  //use_vector_end_only - true only for string fields when the Java interface is used
+  //use_missing_values_only_not_vector_end - true only when the Java interface is used
+  const auto missing_value = (use_vector_end_only || (is_GT_field && !use_missing_values_only_not_vector_end))
+                             ? get_bcf_vector_end_value<DataType>()
+                             : ((is_GT_field && use_missing_values_only_not_vector_end)
+                                ? get_bcf_gt_no_call_allele_index<DataType>()  //why? htsjdk does not handle a record where GT is missing in 1 sample, present in another. So, set GT value to no-call
+                                : get_bcf_missing_value<DataType>());
+  //Pad with vector end values, handles invalid fields also
+  //Except when producing records for htsjdk BCF2 - htsjdk has no support for vector end values
+  const auto padded_value = use_missing_values_only_not_vector_end ? get_bcf_missing_value<DataType>()
+                            : get_bcf_vector_end_value<DataType>();
   auto extended_field_vector_idx = 0u;
   //Iterate over all calls, invalid calls also
-  for (auto call_idx=0ull; call_idx<variant.get_num_calls(); ++call_idx) {
-    auto& curr_call = variant.get_call(call_idx);
-    auto& field_ptr = curr_call.get_field(query_idx);
+  for (const auto& call_field_data : m_call_field_data) {
+    auto* extended_field_ptr = m_extended_field_vector.data() + extended_field_vector_idx;
     //#elements inserted for this call
-    auto num_elements_inserted = 0u;
-    //Valid field in a valid call
-    if (curr_call.is_valid() && field_ptr.get() && field_ptr->is_valid()) {
-      assert(field_ptr->get_raw_pointer());
-#if !defined(__clang__)
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wclass-memaccess"
-#endif
-      memcpy_s(&(m_extended_field_vector[extended_field_vector_idx]), field_ptr->length()*sizeof(DataType),
-               field_ptr->get_raw_pointer(), field_ptr->length()*sizeof(DataType));
-#if !defined(__clang__)
-#  pragma GCC diagnostic pop
-#endif
-      num_elements_inserted = field_ptr->length();
-      extended_field_vector_idx += num_elements_inserted;
-    }
-    //WARNING: bunch of horrible hacks to deal with VCF spec and its implementations: htslib and htsjdk
-    if (num_elements_inserted == 0u) { //no elements inserted for this call, insert missing value first
-      //use_vector_end_only - true only for string fields when the Java interface is used
-      //use_missing_values_only_not_vector_end - true only when the Java interface is used
-      m_extended_field_vector[extended_field_vector_idx] =
-        (use_vector_end_only || (is_GT_field && !use_missing_values_only_not_vector_end))
-        ? get_bcf_vector_end_value<DataType>()
-        : ((is_GT_field && use_missing_values_only_not_vector_end)
-           ? get_bcf_gt_no_call_allele_index<DataType>()  //why? htsjdk does not handle a record where GT is missing in 1 sample, present in another. So, set GT value to no-call
-           : get_bcf_missing_value<DataType>());
-      ++num_elements_inserted;
-      ++extended_field_vector_idx;
-    }
-    //Pad with vector end values, handles invalid fields also
-    //Except when producing records for htsjdk BCF2 - htsjdk has no support for vector end values
-    auto padded_value = use_missing_values_only_not_vector_end ? get_bcf_missing_value<DataType>()
-                        : get_bcf_vector_end_value<DataType>();
-    for (; num_elements_inserted<max_elements_per_call; ++num_elements_inserted,++extended_field_vector_idx)
-      m_extended_field_vector[extended_field_vector_idx] = padded_value;
+    auto num_elements_inserted = call_field_data.m_num_elements;
+    //Most fields have a few elements, too few for a call to memcpy to pay off
+    for (auto i=0u; i<num_elements_inserted; ++i)
+      extended_field_ptr[i] = call_field_data.m_data[i];
+    if (num_elements_inserted == 0u) //no elements inserted for this call, insert missing value first
+      extended_field_ptr[num_elements_inserted++] = missing_value;
+    for (; num_elements_inserted<max_elements_per_call; ++num_elements_inserted)
+      extended_field_ptr[num_elements_inserted] = padded_value;
+    extended_field_vector_idx += num_elements_inserted;
   }
   assert(extended_field_vector_idx <= m_extended_field_vector.size());
   *output_ptr = reinterpret_cast<const void*>(&(m_extended_field_vector[0]));
@@ -885,10 +896,10 @@ bool HistogramFieldHandlerBase::compute_valid_histogram_sum_2D_vector(
   //Valid field
   if (field_ptr_bin.get() && field_ptr_bin->is_valid()) {
     //Must always be vector<uint8_t>
-    auto* cast_ptr_bin = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_bin.get());
-    assert(cast_ptr_bin);
-    auto* cast_ptr_count = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_count.get());
-    assert(cast_ptr_count);
+    assert((dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_bin.get())));
+    auto* cast_ptr_bin = static_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_bin.get());
+    assert((dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_count.get())));
+    auto* cast_ptr_count = static_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(field_ptr_count.get());
     GenomicsDBMultiDVectorIdx index_bin(&(cast_ptr_bin->get()[0u]), vid_field_info_bin, 0u);
     GenomicsDBMultiDVectorIdx index_count(&(cast_ptr_count->get()[0u]), vid_field_info_count, 0u);
     assert(index_bin.get_num_entries_in_current_dimension() == index_count.get_num_entries_in_current_dimension());

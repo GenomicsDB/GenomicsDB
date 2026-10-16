@@ -663,6 +663,13 @@ class VariantFieldHandler : public VariantFieldHandlerBase {
   std::vector<DataType> m_median_compute_vector;
   //Vector to hold extended vector to use in BCF format fields
   std::vector<DataType> m_extended_field_vector;
+  //Data of one call's field for collect_and_extend_fields(): null and 0 elements for a call without the field
+  struct CallFieldData {
+    const DataType* m_data;
+    unsigned m_num_elements;
+  };
+  //One per call, reused to avoid an allocation per field
+  std::vector<CallFieldData> m_call_field_data;
   //Datatype to hold sum
   CombineResultType m_sum;
   //Vector to hold data for element wise operations
@@ -753,14 +760,15 @@ void remap_allele_specific_annotations(
   const uint64_t input_call_idx,
   const CombineAllelesLUT& alleles_LUT,
   const unsigned num_merged_alleles, const bool NON_REF_exists, const unsigned ploidy,
-  const FieldInfo& vid_field_info);
+  const FieldInfo& vid_field_info, std::vector<uint64_t>& offsets_vec);
 void remap_allele_specific_annotations(
   const std::unique_ptr<VariantFieldBase>& orig_field,
   std::unique_ptr<VariantFieldBase>& remapped_field,
   const uint64_t input_call_idx,
   const CombineAllelesLUT& alleles_LUT,
   const unsigned num_merged_alleles, const bool NON_REF_exists, const unsigned ploidy,
-  const VariantQueryConfig& query_config, const unsigned query_field_idx);
+  const VariantQueryConfig& query_config, const unsigned query_field_idx,
+  std::vector<uint64_t>& offsets_vec);
 
 /*
  * Copies info in Variant object into its result vector
@@ -788,6 +796,11 @@ class GA4GHOperator : public SingleVariantOperatorBase {
   bool check_if_too_many_alleles_and_print_message(
     const Variant& variant,
     const FieldLengthDescriptor& length_descriptor) const;
+  /*
+   * Remaps field query_field_idx, whose length descriptor is length_descriptor, of call curr_call_idx_in_variant
+   * of variant to the merged alleles, into remapped_field. Returns false, with remapped_field invalid or null, if
+   * the call lacks the field or it has too many genotypes
+   */
   bool remap_if_needed(const Variant& variant,
       const VariantQueryConfig& query_config,
       const uint64_t curr_call_idx_in_variant,
@@ -815,6 +828,8 @@ class GA4GHOperator : public SingleVariantOperatorBase {
   //skip doing remapping for every sample in a different buffer. Used
   //by the GVCF operator to reduce memory consumption for ASA fields
   bool m_skip_remapping_INFO_fields_with_sum_combine_operation;
+  //Scratch offsets for remap_allele_specific_annotations(), reused to avoid an allocation per call
+  std::vector<uint64_t> m_allele_specific_offsets;
 };
 
 class SingleCellOperatorBase {

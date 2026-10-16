@@ -452,12 +452,22 @@ bool BroadCombinedGVCFOperator::remap_if_needed_and_combine(const Variant& varia
     assert(m_INFO_histogram_field_map.find(parent_field_vid_idx) != m_INFO_histogram_field_map.end());
     handler_ptr = GET_HISTOGRAM_FIELD_HANDLER_PTR_FROM_TUPLE(m_INFO_histogram_field_map[parent_field_vid_idx]);
   }
-  bool is_first_iter[] = { true, true };
+  auto is_valid_field = [](const VariantCall& call, const unsigned query_field_idx) {
+    const auto& field = call.get_field(query_field_idx);
+    return field.get() && field->is_valid();
+  };
+  //True until the first call is handed to a handler, which then resets its accumulator
+  auto is_first_iter = true;
   bool valid_result_found[] = { false, false };
   //Iterate over valid calls - m_remapped_variant and variant have same list of valid calls
   for (auto iter=m_remapped_variant.begin(); iter!=m_remapped_variant.end(); ++iter) {
     auto curr_call_idx_in_variant = iter.get_call_idx_in_variant();
     const auto& original_call = variant.get_call(curr_call_idx_in_variant);
+    //Invalid fields add nothing to the combined value, so skip remapping and combining them: most calls, e.g.
+    //reference blocks, have no allele-specific values. A histogram is skipped only when both components are invalid
+    if (!is_valid_field(original_call, query_field_idxs[0u])
+        && !(is_histogram && is_valid_field(original_call, query_field_idxs[1u])))
+      continue;
     //Only use the buffer from the first call to store remapped data - saves memory
     auto& remapped_call = m_remapped_variant.get_call(0u);
     for (auto i=0u;i<num_iter;++i) {
@@ -478,17 +488,17 @@ bool BroadCombinedGVCFOperator::remap_if_needed_and_combine(const Variant& varia
       switch(combine_op) {
 	case VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_SUM:
 	  valid_result_found[i] = m_field_handlers[bcf_ht_type]->get_valid_sum(
-	      remapping_needed ? remapped_field : original_field, is_first_iter[i])
+	      remapping_needed ? remapped_field : original_field, is_first_iter)
 	    || valid_result_found[i];
 	  break;
 	case VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_ELEMENT_WISE_SUM:
 	  if (length_descriptor.get_num_dimensions() == 1u)
 	    valid_result_found[i] = m_field_handlers[bcf_ht_type]->compute_valid_element_wise_sum(
-		remapping_needed ? remapped_field : original_field, is_first_iter[i])
+		remapping_needed ? remapped_field : original_field, is_first_iter)
 	      || valid_result_found[i];
 	  else
 	    valid_result_found[i] = m_field_handlers[bcf_ht_type]->compute_valid_element_wise_sum_2D_vector(
-		remapping_needed ? remapped_field : original_field, *(field_info_ptrs[i]), is_first_iter[i])
+		remapping_needed ? remapped_field : original_field, *(field_info_ptrs[i]), is_first_iter)
 	      || valid_result_found[i];
 	  break;
 	case VCFFieldCombineOperationEnum::VCF_FIELD_COMBINE_OPERATION_HISTOGRAM_SUM:
@@ -509,11 +519,10 @@ bool BroadCombinedGVCFOperator::remap_if_needed_and_combine(const Variant& varia
 	  : original_call.get_field(query_field_idxs[1]),
 	  field_info_ptrs[0],
 	  field_info_ptrs[1],
-	  is_first_iter[0]
+	  is_first_iter
 	  ) || valid_result_found[0];
     }
-    for(auto i=0u;i<num_iter;++i)
-      is_first_iter[i] = false;
+    is_first_iter = false;
   }
   const auto bcf_ht_type = field_info_ptrs[0u]->get_genomicsdb_type().get_tuple_element_bcf_ht_type(0u);
   //Get pointers to results
@@ -1076,7 +1085,7 @@ void BroadCombinedGVCFOperator::handle_deletions(Variant& variant) {
                                               remapped_field,
                                               curr_call_idx_in_variant,
                                               m_reduced_alleles_LUT, num_reduced_alleles, has_NON_REF, ploidy,
-                                              query_config, query_field_idx);
+                                              query_config, query_field_idx, m_allele_specific_offsets);
             std::swap(curr_field, remapped_field);
           } else {
             unsigned num_reduced_elements =
