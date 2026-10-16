@@ -51,9 +51,9 @@ auto with_java_exceptions(JNIEnv* env, Body&& body) -> decltype(body()) {
   using Result = decltype(body());
   try {
     return body();
-  } catch (const std::exception& exception) {  // NOSONAR: catching everything is intentional at the JNI boundary
+  } catch (const std::exception& exception) {  // sonar-resolve cpp:S1181 "catching everything is intentional at the JNI boundary"
     throw_genomicsdb_exception_to_java(env, exception.what());
-  } catch (...) {  // NOSONAR: catching everything is intentional at the JNI boundary
+  } catch (...) {  // sonar-resolve cpp:S2738 "catching everything is intentional at the JNI boundary"
     throw_genomicsdb_exception_to_java(env, "Unknown native exception");
   }
   return Result();
