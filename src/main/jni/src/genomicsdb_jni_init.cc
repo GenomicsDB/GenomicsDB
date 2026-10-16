@@ -24,6 +24,7 @@
 #include "genomicsdb_GenomicsDBLibLoader.h"
 
 #include <string>
+#include "genomicsdb_jni_java_exceptions.h"
 
 std::string get_system_property(JNIEnv* env, const std::string& name ) {
   jclass java_system_class = env->FindClass("java/lang/System");
@@ -42,9 +43,11 @@ std::string get_system_property(JNIEnv* env, const std::string& name ) {
 JNIEXPORT jint JNICALL Java_org_genomicsdb_GenomicsDBLibLoader_jniGenomicsDBOneTimeInitialize
   (JNIEnv * env, jclass obj)
 {
-  std::string gatk_stacktrace_on_user_exception = get_system_property(env, "GATK_STACKTRACE_ON_USER_EXCEPTION");
-  if (!gatk_stacktrace_on_user_exception.empty()) {
-    setenv("GENOMICSDB_PRINT_STACKTRACE", gatk_stacktrace_on_user_exception.c_str(), 1);
-  }
-  return 0;
+  return with_java_exceptions(env, [&]() -> jint {
+    std::string gatk_stacktrace_on_user_exception = get_system_property(env, "GATK_STACKTRACE_ON_USER_EXCEPTION");
+    if (!gatk_stacktrace_on_user_exception.empty()) {
+      setenv("GENOMICSDB_PRINT_STACKTRACE", gatk_stacktrace_on_user_exception.c_str(), 1);
+    }
+    return 0;
+  });
 }
