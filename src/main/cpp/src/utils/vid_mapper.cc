@@ -875,12 +875,12 @@ void VidMapper::parse_callsets_json(const std::string& json, const bool is_file)
 }
 
 /*
- * Reads an integer field of a callset. Protobuf JSON, such as the callset mapping GATK writes, stores
- * int64 values as strings, so a string holding an integer is accepted too.
+ * Reads an integer field of a callset or contig, described by owner in the error message. Protobuf JSON,
+ * such as the callset and vid mappings GATK writes, stores int64 values as strings, so a string holding
+ * an integer is accepted too.
  */
-static int64_t get_callset_int64(const rapidjson::Value& callset_info_dict, const char* key,
-                                 const std::string& callset_name) {
-  const auto& value = callset_info_dict[key];
+static int64_t get_json_int64(const rapidjson::Value& info_dict, const char* key, const std::string& owner) {
+  const auto& value = info_dict[key];
   if (value.IsInt64())
     return value.GetInt64();
   if (value.IsString()) {
@@ -891,8 +891,7 @@ static int64_t get_callset_int64(const rapidjson::Value& callset_info_dict, cons
     if (end != str && *end == '\0' && errno == 0)
       return result;
   }
-  throw FileBasedVidMapperException(std::string("\"")+key+"\" for sample/callset "+callset_name
-                                    +" must be an integer");
+  throw FileBasedVidMapperException(std::string("\"")+key+"\" for "+owner+" must be an integer");
 }
 
 void VidMapper::parse_callsets_json(const rapidjson::Value& callsets_container) {
@@ -929,7 +928,7 @@ void VidMapper::parse_callsets_json(const rapidjson::Value& callsets_container) 
     } else
       callset_name = (*dict_iter).name.GetString();
     VERIFY_OR_THROW(callset_info_dict.HasMember("row_idx"));
-    int64_t row_idx = get_callset_int64(callset_info_dict, "row_idx", callset_name);
+    int64_t row_idx = get_json_int64(callset_info_dict, "row_idx", "sample/callset "+callset_name);
     //already exists in map
     if (m_callset_name_to_row_idx.find(callset_name) != m_callset_name_to_row_idx.end())
       //different row idx
@@ -951,7 +950,7 @@ void VidMapper::parse_callsets_json(const rapidjson::Value& callsets_container) 
                              : std::move(callset_info_dict["stream_name"].GetString());
       file_idx = get_or_append_global_file_idx(filename);
       if (callset_info_dict.HasMember("idx_in_file"))
-        idx_in_file = get_callset_int64(callset_info_dict, "idx_in_file", callset_name);
+        idx_in_file = get_json_int64(callset_info_dict, "idx_in_file", "sample/callset "+callset_name);
       //Check for conflicting file/stream info if initialized previously
       const auto& curr_row_info = m_row_idx_to_info[row_idx];
       if (curr_row_info.m_is_initialized) {
@@ -1189,11 +1188,11 @@ void FileBasedVidMapper::common_constructor_initialization(
         logger.warn("Duplicate contig/chromosome name {} found in vid file {}", contig_name, filename);
         duplicate_contigs_exist = true;
       } else {
-        VERIFY_OR_THROW(contig_info_dict.HasMember("tiledb_column_offset") && contig_info_dict["tiledb_column_offset"].IsInt64());
-        auto tiledb_column_offset = contig_info_dict["tiledb_column_offset"].GetInt64();
+        VERIFY_OR_THROW(contig_info_dict.HasMember("tiledb_column_offset"));
+        auto tiledb_column_offset = get_json_int64(contig_info_dict, "tiledb_column_offset", "contig "+contig_name);
         VERIFY_OR_THROW(tiledb_column_offset >= 0ll);
-        VERIFY_OR_THROW(contig_info_dict.HasMember("length") && contig_info_dict["length"].IsInt64());
-        auto length = contig_info_dict["length"].GetInt64();
+        VERIFY_OR_THROW(contig_info_dict.HasMember("length"));
+        auto length = get_json_int64(contig_info_dict, "length", "contig "+contig_name);
         VERIFY_OR_THROW(length >= 0ll);
         VERIFY_OR_THROW(static_cast<size_t>(json_contig_idx) < static_cast<size_t>(num_contigs));
         m_contig_name_to_idx[contig_name] = json_contig_idx;
