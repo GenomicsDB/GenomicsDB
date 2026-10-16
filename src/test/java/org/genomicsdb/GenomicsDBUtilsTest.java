@@ -23,6 +23,7 @@
 package org.genomicsdb;
 
 import com.google.common.io.Files;
+import org.genomicsdb.exception.GenomicsDBException;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -44,6 +45,22 @@ public class GenomicsDBUtilsTest {
     File tmpFile = File.createTempFile("genomicsdb", "file");
     Assert.assertEquals(GenomicsDBUtils.deleteDir(workspacePath), 0);
     Assert.assertEquals(GenomicsDBUtils.deleteDir("non-existent-workspace"), -1);
+  }
+
+  @Test(expectedExceptions = GenomicsDBException.class)
+  public void readingAMissingFileThrowsGenomicsDBException() throws IOException {
+    Path dir = java.nio.file.Files.createTempDirectory("genomicsdb");
+    dir.toFile().deleteOnExit();
+    GenomicsDBUtils.readEntireFile(dir.resolve("missing.txt").toString());
+  }
+
+  @Test(expectedExceptions = GenomicsDBException.class)
+  public void columnBoundsOfAMissingArrayThrowGenomicsDBException() throws IOException {
+    Path dir = java.nio.file.Files.createTempDirectory("genomicsdb");
+    dir.toFile().deleteOnExit();
+    String workspace = dir.resolve("workspace").toString();
+    Assert.assertEquals(GenomicsDBUtils.createTileDBWorkspace(workspace, false), 0);
+    GenomicsDBUtils.getArrayColumnBounds(workspace, "missing_array");
   }
 
   boolean isEnvSet(String name) {

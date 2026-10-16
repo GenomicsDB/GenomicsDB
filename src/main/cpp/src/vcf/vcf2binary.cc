@@ -33,7 +33,7 @@
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCF2BinaryException(#X);
 
-extern int g_show_import_progress;
+extern bool g_show_import_progress;
 extern int g_progress_interval;
 
 //INFO fields like DP, RAW_MQ - the combine operation is a sum
