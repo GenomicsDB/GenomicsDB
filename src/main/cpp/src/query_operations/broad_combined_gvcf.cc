@@ -762,7 +762,10 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
       if (GQ_zero_values.find(i) == GQ_zero_values.end() || PL_zero_values.find(i) == PL_zero_values.end()) continue;
       if (!GT_arr && !num_GT_arr) {
         auto ngt = bcf_get_genotypes(m_vcf_hdr, m_bcf_out, &GT_arr, &num_GT_arr);
-        if (ngt <= 0) GT_arr = NULL;
+        if (ngt <= 0) {
+          free(GT_arr);  // sonar-resolve cpp:S1231 "bcf_get_genotypes() allocates GT_arr with malloc"
+          GT_arr = NULL;
+        }
       }
       if (GT_arr) {
         auto ploidy = num_GT_arr/variant.get_num_calls();
@@ -775,7 +778,7 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
     if (GT_arr && num_GT_arr) {
       bcf_update_genotypes(m_vcf_hdr, m_bcf_out, GT_arr, num_GT_arr);
     }
-    free(GT_arr);
+    free(GT_arr);  // sonar-resolve cpp:S1231 "bcf_get_genotypes() allocates GT_arr with malloc"
   }
   //Update DP fields
   if (valid_DP_found || valid_DP_FORMAT_found) {
