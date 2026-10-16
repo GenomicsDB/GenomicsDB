@@ -80,7 +80,7 @@ jobs:
           ~/awssdk-install
           ~/gcssdk-install
           ~/protobuf-install
-        key: ubuntu-codeql-cache-prereqs-v1
+        key: ubuntu-codeql-cache-prereqs-v2
 
     - name: Build GenomicsDB
       shell: bash
@@ -92,7 +92,9 @@ jobs:
         popd
         echo "Install prerequisites for Linux DONE"
         source $PREREQS_ENV
-        cmake $GITHUB_WORKSPACE -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DBUILD_JAVA=1 -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX
+        # TileDB builds the cloud SDKs in TILEDB_DEPS_INSTALL_DIR, which the cache keeps in $HOME
+        cmake $GITHUB_WORKSPACE -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DBUILD_JAVA=1 -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
+          -DTILEDB_DEPS_INSTALL_DIR=$HOME
         make -j4
         make install
         rm -fr dependencies/ src/test/ test/

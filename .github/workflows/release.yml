@@ -6,8 +6,7 @@ on:
       - v*
 
 env:
-  # CMake 4 rejects cmake_minimum_required < 3.5, which old bundled dependencies
-  # such as aws-c-common from TileDB still declare.
+  # CMake 4 rejects cmake_minimum_required < 3.5, which protobuf 3.19.4 still declares.
   CMAKE_POLICY_VERSION_MINIMUM: 3.5
   PREREQS_ENV: ${{github.workspace}}/prereqs.sh
   PREREQS_INSTALL_DIR: ${{github.workspace}}/prereqs

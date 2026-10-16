@@ -11,9 +11,6 @@ on:
       - '**/*.rst'
 
 env:
-  # CMake 4 rejects cmake_minimum_required < 3.5, which old bundled dependencies
-  # such as aws-c-common from TileDB still declare.
-  CMAKE_POLICY_VERSION_MINIMUM: 3.5
   PREREQS_ENV: ${{github.workspace}}/prereqs.sh
   SPARK_ENV: ${{github.workspace}}/spark_env.sh
   HADOOP_ENV: ${{github.workspace}}/hadoop_env.sh
@@ -70,7 +67,7 @@ jobs:
           ~/awssdk-install
           ~/gcssdk-install
           ~/protobuf-install/${{env.PROTOBUF_VERSION}}
-        key: ${{matrix.os}}-cache-prereqs-${{env.PROTOBUF_VERSION}}-v1
+        key: ${{matrix.os}}-cache-prereqs-${{env.PROTOBUF_VERSION}}-v2
 
     # Restored and saved separately, so the cache is saved as soon as the installs succeed
     # rather than only when the whole job passes. Paths must match the Save step exactly.
@@ -147,9 +144,11 @@ jobs:
         if [[ ${{matrix.os}} != 'ubuntu-20.04' ]]; then
           NANOARROW_BUILD_ARGS="-DBUILD_NANOARROW=1"
         fi
+        # TileDB builds the cloud SDKs in TILEDB_DEPS_INSTALL_DIR, which the cache keeps in $HOME
         cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
         -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION         \
-        -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION $JAVA_BUILD_ARGS $HDFS_BUILD_ARGS $NANOARROW_BUILD_ARGS
+        -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION $JAVA_BUILD_ARGS $HDFS_BUILD_ARGS $NANOARROW_BUILD_ARGS \
+        -DTILEDB_DEPS_INSTALL_DIR=$HOME
 
     - name: Build
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
