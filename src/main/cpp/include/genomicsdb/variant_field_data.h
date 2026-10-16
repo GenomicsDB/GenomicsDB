@@ -23,6 +23,7 @@
 #ifndef VARIANT_FIELD_DATA_H
 #define VARIANT_FIELD_DATA_H
 
+#include <algorithm>
 #include <memory>
 #include "headers.h"
 #include "gt_common.h"
@@ -244,20 +245,12 @@ class VariantFieldData<std::string> : public VariantFieldBase {
       ptr = static_cast<const char*>(base_ptr + sizeof(int));
       offset += sizeof(int);
     }
-    m_data.resize(num_elements);
-    memcpy_s(&(m_data[0]), num_elements*sizeof(char), ptr, num_elements*sizeof(char));
-    bool is_missing_flag = true;
-    for (auto val : m_data)
-      if (!is_tiledb_missing_value<char>(val)) {
-        is_missing_flag = false;
-        break;
-      }
-    //Whole field is missing, clear and invalidate
-    //Note that 0-length fields are invalidated based on the logic in this function
-    if (is_missing_flag) {
+    //Whole field is missing: clear and invalidate without copying it. 0-length fields are invalidated too
+    if (std::all_of(ptr, ptr+num_elements, [](const char val) { return is_tiledb_missing_value<char>(val); })) {
       set_valid(false);
       m_data.clear();
-    }
+    } else
+      m_data.assign(ptr, num_elements);
     offset += num_elements*sizeof(char);
   }
   virtual void print(std::ostream& fptr) const {
@@ -384,21 +377,18 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
     return sizeof(DataType);
   }
   void copy_data_into_vector(const char* buffer, const size_t num_elements) {
+    auto data_ptr = reinterpret_cast<const DataType*>(buffer);
+    //Whole field is missing: clear and invalidate without copying it. Most fields of reference blocks are missing,
+    //so this check comes first. 0-length fields are invalidated too
+    if (std::all_of(data_ptr, data_ptr+num_elements,
+                    [](const DataType val) { return is_tiledb_missing_value<DataType>(val); })) {
+      set_valid(false);
+      m_data.clear();
+      return;
+    }
     m_data.resize(num_elements);
     unsigned data_size = num_elements*sizeof(DataType);
     memcpy_s(&(m_data[0]), data_size, buffer, data_size);
-    bool is_missing_flag = true;
-    for (auto val : m_data)
-      if (!is_tiledb_missing_value<DataType>(val)) {
-        is_missing_flag = false;
-        break;
-      }
-    //Whole field is missing, clear and invalidate
-    //Note that 0-length fields are invalidated based on the logic in this function
-    if (is_missing_flag) {
-      set_valid(false);
-      m_data.clear();
-    }
   }
   std::vector<DataType>& get()  {
     return m_data;
