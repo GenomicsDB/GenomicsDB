@@ -26,6 +26,18 @@
 # THE SOFTWARE.
 #
 
+# Update git submodule if necessary
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Catch2/single_include/catch2/catch.hpp")
+  message(STATUS "Installing submodule Catch2 at ${CMAKE_CURRENT_SOURCE_DIR}")
+  execute_process(
+    COMMAND git submodule update --init ${CMAKE_CURRENT_SOURCE_DIR}/Catch2
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    RESULT_VARIABLE submodule_update_exit_code)
+  if(NOT(submodule_update_exit_code EQUAL 0))
+    message(FATAL_ERROR "Failure to update git submodule Catch2")
+  endif()
+endif()
+
 include_directories(Catch INTERFACE Catch2/single_include)
 include_directories(${PROTOBUF_GENERATED_CXX_HDRS_INCLUDE_DIRS})
 
