@@ -21,6 +21,8 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#include <cerrno>
+#include <cstdlib>
 #include <libgen.h>
 #include "vid_mapper.h"
 #include "json_config.h"
@@ -872,6 +874,27 @@ void VidMapper::parse_callsets_json(const std::string& json, const bool is_file)
   }
 }
 
+/*
+ * Reads an integer field of a callset. Protobuf JSON, such as the callset mapping GATK writes, stores
+ * int64 values as strings, so a string holding an integer is accepted too.
+ */
+static int64_t get_callset_int64(const rapidjson::Value& callset_info_dict, const char* key,
+                                 const std::string& callset_name) {
+  const auto& value = callset_info_dict[key];
+  if (value.IsInt64())
+    return value.GetInt64();
+  if (value.IsString()) {
+    const char* str = value.GetString();
+    char* end = nullptr;
+    errno = 0;
+    auto result = strtoll(str, &end, 10);
+    if (end != str && *end == '\0' && errno == 0)
+      return result;
+  }
+  throw FileBasedVidMapperException(std::string("\"")+key+"\" for sample/callset "+callset_name
+                                    +" must be an integer");
+}
+
 void VidMapper::parse_callsets_json(const rapidjson::Value& callsets_container) {
   //Callset info parsing
   //callsets is a dictionary of name:info key-value pairs or array of info dictionaries
@@ -906,7 +929,7 @@ void VidMapper::parse_callsets_json(const rapidjson::Value& callsets_container) 
     } else
       callset_name = (*dict_iter).name.GetString();
     VERIFY_OR_THROW(callset_info_dict.HasMember("row_idx"));
-    int64_t row_idx = callset_info_dict["row_idx"].GetInt64();
+    int64_t row_idx = get_callset_int64(callset_info_dict, "row_idx", callset_name);
     //already exists in map
     if (m_callset_name_to_row_idx.find(callset_name) != m_callset_name_to_row_idx.end())
       //different row idx
@@ -928,7 +951,7 @@ void VidMapper::parse_callsets_json(const rapidjson::Value& callsets_container) 
                              : std::move(callset_info_dict["stream_name"].GetString());
       file_idx = get_or_append_global_file_idx(filename);
       if (callset_info_dict.HasMember("idx_in_file"))
-        idx_in_file = callset_info_dict["idx_in_file"].GetInt64();
+        idx_in_file = get_callset_int64(callset_info_dict, "idx_in_file", callset_name);
       //Check for conflicting file/stream info if initialized previously
       const auto& curr_row_info = m_row_idx_to_info[row_idx];
       if (curr_row_info.m_is_initialized) {

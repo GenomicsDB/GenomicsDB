@@ -384,6 +384,12 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
   assert(dynamic_cast<VCFReader*>(base_reader_ptr) || dynamic_cast<VCFBufferReader*>(base_reader_ptr));
   auto hdr = dynamic_cast<VCFReaderBase*>(base_reader_ptr)->get_header();
   if (!hdr) logger.fatal(VCF2BinaryException(logger.format("Could not find valid VCF header for {}", m_filename)));
+  //Sample indexes come from the callset mapping; reading FORMAT values for one past the file's samples would read
+  //other memory, so check them once here
+  for (auto local_callset_idx : m_enabled_local_callset_idx_vec)
+    if (local_callset_idx >= bcf_hdr_nsamples(hdr))
+      logger.fatal(VCF2BinaryException(logger.format("Callset mapping refers to sample index {} of {}, which has {} sample(s)",
+                                                     local_callset_idx, m_filename, bcf_hdr_nsamples(hdr))));
   //Callset mapping
   //Length might be more than what's available in hdr due to JSON error
   m_local_callset_idx_to_tiledb_row_idx.resize(bcf_hdr_nsamples(hdr), -1ll);
