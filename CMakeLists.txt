@@ -90,8 +90,33 @@ else()
   set(GENOMICSDB_DEPS_ARCH "${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 string(TOLOWER "${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}-${GENOMICSDB_DEPS_ARCH}" GENOMICSDB_TOOLCHAIN)
+#A distributable library's dependencies, including TileDB's cloud SDKs, are built against its static OpenSSL
+#(and on Linux its static libcurl), and on macOS for its minimum macOS version, so they are kept apart from those
+#of other builds
+if(BUILD_DISTRIBUTABLE_LIBRARY)
+  if(APPLE)
+    #The dependencies built from source, among them the many that TileDB's cloud SDKs build, take the minimum
+    #macOS version from the environment when they are configured and compiled, which happens during the build
+    if("$ENV{MACOSX_DEPLOYMENT_TARGET}" STREQUAL "" OR
+       NOT "$ENV{MACOSX_DEPLOYMENT_TARGET}" STREQUAL "${CMAKE_OSX_DEPLOYMENT_TARGET}")
+      message(FATAL_ERROR "A distributable macOS library needs MACOSX_DEPLOYMENT_TARGET, e.g. 14.0, set in the "
+                          "environment of both the configure and the build; CMAKE_OSX_DEPLOYMENT_TARGET, if "
+                          "given, must equal it")
+    endif()
+    list(LENGTH CMAKE_OSX_ARCHITECTURES GENOMICSDB_NUM_OSX_ARCHITECTURES)
+    if(GENOMICSDB_NUM_OSX_ARCHITECTURES GREATER 1)
+      message(FATAL_ERROR "A distributable macOS library is built for one architecture, not ${CMAKE_OSX_ARCHITECTURES}")
+    endif()
+    string(APPEND GENOMICSDB_TOOLCHAIN "-distributable-macos${CMAKE_OSX_DEPLOYMENT_TARGET}")
+  else()
+    string(APPEND GENOMICSDB_TOOLCHAIN "-distributable")
+  endif()
+endif()
 set(GENOMICSDB_TOOLCHAIN_DEPS_DIR "${GENOMICSDB_DEPS_DIR}/${GENOMICSDB_TOOLCHAIN}")
 set(TILEDB_DEPS_INSTALL_DIR "${GENOMICSDB_TOOLCHAIN_DEPS_DIR}" CACHE PATH "Directory TileDB builds its cloud SDKs in")
+if(BUILD_DISTRIBUTABLE_LIBRARY)
+  include(BuildDistributableDependencies)
+endif()
 
 #Sync the GENOMICSDB_PROTOBUF_VERSION with protobuf.version in pom.xml!
 set(GENOMICSDB_PROTOBUF_VERSION "3.21.7" CACHE STRING "Version of Google Protocol Buffer library")
@@ -212,10 +237,16 @@ if(BUILD_DISTRIBUTABLE_LIBRARY OR BUILD_BINDINGS)
 endif()
   
 if (BUILD_DISTRIBUTABLE_LIBRARY AND NOT BUILD_BINDINGS)
-  #For the GNU compiler, link in static gcc libraries
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  #Link in static gcc libraries, with GCC or with clang using them
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT APPLE))
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+  endif()
+  #Keep the symbols of the static libraries linked in, e.g. OpenSSL's, out of the library's exports, so that they
+  #cannot interpose on or be interposed by other copies loaded into the same process, e.g. the JVM's. Every symbol
+  #must resolve when the library is linked, as it does on macOS, rather than when it is first called.
+  if(NOT APPLE)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--exclude-libs,ALL -Wl,--no-undefined")
   endif()
 endif()
 
