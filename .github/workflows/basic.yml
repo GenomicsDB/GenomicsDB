@@ -10,6 +10,12 @@ on:
       - '**/*.md'
       - '**/*.rst'
 
+# A new push to a pull request cancels the checks still running for its previous push; pushes to branches are
+# never grouped, so each runs to completion
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 env:
   PREREQS_ENV: ${{github.workspace}}/prereqs.sh
   SPARK_ENV: ${{github.workspace}}/spark_env.sh
