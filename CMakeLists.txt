@@ -88,6 +88,12 @@ set(PROTOBUF_URL "https://github.com/protocolbuffers/protobuf/archive/v${GENOMIC
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
 set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf files in build directory")
 
+#libdeflate, which htslib is built with when it is built from source
+set(GENOMICSDB_LIBDEFLATE_VERSION "1.26" CACHE STRING "Version of libdeflate")
+set(GENOMICSDB_LIBDEFLATE_URL_HASH "SHA256=125856d4656e0feab660f94842f835923410c9281fedbcee64598c918da42b5a"
+    CACHE STRING "Hash of the libdeflate download")
+set(LIBDEFLATE_ROOT_DIR "${CMAKE_BINARY_DIR}/libdeflate-install/${GENOMICSDB_LIBDEFLATE_VERSION}" CACHE PATH "Path to installed libdeflate")
+
 #Handle csv
 option(USE_LIBCSV "Enable library components that import data from csv files")
 set(LIBCSV_DIR "" CACHE PATH "Path to libcsv header and library")
@@ -462,7 +468,7 @@ if(SAFESTRINGLIB_FOUND)
     set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES} ${SAFESTRINGLIB_LIBRARY})
 endif()
 set(GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES ${GENOMICSDB_EXTERNAL_DEPENDENCIES_LIBRARIES}
-  ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBUUID_LIBRARY} ${CMAKE_DL_LIBS})
+  ${LIBDEFLATE_LIBRARY} ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${LIBUUID_LIBRARY} ${CMAKE_DL_LIBS})
 
 if(IPPROOT AND ${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
   find_package(IPP REQUIRED)
