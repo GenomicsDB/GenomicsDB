@@ -75,6 +75,14 @@ jobs:
         key: ubuntu-22.04-cache-prereqs-${{env.PROTOBUF_VERSION}}-v3-${{steps.image.outputs.version}}
         restore-keys: ubuntu-22.04-cache-prereqs-${{env.PROTOBUF_VERSION}}-v3-
 
+    # Each run saves its compiler output, which the next run restores, so unchanged sources aren't compiled again
+    - name: Cache compiler output
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/ccache
+        key: ccache-valgrind-${{github.run_id}}
+        restore-keys: ccache-valgrind-
+
     - name: Install Prerequisites
       shell: bash
       working-directory: ${{github.workspace}}/scripts/prereqs
@@ -83,7 +91,7 @@ jobs:
         sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
         source $PREREQS_ENV
         sudo apt-get update -q
-        sudo apt-get -y install valgrind
+        sudo apt-get -y install valgrind ccache
 
     - name: Run valgrind
       shell: bash
@@ -91,9 +99,13 @@ jobs:
         source $PREREQS_ENV
         mkdir -p $GENOMICSDB_BUILD_DIR
         cd $GENOMICSDB_BUILD_DIR
-        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX $GITHUB_WORKSPACE
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache $GITHUB_WORKSPACE
+        # ccache keeps its statistics with the cache, so they are reset to count this build alone
+        ccache --zero-stats
         make -j4
         make install
+        ccache --show-stats
         export VALGRIND="valgrind --leak-check=full --suppressions=$GITHUB_WORKSPACE/src/test/inputs/valgrind_mpi.supp"
         cd $GITHUB_WORKSPACE/tests
         ./test_tools.sh inputs/vcfs $CMAKE_INSTALL_PREFIX

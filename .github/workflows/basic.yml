@@ -98,6 +98,16 @@ jobs:
           !${{runner.workspace}}/spark-${{env.SPARK_VER}}-bin-hadoop${{env.SPARK_HADOOP_VER}}/logs
         key: ${{matrix.os}}-dfs-${{env.HADOOP_VER}}-spark-${{env.SPARK_VER}}
 
+    # Each run saves the compiler output of its job, which the job's next run restores, so unchanged sources aren't
+    # compiled again
+    - name: Cache compiler output
+      if: runner.os == 'Linux'
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/ccache
+        key: ccache-${{matrix.os}}-${{matrix.type}}-${{github.run_id}}
+        restore-keys: ccache-${{matrix.os}}-${{matrix.type}}-
+
     - name: Install Prerequisites
       shell: bash
       working-directory: ${{github.workspace}}/scripts/prereqs
@@ -109,6 +119,8 @@ jobs:
         else
           echo "Install Prerequisites for Linux.."
           sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
+          sudo apt-get update -q
+          sudo apt-get install -y -q ccache
         fi
         echo "cat prereqs env..."
         cat $PREREQS_ENV
@@ -164,18 +176,24 @@ jobs:
         BUILD_TYPE=Coverage
         if [[ ${{matrix.os}} == macos* ]]; then
           BUILD_TYPE=Debug
+        else
+          LAUNCHER_ARGS="-DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
         fi
         cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
         -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION         \
-        -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION $JAVA_BUILD_ARGS $HDFS_BUILD_ARGS $NANOARROW_BUILD_ARGS
+        -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION $JAVA_BUILD_ARGS $HDFS_BUILD_ARGS $NANOARROW_BUILD_ARGS \
+        $LAUNCHER_ARGS
 
     - name: Build
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       shell: bash
       run: |
         source $PREREQS_ENV
+        # ccache keeps its statistics with the cache, so they are reset to count this build alone
+        if command -v ccache > /dev/null; then ccache --zero-stats; fi
         make -j4
         make install
+        if command -v ccache > /dev/null; then ccache --show-stats; fi
 
     - name: Test
       shell: bash
