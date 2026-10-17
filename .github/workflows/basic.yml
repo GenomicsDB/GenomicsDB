@@ -159,7 +159,13 @@ jobs:
         if [[ ${{matrix.os}} != 'ubuntu-20.04' ]]; then
           NANOARROW_BUILD_ARGS="-DBUILD_NANOARROW=1"
         fi
-        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
+        # Coverage comes from the Linux jobs; on macOS, writing coverage data at every process exit slows the tests
+        # several times over, so it builds the same way without it
+        BUILD_TYPE=Coverage
+        if [[ ${{matrix.os}} == macos* ]]; then
+          BUILD_TYPE=Debug
+        fi
+        cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
         -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION         \
         -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION $JAVA_BUILD_ARGS $HDFS_BUILD_ARGS $NANOARROW_BUILD_ARGS
 
@@ -192,6 +198,7 @@ jobs:
         $GITHUB_WORKSPACE/.github/scripts/test_hdfs_htslib_support.sh
 
     - name: Coverage
+      if: runner.os == 'Linux'
       shell: bash
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
@@ -199,6 +206,7 @@ jobs:
         lcov --remove coverage.info '/opt*' '/usr*' '*/dependencies/*' '*/src/test*' '*.pb.h' '*.pb.cc' '*/deps/*' 'v1/*' '/Library/*' -o coverage.info
 
     - name: Upload Coverage to CodeCov
+      if: runner.os == 'Linux'
       uses: codecov/codecov-action@v7
       with:
         files: build/coverage.info, build/target/jacoco-reports/jacoco-ut/jacoco.xml, build/target/jacoco-reports/jacoco-ci/jacoco-ci.xml
