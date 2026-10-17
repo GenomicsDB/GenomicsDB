@@ -59,15 +59,24 @@ jobs:
         # caching maven otherwise fails to find ~/.m2/repository
         cache: ${{ (!startsWith(matrix.os, 'macos') || contains(fromJSON('["main", "develop"]'), github.ref_name) || contains(fromJSON('["main", "develop"]'), github.base_ref)) && 'maven' || '' }}
 
+    # deps/ holds a directory per compiler, which can change with the runner image, so each image gets its own
+    # cache, starting from the previous image's
+    - name: Get the runner image version
+      id: image
+      shell: bash
+      run: echo "version=$ImageVersion" >> $GITHUB_OUTPUT
+
+    # The source and build trees left beside each dependency built in deps/ are most of its size and not needed again
     - name: Cache built prerequisites
       uses: actions/cache@v6
       with:
         path: |
           ${{env.PREREQS_INSTALL_DIR}}
-          ~/awssdk-install
-          ~/gcssdk-install
-          ~/protobuf-install/${{env.PROTOBUF_VERSION}}
-        key: ${{matrix.os}}-cache-prereqs-${{env.PROTOBUF_VERSION}}-v2
+          ${{github.workspace}}/deps
+          !${{github.workspace}}/deps/*/*/*/src
+          !${{github.workspace}}/deps/*/*/*/tmp
+        key: ${{matrix.os}}-cache-prereqs-${{env.PROTOBUF_VERSION}}-v3-${{steps.image.outputs.version}}
+        restore-keys: ${{matrix.os}}-cache-prereqs-${{env.PROTOBUF_VERSION}}-v3-
 
     # Restored and saved separately, so the cache is saved as soon as the installs succeed
     # rather than only when the whole job passes. Paths must match the Save step exactly.
@@ -144,11 +153,9 @@ jobs:
         if [[ ${{matrix.os}} != 'ubuntu-20.04' ]]; then
           NANOARROW_BUILD_ARGS="-DBUILD_NANOARROW=1"
         fi
-        # TileDB builds the cloud SDKs in TILEDB_DEPS_INSTALL_DIR, which the cache keeps in $HOME
         cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=Coverage -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
         -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION         \
-        -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION $JAVA_BUILD_ARGS $HDFS_BUILD_ARGS $NANOARROW_BUILD_ARGS \
-        -DTILEDB_DEPS_INSTALL_DIR=$HOME
+        -DGENOMICSDB_RELEASE_VERSION=$GENOMICSDB_RELEASE_VERSION $JAVA_BUILD_ARGS $HDFS_BUILD_ARGS $NANOARROW_BUILD_ARGS
 
     - name: Build
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
@@ -183,7 +190,7 @@ jobs:
       working-directory: ${{env.GENOMICSDB_BUILD_DIR}}
       run: |
         lcov --directory . --capture --output-file coverage.info
-        lcov --remove coverage.info '/opt*' '/usr*' '*/dependencies/*' '*/src/test*' '*.pb.h' '*.pb.cc' '*/protobuf-install/*' '*/awssdk-install/*' '*/gcssdk-install/*' 'v1/*' '/Library/*' -o coverage.info
+        lcov --remove coverage.info '/opt*' '/usr*' '*/dependencies/*' '*/src/test*' '*.pb.h' '*.pb.cc' '*/deps/*' 'v1/*' '/Library/*' -o coverage.info
 
     - name: Upload Coverage to CodeCov
       uses: codecov/codecov-action@v7
