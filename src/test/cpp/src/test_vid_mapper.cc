@@ -55,3 +55,43 @@ TEST_CASE("callset index that is not an integer or a string is rejected", "[vid_
       {"sample_name": "S0", "row_idx": 1.5, "filename": "a.vcf.gz"}
     ]})", false), Catch::Contains("\"row_idx\" for sample/callset S0 must be an integer"));
 }
+
+TEST_CASE("contig lengths and offsets stored as JSON strings are read as integers", "[vid_mapper_contig_int64_strings]") {
+  //Protobuf JSON, as in the vid mapping GATK writes, stores int64 fields as strings
+  rapidjson::Document json_doc;
+  json_doc.Parse(R"({
+      "fields": [{"name": "PASS", "type": "int"}],
+      "contigs": [
+        {"name": "chr1", "length": "248956422", "tiledb_column_offset": "0"},
+        {"name": "chr14", "length": "107043718", "tiledb_column_offset": "2191407310"}
+      ]})");
+  FileBasedVidMapper vid_mapper(json_doc);
+
+  ContigInfo contig_info;
+  REQUIRE(vid_mapper.get_contig_info("chr14", contig_info));
+  CHECK(contig_info.m_length == 107043718);
+  CHECK(contig_info.m_tiledb_column_offset == 2191407310);
+  int64_t position = -1;
+  REQUIRE(vid_mapper.get_tiledb_position(position, "chr14", 100));
+  CHECK(position == 2191407410);
+  REQUIRE(vid_mapper.get_contig_info("chr1", contig_info));
+  CHECK(contig_info.m_length == 248956422);
+  CHECK(contig_info.m_tiledb_column_offset == 0);
+}
+
+TEST_CASE("contig length string that is not an integer is rejected", "[vid_mapper_contig_non_integer_string]") {
+  rapidjson::Document json_doc;
+  json_doc.Parse(R"({
+      "fields": [{"name": "PASS", "type": "int"}],
+      "contigs": [{"name": "chr1", "length": "248956422bp", "tiledb_column_offset": "0"}]})");
+  CHECK_THROWS_WITH(FileBasedVidMapper(json_doc), Catch::Contains("\"length\" for contig chr1 must be an integer"));
+}
+
+TEST_CASE("contig offset that is not an integer or a string is rejected", "[vid_mapper_contig_non_integer_value]") {
+  rapidjson::Document json_doc;
+  json_doc.Parse(R"({
+      "fields": [{"name": "PASS", "type": "int"}],
+      "contigs": [{"name": "chr1", "length": 248956422, "tiledb_column_offset": [0]}]})");
+  CHECK_THROWS_WITH(FileBasedVidMapper(json_doc),
+                    Catch::Contains("\"tiledb_column_offset\" for contig chr1 must be an integer"));
+}
