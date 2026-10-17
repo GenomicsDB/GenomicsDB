@@ -129,7 +129,7 @@ endif()
 message(STATUS "CMAKE_BUILD_TYPE=" ${CMAKE_BUILD_TYPE})
 
 set(USE_HDFS False CACHE BOOL "Enables HDFS support")
-set(BUILD_FOR_ARCH "" CACHE STRING "Arch for which to build - values passed to -march= option for gcc")
+set(BUILD_FOR_ARCH "" CACHE STRING "Instruction set to compile for, as a -march value, e.g. x86-64-v3")
 
 # The DOWNLOAD_EXTRACT_TIMESTAMP option to the ExternalProject_Add() command is used to explicitly specify
 # how timestamps should be handled. The default behavior is to set the timestamps of extracted contents to
@@ -160,9 +160,10 @@ endif()
 include(CheckIncludeFileCXX)
 include(CheckCXXSymbolExists)
    
-#Optimization flag
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND BUILD_FOR_ARCH)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=${BUILD_FOR_ARCH}")
+#Instruction set for the C and C++ code of GenomicsDB, of TileDB, which is built as a subproject, and of htslib (see
+#Findhtslib.cmake). Empty keeps the compiler's default
+if(BUILD_FOR_ARCH)
+  add_compile_options(-march=${BUILD_FOR_ARCH})
 endif()
 
 if(BUILD_FOR_PYTHON OR BUILD_FOR_GO OR BUILD_FOR_R)
