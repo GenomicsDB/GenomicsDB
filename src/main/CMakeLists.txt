@@ -137,6 +137,17 @@ endif()
 
 set_target_properties(tiledbgenomicsdb PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
 
+if(BUILD_DISTRIBUTABLE_LIBRARY)
+  if(APPLE)
+    set(DISTRIBUTABLE_CHECK_ARGS --macos-minimum ${CMAKE_OSX_DEPLOYMENT_TARGET})
+  elseif(USE_HDFS)
+    #HDFS support runs in the JVM that loads the library, which provides libjvm.so
+    set(DISTRIBUTABLE_CHECK_ARGS --allow libjvm.so)
+  endif()
+  add_test(NAME distributable_library
+    COMMAND ${CMAKE_SOURCE_DIR}/tests/check_distributable_library.sh $<TARGET_FILE:tiledbgenomicsdb> ${DISTRIBUTABLE_CHECK_ARGS})
+endif()
+
 install(TARGETS genomicsdb tiledbgenomicsdb LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
 install(FILES cpp/include/api/genomicsdb.h  cpp/include/api/genomicsdb_exception.h cpp/include/api/genomicsdb_status.h cpp/include/api/genomicsdb_utils.h
         DESTINATION include)
