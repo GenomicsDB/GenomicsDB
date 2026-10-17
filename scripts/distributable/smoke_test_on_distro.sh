@@ -1,5 +1,7 @@
+#!/bin/sh
+
 # The MIT License (MIT)
-# Copyright (c) 2022 Omics Data Automation, Inc.
+# Copyright (c) 2026 Tim Fennell
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -18,19 +20,13 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
-# Description: Docker file to generate GenomicsDB release jar
-
-FROM ghcr.io/genomicsdb/genomicsdb:centos_6_prereqs_java_17
-ARG GENOMICSDB_RELEASE_VERSION=""
-ARG MAC_DYLIB_PATH=""
-ARG USE_HDFS=""
-
-ENV DOCKER_BUILD=true
-ENV MAC_DYLIB_PATH=${MAC_DYLIB_PATH}
-ENV USE_HDFS=${USE_HDFS}
-ENV GENOMICSDB_RELEASE_VERSION=${GENOMICSDB_RELEASE_VERSION}
-COPY . /build/GenomicsDB/
-COPY libtiledbgenomicsdb.dylib ${MAC_DYLIB_PATH}
-WORKDIR /build/GenomicsDB
-RUN useradd -r -U -m genomicsdb &&\
-    ./scripts/install_genomicsdb.sh genomicsdb /usr/local true java
+# Runs in a plain Linux distribution's image, with a JDK from the host mounted, and loads the jar's native library for
+# this machine in a JVM, which fails if a library it needs is missing.
+#
+# usage: smoke_test_on_distro.sh <JDK directory> <genomicsdb-<version>-allinone-spark.jar>
+set -e
+JDK=$1
+JAR=$2
+. /etc/os-release
+echo "$PRETTY_NAME, $(getconf GNU_LIBC_VERSION)"
+"$JDK/bin/java" -cp "$JAR" "$(dirname "$0")/SmokeLoadNativeLib.java"

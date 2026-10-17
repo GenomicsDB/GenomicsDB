@@ -1,0 +1,184 @@
+# Builds the distributable native library and jars the way releases are (scripts/distributable/build.sh): on Linux
+# x86-64 with GCC and aarch64 with clang in the AlmaLinux 8 toolchain image, and on macOS arm64 for macOS 14 and
+# later. Each build runs the C++ tests and checks what the library depends on; the jars then carry all three
+# libraries and are loaded on several Linux distributions. The release workflow calls it with the release's version.
+name: distributable
+
+on:
+  push:
+    # Pull requests restore the dependencies cached by builds of the branch they target
+    branches: [main, develop]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.rst'
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.rst'
+  workflow_call:
+    inputs:
+      version:
+        description: Version of the jars
+        required: true
+        type: string
+  workflow_dispatch:
+
+# A new push to a pull request cancels the checks still running for its previous push; other runs are never grouped,
+# so each runs to completion
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  VERSION: ${{ inputs.version || 'x.y.z.test' }}
+
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x86_64
+            runner: ubuntu-24.04
+            cc: gcc
+            cxx: g++
+          - platform: linux-aarch64
+            runner: ubuntu-24.04-arm
+            cc: clang
+            cxx: clang++
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build the toolchain image
+        uses: docker/build-push-action@v7
+        with:
+          context: scripts/distributable
+          tags: genomicsdb-toolchain
+          load: true
+          cache-from: type=gha,scope=toolchain-${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=toolchain-${{ matrix.platform }}
+
+      # Every dependency built from source (OpenSSL, libcurl, libuuid, protobuf, libdeflate and TileDB's cloud SDKs) is
+      # in a directory of its own version, so a cache restored from an older key is only added to. One built a
+      # different way without a new version is not, so a change to the files saying how starts afresh. The source
+      # and build trees left beside an install are most of its size and not needed again.
+      - name: Cache the dependencies built from source
+        uses: actions/cache@v6
+        with:
+          path: |
+            deps
+            !deps/*/*/*/src
+            !deps/*/*/*/tmp
+            ~/.m2/repository
+          key: distributable-${{ matrix.platform }}-${{ hashFiles('scripts/distributable/Dockerfile', 'cmake/Modules/BuildDistributableDependencies.cmake', 'dependencies/TileDB/cmake/**') }}-${{ hashFiles('CMakeLists.txt', 'cmake/Modules/*.cmake', 'dependencies/TileDB/CMakeLists.txt', 'pom.xml') }}
+          restore-keys: distributable-${{ matrix.platform }}-${{ hashFiles('scripts/distributable/Dockerfile', 'cmake/Modules/BuildDistributableDependencies.cmake', 'dependencies/TileDB/cmake/**') }}-
+
+      - name: Build and test
+        run: |
+          mkdir -p ~/.m2/repository
+          docker run --rm -v "$PWD":/src -v "$HOME/.m2":/root/.m2 -w /src -e CC=${{ matrix.cc }} -e CXX=${{ matrix.cxx }} \
+            genomicsdb-toolchain scripts/distributable/build.sh "$VERSION" -DUSE_HDFS=1
+          sudo chown -R "$(id -u):$(id -g)" . ~/.m2
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.platform }}
+          path: |
+            build/target/genomicsdb-${{ env.VERSION }}.jar
+            build/target/genomicsdb-${{ env.VERSION }}-allinone-spark.jar
+            build/target/genomicsdb-${{ env.VERSION }}-sources.jar
+            build/target/genomicsdb-${{ env.VERSION }}-javadoc.jar
+            build/target/genomicsdb-spark-${{ env.VERSION }}.jar
+            build/pom.xml
+            build/src/main/libtiledbgenomicsdb.so
+
+  macos:
+    runs-on: macos-15
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '14.0'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # htslib's build runs autoreconf
+      - name: Install build tools
+        run: brew install autoconf automake libtool
+
+      - name: Cache the dependencies built from source
+        uses: actions/cache@v6
+        with:
+          path: |
+            deps
+            !deps/*/*/*/src
+            !deps/*/*/*/tmp
+            ~/.m2/repository
+          key: distributable-macos-aarch64-${{ env.MACOSX_DEPLOYMENT_TARGET }}-${{ hashFiles('cmake/Modules/BuildDistributableDependencies.cmake', 'dependencies/TileDB/cmake/**') }}-${{ hashFiles('CMakeLists.txt', 'cmake/Modules/*.cmake', 'dependencies/TileDB/CMakeLists.txt', 'pom.xml') }}
+          restore-keys: distributable-macos-aarch64-${{ env.MACOSX_DEPLOYMENT_TARGET }}-${{ hashFiles('cmake/Modules/BuildDistributableDependencies.cmake', 'dependencies/TileDB/cmake/**') }}-
+
+      - name: Build and test
+        run: scripts/distributable/build.sh "$VERSION"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-aarch64
+          path: build/src/main/libtiledbgenomicsdb.dylib
+
+  jar:
+    needs: [linux, macos]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+
+      - name: Assemble the multi-platform jars
+        run: |
+          scripts/distributable/assemble_jar.sh "$VERSION" artifacts/linux-x86_64/target artifacts/linux-x86_64/pom.xml \
+            artifacts/linux-aarch64/src/main/libtiledbgenomicsdb.so artifacts/macos-aarch64/libtiledbgenomicsdb.dylib out
+          cp artifacts/linux-x86_64/target/genomicsdb-spark-$VERSION.jar out/
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: genomicsdb-jars
+          path: out/*
+
+  distributions:
+    needs: jar
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # Temurin's JDK runs on glibc 2.17 and later, so each distribution's container uses it rather than installing one
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: genomicsdb-jars
+          path: out
+
+      - name: Load the native library on each distribution
+        run: |
+          for image in amazonlinux:2023 ubuntu:22.04 ubuntu:24.04 debian:12 almalinux:8 almalinux:9; do
+            docker run --rm -v "$JAVA_HOME":/jdk:ro -v "$PWD/out":/out:ro -v "$PWD/scripts/distributable":/scripts:ro \
+              "$image" /scripts/smoke_test_on_distro.sh /jdk "/out/genomicsdb-$VERSION-allinone-spark.jar"
+          done

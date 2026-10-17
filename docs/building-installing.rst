@@ -22,7 +22,13 @@ The script *install_prereqs.sh* is meant to work with Docker, but should work on
 
     # Build and install the include/lib/bin files to $HOME
     make && make install
-    
+
+Distributable library
+*******************************
+To build a native library that can be shipped in a jar and loaded on other systems, as the published jars are, configure with ``-DBUILD_DISTRIBUTABLE_LIBRARY=1``. The build then downloads and builds static OpenSSL, and on Linux libcurl and libuuid, in the source tree's *deps/* directory (``GENOMICSDB_DEPS_DIR``) and links them and the C++ runtime into the library, which then needs only glibc and zlib on Linux and only the system's own libraries on macOS. ``ctest -R distributable_library`` checks this.
+
+On Linux, the library needs a glibc at least as new as that of the system it was built on, so build on the oldest Linux it should run on. On macOS, set ``MACOSX_DEPLOYMENT_TARGET`` to the oldest macOS version it should run on, e.g. ``14.0``, in the environment of both the configure and the build, and build for one architecture.
+
 
 Docker
 *******************************

@@ -65,13 +65,14 @@ function(build_htslib arch)
     DOWNLOAD_COMMAND ""
     SOURCE_DIR ${HTSLIB_SOURCE_DIR}
     BINARY_DIR ${HTSLIB_BUILD_PREFIX}${SUFFIX}
+    DEPENDS libdeflate_ep
     UPDATE_COMMAND autoreconf -i ${HTSLIB_SOURCE_DIR}
     PATCH_COMMAND ""
     CONFIGURE_COMMAND ${HTSLIB_ENV} ${HTSLIB_SOURCE_DIR}/configure ${ARCH_HOST_FLAGS}
       CFLAGS=${ARCH_C_FLAGS}
       LDFLAGS=${HTSLIB_${CMAKE_BUILD_TYPE}_LDFLAGS}
       CC=${CMAKE_C_COMPILER} AR=${CMAKE_AR} RANLIB=${CMAKE_RANLIB}
-      --disable-lzma --disable-bz2 --disable-s3 --disable-gcs --without-libdeflate
+      --disable-lzma --disable-bz2 --disable-s3 --disable-gcs --with-libdeflate
     BUILD_COMMAND
       COMMAND ${CMAKE_COMMAND} -E make_directory cram
       COMMAND ${CMAKE_COMMAND} -E copy ${HTSLIB_SOURCE_DIR}/version.sh .
@@ -82,6 +83,7 @@ endfunction()
 
 #Build if htslib source directory specified
 if(HTSLIB_SOURCE_DIR)
+    find_package(libdeflate REQUIRED)
     set(HTSLIB_Debug_CFLAGS " -Wall -fPIC -DDEBUG  -g3 -gdwarf-3 -DVCF_ALLOW_INT64=1")  #will be picked if compiling in debug mode
     if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
       set(HTSLIB_Debug_CFLAGS "${HTSLIB_Debug_CFLAGS} -Wno-expansion-to-defined -Wno-nullability-completeness")
@@ -94,12 +96,16 @@ if(HTSLIB_SOURCE_DIR)
     if(APPLE)
       set(HTSLIB_LDFLAGS " -L /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib")
     endif()
+    set(HTSLIB_LDFLAGS "${HTSLIB_LDFLAGS} -L${LIBDEFLATE_LIB_DIR}")
     set(HTSLIB_Debug_LDFLAGS "-g3 -gdwarf-3 ${HTSLIB_LDFLAGS}")
     set(HTSLIB_Coverage_LDFLAGS "${HTSLIB_Debug_LDFLAGS}")
     set(HTSLIB_Release_LDFLAGS "${HTSLIB_LDFLAGS}")
 
     include(ExternalProject)
-    set(HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS "${HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS} -I${OPENSSL_INCLUDE_DIR} -I${CURL_INCLUDE_DIRS}")
+    set(HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS "${HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS} -I${OPENSSL_INCLUDE_DIR} -I${CURL_INCLUDE_DIRS} -I${LIBDEFLATE_INCLUDE_DIR}")
+    if(BUILD_FOR_ARCH)
+      set(HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS "${HTSLIB_${CMAKE_BUILD_TYPE}_CFLAGS} -march=${BUILD_FOR_ARCH}")
+    endif()
     set(HTSLIB_LIBRARY ${CMAKE_BINARY_DIR}/libhts.a)
 
     if(APPLE)

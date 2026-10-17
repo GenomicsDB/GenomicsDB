@@ -60,23 +60,8 @@ else
   BUILD_FOR_PYTHON=false
 fi
 
-# Autoconf version 2.73 is the highest version supported by yum install on centos 6,
-# and 2.73 does not support m4_esyscmd_s in configure.ac.
-# obviously htslib is not supporting centos 6! so hardcoding something for now.
-repair_htslib() {
-	if [[ -f /etc/centos-release ]]; then
-		if grep -q "release 6" /etc/centos-release; then
-			pushd dependencies/htslib &&
-				VERSION=`./version.sh` &&
-				sed -i s/m4_esyscmd_s\(.*version.*\)/[$VERSION]/g configure.ac &&
-				popd
-		fi
-	fi
-}
-
 build_genomicsdb() {
 	. /etc/profile
-	repair_htslib &&
 	echo "Building GenomicsDB" &&
 	rm -rf build &&
 	mkdir build &&
@@ -88,11 +73,6 @@ build_genomicsdb() {
 	  echo "	$CMAKE .. -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DBUILD_DISTRIBUTABLE_LIBRARY=$BUILD_DISTRIBUTABLE_LIBRARY -DBUILD_JAVA=$BUILD_JAVA -DUSE_HDFS=$USE_HDFS -DBUILD_FOR_PYTHON=$BUILD_FOR_PYTHON" &&
 	  $CMAKE .. -DCMAKE_INSTALL_PREFIX=$GENOMICSDB_INSTALL_DIR -DBUILD_DISTRIBUTABLE_LIBRARY=$BUILD_DISTRIBUTABLE_LIBRARY -DBUILD_JAVA=$BUILD_JAVA -DUSE_HDFS=$USE_HDFS -DBUILD_FOR_PYTHON=$BUILD_FOR_PYTHON && make
 	fi
-	if [[ -f "$MAC_DYLIB_PATH" ]]; then
-	  find . -name "genomicsdb*jar" -exec rm -f {} \;
-	  cp $MAC_DYLIB_PATH target/classes
-	  cp $MAC_DYLIB_PATH src/main
-	fi &&
 	make install &&
 	echo "Building GenomicsDB DONE" &&
 	popd
