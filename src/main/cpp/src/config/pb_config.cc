@@ -43,7 +43,7 @@
 #include "genomicsdb_vid_mapping.pb.h"
 #include "genomicsdb_callsets_mapping.pb.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X);
+#define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X)
 
 void GenomicsDBConfigBase::read_from_PB_binary_string(const std::string& str, const int rank) {
   genomicsdb_pb::ExportConfiguration export_config;

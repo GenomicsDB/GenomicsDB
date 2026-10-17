@@ -24,7 +24,7 @@
 #include "variant_array_schema.h"
 #include "variant_field_data.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw VariantArraySchemaException(#X);
+#define VERIFY_OR_THROW(X) if(!(X)) throw VariantArraySchemaException(#X)
 
 VariantArraySchema::VariantArraySchema(const std::string& array_name,
                                        const std::vector<std::string>& attribute_names,

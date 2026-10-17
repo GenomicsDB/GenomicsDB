@@ -22,7 +22,7 @@
 
 #include "genomicsdb_importer.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBImporterException(#X);
+#define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBImporterException(#X)
 
 void GenomicsDBImporter::add_buffer_stream(
   const std::string& name,

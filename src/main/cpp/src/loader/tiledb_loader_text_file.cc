@@ -31,7 +31,7 @@
 #include "vcf.h"
 #include "variant_field_data.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw LineBasedTextFileException(#X);
+#define VERIFY_OR_THROW(X) if(!(X)) throw LineBasedTextFileException(#X)
 
 std::string g_tmp_scratch_dir = "/tmp";
 

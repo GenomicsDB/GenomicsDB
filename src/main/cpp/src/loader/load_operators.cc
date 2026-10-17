@@ -23,7 +23,7 @@
 
 #include "load_operators.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw LoadOperatorException(#X);
+#define VERIFY_OR_THROW(X) if(!(X)) throw LoadOperatorException(#X)
 #define ONE_GB (1024ull*1024ull*1024ull)
 
 #ifdef DO_MEMORY_PROFILING

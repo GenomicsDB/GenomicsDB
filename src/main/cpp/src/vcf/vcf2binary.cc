@@ -31,7 +31,7 @@
 
 #include <errno.h>
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw VCF2BinaryException(#X);
+#define VERIFY_OR_THROW(X) if(!(X)) throw VCF2BinaryException(#X)
 
 extern bool g_show_import_progress;
 extern int g_progress_interval;

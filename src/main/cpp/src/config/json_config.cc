@@ -35,7 +35,7 @@
 
 #include "genomicsdb_import_config.pb.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X);
+#define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X)
 
 const char* g_json_indent_unit = "    ";
 
