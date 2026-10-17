@@ -58,7 +58,7 @@ jobs:
           ~/awssdk-install
           ~/gcssdk-install
           ~/protobuf-install/${{env.PROTOBUF_VERSION}}
-        key: ubuntu-22.04-cache-prereqs-${{env.PROTOBUF_VERSION}}-v1
+        key: ubuntu-22.04-cache-prereqs-${{env.PROTOBUF_VERSION}}-v2
 
     - name: Install Prerequisites
       shell: bash
@@ -76,7 +76,8 @@ jobs:
         source $PREREQS_ENV
         mkdir -p $GENOMICSDB_BUILD_DIR
         cd $GENOMICSDB_BUILD_DIR
-        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX $GITHUB_WORKSPACE
+        # TileDB builds the cloud SDKs in TILEDB_DEPS_INSTALL_DIR, which the cache keeps in $HOME
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DTILEDB_DEPS_INSTALL_DIR=$HOME $GITHUB_WORKSPACE
         make -j4
         make install
         export VALGRIND="valgrind --leak-check=full --suppressions=$GITHUB_WORKSPACE/src/test/inputs/valgrind_mpi.supp"
