@@ -176,6 +176,22 @@ if(BUILD_FOR_PYTHON OR BUILD_FOR_GO OR BUILD_FOR_R)
   set(BUILD_BINDINGS TRUE)
 endif()
 
+#Link-time optimisation of GenomicsDB and of TileDB, which is built as a subproject, so that GenomicsDB can inline
+#TileDB's per-cell iterator calls. htslib is built by its own build system and is not included. Clang only: GCC 15's
+#LTO stops with an internal compiler error on x86-64. Not for the language bindings, which link the static library,
+#whose objects would then be LTO objects
+set(ENABLE_LTO True CACHE BOOL "Link-time optimisation of GenomicsDB and TileDB in Release builds with clang")
+if(ENABLE_LTO AND CMAKE_BUILD_TYPE STREQUAL "Release" AND NOT BUILD_BINDINGS AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT LTO_SUPPORTED OUTPUT LTO_CHECK_OUTPUT LANGUAGES C CXX)
+  if(LTO_SUPPORTED)
+    message(STATUS "Link-time optimisation enabled")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION True)
+  else()
+    message(WARNING "Building without link-time optimisation, which this toolchain does not support: ${LTO_CHECK_OUTPUT}")
+  endif()
+endif()
+
 if(BUILD_DISTRIBUTABLE_LIBRARY OR BUILD_BINDINGS)
   set(DISABLE_MPI True)
   set(DISABLE_OPENMP True)
