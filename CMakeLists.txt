@@ -81,9 +81,21 @@ option(DISABLE_TOOLS "Disable build of tools")
 
 set(HTSLIB_INSTALL_DIR "" CACHE PATH "Path to htslib install directory")
 
+#Dependencies the build downloads and builds (protobuf, nanoarrow, libdeflate and TileDB's cloud SDKs) go in
+#GENOMICSDB_DEPS_DIR, one directory per compiler and architecture, so build trees share them without mixing toolchains
+set(GENOMICSDB_DEPS_DIR "${CMAKE_SOURCE_DIR}/deps" CACHE PATH "Directory for dependencies built from source")
+if(CMAKE_OSX_ARCHITECTURES)
+  string(REPLACE ";" "-" GENOMICSDB_DEPS_ARCH "${CMAKE_OSX_ARCHITECTURES}")
+else()
+  set(GENOMICSDB_DEPS_ARCH "${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+string(TOLOWER "${CMAKE_CXX_COMPILER_ID}-${CMAKE_CXX_COMPILER_VERSION}-${GENOMICSDB_DEPS_ARCH}" GENOMICSDB_TOOLCHAIN)
+set(GENOMICSDB_TOOLCHAIN_DEPS_DIR "${GENOMICSDB_DEPS_DIR}/${GENOMICSDB_TOOLCHAIN}")
+set(TILEDB_DEPS_INSTALL_DIR "${GENOMICSDB_TOOLCHAIN_DEPS_DIR}" CACHE PATH "Directory TileDB builds its cloud SDKs in")
+
 #Sync the GENOMICSDB_PROTOBUF_VERSION with protobuf.version in pom.xml!
 set(GENOMICSDB_PROTOBUF_VERSION "3.21.7" CACHE STRING "Version of Google Protocol Buffer library")
-set(PROTOBUF_ROOT_DIR "$ENV{HOME}/protobuf-install/${GENOMICSDB_PROTOBUF_VERSION}" CACHE PATH "Path to installed protobuf")
+set(PROTOBUF_ROOT_DIR "${GENOMICSDB_TOOLCHAIN_DEPS_DIR}/protobuf-install/${GENOMICSDB_PROTOBUF_VERSION}" CACHE PATH "Path to installed protobuf")
 set(PROTOBUF_URL "https://github.com/protocolbuffers/protobuf/archive/v${GENOMICSDB_PROTOBUF_VERSION}.zip" CACHE STRING "URL to protobuf github release")
 set(PROTOBUF_REGENERATE True CACHE BOOL "Regenerate protocol buffers C++ files")
 set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf files in build directory")
@@ -92,7 +104,7 @@ set(GENERATE_PROTOBUF_FILES_IN_BUILD_DIR True CACHE BOOL "Generate all protobuf 
 set(GENOMICSDB_LIBDEFLATE_VERSION "1.26" CACHE STRING "Version of libdeflate")
 set(GENOMICSDB_LIBDEFLATE_URL_HASH "SHA256=125856d4656e0feab660f94842f835923410c9281fedbcee64598c918da42b5a"
     CACHE STRING "Hash of the libdeflate download")
-set(LIBDEFLATE_ROOT_DIR "${CMAKE_BINARY_DIR}/libdeflate-install/${GENOMICSDB_LIBDEFLATE_VERSION}" CACHE PATH "Path to installed libdeflate")
+set(LIBDEFLATE_ROOT_DIR "${GENOMICSDB_TOOLCHAIN_DEPS_DIR}/libdeflate-install/${GENOMICSDB_LIBDEFLATE_VERSION}" CACHE PATH "Path to installed libdeflate")
 
 #Handle csv
 option(USE_LIBCSV "Enable library components that import data from csv files")
@@ -102,7 +114,7 @@ set(LIBCSV_DIR "" CACHE PATH "Path to libcsv header and library")
 option(BUILD_NANOARROW "Include nanoarrow into the genomicsdb library")
 if(BUILD_NANOARROW)
   set(NANOARROW_VERSION "0.5.0" CACHE STRING "Version of the nanoarrow release")
-  set(NANOARROW_ROOT_DIR "$ENV{HOME}/nanoarrow-install/${NANOARROW_VERSION}" CACHE PATH "Path to installed nanoarrow")
+  set(NANOARROW_ROOT_DIR "${GENOMICSDB_TOOLCHAIN_DEPS_DIR}/nanoarrow-install/${NANOARROW_VERSION}" CACHE PATH "Path to installed nanoarrow")
   set(NANOARROW_URL "https://github.com/apache/arrow-nanoarrow/archive/refs/tags/apache-arrow-nanoarrow-${NANOARROW_VERSION}.zip")
 endif()
 

@@ -50,15 +50,24 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
+    # deps/ holds a directory per compiler, which can change with the runner image, so each image gets its own
+    # cache, starting from the previous image's
+    - name: Get the runner image version
+      id: image
+      shell: bash
+      run: echo "version=$ImageVersion" >> $GITHUB_OUTPUT
+
+    # The source and build trees left beside each dependency built in deps/ are most of its size and not needed again
     - name: Cache built prerequisites
       uses: actions/cache@v6
       with:
         path: |
           ${{env.PREREQS_INSTALL_DIR}}
-          ~/awssdk-install
-          ~/gcssdk-install
-          ~/protobuf-install/${{env.PROTOBUF_VERSION}}
-        key: ubuntu-22.04-cache-prereqs-${{env.PROTOBUF_VERSION}}-v2
+          ${{github.workspace}}/deps
+          !${{github.workspace}}/deps/*/*/*/src
+          !${{github.workspace}}/deps/*/*/*/tmp
+        key: ubuntu-22.04-cache-prereqs-${{env.PROTOBUF_VERSION}}-v3-${{steps.image.outputs.version}}
+        restore-keys: ubuntu-22.04-cache-prereqs-${{env.PROTOBUF_VERSION}}-v3-
 
     - name: Install Prerequisites
       shell: bash
@@ -76,8 +85,7 @@ jobs:
         source $PREREQS_ENV
         mkdir -p $GENOMICSDB_BUILD_DIR
         cd $GENOMICSDB_BUILD_DIR
-        # TileDB builds the cloud SDKs in TILEDB_DEPS_INSTALL_DIR, which the cache keeps in $HOME
-        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DTILEDB_DEPS_INSTALL_DIR=$HOME $GITHUB_WORKSPACE
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX $GITHUB_WORKSPACE
         make -j4
         make install
         export VALGRIND="valgrind --leak-check=full --suppressions=$GITHUB_WORKSPACE/src/test/inputs/valgrind_mpi.supp"
