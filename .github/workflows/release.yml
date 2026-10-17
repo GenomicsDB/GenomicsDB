@@ -5,93 +5,38 @@ on:
     tags:
       - v*
 
-env:
-  # CMake 4 rejects cmake_minimum_required < 3.5, which protobuf 3.19.4 still declares.
-  CMAKE_POLICY_VERSION_MINIMUM: 3.5
-  PREREQS_ENV: ${{github.workspace}}/prereqs.sh
-  PREREQS_INSTALL_DIR: ${{github.workspace}}/prereqs
-  PROTOBUF_VERSION: 3.19.4
-  CMAKE_INSTALL_PREFIX: ${{github.workspace}}/install
-  GENOMICSDB_BUILD_DIR: ${{github.workspace}}/build
-  BUILD_DISTRIBUTABLE_LIBRARY: true
-
 jobs:
-  build-and-push-mac-dylib:
-    runs-on: macos-15-intel
-    outputs: 
-      tag_message: ${{env.TAG_MESSAGE}}
-    permissions:
-      contents: read
-      packages: write
-
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag_message: ${{ steps.version.outputs.tag_message }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v6
-        with:
-          distribution: 'temurin'
-          java-package: jdk
-          java-version: '17'
-
-      - name: Set version number
-        run: echo VERSION_NUMBER=${GITHUB_REF_NAME:1} >> $GITHUB_ENV
-      
-      - name: Set tag messsage
-        run: | 
+      # A tag v1.6.0 releases version 1.6.0; a tag message containing skip-gatk-it skips GATK's tests
+      - id: version
+        run: |
           git fetch --tags --force
-          echo "TAG_MESSAGE=$(git tag -l --sort=-taggerdate --format='%(contents)' $(git describe --tags $(git branch --show-current) ))" >> $GITHUB_ENV
-        
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          { echo "tag_message<<EOF"; git tag -l --format='%(contents)' "$GITHUB_REF_NAME"; echo "EOF"; } >> "$GITHUB_OUTPUT"
 
-      - name: Install Prerequisites
-        shell: bash
-        working-directory: ${{github.workspace}}/scripts/prereqs
-        run: |
-          echo "Installing Prerequistes for MacOS..."
-          export INSTALL_PREFIX=$PREREQS_INSTALL_DIR
-          BUILD_DISTRIBUTABLE_LIBRARY=true ./install_prereqs.sh
-
-      - name: Build GenomicsDB distributable
-        shell: bash
-        run: |
-          echo "Building GenomicsDB for MacOS..."
-          export INSTALL_PREFIX=$PREREQS_INSTALL_DIR
-          mkdir -p $GENOMICSDB_BUILD_DIR
-          source $PREREQS_ENV
-          cmake $GITHUB_WORKSPACE \
-            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
-            -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR \
-            -DGENOMICSDB_PROTOBUF_VERSION=$PROTOBUF_VERSION \
-            -DGENOMICSDB_RELEASE_VERSION=${VERSION_NUMBER} \
-            -DBUILD_JAVA=1 -DUSE_HDFS=0 -DBUILD_DISTRIBUTABLE_LIBRARY=1
-          make -j4
-          make install
-          cp $CMAKE_INSTALL_PREFIX/lib/libtiledbgenomicsdb.dylib .
-
-      - name: Archive libraries as artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: libtiledbgenomicsdb.dylib.${{ github.ref_name }}
-          path: libtiledbgenomicsdb.dylib
-
-  release-jar:
-    needs: [build-and-push-mac-dylib]
-    uses: ./.github/workflows/release_jar.yml
+  build:
+    needs: version
+    uses: ./.github/workflows/distributable.yml
     with:
-      dylib_artifact: libtiledbgenomicsdb.dylib.${{ github.ref_name }}
+      version: ${{ needs.version.outputs.version }}
 
   test:
-    needs: [build-and-push-mac-dylib, release-jar]
+    needs: [version, build]
     uses: ./.github/workflows/release_test.yml
     with:
-      release_artifact: release.${{ github.ref_name }}
-      tag_message: ${{ needs.build-and-push-mac-dylib.outputs.tag_message }}
+      release_artifact: genomicsdb-jars
+      tag_message: ${{ needs.version.outputs.tag_message }}
 
   publish:
-    needs: [test]
+    needs: test
     uses: ./.github/workflows/release_publish.yml
     with:
-      release_artifact: release.${{ github.ref_name }}
+      release_artifact: genomicsdb-jars
     secrets: inherit
