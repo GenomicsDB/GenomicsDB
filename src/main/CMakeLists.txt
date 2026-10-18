@@ -101,6 +101,9 @@ endif()
 
 #Compile sources with PIC
 add_library(GenomicsDB_library_object_files OBJECT ${GenomicsDB_library_sources})
+#Only the code that reports the version is given it, as it changes with every commit
+set_source_files_properties(cpp/src/api/genomicsdb_utils.cc PROPERTIES
+  COMPILE_DEFINITIONS "GENOMICSDB_VERSION=\"${GENOMICSDB_VERSION}\"")
 if(PROTOBUF_REGENERATE)
     add_dependencies(GenomicsDB_library_object_files PROTOBUF_GENERATED_CXX_TARGET)
 endif()

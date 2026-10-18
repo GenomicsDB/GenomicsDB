@@ -89,7 +89,8 @@ add_executable(api_tests
   src/ctest_main.cc
   src/test_genomicsdb_api.cc)
 target_link_libraries_for_GenomicsDB_tests(api_tests)
-target_compile_definitions(api_tests PRIVATE -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/")
+target_compile_definitions(api_tests PRIVATE -DGENOMICSDB_CTESTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/inputs/"
+                           GENOMICSDB_VERSION="${GENOMICSDB_VERSION}")
 add_test(api_tests api_tests -d yes)
 
 add_custom_command(TARGET api_tests POST_BUILD
