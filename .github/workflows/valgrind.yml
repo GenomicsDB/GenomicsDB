@@ -103,8 +103,8 @@ jobs:
           -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache $GITHUB_WORKSPACE
         # ccache keeps its statistics with the cache, so they are reset to count this build alone
         ccache --zero-stats
-        make -j4
-        make install
+        # One make: htslib re-runs autoreconf on every make, so a second one relinks everything and rebuilds the jars
+        make -j4 install
         ccache --show-stats
         export VALGRIND="valgrind --leak-check=full --suppressions=$GITHUB_WORKSPACE/src/test/inputs/valgrind_mpi.supp"
         cd $GITHUB_WORKSPACE/tests

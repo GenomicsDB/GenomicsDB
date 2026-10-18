@@ -108,8 +108,8 @@ jobs:
         echo "Install prerequisites for Linux DONE"
         source $PREREQS_ENV
         cmake $GITHUB_WORKSPACE -DCMAKE_PREFIX_PATH=$PREREQS_INSTALL_DIR -DBUILD_JAVA=1 -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX
-        make -j4
-        make install
+        # One make: htslib re-runs autoreconf on every make, so a second one relinks everything and rebuilds the jars
+        make -j4 install
         rm -fr dependencies/ src/test/ test/
 
     # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).

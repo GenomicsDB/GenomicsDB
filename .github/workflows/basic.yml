@@ -191,8 +191,8 @@ jobs:
         source $PREREQS_ENV
         # ccache keeps its statistics with the cache, so they are reset to count this build alone
         if command -v ccache > /dev/null; then ccache --zero-stats; fi
-        make -j4
-        make install
+        # One make: htslib re-runs autoreconf on every make, so a second one relinks everything and rebuilds the jars
+        make -j4 install
         if command -v ccache > /dev/null; then ccache --show-stats; fi
 
     - name: Test
