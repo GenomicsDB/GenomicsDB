@@ -118,6 +118,7 @@ install_system_prerequisites() {
     yum install -y -q autoconf automake libtool unzip &&
     yum update -y -q autoconf &&
     yum install -y -q epel-release &&
+    yum install -y -q bcftools &&
     yum install -y zlib-devel &&
     yum install -y -q openssl-devel &&
     install_cmake3 &&
