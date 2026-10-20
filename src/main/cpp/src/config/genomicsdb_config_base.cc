@@ -30,7 +30,7 @@
 
 #include "genomicsdb_logger.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X)
+#define VERIFY_OR_THROW(X) do { if (!(X)) throw GenomicsDBConfigException(#X); } while (0)
 
 std::unordered_map<std::string, bool> GenomicsDBConfigBase::m_vcf_output_format_to_is_bcf_flag =
 std::unordered_map<std::string, bool> { {"b", true}, {"bu",true}, {"z",false}, {"",false} };

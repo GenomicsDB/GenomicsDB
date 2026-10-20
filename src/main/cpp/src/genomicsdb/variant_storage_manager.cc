@@ -33,7 +33,7 @@
 #include <uuid/uuid.h>
 #include "genomicsdb_logger.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw VariantStorageManagerException(#X)
+#define VERIFY_OR_THROW(X) do { if (!(X)) throw VariantStorageManagerException(#X); } while (0)
 #define METADATA_FILE_PREFIX "genomicsdb_meta"
 #define COLUMN_METADATA_FILENAME "genomicsdb_column_bounds.json"
 #define SLASHIFY(path) (path.back()!='/'?path+'/':path)

@@ -26,7 +26,7 @@
 #include "variant_query_config.h"
 #include "gt_remapper.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBIteratorException(#X)
+#define VERIFY_OR_THROW(X) do { if (!(X)) throw GenomicsDBIteratorException(#X); } while (0)
 
 #if defined(DO_PROFILING) && defined(COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW)
 #define COUNT_NUM_CELLS_BETWEEN_TWO_CELLS_FROM_THE_SAME_ROW_HISTOGRAM_BIN_SIZE 1ull

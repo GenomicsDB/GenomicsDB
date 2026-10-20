@@ -28,7 +28,7 @@
 #include "tiledb_loader_text_file.h"
 #include "vid_mapper_pb.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw VCF2TileDBException(#X)
+#define VERIFY_OR_THROW(X) do { if (!(X)) throw VCF2TileDBException(#X); } while (0)
 bool g_show_import_progress = false;
 int g_progress_interval = 5000;
 

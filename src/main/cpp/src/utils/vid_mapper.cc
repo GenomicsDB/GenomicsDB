@@ -117,7 +117,7 @@ std::unordered_map<std::string, int>({
 auto g_FORMAT_suffix = "_FORMAT";
 auto g_tuple_element_suffix = "_tuple_element_";
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw VidMapperException(#X)
+#define VERIFY_OR_THROW(X) do { if (!(X)) throw VidMapperException(#X); } while (0)
 
 bool FileInfo::add_local_tiledb_row_idx_pair(const int64_t local, const int64_t global,
     int64_t& other_row_idx) {
@@ -1132,7 +1132,7 @@ bool FieldInfo::is_VCF_field_combine_operation_sum() const {
 #undef VERIFY_OR_THROW
 #endif
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw FileBasedVidMapperException(#X)
+#define VERIFY_OR_THROW(X) do { if (!(X)) throw FileBasedVidMapperException(#X); } while (0)
 
 FileBasedVidMapper::FileBasedVidMapper(
   const std::string& filename) {

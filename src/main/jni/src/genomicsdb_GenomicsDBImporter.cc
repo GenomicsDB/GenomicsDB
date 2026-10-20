@@ -30,7 +30,7 @@
 #include "genomicsdb_callsets_mapping.pb.h"
 #include "genomicsdb_jni_java_exceptions.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBJNIException(#X)
+#define VERIFY_OR_THROW(X) do { if (!(X)) throw GenomicsDBJNIException(#X); } while (0)
 #define GET_GENOMICSDB_IMPORTER_FROM_HANDLE(X) \
     (reinterpret_cast<GenomicsDBImporter*>(static_cast<std::uintptr_t>(X)))
 

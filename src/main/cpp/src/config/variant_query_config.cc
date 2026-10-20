@@ -26,7 +26,7 @@
 #include "query_variants.h"
 #include "json_config.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBConfigException(#X)
+#define VERIFY_OR_THROW(X) do { if (!(X)) throw GenomicsDBConfigException(#X); } while (0)
 
 using namespace std;
 

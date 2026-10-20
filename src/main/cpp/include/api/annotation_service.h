@@ -46,7 +46,7 @@
 
 #include "genomicsdb_export_config.pb.h"
 
-#define VERIFY2(X, Y) if(!(X)) throw GenomicsDBException(Y)
+#define VERIFY2(X, Y) do { if (!(X)) throw GenomicsDBException(Y); } while (0)
 
 typedef struct annotation_source_t {
   std::string filename;
