@@ -757,12 +757,15 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
   //       samples having haploid in the t0_haploid_triploid_1_2_3_triploid_deletion_java_produce_GT
   //       tests. Does not seem to affect gatk, need to look at this.
   if (m_query_config->produce_GT_field() && GQ_zero_values.size() > 0 && PL_zero_values.size() > 0) {
-    int32_t *GT_arr = NULL, num_GT_arr = 0;
+    int32_t *GT_arr = nullptr, num_GT_arr = 0;
     for (auto i=0ul; i<variant.get_num_calls(); i++) {
       if (GQ_zero_values.find(i) == GQ_zero_values.end() || PL_zero_values.find(i) == PL_zero_values.end()) continue;
       if (!GT_arr && !num_GT_arr) {
         auto ngt = bcf_get_genotypes(m_vcf_hdr, m_bcf_out, &GT_arr, &num_GT_arr);
-        if (ngt <= 0) GT_arr = NULL;
+        if (ngt <= 0) {
+          free(GT_arr);  // sonar-resolve cpp:S1231 "bcf_get_genotypes() allocates GT_arr with malloc"
+          GT_arr = nullptr;
+        }
       }
       if (GT_arr) {
         auto ploidy = num_GT_arr/variant.get_num_calls();
@@ -775,6 +778,7 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
     if (GT_arr && num_GT_arr) {
       bcf_update_genotypes(m_vcf_hdr, m_bcf_out, GT_arr, num_GT_arr);
     }
+    free(GT_arr);  // sonar-resolve cpp:S1231 "bcf_get_genotypes() allocates GT_arr with malloc"
   }
   //Update DP fields
   if (valid_DP_found || valid_DP_FORMAT_found) {
