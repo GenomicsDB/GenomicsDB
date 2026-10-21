@@ -29,7 +29,7 @@
 #include <cstdio>
 #include "genomicsdb_logger.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw ProtoBufBasedVidMapperException(#X);
+#define VERIFY_OR_THROW(X) do { if (!(X)) throw ProtoBufBasedVidMapperException(#X); } while (0)
 
 GenomicsDBProtoBufInitAndCleanup g_genomicsdb_protobuf_init_and_cleanup;
 

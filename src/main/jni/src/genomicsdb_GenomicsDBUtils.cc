@@ -31,7 +31,7 @@
 #include <stdlib.h>
 #include "genomicsdb_jni_java_exceptions.h"
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw GenomicsDBJNIException(#X);
+#define VERIFY_OR_THROW(X) do { if (!(X)) throw GenomicsDBJNIException(#X); } while (0)
 
 JNIEXPORT jstring JNICALL
 Java_org_genomicsdb_GenomicsDBUtilsJni_jniLibraryVersion(JNIEnv *env, jclass cls) {

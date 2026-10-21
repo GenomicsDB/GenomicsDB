@@ -69,7 +69,7 @@
 #define TO_GENOMICSDB_VARIANT_CALL_VECTOR(X) (reinterpret_cast<std::vector<genomicsdb_variant_call_t> *>(static_cast<void *>(X)))
 
 
-#define VERIFY(X) if(!(X)) throw GenomicsDBException(#X);
+#define VERIFY(X) do { if (!(X)) throw GenomicsDBException(#X); } while (0)
 
 void check(const std::string& workspace,
            const uint64_t segment_size) {

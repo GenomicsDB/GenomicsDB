@@ -28,9 +28,9 @@
 #include <cstdio>
 #include <sstream>
 
-#define THROW_EXCEPTION(X) throw SQLBasedVidMapperException(X);
+#define THROW_EXCEPTION(X) throw SQLBasedVidMapperException(X)
 
-#define VERIFY_OR_THROW(X) if(!(X)) throw SQLBasedVidMapperException(#X);
+#define VERIFY_OR_THROW(X) do { if (!(X)) throw SQLBasedVidMapperException(#X); } while (0)
 
 SQLBasedVidMapper::SQLBasedVidMapper(const SQLVidMapperRequest& request) : VidMapper() {
   dbi_initialize_r(NULL, &m_instance);
