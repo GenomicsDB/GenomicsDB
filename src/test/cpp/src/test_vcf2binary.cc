@@ -41,6 +41,20 @@ static std::string write_single_sample_vcf(TempDir& temp_dir) {
   return filename;
 }
 
+//A single-sample VCF whose header IDX values skip 2, which leaves slot 2 of htslib's header dictionary empty
+static std::string write_vcf_with_header_idx_gap(TempDir& temp_dir) {
+  const std::string vcf = "##fileformat=VCFv4.2\n"
+                          "##FILTER=<ID=PASS,Description=\"All filters passed\",IDX=0>\n"
+                          "##contig=<ID=1,length=249250621>\n"
+                          "##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Depth\",IDX=1>\n"
+                          "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\",IDX=3>\n"
+                          "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS0\n"
+                          "1\t100\t.\tA\tC\t.\t.\tDP=5\tGT\t0/1\n";
+  auto filename = temp_dir.append("header_idx_gap.vcf");
+  REQUIRE(TileDBUtils::write_file(filename, vcf.c_str(), vcf.length()) == TILEDB_OK);
+  return filename;
+}
+
 //Creates the VCF2Binary for the file, with its sample at idx_in_file in the callset mapping
 static void create_vcf2binary(const std::string& vcf_filename, const int idx_in_file) {
   FileBasedVidMapper vid_mapper(ctests_input_dir+"vid.json");
@@ -64,4 +78,9 @@ TEST_CASE_METHOD(TempDir, "VCF2Binary rejects a callset mapping to a sample past
   auto vcf_filename = write_single_sample_vcf(*this);
   CHECK_THROWS_WITH(create_vcf2binary(vcf_filename, 1),
                     Catch::Contains("Callset mapping refers to sample index 1 of "+vcf_filename+", which has 1 sample(s)"));
+}
+
+TEST_CASE_METHOD(TempDir, "VCF2Binary accepts a header with an empty dictionary slot", "[vcf2binary_header_idx_gap]") {
+  auto vcf_filename = write_vcf_with_header_idx_gap(*this);
+  CHECK_NOTHROW(create_vcf2binary(vcf_filename, 0));
 }

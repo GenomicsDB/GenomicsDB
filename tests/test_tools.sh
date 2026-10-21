@@ -565,5 +565,15 @@ create_sample_list t2.vcf.gz
 run_command_and_check_results "vcf2genomicsdb_init -w $WORKSPACE -s $SAMPLE_LIST -a" 3 85 24 85 "#48"
 run_consolidation_and_check_results "consolidate_genomicsdb_array -w $WORKSPACE -a $ARRAY -z 1024 -b 2 -p" "#49"
 
+# Test vcfdiff with a gold VCF whose header IDX values skip a number, which leaves an empty slot in htslib's
+# header dictionary. The other VCFs have the same records under a header without IDX values, and one changes a DP.
+run_command "vcfdiff $VCFS_DIR/header_idx_gap.vcf.gz $VCFS_DIR/header_idx_gap.vcf.gz"
+assert_true $(grep -c "ERROR: " $TEMP_DIR/output) 0 "Test #50 vcfdiff of a VCF with a header IDX gap against itself"
+run_command "vcfdiff $VCFS_DIR/header_idx_gap.vcf.gz $VCFS_DIR/header_no_idx_gap.vcf.gz"
+assert_true $(grep -c "ERROR: " $TEMP_DIR/output) 0 "Test #51 vcfdiff of the same records with and without a header IDX gap"
+run_command "vcfdiff $VCFS_DIR/header_idx_gap.vcf.gz $VCFS_DIR/header_no_idx_gap_DP_changed.vcf.gz"
+assert_true $(grep -c "ERROR: Gold and test differ in the INFO field DP" $TEMP_DIR/output) 1 "Test #52 vcfdiff reports the changed DP"
+assert_true $(grep -c "ERROR: " $TEMP_DIR/output) 1 "Test #52 vcfdiff reports only the changed DP"
+
 cleanup
 exit $STATUS
