@@ -212,14 +212,14 @@ def modify_query_column_ranges_for_PB(test_query_dict):
             test_query_dict['query_column_ranges'] = new_query_column_ranges
 
 def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, outfile_string, golden_string):
-    with open(outfilename, "w") as out_fd:
-        out_fd.write(outfile_string.decode('utf-8'))
+    with open(outfilename, "wb") as out_fd:
+        out_fd.write(outfile_string)
     bcf_cmd = bcftools_path+' view -Oz -o '+outfilename+'.gz '+outfilename+' && '+bcftools_path+' index -f -t '+outfilename+'.gz'
     success,bcf_stdout,stderr_string = run_cmd(bcf_cmd, False, 'Call to bcftools failed ')
     if(not success):
         return True
 
-    with open(outfilename_golden, "w") as out_golden_fd:
+    with open(outfilename_golden, "wb") as out_golden_fd:
         out_golden_fd.write(golden_string)
     bcf_cmd = bcftools_path+' view -Oz -o '+outfilename_golden+'.gz '+outfilename_golden+' && '+bcftools_path+' index -f -t '+outfilename_golden+'.gz'
     success,bcf_stdout,stderr_string = run_cmd(bcf_cmd, False, 'Call to bcftools failed ')
@@ -235,7 +235,7 @@ def bcftools_compare(bcftools_path, exe_path, outfilename, outfilename_golden, o
         return False
     else:
         sys.stderr.write('vcfdiff check failed. Cmd: '+vcfdiff_cmd+'\n')
-        sys.stderr.write('Returned: '+vcfdiff_stdout+'\n')
+        sys.stderr.write('Returned: '+vcfdiff_stdout.decode('utf-8')+'\n')
         return True
 
 def create_json_file(tmpdir, test_name, query_type, test_dict):

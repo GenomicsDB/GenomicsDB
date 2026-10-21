@@ -150,6 +150,7 @@ install_system_prerequisites() {
        git \
        libcsv-dev \
        zstd \
+       bcftools \
        sudo &&
     apt-get update -q &&
     install_gcc &&
