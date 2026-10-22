@@ -140,24 +140,35 @@ void VariantOperations::merge_alt_alleles(const Variant& variant,
   //Get VariantQueryConfig
   //assert(variant.get_query_config());
   //const VariantQueryConfig& query_config = *(variant.get_query_config());
+  const auto REF_query_idx = query_config.get_query_idx_for_known_field_enum(GVCF_REF_IDX);
+  const auto ALT_query_idx = query_config.get_query_idx_for_known_field_enum(GVCF_ALT_IDX);
   //Iterate over valid calls
   for (auto valid_calls_iter=variant.begin(); valid_calls_iter != variant.end(); ++valid_calls_iter) {
     const auto& curr_valid_call = *valid_calls_iter;
     //Not always in sequence, as invalid calls are skipped
     auto curr_call_idx_in_variant = valid_calls_iter.get_call_idx_in_variant();
-    const auto& curr_reference =
-      get_known_field<VariantFieldString, true>(curr_valid_call, query_config, GVCF_REF_IDX)->get();
+    const auto* ALT_field_ptr = curr_valid_call.get_field<VariantFieldALTData>(ALT_query_idx);
+    assert(ALT_field_ptr);
+    const auto& curr_allele_vector = ALT_field_ptr->get();
+    //mapping for reference allele 0 -> 0
+    alleles_LUT.add_input_merged_idx_pair(curr_call_idx_in_variant, 0, 0);
+    //Most calls are reference blocks, whose only ALT allele is <NON_REF>: they add no allele to the merged
+    //alleles, so their REF is not needed
+    if (curr_allele_vector.size() == 1u && IS_NON_REF_ALLELE(curr_allele_vector[0u])) {
+      input_non_reference_allele_idx[curr_call_idx_in_variant] = 1;
+      NON_REF_exists = true;
+      continue;
+    }
+    const auto* REF_field_ptr = curr_valid_call.get_field<VariantFieldString>(REF_query_idx);
+    assert(REF_field_ptr);
+    const auto& curr_reference = REF_field_ptr->get();
     const auto& curr_reference_length = curr_reference.length();
-    const auto& curr_allele_vector =
-      get_known_field<VariantFieldALTData, true>(curr_valid_call, query_config, GVCF_ALT_IDX)->get();
     auto is_suffix_needed = false;
     auto suffix_length = 0u;
     if (curr_reference_length < merged_reference_length) {
       is_suffix_needed = true;
       suffix_length = merged_reference_length - curr_reference_length;
     }
-    //mapping for reference allele 0 -> 0
-    alleles_LUT.add_input_merged_idx_pair(curr_call_idx_in_variant, 0, 0);
     auto input_allele_idx = 1u;	//why 1, ref is index 0, alt begins at 1
     //copy of allele if needed
     std::string copy_allele;
@@ -196,16 +207,27 @@ void VariantOperations::merge_alt_alleles(const Variant& variant,
     auto non_reference_allele_idx = merged_alt_alleles.size(); //why not -1, include reference allele also
     //always check whether LUT is big enough for alleles_LUT (since the #alleles in the merged variant is unknown)
     alleles_LUT.resize_luts_if_needed(non_reference_allele_idx + 1);
-    //Add mappings for non_ref allele
-    //Iterate over valid calls
-    for (auto valid_calls_iter=variant.begin(); valid_calls_iter != variant.end(); ++valid_calls_iter) {
-      //Not always in sequence, as invalid calls are skipped
-      auto curr_call_idx_in_variant = valid_calls_iter.get_call_idx_in_variant();
-      if (input_non_reference_allele_idx[curr_call_idx_in_variant] >= 0)
-        alleles_LUT.add_input_merged_idx_pair(curr_call_idx_in_variant, input_non_reference_allele_idx[curr_call_idx_in_variant],
-                                              non_reference_allele_idx);
-    }
+    //Add mappings for non_ref allele. Only valid calls have an entry, so the calls need not be walked again
+    for (auto call_idx=0ULL; call_idx<input_non_reference_allele_idx.size(); ++call_idx)
+      if (input_non_reference_allele_idx[call_idx] >= 0)
+        alleles_LUT.add_input_merged_idx_pair(call_idx, input_non_reference_allele_idx[call_idx], non_reference_allele_idx);
   }
+}
+
+//True for a GT allele that remap_GT_field() leaves as it is
+static inline bool is_missing_GT_allele(const int allele) {
+  return is_tiledb_missing_value<int>(allele) || allele == -1 || is_bcf_missing_value<int>(allele);
+}
+
+/*
+ * True if every allele of GT, whose alleles are step elements apart, is REF or missing, as in a reference block.
+ * remap_GT_field() leaves such a GT as it is if the LUT maps REF to REF
+ */
+static bool has_only_REF_or_missing_GT_alleles(const std::vector<int>& GT, const unsigned step) {
+  for (auto i=0u; i<GT.size(); i+=step)
+    if (GT[i] != 0 && !is_missing_GT_allele(GT[i]))
+      return false;
+  return true;
 }
 
 /*
@@ -218,7 +240,7 @@ void VariantOperations::remap_GT_field(const std::vector<int>& input_GT, std::ve
   auto should_store_phase_information = length_descriptor.contains_phase_information();
   auto step = should_store_phase_information ? 2u : 1u;
   for (auto i=0u; i<input_GT.size(); i+=step) {
-    if (is_tiledb_missing_value<int>(input_GT[i]) || input_GT[i] == -1 || is_bcf_missing_value<int>(input_GT[i]))
+    if (is_missing_GT_allele(input_GT[i]))
       output_GT[i] = input_GT[i];
     else {
       auto output_allele_idx = alleles_LUT.get_merged_idx_for_input(input_call_idx, input_GT[i]);
@@ -451,7 +473,7 @@ void remap_allele_specific_annotations(
   const uint64_t input_call_idx,
   const CombineAllelesLUT& alleles_LUT,
   const unsigned num_merged_alleles, const bool NON_REF_exists, const unsigned ploidy,
-  const FieldInfo& vid_field_info) {
+  const FieldInfo& vid_field_info, std::vector<uint64_t>& offsets_vec) {
   auto& length_descriptor = vid_field_info.m_length_descriptor;
   GenomicsDBMultiDVectorIdx orig_field_index(&(orig_field_data[0u]),
       &vid_field_info, 0u);
@@ -466,7 +488,9 @@ void remap_allele_specific_annotations(
       alleles_LUT.get_input_idx_for_merged(input_call_idx, merged_non_reference_allele_idx) : lut_missing_value;
   //Loop over alleles - only ALT or all alleles (BCF_VL_A or BCF_VL_R)
   unsigned length = alt_alleles_only ? num_merged_alleles-1u: num_merged_alleles;
-  std::vector<uint64_t> offsets_vec(length+1u); //+1 since #offsets == #entries +1
+  //+1 since #offsets == #entries +1; the loop writes each later offset before reading it
+  offsets_vec.resize(length+1u);
+  offsets_vec[0u] = 0u;
   for (auto j=0u; j<length; ++j) {
     auto allele_j = alt_alleles_only ?  j+1u : j;
     auto input_j_allele = alleles_LUT.get_input_idx_for_merged(input_call_idx, allele_j);
@@ -492,14 +516,14 @@ void remap_allele_specific_annotations(
     } else
       offsets_vec[j+1u] = offsets_vec[j]; //0 bytes
   }
-  //Put size in the first 8 bytes
-  *(reinterpret_cast<uint64_t*>(&(remapped_field_data[0u]))) = offsets_vec.back();
-  //Write out #entries and offsets
+  //Every byte of the resized buffer is written, so its previous contents and size don't matter
   remapped_field_data.resize(
     sizeof(uint64_t) //8-byte size
     + offsets_vec.back() //size of data
     + sizeof(uint64_t) //#entries
     + offsets_vec.size()*sizeof(uint64_t)); //offsets
+  //Put size in the first 8 bytes
+  *(reinterpret_cast<uint64_t*>(&(remapped_field_data[0u]))) = offsets_vec.back();
   //Write #entries
   *(reinterpret_cast<uint64_t*>(&(remapped_field_data[sizeof(uint64_t)+offsets_vec.back()]))) = length;
   //Write offsets
@@ -514,18 +538,20 @@ void remap_allele_specific_annotations(
   const uint64_t input_call_idx,
   const CombineAllelesLUT& alleles_LUT,
   const unsigned num_merged_alleles, const bool NON_REF_exists, const unsigned ploidy,
-  const VariantQueryConfig& query_config, const unsigned query_field_idx) {
+  const VariantQueryConfig& query_config, const unsigned query_field_idx,
+  std::vector<uint64_t>& offsets_vec) {
   auto& length_descriptor = query_config.get_length_descriptor_for_query_attribute_idx(query_field_idx);
   assert(length_descriptor.get_num_dimensions() == 2u);
   assert((dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(orig_field.get())));
   assert((dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(remapped_field.get())));
-  auto& orig_field_data = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(orig_field.get())->get();
-  auto& remapped_field_data = dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(remapped_field.get())->get();
+  const auto& orig_field_data = static_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(orig_field.get())->get();
+  auto& remapped_field_data = static_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(remapped_field.get())->get();
   remap_allele_specific_annotations(orig_field_data, remapped_field_data,
                                     input_call_idx,
                                     alleles_LUT,
                                     num_merged_alleles, NON_REF_exists, ploidy,
-                                    *(query_config.get_field_info_for_query_attribute_idx(query_field_idx)));
+                                    *(query_config.get_field_info_for_query_attribute_idx(query_field_idx)),
+                                    offsets_vec);
 }
 
 bool GA4GHOperator::check_if_too_many_alleles_and_print_message(
@@ -562,7 +588,19 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
     const FieldLengthDescriptor& length_descriptor) {
   auto& orig_call = variant.get_call(curr_call_idx_in_variant);
   auto& orig_field = orig_call.get_field(query_field_idx);
-  copy_field(remapped_field, orig_field);
+  //Most calls, e.g. reference blocks, have no AD or PL. Their remapped field is invalidated rather than copied, so it
+  //may keep data from an earlier record: every reader of a field checks that it is valid before reading its data. A
+  //remapped field that doesn't exist yet is still created by copy_field() below, so that it is never left null
+  if (!(orig_field.get() && orig_field->is_valid()) && remapped_field.get()) {
+    remapped_field->set_valid(false);
+    return false;
+  }
+  const auto is_multi_d_field = length_descriptor.get_num_dimensions() > 1u;
+  //remap_allele_specific_annotations() rewrites all the data of a valid multi-D field, so copy only its metadata
+  if (is_multi_d_field && remapped_field.get())
+    remapped_field->VariantFieldBase::copy_from(orig_field.get());
+  else
+    copy_field(remapped_field, orig_field);
   const unsigned num_merged_alleles = m_merged_alt_alleles.size()+1u;        //+1 for REF allele
   if (remapped_field.get() && remapped_field->is_valid()) {   //Not null
     auto curr_ploidy = m_ploidy[curr_call_idx_in_variant];
@@ -605,12 +643,11 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
 
     const auto vid_field_info = query_config.get_field_info_for_query_attribute_idx(query_field_idx);
     auto remap_missing_with_non_ref = vid_field_info->remap_missing_with_non_ref();
-    //Multi-D field
-    if (query_config.get_length_descriptor_for_query_attribute_idx(query_field_idx).get_num_dimensions() > 1u)
+    if (is_multi_d_field)
       remap_allele_specific_annotations(orig_field, remapped_field,
 	  curr_call_idx_in_variant,
 	  m_alleles_LUT, num_merged_alleles, m_NON_REF_exists && remap_missing_with_non_ref, curr_ploidy,
-	  query_config, query_field_idx);
+	  query_config, query_field_idx, m_allele_specific_offsets);
     else {
       unsigned num_merged_elements =
 	length_descriptor.get_num_elements(num_merged_alleles-1u, curr_ploidy, 0u);  //#alt alleles, current ploidy
@@ -622,7 +659,7 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
       handler->remap_vector_data(
 	  orig_field, curr_call_idx_in_variant,
 	  m_alleles_LUT, num_merged_alleles, m_NON_REF_exists && remap_missing_with_non_ref, curr_ploidy,
-	  query_config.get_length_descriptor_for_query_attribute_idx(query_field_idx), num_merged_elements, remapper_variant);
+	  length_descriptor, num_merged_elements, remapper_variant);
     }
     return true;
   }
@@ -641,7 +678,10 @@ void GA4GHOperator::operate(Variant& variant) {
   if (m_remapping_needed) {
     //if GT field is queried
     if (m_GT_query_idx != UNDEFINED_ATTRIBUTE_IDX_VALUE) {
-      auto GT_length_descriptor = query_config.get_length_descriptor_for_query_attribute_idx(m_GT_query_idx);
+      const auto& GT_length_descriptor = query_config.get_length_descriptor_for_query_attribute_idx(m_GT_query_idx);
+      const auto GT_step = GT_length_descriptor.get_ploidy_step_value();
+      const auto remap_missing_with_non_ref =
+        query_config.get_field_info_for_query_attribute_idx(m_GT_query_idx)->remap_missing_with_non_ref();
       //Valid calls
       for (auto iter=m_remapped_variant.begin(); iter!=m_remapped_variant.end(); ++iter) {
         auto& remapped_call = *iter;
@@ -651,21 +691,23 @@ void GA4GHOperator::operate(Variant& variant) {
         auto& orig_field = variant.get_call(curr_call_idx_in_variant).get_field(m_GT_query_idx);
         copy_field(remapped_field, orig_field);
         if (remapped_field.get() && remapped_field->is_valid()) {   //Not null
-          auto& input_GT =
-            variant.get_call(curr_call_idx_in_variant).get_field<VariantFieldPrimitiveVectorData<int>>(m_GT_query_idx)->get();
-          auto& output_GT =
-            remapped_call.get_field<VariantFieldPrimitiveVectorData<int>>(m_GT_query_idx)->get();
-          const auto vid_field_info = query_config.get_field_info_for_query_attribute_idx(m_GT_query_idx);
-          auto remap_missing_with_non_ref = vid_field_info->remap_missing_with_non_ref();
-          VariantOperations::remap_GT_field(input_GT, output_GT, m_alleles_LUT, curr_call_idx_in_variant,
-                                            num_merged_alleles, m_NON_REF_exists && remap_missing_with_non_ref,
-                                            GT_length_descriptor);
+          assert(dynamic_cast<const VariantFieldPrimitiveVectorData<int>*>(orig_field.get()));
+          const auto& input_GT = static_cast<const VariantFieldPrimitiveVectorData<int>*>(orig_field.get())->get();
+          //merge_alt_alleles() maps REF to REF in every call, so the copy is already the remapped GT of a call
+          //with only REF and missing alleles. Most calls are reference blocks, e.g. 0/0
+          if (!has_only_REF_or_missing_GT_alleles(input_GT, GT_step)) {
+            assert(dynamic_cast<VariantFieldPrimitiveVectorData<int>*>(remapped_field.get()));
+            auto& output_GT = static_cast<VariantFieldPrimitiveVectorData<int>*>(remapped_field.get())->get();
+            VariantOperations::remap_GT_field(input_GT, output_GT, m_alleles_LUT, curr_call_idx_in_variant,
+                                              num_merged_alleles, m_NON_REF_exists && remap_missing_with_non_ref,
+                                              GT_length_descriptor);
+          }
           m_ploidy[curr_call_idx_in_variant] = GT_length_descriptor.get_ploidy(input_GT.size());
         }
       }
     }
     for (auto query_field_idx : m_remapped_fields_query_idxs) {
-      auto length_descriptor = query_config.get_length_descriptor_for_query_attribute_idx(query_field_idx);
+      const auto& length_descriptor = query_config.get_length_descriptor_for_query_attribute_idx(query_field_idx);
       const auto vid_field_info = query_config.get_field_info_for_query_attribute_idx(query_field_idx);
       //field length depends on #alleles
       assert(length_descriptor.is_length_allele_dependent());

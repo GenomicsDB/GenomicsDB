@@ -114,9 +114,10 @@ TEST_CASE("multid_vector 2D_test", "[2D_test]")
     ///A is ignored since length descriptor is BCF_VL_A (ALT alleles only)
     initialize_LUT_reordered(tmp_lut);
     std::vector<uint8_t> reordered_data;
+    std::vector<uint64_t> offsets_vec;
     remap_allele_specific_annotations(two_d_vector.get_rw_data(0u), reordered_data,
         0u, tmp_lut, 4u, true, 2u,
-        field_info);
+        field_info, offsets_vec);
     //Size of dim 0 in first 8 bytes
     auto dim_0_data_size = *(reinterpret_cast<const uint64_t*>(&(reordered_data[0u])));
     CHECK((total_size[0u]

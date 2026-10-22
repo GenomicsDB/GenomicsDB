@@ -159,9 +159,7 @@ class KnownFieldInfo {
     case BCF_VL_Phased_Ploidy:
       return ((num_elements+1u) >> 1u); //Eg. 0/1 becomes [0,0,1], 0|2/1 becomes [0,1,2,0,1]
     default:
-      throw KnownFieldInfoException(std::string("Unknown length descriptor for GT field ")
-                                    + std::to_string(length_descriptor));
-      return 0u;
+      throw_unknown_GT_length_descriptor(length_descriptor);
     }
   }
   /*
@@ -195,6 +193,9 @@ class KnownFieldInfo {
    * INFO field combine operation
    */
   static int get_VCF_field_combine_operation_for_known_field_enum(unsigned known_field_enum);
+ private:
+  //Out of line, so that get_ploidy(), called for every call of every record, can be inlined
+  [[noreturn]] static void throw_unknown_GT_length_descriptor(const unsigned length_descriptor);
 };
 /*
  * Vector that stores information about the known fields - length, Factory methods etc
