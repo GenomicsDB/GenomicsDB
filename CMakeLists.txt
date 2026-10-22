@@ -649,18 +649,12 @@ if(BUILD_JAVA)
         INCLUDE_JARS ${GENOMICSDB_MAVEN_BUILD_DIR}/genomicsdb-${GENOMICSDB_RELEASE_VERSION}-allinone-spark.jar
         OUTPUT_DIR ${GENOMICSDB_MAVEN_BUILD_DIR})
 
-    #Deploy to Maven central
+    #Install the jar in the local Maven repository
     #Cannot specify the jars in the DEPENDS clause. CMake manual specifies, quoting:
     #"Do not list the output in more than one independent target that may build in parallel or
     #the two instances of the rule may conflict"
     #Jars are already listed as dependencies in the add_jar command (-examples)
     #So, use the examples target as a dependency for this target
-    add_custom_target(mvn_central_deploy
-      COMMAND mvn ${MAVEN_ARGS} deploy
-        COMMENT "Deploy to Maven central"
-    )
-    add_dependencies(mvn_central_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
-
     add_custom_target(mvn_local_deploy
             COMMAND mvn install:install-file -Dfile=target/genomicsdb-${GENOMICSDB_RELEASE_VERSION}.jar -DpomFile=pom.xml)
     add_dependencies(mvn_local_deploy genomicsdb-${GENOMICSDB_RELEASE_VERSION}-examples)
