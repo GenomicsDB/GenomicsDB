@@ -209,13 +209,14 @@ class LUTBase {
   //Most records have few alleles, so each row is written in at most a few columns. Filling this many entries compiles
   //to a few stores, where filling a variable number compiles to a call to memset per row
   static constexpr int64_t m_FIXED_RESET_WIDTH = 8;
-  inline void reset_written_region(std::vector<std::vector<int64_t>>& lut, int64_t& written_rows, int64_t& written_cols) {
+  static inline void reset_written_region(std::vector<std::vector<int64_t>>& lut, int64_t& written_rows,
+                                          int64_t& written_cols) {
     //Entries past written_cols are already missing, so a row at least m_FIXED_RESET_WIDTH wide can be filled that far.
     //Narrower rows and wider regions are filled in a separate loop, so the compiler can't merge both fills into a
     //call to memset
     auto fill_written_cols = written_cols > m_FIXED_RESET_WIDTH;
     if (!fill_written_cols)
-      for (auto i=0ll; i<written_rows; ++i) {
+      for (auto i=0LL; i<written_rows; ++i) {
         auto& vec = lut[i];
         if (static_cast<int64_t>(vec.size()) >= m_FIXED_RESET_WIDTH)
           std::fill_n(vec.begin(), m_FIXED_RESET_WIDTH, lut_missing_value);
@@ -223,7 +224,7 @@ class LUTBase {
           fill_written_cols = true;
       }
     if (fill_written_cols)
-      for (auto i=0ll; i<written_rows; ++i) {
+      for (auto i=0LL; i<written_rows; ++i) {
         auto& vec = lut[i];
         std::fill(vec.begin(), vec.begin()+std::min<int64_t>(written_cols, vec.size()), lut_missing_value);
       }
@@ -272,8 +273,8 @@ class LUTBase {
    * @param columnIdx column
    * @param value value to write at lut[row][column]
    */
-  inline void set_lut_value(std::vector<std::vector<int64_t>>& lut, int64_t rowIdx, int64_t columnIdx, int64_t value,
-                            int64_t& written_rows, int64_t& written_cols) {
+  static inline void set_lut_value(std::vector<std::vector<int64_t>>& lut, int64_t rowIdx, int64_t columnIdx,
+                                   int64_t value, int64_t& written_rows, int64_t& written_cols) {
     assert(rowIdx >= 0);
     assert(rowIdx < static_cast<int64_t>(lut.size()));
     assert(columnIdx >= 0);
