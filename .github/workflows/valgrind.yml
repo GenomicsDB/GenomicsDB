@@ -36,6 +36,12 @@ on:
       - '**/*.md'
       - '**/*.rst'
 
+# A new push to a pull request cancels the checks still running for its previous push; pushes to branches are
+# never grouped, so each runs to completion
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 env:
   PREREQS_ENV: ${{github.workspace}}/prereqs.sh
   PREREQS_INSTALL_DIR: ${{github.workspace}}/prereqs
@@ -50,15 +56,32 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
+    # deps/ holds a directory per compiler, which can change with the runner image, so each image gets its own
+    # cache, starting from the previous image's
+    - name: Get the runner image version
+      id: image
+      shell: bash
+      run: echo "version=$ImageVersion" >> $GITHUB_OUTPUT
+
+    # The source and build trees left beside each dependency built in deps/ are most of its size and not needed again
     - name: Cache built prerequisites
       uses: actions/cache@v6
       with:
         path: |
           ${{env.PREREQS_INSTALL_DIR}}
-          ~/awssdk-install
-          ~/gcssdk-install
-          ~/protobuf-install/${{env.PROTOBUF_VERSION}}
-        key: ubuntu-22.04-cache-prereqs-${{env.PROTOBUF_VERSION}}-v2
+          ${{github.workspace}}/deps
+          !${{github.workspace}}/deps/*/*/*/src
+          !${{github.workspace}}/deps/*/*/*/tmp
+        key: ubuntu-22.04-cache-prereqs-${{env.PROTOBUF_VERSION}}-v3-${{steps.image.outputs.version}}
+        restore-keys: ubuntu-22.04-cache-prereqs-${{env.PROTOBUF_VERSION}}-v3-
+
+    # Each run saves its compiler output, which the next run restores, so unchanged sources aren't compiled again
+    - name: Cache compiler output
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/ccache
+        key: ccache-valgrind-${{github.run_id}}
+        restore-keys: ccache-valgrind-
 
     - name: Install Prerequisites
       shell: bash
@@ -68,7 +91,7 @@ jobs:
         sudo INSTALL_PREFIX=$PREREQS_INSTALL_DIR PREREQS_ENV=$PREREQS_ENV ./install_prereqs.sh
         source $PREREQS_ENV
         sudo apt-get update -q
-        sudo apt-get -y install valgrind
+        sudo apt-get -y install valgrind ccache
 
     - name: Run valgrind
       shell: bash
@@ -76,10 +99,13 @@ jobs:
         source $PREREQS_ENV
         mkdir -p $GENOMICSDB_BUILD_DIR
         cd $GENOMICSDB_BUILD_DIR
-        # TileDB builds the cloud SDKs in TILEDB_DEPS_INSTALL_DIR, which the cache keeps in $HOME
-        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX -DTILEDB_DEPS_INSTALL_DIR=$HOME $GITHUB_WORKSPACE
-        make -j4
-        make install
+        cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$CMAKE_INSTALL_PREFIX \
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache $GITHUB_WORKSPACE
+        # ccache keeps its statistics with the cache, so they are reset to count this build alone
+        ccache --zero-stats
+        # One make: htslib re-runs autoreconf on every make, so a second one relinks everything and rebuilds the jars
+        make -j4 install
+        ccache --show-stats
         export VALGRIND="valgrind --leak-check=full --suppressions=$GITHUB_WORKSPACE/src/test/inputs/valgrind_mpi.supp"
         cd $GITHUB_WORKSPACE/tests
         ./test_tools.sh inputs/vcfs $CMAKE_INSTALL_PREFIX
