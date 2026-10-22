@@ -795,7 +795,7 @@ bool VariantFieldHandler<DataType, CombineResultType>::collect_and_extend_fields
   auto valid_idx = 0u;
   //Record where each valid field's data is, and the most elements in any field, so that extending the fields reads
   //neither the calls nor their fields again
-  for (auto call_idx=0ull; call_idx<num_calls; ++call_idx) {
+  for (auto call_idx=0ULL; call_idx<num_calls; ++call_idx) {
     auto& call_field_data = m_call_field_data[call_idx];
     call_field_data = { nullptr, 0u };
     const auto& curr_call = variant.get_call(call_idx);

@@ -208,7 +208,7 @@ void VariantOperations::merge_alt_alleles(const Variant& variant,
     //always check whether LUT is big enough for alleles_LUT (since the #alleles in the merged variant is unknown)
     alleles_LUT.resize_luts_if_needed(non_reference_allele_idx + 1);
     //Add mappings for non_ref allele. Only valid calls have an entry, so the calls need not be walked again
-    for (auto call_idx=0ull; call_idx<input_non_reference_allele_idx.size(); ++call_idx)
+    for (auto call_idx=0ULL; call_idx<input_non_reference_allele_idx.size(); ++call_idx)
       if (input_non_reference_allele_idx[call_idx] >= 0)
         alleles_LUT.add_input_merged_idx_pair(call_idx, input_non_reference_allele_idx[call_idx], non_reference_allele_idx);
   }
@@ -544,7 +544,7 @@ void remap_allele_specific_annotations(
   assert(length_descriptor.get_num_dimensions() == 2u);
   assert((dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(orig_field.get())));
   assert((dynamic_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(remapped_field.get())));
-  auto& orig_field_data = static_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(orig_field.get())->get();
+  const auto& orig_field_data = static_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(orig_field.get())->get();
   auto& remapped_field_data = static_cast<VariantFieldPrimitiveVectorData<uint8_t, unsigned>*>(remapped_field.get())->get();
   remap_allele_specific_annotations(orig_field_data, remapped_field_data,
                                     input_call_idx,

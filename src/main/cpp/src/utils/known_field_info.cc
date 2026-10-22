@@ -123,8 +123,7 @@ unsigned KnownFieldInfo::get_num_elements_for_known_field_enum(unsigned known_fi
 }
 
 void KnownFieldInfo::throw_unknown_GT_length_descriptor(const unsigned length_descriptor) {
-  throw KnownFieldInfoException(std::string("Unknown length descriptor for GT field ")
-                                + std::to_string(length_descriptor));
+  throw KnownFieldInfoException(logger.format("Unknown length descriptor for GT field {}", length_descriptor));
 }
 
 uint64_t KnownFieldInfo::get_number_of_genotypes(const unsigned num_ALT_alleles, const unsigned ploidy) {
