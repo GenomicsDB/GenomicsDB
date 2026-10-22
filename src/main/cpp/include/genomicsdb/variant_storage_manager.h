@@ -97,6 +97,9 @@ class VariantArrayCellIterator {
     return *this;
   }
   const BufferVariantCell& operator*();
+  //True if the current cell is the copy of a call that TileDB stores at the call's END column. Reads only the
+  //co-ordinates and END, so a forward scan can skip such cells before operator* fetches every attribute
+  bool is_END_copy(const unsigned END_query_idx) const;
   //Set new interval to query
   void reset_subarray(const int64_t* coords) {
     assert(m_tiledb_array_iterator);
