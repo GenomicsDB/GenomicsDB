@@ -142,6 +142,17 @@
   <build>
     <directory>${genomicsdb_build_directory}</directory>
     <testSourceDirectory>${test_source_directory}</testSourceDirectory>
+    <resources>
+      <!-- The licences of GenomicsDB and of the software compiled into its native libraries -->
+      <resource>
+        <directory>${genomicsdb_source_directory}</directory>
+        <targetPath>META-INF</targetPath>
+        <includes>
+          <include>LICENSE</include>
+          <include>THIRD-PARTY-NOTICES.txt</include>
+        </includes>
+      </resource>
+    </resources>
     <pluginManagement>
       <plugins>
         <plugin>
