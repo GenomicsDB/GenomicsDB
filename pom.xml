@@ -43,18 +43,6 @@
     <url>https://github.com/GenomicsDB/GenomicsDB.git</url>
   </scm>
 
-  <!-- Distribution management section to push jars to Maven central-->
-  <distributionManagement>
-    <snapshotRepository>
-      <id>ossrh</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </snapshotRepository>
-    <repository>
-      <id>ossrh</id>
-      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-    </repository>
-  </distributionManagement>
-
   <properties>
     <java.version>17</java.version>
     <scala.main>2.12</scala.main>
@@ -154,6 +142,17 @@
   <build>
     <directory>${genomicsdb_build_directory}</directory>
     <testSourceDirectory>${test_source_directory}</testSourceDirectory>
+    <resources>
+      <!-- The licences of GenomicsDB and of the software compiled into its native libraries -->
+      <resource>
+        <directory>${genomicsdb_source_directory}</directory>
+        <targetPath>META-INF</targetPath>
+        <includes>
+          <include>LICENSE</include>
+          <include>THIRD-PARTY-NOTICES.txt</include>
+        </includes>
+      </resource>
+    </resources>
     <pluginManagement>
       <plugins>
         <plugin>
@@ -379,17 +378,6 @@
             </goals>
           </execution>
         </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.sonatype.plugins</groupId>
-        <artifactId>nexus-staging-maven-plugin</artifactId>
-        <version>1.6.13</version>
-        <extensions>true</extensions>
-        <configuration>
-          <serverId>ossrh</serverId>
-          <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-          <autoReleaseAfterClose>true</autoReleaseAfterClose>
-        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

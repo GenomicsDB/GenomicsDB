@@ -92,6 +92,9 @@ jobs:
   publish:
     needs: [test]
     uses: ./.github/workflows/release_publish.yml
+    # To add the all-in-one jar to the tag's GitHub release
+    permissions:
+      contents: write
     with:
       release_artifact: release.${{ github.ref_name }}
     secrets: inherit
