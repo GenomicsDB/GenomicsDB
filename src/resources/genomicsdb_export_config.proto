@@ -145,4 +145,18 @@ message ExportConfiguration {
   optional SparkConfig spark_config = 30;
   repeated AnnotationSource annotation_source = 31;
   optional uint32 annotation_buffer_size = 32 [default = 10240];
+  // Skip combining intervals where every active call is a reference block (single-base REF, ALT
+  // only <NON_REF>), so they produce no output records. For consumers that discard non-variant
+  // sites: the output is no longer a complete gVCF. Conservative - an interval with any other
+  // active call is still combined, even if the merged record has ALT only <NON_REF>. Applies to
+  // queries that scan and combine intervals (e.g. the combined VCF/BCF stream), not the columnar
+  // or GA4GH iterators.
+  optional bool skip_reference_only_intervals = 33 [default = false];
+  // Drop combined records whose merged ALT alleles are all * or <NON_REF>, i.e. records whose only
+  // non-reference evidence is a deletion that starts upstream. GATK's GenotypeGVCFs and GnarlyGenotyper
+  // drop these records when only variant sites are emitted, so they need not be combined. Unlike
+  // skip_reference_only_intervals the check is on the merged alleles, so it also drops records with
+  // ALT only <NON_REF> that the reference-only check keeps. Applies to the same queries as
+  // skip_reference_only_intervals.
+  optional bool skip_spanning_deletion_only_intervals = 34 [default = false];
 }

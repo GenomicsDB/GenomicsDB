@@ -215,6 +215,8 @@ class LoaderCombinedGVCFOperator : public LoaderOperatorBase {
   int64_t m_next_start_position;
   //Deletions
   uint64_t m_num_calls_with_deletions;
+  //Calls in m_end_pq that are not reference blocks
+  uint64_t m_num_non_reference_block_calls;
   //Profiling stat
   GTProfileStats m_stats;
   GTProfileStats* m_stats_ptr;

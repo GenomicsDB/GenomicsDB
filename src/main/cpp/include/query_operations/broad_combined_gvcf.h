@@ -84,6 +84,8 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   void handle_INFO_fields(const Variant& variant);
   void handle_FORMAT_fields(const Variant& variant);
   void handle_deletions(Variant& variant);
+  //True if every merged ALT allele is * or <NON_REF>, i.e. the record has no allele that GATK genotypes
+  bool merged_alt_alleles_are_only_spanning_deletion_or_NON_REF() const;
   void merge_ID_field(const Variant& variant, const unsigned query_idx);
   /*
    * Find the GT combination that corresponds to min PL value and update
@@ -139,6 +141,9 @@ class BroadCombinedGVCFOperator : public GA4GHOperator {
   std::vector<int> m_MIN_DP_vector;
   //DP_FORMAT values
   std::vector<int> m_DP_FORMAT_vector;
+  //Per-sample GQ==0 and PL[0]==0 flags for the current record - reused to avoid per-record allocations
+  std::vector<bool> m_GQ_is_zero;
+  std::vector<bool> m_PL0_is_zero;
   //Used for handling deletions - remapping PL/AD where a deletion is replaced with *
   CombineAllelesLUT m_reduced_alleles_LUT;
   //vector of field pointers used for handling remapped fields when dealing with spanning deletions

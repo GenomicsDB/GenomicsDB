@@ -632,6 +632,10 @@ bool GA4GHOperator::remap_if_needed(const Variant& variant,
 void GA4GHOperator::operate(Variant& variant) {
   //Compute merged REF and ALT
   SingleVariantOperatorBase::operate(variant);
+  remap_to_merged_alleles(variant);
+}
+
+void GA4GHOperator::remap_to_merged_alleles(Variant& variant) {
   //Copy variant to m_remapped_variant - only simple elements, not all fields
   m_remapped_variant.deep_copy_simple_members(variant);
   //Setup code for re-ordering PL/AD etc field elements in m_remapped_variant

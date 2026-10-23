@@ -446,7 +446,15 @@ public class GenomicsDBInput<T extends GenomicsDBInputInterface> {
             break;
           case "enable_shared_posixfs_optimizations":
             exportConfigurationBuilder.setEnableSharedPosixfsOptimizations(
-                val.toString().equals("true")); 
+                val.toString().equals("true"));
+            break;
+          case "skip_reference_only_intervals":
+            exportConfigurationBuilder.setSkipReferenceOnlyIntervals(
+                val.toString().equals("true"));
+            break;
+          case "skip_spanning_deletion_only_intervals":
+            exportConfigurationBuilder.setSkipSpanningDeletionOnlyIntervals(
+                val.toString().equals("true"));
             break;
           case "produce_FILTER_field":
             exportConfigurationBuilder.setProduceFILTERField(
