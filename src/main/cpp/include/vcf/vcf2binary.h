@@ -108,7 +108,7 @@ class VCFReader : public FileReaderBase, public VCFReaderBase {
   /*
    * read_buffer_size: read buffer size in bytes for the file, replacing htslib's default; 0 keeps the default
    */
-  VCFReader(const int read_buffer_size);
+  explicit VCFReader(const int read_buffer_size);
   //Delete move and copy constructors
   VCFReader(const VCFReader& other) = delete;
   VCFReader& operator=(const VCFReader& other) = delete;
@@ -170,7 +170,6 @@ class VCFColumnPartition : public File2TileDBBinaryColumnPartitionBase {
     m_local_contig_idx = -1;
     m_contig_position = -1;
     m_contig_tiledb_column_offset = -1;
-    m_vcf_reader_ptr = 0;
     //If prefetch is enabled, allocate buffer per field, else single buffer
     //Add 1 buffer for END field
     m_vcf_get_buffer_vec.emplace_back(prefetch_fields ? num_INFO_fields+1u : 1u);
@@ -207,7 +206,7 @@ class VCFColumnPartition : public File2TileDBBinaryColumnPartitionBase {
   int64_t m_contig_tiledb_column_offset;
   //m_base_reader_ptr as a VCFReaderBase, set by VCF2Binary::initialize_column_partitions() - converting from the
   //virtual base class GenomicsDBImportReaderBase needs a dynamic_cast, too slow to repeat for every record
-  VCFReaderBase* m_vcf_reader_ptr;
+  VCFReaderBase* m_vcf_reader_ptr = nullptr;
   //Buffers for obtaining data from htslib
   //Outer vector of size 2 - INFO, FORMAT - if prefetch enabled, else size 1
   //Inner vector depends on #INFO and FORMAT fields imported if prefetch enabled, else size 1

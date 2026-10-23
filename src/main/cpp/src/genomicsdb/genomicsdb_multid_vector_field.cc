@@ -240,14 +240,14 @@ void GenomicsDBMultiDVectorFieldParseScratch::reset(const unsigned num_elements_
     m_dim_offsets_vec.resize(num_elements_in_tuple);
   if (m_dim_write_begin_offsets_vec.size() < num_elements_in_tuple)
     m_dim_write_begin_offsets_vec.resize(num_elements_in_tuple);
-  m_num_elements_in_innermost_dim_read_vec.assign(num_elements_in_tuple, 0ull);
+  m_num_elements_in_innermost_dim_read_vec.assign(num_elements_in_tuple, 0ULL);
   for (auto tuple_element_idx=0u; tuple_element_idx<num_elements_in_tuple; ++tuple_element_idx) {
-    m_dim_sizes_vec[tuple_element_idx].assign(num_dimensions, 0ull);
+    m_dim_sizes_vec[tuple_element_idx].assign(num_dimensions, 0ULL);
     //Each dimension begins with offset 0
     auto& dim_offsets = m_dim_offsets_vec[tuple_element_idx];
     dim_offsets.resize(num_dimensions);
     for (auto& offsets : dim_offsets)
-      offsets.assign(1u, 0ull);
+      offsets.assign(1u, 0ULL);
     //The first dimension begins writing at offset 0
     //A 64-bit uint64_t is allocated for each dimension's size
     auto& dim_write_begin_offsets = m_dim_write_begin_offsets_vec[tuple_element_idx];
@@ -285,7 +285,7 @@ void GenomicsDBMultiDVectorField::parse_and_store_numeric(
   auto current_element_begin_read_idx = 0ull; //r stands for read
   auto current_element_length = 0ull;
   auto max_num_elements_in_innermost_dim = 0ull;
-  total_size_of_multi_d_data_vec.assign(num_elements_in_tuple, 0ull);
+  total_size_of_multi_d_data_vec.assign(num_elements_in_tuple, 0ULL);
   //Idx of entry inside a tuple
   auto curr_element_idx_in_tuple_parsed = 0ull;
   //Whether there is at least one valid element in the tuple

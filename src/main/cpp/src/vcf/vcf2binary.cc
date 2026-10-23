@@ -102,8 +102,7 @@ void VCFBufferReader::read_and_advance() {
 
 //VCFReader functions
 VCFReader::VCFReader(const int read_buffer_size)
-  : GenomicsDBImportReaderBase(true), FileReaderBase(), VCFReaderBase(true) {
-  m_read_buffer_size = read_buffer_size;
+  : GenomicsDBImportReaderBase(true), FileReaderBase(), VCFReaderBase(true), m_read_buffer_size(read_buffer_size) {
   m_indexed_reader = 0;
   m_fptr = 0;
   m_vcf_file_buffer.l = 0;
@@ -251,12 +250,11 @@ VCFColumnPartition::VCFGetBufferWrapper::VCFGetBufferWrapper(VCFColumnPartition:
 
 //Move constructor
 VCFColumnPartition::VCFColumnPartition(VCFColumnPartition&& other)
-  : File2TileDBBinaryColumnPartitionBase(std::move(other)) {
+  : File2TileDBBinaryColumnPartitionBase(std::move(other)), m_vcf_reader_ptr(other.m_vcf_reader_ptr) {
   m_local_contig_idx = other.m_local_contig_idx;
   m_contig_position = other.m_contig_position;
   m_contig_tiledb_column_offset = other.m_contig_tiledb_column_offset;
-  m_vcf_reader_ptr = other.m_vcf_reader_ptr;
-  other.m_vcf_reader_ptr = 0;
+  other.m_vcf_reader_ptr = nullptr;
   m_vcf_get_buffer_vec = std::move(other.m_vcf_get_buffer_vec);
   m_multi_d_vector_parse_scratch = std::move(other.m_multi_d_vector_parse_scratch);
   m_is_INFO_field_in_record = std::move(other.m_is_INFO_field_in_record);
@@ -300,7 +298,8 @@ VCF2Binary::VCF2Binary(const std::string& vcf_filename, const std::vector<std::v
   : File2TileDBBinaryBase(vcf_filename, file_idx, vid_mapper,
                           max_size_per_callset,
                           treat_deletions_as_intervals,
-                          parallel_partitions, noupdates, close_file) {
+                          parallel_partitions, noupdates, close_file),
+    m_vcf_read_buffer_size(vcf_read_buffer_size) {
   clear();
   m_vcf_fields = &vcf_fields;
   m_discard_missing_GTs = false;
@@ -309,7 +308,6 @@ VCF2Binary::VCF2Binary(const std::string& vcf_filename, const std::vector<std::v
   m_discard_index = discard_index;
   m_import_ID_field = false;
   m_close_file = close_file || discard_index;   //close file if index has to be discarded
-  m_vcf_read_buffer_size = vcf_read_buffer_size;
   m_vcf_buffer_reader_buffer_size = 0;
   m_vcf_buffer_reader_is_bcf = false;
   m_vcf_buffer_reader_init_buffer = 0;
@@ -330,7 +328,8 @@ VCF2Binary::VCF2Binary(const std::string& stream_name, const std::vector<std::ve
                           vid_mapper,
                           max_size_per_callset,
                           treat_deletions_as_intervals,
-                          true, true, false) { //must use parallel partitions for buffered reader
+                          true, true, false), //must use parallel partitions for buffered reader
+    m_vcf_read_buffer_size(0) {  //irrelevant for buffered readers
   clear();
   m_vcf_fields = &vcf_fields;
   m_discard_missing_GTs = false;
@@ -338,7 +337,6 @@ VCF2Binary::VCF2Binary(const std::string& stream_name, const std::vector<std::ve
   m_discard_current_record = false;
   //The next parameters are irrelevant for buffered readers
   m_discard_index = false;
-  m_vcf_read_buffer_size = 0;
   m_import_ID_field = false;
   //VCFBufferReader relevant params
   m_vcf_buffer_reader_buffer_size = vcf_buffer_reader_buffer_size;
@@ -350,18 +348,17 @@ VCF2Binary::VCF2Binary(const std::string& stream_name, const std::vector<std::ve
 
 //Move constructor
 VCF2Binary::VCF2Binary(VCF2Binary&& other)
-  : File2TileDBBinaryBase(std::move(other)) {
+  : File2TileDBBinaryBase(std::move(other)), m_vcf_read_buffer_size(other.m_vcf_read_buffer_size),
+    m_END_hdr_field_idx(other.m_END_hdr_field_idx) {
   m_vcf_fields = other.m_vcf_fields;
   m_discard_index = other.m_discard_index;
   m_import_ID_field = other.m_import_ID_field;
   m_discard_missing_GTs = other.m_discard_missing_GTs;
   m_prefetch_all_VCF_fields_in_record = other.m_prefetch_all_VCF_fields_in_record;
-  m_vcf_read_buffer_size = other.m_vcf_read_buffer_size;
   m_discard_current_record = other.m_discard_current_record;
   m_local_contig_idx_to_global_contig_idx = std::move(other.m_local_contig_idx_to_global_contig_idx);
   m_local_field_idx_to_global_field_idx = std::move(other.m_local_field_idx_to_global_field_idx);
   m_field_import_info = std::move(other.m_field_import_info);
-  m_END_hdr_field_idx = other.m_END_hdr_field_idx;
   m_vcf_buffer_reader_buffer_size = other.m_vcf_buffer_reader_buffer_size;
   m_vcf_buffer_reader_is_bcf = other.m_vcf_buffer_reader_is_bcf;
   //Not useful, but copying to be safe
@@ -592,8 +589,8 @@ bool VCF2Binary::convert_record_to_binary(std::vector<uint8_t>& buffer, File2Til
                                             field_name, field_type_idx, field_ht_type);
           break;
         default: //FIXME: handle other types
-          throw VCF2BinaryException(std::string("Unhandled VCF data type ")
-                                    +std::to_string(bcf_hdr_id2type(hdr, BCF_DT_ID, field_import_info.m_hdr_field_idx)));
+          throw VCF2BinaryException(logger.format("Unhandled VCF data type {}",
+                                                  bcf_hdr_id2type(hdr, BCF_DT_ID, field_import_info.m_hdr_field_idx)));
           break;
         }
       }
@@ -1135,8 +1132,8 @@ bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer,
         if (buffer_full) return true;
         break;
       default: //FIXME: handle other types
-        throw VCF2BinaryException(std::string("Unhandled VCF data type ")
-                                  +std::to_string(bcf_hdr_id2type(hdr, BCF_DT_ID, field_import_info.m_hdr_field_idx)));
+        throw VCF2BinaryException(logger.format("Unhandled VCF data type {}",
+                                                bcf_hdr_id2type(hdr, BCF_DT_ID, field_import_info.m_hdr_field_idx)));
         break;
       }
     }
