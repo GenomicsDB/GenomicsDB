@@ -63,6 +63,25 @@ class GenomicsDBMultiDVectorFieldParseDivideUpAndStoreOperator : public Genomics
 };
 
 /*
+ * Bookkeeping for GenomicsDBMultiDVectorField::parse_and_store_numeric(). Callers that parse many fields keep one
+ * and pass it to every call, so that the calls reuse its memory instead of allocating their own
+ */
+struct GenomicsDBMultiDVectorFieldParseScratch {
+  /*
+   * Sets up the bookkeeping for a field with num_elements_in_tuple tuple elements and num_dimensions dimensions
+   */
+  void reset(const unsigned num_elements_in_tuple, const unsigned num_dimensions);
+  //Per tuple element: #bytes for curr data in dim i
+  std::vector<std::vector<uint64_t>> m_dim_sizes_vec;
+  //Per tuple element: offsets for the data in each dim F[0] offset, F[1] offset etc
+  std::vector<std::vector<std::vector<uint64_t>>> m_dim_offsets_vec;
+  //Per tuple element: the current offset in buffer at which the data for dim i should be written
+  std::vector<std::vector<uint64_t>> m_dim_write_begin_offsets_vec;
+  //Per tuple element: #elements read in the innermost dimension
+  std::vector<uint64_t> m_num_elements_in_innermost_dim_read_vec;
+};
+
+/*
  * Class that holds the binary encoded multiD vector field
  * The internal representation is stored in TileDB and is used for compute operations
  * However, having a class hides the implementation details from clients
@@ -110,7 +129,13 @@ class GenomicsDBMultiDVectorField {
    * and store into m_rw_field_data
    */
   std::vector<uint64_t> parse_and_store_numeric(const char* str, const size_t str_length);
-  static std::vector<uint64_t> parse_and_store_numeric(std::vector<std::vector<uint8_t>>& buffer_vec,
+  /*
+   * Parse a delimited string representation of the multi-D vector into buffer_vec, one buffer per tuple element.
+   * total_size_of_multi_d_data_vec receives the #bytes written to each buffer
+   */
+  static void parse_and_store_numeric(std::vector<std::vector<uint8_t>>& buffer_vec,
+      std::vector<uint64_t>& total_size_of_multi_d_data_vec,
+      GenomicsDBMultiDVectorFieldParseScratch& scratch,
       const FieldInfo& field_info,
       const char* str, const size_t str_length,
       const GenomicsDBMultiDVectorFieldParseAndStoreOperator& op=GenomicsDBMultiDVectorFieldParseAndStoreOperator());

@@ -192,6 +192,7 @@ void GenomicsDBImportConfig::read_from_PB(const genomicsdb_pb::ImportConfigurati
     
   // vcf import options
   if (import_config->has_num_parallel_vcf_files()) m_num_parallel_vcf_files = import_config->num_parallel_vcf_files();
+  if (import_config->has_vcf_read_buffer_size()) m_vcf_read_buffer_size = import_config->vcf_read_buffer_size();
   if (import_config->has_do_ping_pong_buffering()) m_do_ping_pong_buffering = import_config->do_ping_pong_buffering();
   if (import_config->has_offload_vcf_output_processing()) m_offload_vcf_output_processing = import_config->offload_vcf_output_processing();
 
