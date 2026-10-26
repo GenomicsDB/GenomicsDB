@@ -466,7 +466,8 @@ test_bypass_intersecting_intervals_phase() {
   mv -f $TEMP_DIR/output $TEMP_DIR/output.without_bypass
   create_query_json_with_intervals "$1" "\"bypass_intersecting_intervals_phase\": true"
   time_command "gt_mpi_gather -l $WORKSPACE/loader.json -j $QUERY_JSON --print-calls"
-  if [ $DIFF -lt $TIME ]; then
+  # Under valgrind the run times are mostly valgrind's own, so neither run is reliably the faster
+  if [[ -z $VALGRIND && $DIFF -lt $TIME ]]; then
     echo "Bypass intersecting intervals phase took longer than the normal two pass iterator"
     STATUS=1
   fi
