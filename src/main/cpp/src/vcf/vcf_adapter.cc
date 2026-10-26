@@ -45,7 +45,7 @@ void ReferenceGenomeInfo::initialize(const std::string& reference_genome) {
 
 char ReferenceGenomeInfo::get_reference_base_at_position(const char* contig, const int64_t pos) {
   //See if pos is within the last buffer read
-  if (strcmp(m_reference_last_seq_read.c_str(), contig) == 0 && m_reference_last_read_pos <= pos
+  if (m_reference_last_seq_read == contig && m_reference_last_read_pos <= pos
       && pos - m_reference_last_read_pos < static_cast<int64_t>(m_buffer.size()))
     return m_buffer[pos - m_reference_last_read_pos];
   //faidx_seq_len() is -1 for a contig the reference doesn't have
@@ -55,11 +55,11 @@ char ReferenceGenomeInfo::get_reference_base_at_position(const char* contig, con
   hts_pos_t length = 0;
   auto bases = faidx_fetch_seq64(m_reference_faidx, contig, pos, pos+bases_per_read-1, &length);
   if (!bases || length <= 0) {
-    free(bases);
+    free(bases);  // sonar-resolve cpp:S1231 "faidx_fetch_seq64() allocates the bases with malloc"
     throw VCFAdapterException(logger.format("Could not read {}:{} from the reference genome", contig, pos+1));
   }
   m_buffer.assign(bases, bases+length);
-  free(bases);
+  free(bases);  // sonar-resolve cpp:S1231 "faidx_fetch_seq64() allocates the bases with malloc"
   m_reference_last_seq_read = contig;
   m_reference_last_read_pos = pos;
   return m_buffer[0];
