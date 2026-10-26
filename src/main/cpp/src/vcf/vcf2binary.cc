@@ -978,7 +978,7 @@ bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer,
       auto ref_length = strlen(alleles[0]);
       for (auto j=1; j<line->n_allele; ++j) {
         auto vtype = bcf_get_variant_type(line, j);
-        if ((vtype == VCF_INDEL || vtype == VCF_SPANNING_DELETION) && ref_length > strlen(alleles[j])) {
+        if ((vtype == VCF_INDEL || vtype == VCF_OVERLAP) && ref_length > strlen(alleles[j])) {
           end_column_idx = column_idx + ref_length - 1;
           break;
         }
@@ -1007,7 +1007,7 @@ bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer,
     for (auto i=1; i<line->n_allele; ++i) {
       if (i > 1)
         alt_allele_serialized += TILEDB_ALT_ALLELE_SEPARATOR;
-      alt_allele_serialized += (bcf_get_variant_type(line, i) == VCF_NON_REF) ? TILEDB_NON_REF_VARIANT_REPRESENTATION
+      alt_allele_serialized += (strncmp(line->d.allele[i], "<NON_REF>", 9) == 0) ? TILEDB_NON_REF_VARIANT_REPRESENTATION
                                : line->d.allele[i];
     }
     buffer_full = buffer_full || tiledb_buffer_print<const std::string&>(buffer, buffer_offset, buffer_offset_limit, alt_allele_serialized);

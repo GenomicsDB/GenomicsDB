@@ -31,6 +31,25 @@ int64_t g_num_callsets = INT64_MAX;
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCFDiffException(#X);
 
+//0-based position of the last base of a record: END-1 if it has END, else pos+rlen-1
+static hts_pos_t record_end(const bcf_hdr_t* hdr, bcf1_t* line) {
+  bcf_unpack(line, BCF_UN_INFO);
+  auto end = bcf_get_info(hdr, line, "END");
+  return end ? end->v1.i - 1 : line->pos + line->rlen - 1;
+}
+
+//A reference block has a <NON_REF> ALT allele, and every other ALT allele is a reference allele such as <*>
+static bool is_NON_REF_block(bcf1_t* line) {
+  auto has_NON_REF = false;
+  for (auto i=1; i<line->n_allele; ++i) {
+    if (strncmp(line->d.allele[i], "<NON_REF>", 9) == 0)
+      has_NON_REF = true;
+    else if (bcf_get_variant_type(line, i) != VCF_REF)
+      return false;
+  }
+  return has_NON_REF;
+}
+
 template<class DataType>
 void build_gold_gt_idx_to_test_gt_idx(const std::vector<DataType>& input_data,
                                       const uint64_t input_call_idx,
@@ -688,7 +707,7 @@ std::string VCFDiffFile::create_region(const std::string& regions,
     if (pair.second == INT64_MAX) {
       auto contig_idx = bcf_hdr_name2id(m_hdr, contig.c_str());
       VERIFY_OR_THROW(contig_idx >= 0);
-      auto contig_length = bcf_hdr_id2contig_length(m_hdr, contig_idx);
+      auto contig_length = m_hdr->id[BCF_DT_CTG][contig_idx].val->info[0];
       return (quoted_contig + ":" + std::to_string(pair.first) + "-" + std::to_string(contig_length) + ",");
     } else
       return (quoted_contig + ":" + std::to_string(pair.first) + "-" + std::to_string(pair.second) + ",");
@@ -985,23 +1004,17 @@ int main(int argc, char** argv) {
     //Same contig now
     if (have_data && gold.m_line->rid == lut_gold_contig_idx) {
       auto do_compare = true;
-      //Set END points
-      gold.m_line->m_end_point = -1;
-      test.m_line->m_end_point = -1;
-      //Unpacks INFO fields
-      bcf_unpack(gold.m_line, BCF_UN_INFO);
-      bcf_unpack(test.m_line, BCF_UN_INFO);
-      bcf_set_end_point_from_info(gold.m_hdr, gold.m_line);
-      bcf_set_end_point_from_info(test.m_hdr, test.m_line);
+      auto gold_end = record_end(gold.m_hdr, gold.m_line);
+      auto test_end = record_end(test.m_hdr, test.m_line);
       //Variant types
       bcf_get_variant_types(gold.m_line);
       bcf_get_variant_types(test.m_line);
       //NON_REF blocks
-      auto gold_is_NON_REF_block = (gold.m_line->d.var_type == VCF_NON_REF);
-      auto test_is_NON_REF_block = (test.m_line->d.var_type == VCF_NON_REF);
-      auto partial_overlap = ( (gold.m_line->pos <= test.m_line->pos && gold.m_line->m_end_point >= test.m_line->pos)
-                               || (test.m_line->pos <= gold.m_line->pos && test.m_line->m_end_point >= gold.m_line->pos) );
-      auto full_overlap = (gold.m_line->pos == test.m_line->pos && gold.m_line->m_end_point == test.m_line->m_end_point);
+      auto gold_is_NON_REF_block = is_NON_REF_block(gold.m_line);
+      auto test_is_NON_REF_block = is_NON_REF_block(test.m_line);
+      auto partial_overlap = ( (gold.m_line->pos <= test.m_line->pos && gold_end >= test.m_line->pos)
+                               || (test.m_line->pos <= gold.m_line->pos && test_end >= gold.m_line->pos) );
+      auto full_overlap = (gold.m_line->pos == test.m_line->pos && gold_end == test_end);
       //Different positions
       if (!full_overlap) {
         do_compare = false;
@@ -1019,7 +1032,7 @@ int main(int argc, char** argv) {
                 json_config_base.get_column_partition(my_world_mpi_rank).first)
               before_begin = true;
             //Variant past the column interval
-            if ((info.m_tiledb_column_offset + static_cast<int64_t>(gold.m_line->m_end_point)) >
+            if ((info.m_tiledb_column_offset + static_cast<int64_t>(gold_end)) >
                 json_config_base.get_column_partition(my_world_mpi_rank).second)
               after_end = true;
           }
@@ -1046,18 +1059,18 @@ int main(int argc, char** argv) {
             else
               test.seek_and_read(test.m_line->rid, gold.m_line->pos);
           } else {      //partial overlap
-            if (test.m_line->m_end_point > gold.m_line->m_end_point) {
+            if (test_end > gold_end) {
               //test contains deletion and gold contains spanning deletion, advance test
-              if (test.m_line->rlen > 1 && (test.m_line->d.var_type|VCF_INDEL)
-                  && (gold.m_line->d.var_type|VCF_SPANNING_DELETION) && test.m_line->pos <= gold.m_line->pos) {
+              if (test.m_line->rlen > 1 && (test.m_line->d.var_type & VCF_INDEL)
+                  && (gold.m_line->d.var_type & VCF_OVERLAP) && test.m_line->pos <= gold.m_line->pos) {
                 test.read_and_advance();
                 both_must_have_valid_lines = before_begin;      //if !before_begin, then error message is already printed
               } else
                 gold.read_and_advance();
-            } else if (gold.m_line->m_end_point > test.m_line->m_end_point) {
+            } else if (gold_end > test_end) {
               //gold contains deletion and test contains spanning deletion, advance gold
-              if (gold.m_line->rlen > 1 && (gold.m_line->d.var_type|VCF_INDEL)
-                  && (test.m_line->d.var_type|VCF_SPANNING_DELETION) && gold.m_line->pos <= test.m_line->pos) {
+              if (gold.m_line->rlen > 1 && (gold.m_line->d.var_type & VCF_INDEL)
+                  && (test.m_line->d.var_type & VCF_OVERLAP) && gold.m_line->pos <= test.m_line->pos) {
                 gold.read_and_advance();
                 both_must_have_valid_lines = before_begin;      //if !before_begin, then error message is already printed
               } else
@@ -1078,9 +1091,9 @@ int main(int argc, char** argv) {
           both_must_have_valid_lines = true;
         } else { //must be partial_overlap
           assert(partial_overlap);
-          if (test.m_line->m_end_point > gold.m_line->m_end_point)
+          if (test_end > gold_end)
             gold.read_and_advance();
-          else if (gold.m_line->m_end_point > test.m_line->m_end_point)
+          else if (gold_end > test_end)
             test.read_and_advance();
           else {    //equal end points - advance both
             gold.read_and_advance();

@@ -22,7 +22,11 @@
 
 #include <catch2/catch.hpp>
 
+#include "genomicsdb.h"
+#include "htslib/bgzf.h"
+#include "htslib/tbx.h"
 #include "test_base.h"
+#include "tiledb_loader.h"
 #include "tiledb_utils.h"
 #include "vcf2binary.h"
 #include "vid_mapper.h"
@@ -83,4 +87,83 @@ TEST_CASE_METHOD(TempDir, "VCF2Binary rejects a callset mapping to a sample past
 TEST_CASE_METHOD(TempDir, "VCF2Binary accepts a header with an empty dictionary slot", "[vcf2binary_header_idx_gap]") {
   auto vcf_filename = write_vcf_with_header_idx_gap(*this);
   CHECK_NOTHROW(create_vcf2binary(vcf_filename, 0));
+}
+
+//Writes a single-sample gVCF on contig 1 with the given records, bgzipped and indexed as the importer needs it
+static std::string write_indexed_gvcf(TempDir& temp_dir, const std::string& records) {
+  const std::string vcf = "##fileformat=VCFv4.2\n"
+                          "##ALT=<ID=NON_REF,Description=\"Any other allele\">\n"
+                          "##contig=<ID=1,length=249250621>\n"
+                          "##INFO=<ID=END,Number=1,Type=Integer,Description=\"End of the record\">\n"
+                          "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n"
+                          "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS0\n"
+                          + records;
+  auto filename = temp_dir.append("sample.g.vcf.gz");
+  auto bgzf = bgzf_open(filename.c_str(), "w");
+  REQUIRE(bgzf != nullptr);
+  REQUIRE(bgzf_write(bgzf, vcf.c_str(), vcf.length()) == static_cast<ssize_t>(vcf.length()));
+  REQUIRE(bgzf_close(bgzf) == 0);
+  REQUIRE(tbx_index_build(filename.c_str(), 0, &tbx_conf_vcf) == 0);
+  return filename;
+}
+
+//Collects each call as "begin-end ALT", with 1-based positions and ALT as stored, & standing for <NON_REF>
+class CallALTCollector : public GenomicsDBVariantCallProcessor {
+ public:
+  void process(const interval_t& interval) override {}
+  void process(const std::string& sample_name, const int64_t* coordinates, const genomic_interval_t& genomic_interval,
+               const std::vector<genomic_field_t>& genomic_fields) override {
+    for (const auto& field : genomic_fields)
+      if (field.name == "ALT")
+        m_calls.push_back(std::to_string(genomic_interval.interval.first) + "-"
+                          + std::to_string(genomic_interval.interval.second) + " "
+                          + field.str_value());
+  }
+  std::vector<std::string> m_calls;
+};
+
+//Imports a gVCF with the given records into a new workspace, treating deletions as intervals, and returns its calls
+static std::vector<std::string> import_and_query_calls(TempDir& temp_dir, const std::string& records) {
+  auto vcf_filename = write_indexed_gvcf(temp_dir, records);
+  auto callsets = temp_dir.append("callsets.json");
+  const std::string callsets_json = "{\"callsets\": [{\"sample_name\": \"S0\", \"row_idx\": 0, \"idx_in_file\": 0, "
+                                    "\"filename\": \""+vcf_filename+"\"}]}";
+  REQUIRE(TileDBUtils::write_file(callsets, callsets_json.c_str(), callsets_json.length()) == TILEDB_OK);
+  auto workspace = temp_dir.append("ws");
+  REQUIRE(TileDBUtils::create_workspace(workspace, false) == TILEDB_OK);
+  auto loader = temp_dir.append("loader.json");
+  const std::string loader_json = "{\"column_partitions\": [{\"begin\": 0, \"workspace\": \""+workspace+"\", "
+                                  "\"array_name\": \"calls\"}], "
+                                  "\"callset_mapping_file\": \""+callsets+"\", "
+                                  "\"vid_mapping_file\": \""+ctests_input_dir+"vid.json\", "
+                                  "\"size_per_column_partition\": 16384, "
+                                  "\"treat_deletions_as_intervals\": true, "
+                                  "\"delete_and_create_tiledb_array\": true}";
+  REQUIRE(TileDBUtils::write_file(loader, loader_json.c_str(), loader_json.length()) == TILEDB_OK);
+
+  VCF2TileDBLoader(loader, 0).read_all();
+
+  CallALTCollector collector;
+  GenomicsDB(workspace, callsets, ctests_input_dir+"vid.json").query_variant_calls(collector, "calls");
+  return collector.m_calls;
+}
+
+TEST_CASE_METHOD(TempDir, "VCF import stores a <NON_REF> ALT allele as &", "[vcf2binary_alleles]") {
+  CHECK(import_and_query_calls(*this, "1\t100\t.\tA\t<NON_REF>\t.\t.\tEND=110\tGT\t0/0\n")
+        == std::vector<std::string>{"100-110 &"});
+}
+
+TEST_CASE_METHOD(TempDir, "VCF import stores ALT alleles other than <NON_REF> as written", "[vcf2binary_alleles]") {
+  CHECK(import_and_query_calls(*this, "1\t100\t.\tA\tG,<*>,<DEL>,<NON_REF>\t.\t.\t.\tGT\t0/1\n")
+        == std::vector<std::string>{"100-100 G|<*>|<DEL>|&"});
+}
+
+TEST_CASE_METHOD(TempDir, "VCF import ends a deletion without END at the end of its REF", "[vcf2binary_alleles]") {
+  CHECK(import_and_query_calls(*this, "1\t100\t.\tACGT\tA,<NON_REF>\t.\t.\t.\tGT\t0/1\n")
+        == std::vector<std::string>{"100-103 A|&"});
+}
+
+TEST_CASE_METHOD(TempDir, "VCF import ends a spanning deletion without END at the end of its REF", "[vcf2binary_alleles]") {
+  CHECK(import_and_query_calls(*this, "1\t100\t.\tAC\t*,<NON_REF>\t.\t.\t.\tGT\t0/1\n")
+        == std::vector<std::string>{"100-101 *|&"});
 }
