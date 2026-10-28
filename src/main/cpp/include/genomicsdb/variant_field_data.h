@@ -378,15 +378,8 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
   }
   void copy_data_into_vector(const char* buffer, const size_t num_elements) {
     //Whole field is missing: clear and invalidate without copying it. Most fields of reference blocks are missing,
-    //so this check comes first. 0-length fields are invalidated too. buffer needn't be aligned for DataType, so each
-    //element is copied out before it is checked
-    auto all_missing = true;
-    for (auto i=0ull; all_missing && i<num_elements; ++i) {
-      DataType val;
-      memcpy(&val, buffer+i*sizeof(DataType), sizeof(DataType));
-      all_missing = is_tiledb_missing_value<DataType>(val);
-    }
-    if (all_missing) {
+    //so this check comes first. 0-length fields are invalidated too
+    if (all_missing(buffer, num_elements)) {
       set_valid(false);
       m_data.clear();
       return;
@@ -488,6 +481,17 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
     return reinterpret_cast<void*>(&(m_data[offset]));
   }
  private:
+  //buffer needn't be aligned for DataType, so each element is copied out before it is checked
+  static bool all_missing(const char* buffer, const size_t num_elements) {
+    static_assert(std::is_trivially_copyable<DataType>::value, "elements are copied bytewise out of TileDB's buffer");
+    for (size_t i=0; i<num_elements; ++i) {
+      DataType val;
+      memcpy(&val, buffer+i*sizeof(DataType), sizeof(DataType));
+      if (!is_tiledb_missing_value<DataType>(val))
+        return false;
+    }
+    return true;
+  }
   std::vector<DataType> m_data;
 };
 
