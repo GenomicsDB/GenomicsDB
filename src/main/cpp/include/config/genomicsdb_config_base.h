@@ -393,7 +393,7 @@ class GenomicsDBImportConfig : public GenomicsDBConfigBase {
   //#VCF files to open/process in parallel
   int m_num_parallel_vcf_files;
   //Read buffer size in bytes for each VCF file read directly; 0 keeps htslib's default
-  int m_vcf_read_buffer_size = 64*1024;
+  int m_vcf_read_buffer_size = 0;
   int m_num_converter_processes;
   int64_t m_per_partition_size;
   int64_t m_max_size_per_callset;

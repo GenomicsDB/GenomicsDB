@@ -169,7 +169,9 @@ void VCFReader::add_reader() {
     throw VCF2BinaryException(std::string("Could not open file ")+m_name+" : "
                               + bcf_sr_strerror(m_indexed_reader->errnum) + errmsg);
   }
-  //htslib's default read buffer is the filesystem block size, or 32 KiB for cloud URLs
+  //htslib's default read buffer is the filesystem block size, or 32 KiB for cloud URLs. htslib has read the header
+  //by now, so it refuses a size smaller than what it has buffered: it then logs a warning, keeps its buffer and
+  //still returns 0
   if (m_read_buffer_size > 0)
     hts_set_opt(m_indexed_reader->readers[0].file, HTS_OPT_BLOCK_SIZE, m_read_buffer_size);
   assert(m_hdr);

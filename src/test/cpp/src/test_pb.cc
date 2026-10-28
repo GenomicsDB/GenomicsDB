@@ -162,12 +162,17 @@ TEST_CASE("pb_vcf_read_buffer_size_test", "[protobuf_import_config_vcf_read_buff
 
   GenomicsDBImportConfig default_config;
   default_config.read_from_PB(&import_config, 0);
-  CHECK(default_config.get_vcf_read_buffer_size() == 65536);
+  CHECK(default_config.get_vcf_read_buffer_size() == 0);
 
   import_config.set_vcf_read_buffer_size(1048576);
   GenomicsDBImportConfig pb_config;
   pb_config.read_from_PB(&import_config, 0);
   CHECK(pb_config.get_vcf_read_buffer_size() == 1048576);
+
+  import_config.set_vcf_read_buffer_size(-1);
+  GenomicsDBImportConfig negative_config;
+  CHECK_THROWS_WITH(negative_config.read_from_PB(&import_config, 0),
+                    Catch::Contains("vcf_read_buffer_size is -1, but must not be negative"));
 }
 
 TEST_CASE("pb_vid_mapping_test", "[vid_protobuf_config]")

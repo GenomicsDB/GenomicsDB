@@ -196,13 +196,14 @@ TEST_CASE("Compare configuration with json file and string", "[compare_json_type
   CHECK(query_config_from_file.get_vid_mapper().is_callset_mapping_initialized() == query_config_from_str.get_vid_mapper().is_callset_mapping_initialized());
 }
 
-TEST_CASE("Check vcf_read_buffer_size defaults to 64 KiB in json", "[config_vcf_read_buffer_size_default]") {
+TEST_CASE("Check vcf_read_buffer_size defaults to 0 in json", "[config_vcf_read_buffer_size_default]") {
   GenomicsDBImportConfig loader_config;
   loader_config.read_from_file(loader_json);
-  CHECK(loader_config.get_vcf_read_buffer_size() == 65536);
+  CHECK(loader_config.get_vcf_read_buffer_size() == 0);
 }
 
-TEST_CASE_METHOD(TempDir, "Check vcf_read_buffer_size is read from json", "[config_vcf_read_buffer_size]") {
+//Writes the ctests loader JSON with vcf_read_buffer_size added
+static std::string write_loader_json_with_buffer_size(TempDir& temp_dir, const int buffer_size) {
   char *loader_json_buffer=nullptr;
   size_t loader_json_buffer_length;
   REQUIRE(TileDBUtils::read_entire_file(loader_json, (void **)&loader_json_buffer, &loader_json_buffer_length) == TILEDB_OK);
@@ -210,11 +211,20 @@ TEST_CASE_METHOD(TempDir, "Check vcf_read_buffer_size is read from json", "[conf
   free(loader_json_buffer);
   auto open_brace = loader_json_str.find('{');
   REQUIRE(open_brace != std::string::npos);
-  loader_json_str.insert(open_brace+1, "\"vcf_read_buffer_size\": 1048576,");
-  auto loader_json_with_buffer_size = append("loader.json");
+  loader_json_str.insert(open_brace+1, "\"vcf_read_buffer_size\": "+std::to_string(buffer_size)+",");
+  auto loader_json_with_buffer_size = temp_dir.append("loader.json");
   REQUIRE(TileDBUtils::write_file(loader_json_with_buffer_size, loader_json_str.c_str(), loader_json_str.length()) == TILEDB_OK);
+  return loader_json_with_buffer_size;
+}
 
+TEST_CASE_METHOD(TempDir, "Check vcf_read_buffer_size is read from json", "[config_vcf_read_buffer_size]") {
   GenomicsDBImportConfig loader_config;
-  loader_config.read_from_file(loader_json_with_buffer_size);
+  loader_config.read_from_file(write_loader_json_with_buffer_size(*this, 1048576));
   CHECK(loader_config.get_vcf_read_buffer_size() == 1048576);
+}
+
+TEST_CASE_METHOD(TempDir, "Check a negative vcf_read_buffer_size in json is rejected", "[config_vcf_read_buffer_size_negative]") {
+  GenomicsDBImportConfig loader_config;
+  CHECK_THROWS_WITH(loader_config.read_from_file(write_loader_json_with_buffer_size(*this, -1)),
+                    Catch::Contains("vcf_read_buffer_size is -1, but must not be negative"));
 }
