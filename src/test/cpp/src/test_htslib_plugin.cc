@@ -33,6 +33,7 @@
 #include <catch2/catch.hpp>
 
 #include "hfile_genomicsdb.h"
+#include "htslib/hfile.h"
 #include "test_base.h"
 
 #include <fcntl.h>
@@ -65,4 +66,22 @@ TEST_CASE_METHOD(TempDir, "test htslib plugin", "[test_htslib_plugin]") {
   CHECK(genomicsdb_filesystem_read(ctx, filename.c_str(), 6, buffer, 6) == 6);
   CHECK(strcmp(buffer, " World") == 0);
   CHECK(genomicsdb_filesystem_close(ctx, filename.c_str()) == 0);
+}
+
+TEST_CASE("htslib plugin initialization registers the GenomicsDB storage schemes", "[test_htslib_plugin]") {
+  genomicsdb_htslib_plugin_initialize();
+
+  // htslib knows none of these schemes itself, so only the GenomicsDB handler reports them as remote
+  CHECK(hisremote("az://container/file.vcf.gz") == 1);
+  CHECK(hisremote("azb://container/file.vcf.gz") == 1);
+  CHECK(hisremote("gs://bucket/file.vcf.gz") == 1);
+  CHECK(hisremote("s3://bucket/file.vcf.gz") == 1);
+  CHECK(hisremote("hdfs://namenode:8020/file.vcf.gz") == 1);
+}
+
+TEST_CASE("htslib plugin initialization leaves other URLs to htslib", "[test_htslib_plugin]") {
+  genomicsdb_htslib_plugin_initialize();
+
+  CHECK(hisremote("nosuch://bucket/file.vcf.gz") == 0);
+  CHECK(hisremote("/local/file.vcf.gz") == 0);
 }

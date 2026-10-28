@@ -53,11 +53,10 @@ void free_tiledb_ctx_map(tiledb_ctx_map_t *tiledb_ctx_map) {
 std::once_flag initialize_once;
 void genomicsdb_htslib_plugin_initialize() {
   std::call_once(initialize_once, [&](){
-      // Initialize htslib before registering ourselves as a plugin
-      auto htslib_scheme_handler = find_scheme_handler("az://dummy");
-      if (htslib_scheme_handler) {
+      // htslib builds its scheme table the first time it looks up a URL, and ours can only be added once it exists
+      if (hisremote("az://dummy") >= 0) {
         // Register genomicsdb supported schemes
-        hfile_plugin_init(NULL);
+        hfile_plugin_init(nullptr);
       }
     });
 }

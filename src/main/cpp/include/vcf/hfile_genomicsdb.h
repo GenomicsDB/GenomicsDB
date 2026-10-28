@@ -50,8 +50,6 @@ extern "C" {
   
   GENOMICSDB_EXPORT int genomicsdb_filesystem_close(void *fs, const char *filename);
 
-  const struct hFILE_scheme_handler *find_scheme_handler(const char *s);
-
   int hfile_plugin_init(struct hFILE_plugin *self);
 
 #undef GENOMICSDB_EXPORT
