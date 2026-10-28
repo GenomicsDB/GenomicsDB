@@ -48,9 +48,19 @@ char ReferenceGenomeInfo::get_reference_base_at_position(const char* contig, con
   if (m_reference_last_seq_read == contig && m_reference_last_read_pos <= pos
       && pos - m_reference_last_read_pos < static_cast<int64_t>(m_buffer.size()))
     return m_buffer[pos - m_reference_last_read_pos];
-  //faidx_seq_len() is -1 for a contig the reference doesn't have
-  if (pos < 0 || pos >= faidx_seq_len(m_reference_faidx, contig))
+  //faidx_seq_len() is -1 for a contig the reference doesn't have. It returns an int, so it is only right for contigs
+  //shorter than 2^31 bases; faidx_seq_len64() (htslib 1.17+) replaces it when GenomicsDB moves to stock htslib
+  const auto contig_length = faidx_seq_len(m_reference_faidx, contig);
+  //Usually the reference is from another assembly or names contigs differently, so warn once per contig
+  if (contig_length < 0) {
+    logger.warn_once("The reference genome has no contig {}, so REF bases taken from it are N", contig);
     return 'N';
+  }
+  if (pos < 0 || pos >= contig_length) {
+    logger.warn_once("Contig {} has {} bases in the reference genome, so REF bases taken from it outside them are N",
+                     contig, contig_length);
+    return 'N';
+  }
   const hts_pos_t bases_per_read = 32768;
   hts_pos_t length = 0;
   auto bases = faidx_fetch_seq64(m_reference_faidx, contig, pos, pos+bases_per_read-1, &length);

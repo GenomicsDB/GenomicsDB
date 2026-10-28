@@ -73,7 +73,7 @@ class ReferenceGenomeInfo {
   void initialize(const std::string& reference_genome);
   /**
    * Returns the base at 0-based position pos of contig as the reference FASTA has it (case included), or 'N'
-   * if the reference has no such contig or pos is outside it
+   * if the reference has no such contig or pos is outside it, logging a warning the first time for each contig
    */
   char get_reference_base_at_position(const char* contig, const int64_t pos);
  private:
