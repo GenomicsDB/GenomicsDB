@@ -378,10 +378,15 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
   }
   void copy_data_into_vector(const char* buffer, const size_t num_elements) {
     //Whole field is missing: clear and invalidate without copying it. Most fields of reference blocks are missing,
-    //so this check comes first. 0-length fields are invalidated too
-    if (auto data_ptr = reinterpret_cast<const DataType*>(buffer);  // sonar-resolve cpp:S3630 "buffer holds num_elements values of DataType"
-        std::all_of(data_ptr, data_ptr+num_elements,
-                    [](const DataType val) { return is_tiledb_missing_value<DataType>(val); })) {
+    //so this check comes first. 0-length fields are invalidated too. buffer needn't be aligned for DataType, so each
+    //element is copied out before it is checked
+    auto all_missing = true;
+    for (auto i=0ull; all_missing && i<num_elements; ++i) {
+      DataType val;
+      memcpy(&val, buffer+i*sizeof(DataType), sizeof(DataType));
+      all_missing = is_tiledb_missing_value<DataType>(val);
+    }
+    if (all_missing) {
       set_valid(false);
       m_data.clear();
       return;
