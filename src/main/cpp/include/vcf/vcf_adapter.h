@@ -59,7 +59,6 @@ class ReferenceGenomeInfo {
     clear();
     m_reference_faidx = 0;
     m_reference_last_read_pos = -1;
-    m_reference_num_bases_read = 0;
     m_reference_last_seq_read = "";
   }
   void clear() {
@@ -72,11 +71,15 @@ class ReferenceGenomeInfo {
       fai_destroy(m_reference_faidx);
   }
   void initialize(const std::string& reference_genome);
+  /**
+   * Returns the base at 0-based position pos of contig as the reference FASTA has it (case included), or 'N'
+   * if the reference has no such contig or pos is outside it, logging a warning the first time for each contig
+   */
   char get_reference_base_at_position(const char* contig, const int64_t pos);
  private:
-  int m_reference_last_read_pos;
-  int m_reference_num_bases_read;
+  hts_pos_t m_reference_last_read_pos;
   std::string m_reference_last_seq_read;
+  //Bases of m_reference_last_seq_read from m_reference_last_read_pos
   std::vector<char> m_buffer;
   faidx_t* m_reference_faidx;
 };
