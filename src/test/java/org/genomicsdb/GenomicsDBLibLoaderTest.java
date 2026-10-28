@@ -33,6 +33,31 @@ import java.util.Arrays;
 
 public class GenomicsDBLibLoaderTest {
   @Test
+  public void nativeLibraryPlatformNamesLinuxX86AsX86_64() {
+    Assert.assertEquals(GenomicsDBLibLoader.nativeLibraryPlatform("Linux", "amd64"), "linux-x86_64");
+  }
+
+  @Test
+  public void nativeLibraryPlatformNamesLinuxArmAsAarch64() {
+    Assert.assertEquals(GenomicsDBLibLoader.nativeLibraryPlatform("Linux", "aarch64"), "linux-aarch64");
+  }
+
+  @Test
+  public void nativeLibraryPlatformNamesArm64AsAarch64() {
+    Assert.assertEquals(GenomicsDBLibLoader.nativeLibraryPlatform("Linux", "arm64"), "linux-aarch64");
+  }
+
+  @Test
+  public void nativeLibraryPlatformNamesAppleSiliconAsMacosAarch64() {
+    Assert.assertEquals(GenomicsDBLibLoader.nativeLibraryPlatform("Mac OS X", "aarch64"), "macos-aarch64");
+  }
+
+  @Test
+  public void nativeLibraryPlatformNamesIntelMacAsMacosX86_64() {
+    Assert.assertEquals(GenomicsDBLibLoader.nativeLibraryPlatform("Mac OS X", "x86_64"), "macos-x86_64");
+  }
+
+  @Test
   void testGenomicsDBLoader() {
     Assert.assertTrue(GenomicsDBLibLoader.loadLibrary());
   }
@@ -70,9 +95,10 @@ public class GenomicsDBLibLoaderTest {
 
   @Test
   public void testGenomicsDBLibLoaderFromPath() throws Exception {
-    String buildDir = Paths.get("target", "classes").toAbsolutePath().toString();
+    String platform = GenomicsDBLibLoader.nativeLibraryPlatform(System.getProperty("os.name"), System.getProperty("os.arch"));
+    String buildDir = Paths.get("target", "classes", platform).toAbsolutePath().toString();
     if (!new File(buildDir).exists()) {
-      buildDir = Paths.get("build", "target", "classes").toAbsolutePath().toString();
+      buildDir = Paths.get("build", "target", "classes", platform).toAbsolutePath().toString();
     }
     if (new File(buildDir).exists()) {
       Assert.assertEquals(runTestInSeparateProcess(buildDir), 0);

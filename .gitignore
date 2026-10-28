@@ -51,3 +51,5 @@ TAGS
 docs/_build/
 env/*
 docs/doxydocs
+# Dependencies built from source (GENOMICSDB_DEPS_DIR)
+/deps/
