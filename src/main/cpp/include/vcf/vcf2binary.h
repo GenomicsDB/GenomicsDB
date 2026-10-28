@@ -29,6 +29,7 @@
 #include "gt_common.h"
 #include "histogram.h"
 #include "tiledb_loader_file_base.h"
+#include "genomicsdb_multid_vector_field.h"
 
 //Exceptions thrown
 class VCF2BinaryException : public std::exception {
@@ -104,7 +105,10 @@ class VCFBufferReader : public BufferReaderBase, public VCFReaderBase {
 //Capability of using index only during seek to minimize memory consumption
 class VCFReader : public FileReaderBase, public VCFReaderBase {
  public:
-  VCFReader();
+  /*
+   * read_buffer_size: read buffer size in bytes for the file, replacing htslib's default; 0 keeps the default
+   */
+  explicit VCFReader(const int read_buffer_size);
   //Delete move and copy constructors
   VCFReader(const VCFReader& other) = delete;
   VCFReader& operator=(const VCFReader& other) = delete;
@@ -123,6 +127,7 @@ class VCFReader : public FileReaderBase, public VCFReaderBase {
   bcf_srs_t* m_indexed_reader;
   htsFile* m_fptr;
   kstring_t m_vcf_file_buffer;
+  int m_read_buffer_size;
 };
 
 class VCFColumnPartition : public File2TileDBBinaryColumnPartitionBase {
@@ -199,10 +204,19 @@ class VCFColumnPartition : public File2TileDBBinaryColumnPartitionBase {
   int m_local_contig_idx;
   int64_t m_contig_position;  //position in contig (0-based)
   int64_t m_contig_tiledb_column_offset;
+  //m_base_reader_ptr as a VCFReaderBase, set by VCF2Binary::initialize_column_partitions() - converting from the
+  //virtual base class GenomicsDBImportReaderBase needs a dynamic_cast, too slow to repeat for every record
+  VCFReaderBase* m_vcf_reader_ptr = nullptr;
   //Buffers for obtaining data from htslib
   //Outer vector of size 2 - INFO, FORMAT - if prefetch enabled, else size 1
   //Inner vector depends on #INFO and FORMAT fields imported if prefetch enabled, else size 1
   std::vector<std::vector<VCFGetBufferWrapper> > m_vcf_get_buffer_vec;
+  //Reused by every multi-D field parsed from a string, such as the allele-specific annotations
+  GenomicsDBMultiDVectorFieldParseScratch m_multi_d_vector_parse_scratch;
+  //Per entry of the header's BCF_DT_ID dictionary, whether the current record has it as an INFO or a FORMAT field.
+  //Set and cleared again by VCF2Binary::convert_record_to_binary()
+  std::vector<uint8_t> m_is_INFO_field_in_record;
+  std::vector<uint8_t> m_is_FORMAT_field_in_record;
   //File pointer to output partition data - useful when splitting files
   htsFile* m_split_output_fptr;
 };
@@ -213,7 +227,8 @@ class VCF2Binary : public File2TileDBBinaryBase {
              unsigned file_idx, VidMapper& vid_mapper, const std::vector<ColumnRange>& partition_bounds,
              size_t max_size_per_callset,
              bool treat_deletions_as_intervals,
-             bool parallel_partitions=false, bool noupdates=true, bool close_file=false, bool discard_index=false);
+             bool parallel_partitions=false, bool noupdates=true, bool close_file=false, bool discard_index=false,
+             int vcf_read_buffer_size=0);
   VCF2Binary(const std::string& stream_name, const std::vector<std::vector<std::string>>& vcf_fields,
              unsigned file_idx, const int64_t buffer_stream_idx,
              VidMapper& vid_mapper, const std::vector<ColumnRange>& partition_bounds,
@@ -262,19 +277,25 @@ class VCF2Binary : public File2TileDBBinaryBase {
   //Helper functions
   void update_local_contig_idx(VCFColumnPartition& vcf_partition, const bcf1_t* line);
   //VCF->TileDB conversion functions
+  /*
+   * hdr and line: the header and current record of the partition's reader
+   */
   bool convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer, VCFColumnPartition& vcf_partition,
+                                         bcf_hdr_t* hdr, bcf1_t* line,
                                          size_t size_per_callset, uint64_t enabled_callsets_idx);
   /*
    * field_type_idx: BCF_HL_*
+   * hdr and line: the header and current record of the partition's reader
    */
   template<class FieldType>
   bool convert_field_to_tiledb(std::vector<uint8_t>& buffer, VCFColumnPartition& vcf_partition,
+                               bcf_hdr_t* hdr, bcf1_t* line,
                                int64_t& buffer_offset, const int64_t buffer_offset_limit, int local_callset_idx,
                                const std::string& field_name, unsigned field_type_idx, const unsigned idx_in_vcf_fields_vector);
   template<typename FieldType>
   void fetch_field_from_vcf_record(VCFColumnPartition::VCFGetBufferWrapper& vcf_get_buffer_wrapper,
                                    const bcf_hdr_t* hdr, bcf1_t* line,
-                                   const std::string& field_name, const int field_type_idx, const int bcf_ht_type);
+                                   const char* field_name, const int field_type_idx, const int bcf_ht_type);
   //Print partitions of the file - useful when splitting files into partitions
   /*
    * Opens the file for partition - useful when printing data for a specific partition (splitting files)
@@ -293,17 +314,45 @@ class VCF2Binary : public File2TileDBBinaryBase {
     m_discard_missing_GTs = value;
   }
  private:
+  /*
+   * An imported INFO or FORMAT field, resolved from the VCF header and vid mapping once in initialize()
+   * rather than looked up by name for every record
+   */
+  struct VCFFieldImportInfo {
+    //Index of the field in the header's BCF_DT_ID dictionary, -1 for END
+    int m_hdr_field_idx = -1;
+    //END is imported as the cell's end column, not as an INFO field
+    bool m_is_END = false;
+    bool m_is_GT = false;
+    //Type to fetch values as: the vid type of the field's first tuple element, int for GT
+    int m_fetch_bcf_ht_type = -1;
+    //From the header: the BCF_VL_* length descriptor, BCF_VL_VAR for strings, and the BCF_HT_* type. GT's come from
+    //the loader instead, since BCF encodes GT as integers
+    uint32_t m_length_descriptor = BCF_VL_VAR;
+    uint32_t m_bcf_ht_type = BCF_HT_INT;
+    //Number of values from the header, 1 for flags
+    uint32_t m_field_length = 0u;
+    bool m_is_vcf_str_type = false;
+    bool m_is_INFO_field_with_sum_combine_operation = false;
+    const FieldInfo* m_vid_field_info_ptr = nullptr;
+  };
   bool m_discard_index;
   bool m_import_ID_field;
   bool m_discard_missing_GTs;
   bool m_discard_current_record;
   bool m_prefetch_all_VCF_fields_in_record;
+  //Read buffer size for VCFReader, 0 keeps htslib's default
+  int m_vcf_read_buffer_size;
   //Vector of vector of strings, outer vector has 2 elements - 0 for INFO, 1 for FORMAT
   const std::vector<std::vector<std::string>>* m_vcf_fields;
   //Local contig idx to global contig idx
   std::vector<int> m_local_contig_idx_to_global_contig_idx;
   //Local field idx to global field idx
   std::vector<int> m_local_field_idx_to_global_field_idx;
+  //Indexed [BCF_HL_*][index in (*m_vcf_fields)[BCF_HL_*]]; only BCF_HL_INFO and BCF_HL_FMT are filled
+  std::vector<std::vector<VCFFieldImportInfo>> m_field_import_info;
+  //Index of END in the header's BCF_DT_ID dictionary, -1 if the header does not have it
+  int m_END_hdr_field_idx = -1;
   //For VCFBufferReader
   size_t m_vcf_buffer_reader_buffer_size;
   bool m_vcf_buffer_reader_is_bcf;

@@ -217,7 +217,7 @@ File2TileDBBinaryBase* VCF2TileDBConverter::create_file2tiledb_object(const File
                              partition_bounds,
                              m_max_size_per_callset,
                              m_treat_deletions_as_intervals,
-                             false, false, false, m_discard_vcf_index
+                             false, false, false, m_discard_vcf_index, m_vcf_read_buffer_size
                            ));
     fptr = dynamic_cast<VCF2Binary*>(file2binary_base_ptr);
     assert(fptr);

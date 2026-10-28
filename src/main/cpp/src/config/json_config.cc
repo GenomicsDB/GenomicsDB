@@ -762,6 +762,13 @@ void GenomicsDBImportConfig::read_from_file(const std::string& filename, const i
   m_num_parallel_vcf_files = 1;
   if (json_doc.HasMember("num_parallel_vcf_files"))
     m_num_parallel_vcf_files = json_doc["num_parallel_vcf_files"].GetInt();
+  //Read buffer size for each VCF file read directly - 0 keeps htslib's default
+  m_vcf_read_buffer_size = 0;
+  if (json_doc.HasMember("vcf_read_buffer_size"))
+    m_vcf_read_buffer_size = json_doc["vcf_read_buffer_size"].GetInt();
+  if (m_vcf_read_buffer_size < 0)
+    throw GenomicsDBConfigException(logger.format("vcf_read_buffer_size is {}, but must not be negative",
+                                                  m_vcf_read_buffer_size));
   //do ping pong buffering
   m_do_ping_pong_buffering = true;
   if (json_doc.HasMember("do_ping_pong_buffering"))

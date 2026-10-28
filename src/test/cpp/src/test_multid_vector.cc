@@ -521,3 +521,97 @@ TEST_CASE("multid_vector 2D_tuple_test", "[2D_tuple_test]")
     }
   }
 }
+
+//2D or 3D field of ints, one delimiter per dimension, outermost first
+static void set_int_multi_d_field_info(FieldInfo& field_info, const std::vector<std::string>& delimiters) {
+  field_info.set_info("test", 0);
+  field_info.set_type(FieldElementTypeDescriptor(std::type_index(typeid(int)), BCF_HT_INT));
+  field_info.set_vcf_type(FieldElementTypeDescriptor(std::type_index(typeid(char)), BCF_HT_STR));
+  auto& length_descriptor = field_info.m_length_descriptor;
+  length_descriptor.resize(delimiters.size());
+  for (auto i=0u; i<delimiters.size(); ++i) {
+    length_descriptor.set_length_descriptor(i, BCF_VL_VAR);
+    length_descriptor.set_vcf_delimiter(i, delimiters[i].c_str());
+  }
+  field_info.modify_field_type_if_multi_dim_field();
+}
+
+//2D field of (int, float) tuples, like the allele-specific rank sum histograms
+static void set_int_float_tuple_field_info(FieldInfo& field_info) {
+  field_info.set_info("test", 0);
+  FieldElementTypeDescriptor genomicsdb_type(2u);
+  genomicsdb_type.set_tuple_element_type(0u, std::type_index(typeid(int)), BCF_HT_INT);
+  genomicsdb_type.set_tuple_element_type(1u, std::type_index(typeid(float)), BCF_HT_REAL);
+  field_info.set_type(genomicsdb_type);
+  field_info.set_vcf_type(FieldElementTypeDescriptor(std::type_index(typeid(char)), BCF_HT_STR));
+  auto& length_descriptor = field_info.m_length_descriptor;
+  length_descriptor.resize(2u);
+  length_descriptor.set_length_descriptor(0u, BCF_VL_VAR);
+  length_descriptor.set_length_descriptor(1u, BCF_VL_VAR);
+  length_descriptor.set_vcf_delimiter(0u, "|");
+  length_descriptor.set_vcf_delimiter(1u, ",");
+  field_info.modify_field_type_if_multi_dim_field();
+}
+
+//The parsed bytes of each tuple element
+static std::vector<std::vector<uint8_t>> parse_numeric(const FieldInfo& field_info, const std::string& value,
+    std::vector<std::vector<uint8_t>>& buffer_vec, GenomicsDBMultiDVectorFieldParseScratch& scratch) {
+  std::vector<uint64_t> total_size_vec;
+  GenomicsDBMultiDVectorField::parse_and_store_numeric(buffer_vec, total_size_vec, scratch, field_info,
+                                                       value.c_str(), value.length());
+  std::vector<std::vector<uint8_t>> parsed;
+  for (auto i=0u; i<total_size_vec.size(); ++i)
+    parsed.emplace_back(buffer_vec[i].begin(), buffer_vec[i].begin()+total_size_vec[i]);
+  return parsed;
+}
+
+static std::vector<std::vector<uint8_t>> parse_numeric_afresh(const FieldInfo& field_info, const std::string& value) {
+  std::vector<std::vector<uint8_t>> buffer_vec;
+  GenomicsDBMultiDVectorFieldParseScratch scratch;
+  return parse_numeric(field_info, value, buffer_vec, scratch);
+}
+
+TEST_CASE("multid_vector parse scratch reused across tuple sizes matches fresh parses", "[parse_scratch]")
+{
+  FieldInfo int_field_info;
+  set_int_multi_d_field_info(int_field_info, {"|", ","});
+  FieldInfo tuple_field_info;
+  set_int_float_tuple_field_info(tuple_field_info);
+  std::vector<std::vector<uint8_t>> buffer_vec;
+  GenomicsDBMultiDVectorFieldParseScratch scratch;
+  for (auto& [field_info_ptr, value] : std::vector<std::pair<const FieldInfo*, std::string>>{
+         {&int_field_info, "1,2|3,4,5"},
+         {&tuple_field_info, "1,1.5,2,2.5|3,3.5,4,4.5,5,5.5"},
+         {&int_field_info, "|3,,NaN"},
+         {&tuple_field_info, "7,0.5"}})
+    CHECK(parse_numeric(*field_info_ptr, value, buffer_vec, scratch) == parse_numeric_afresh(*field_info_ptr, value));
+}
+
+TEST_CASE("multid_vector parse scratch reused across dimension counts matches fresh parses", "[parse_scratch]")
+{
+  FieldInfo three_d_field_info;
+  set_int_multi_d_field_info(three_d_field_info, {"$", "|", ","});
+  FieldInfo two_d_field_info;
+  set_int_multi_d_field_info(two_d_field_info, {"|", ","});
+  std::vector<std::vector<uint8_t>> buffer_vec;
+  GenomicsDBMultiDVectorFieldParseScratch scratch;
+  for (auto& [field_info_ptr, value] : std::vector<std::pair<const FieldInfo*, std::string>>{
+         {&three_d_field_info, "1,2|3,4,5$6,7,8,9|10,11|12"},
+         {&two_d_field_info, "1,2|3"},
+         {&three_d_field_info, "5$6|7"}})
+    CHECK(parse_numeric(*field_info_ptr, value, buffer_vec, scratch) == parse_numeric_afresh(*field_info_ptr, value));
+}
+
+TEST_CASE("multid_vector parse scratch reused after a value larger than the buffer matches fresh parses", "[parse_scratch]")
+{
+  FieldInfo field_info;
+  set_int_multi_d_field_info(field_info, {"|", ","});
+  std::string long_value;
+  for (auto i=0; i<2000; ++i)
+    long_value += std::to_string(i) + ((i%10 == 9) ? "|" : ",");
+  long_value += "2000";
+  std::vector<std::vector<uint8_t>> buffer_vec;
+  GenomicsDBMultiDVectorFieldParseScratch scratch;
+  CHECK(parse_numeric(field_info, long_value, buffer_vec, scratch) == parse_numeric_afresh(field_info, long_value));
+  CHECK(parse_numeric(field_info, "1|2", buffer_vec, scratch) == parse_numeric_afresh(field_info, "1|2"));
+}
