@@ -665,10 +665,12 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
   uint64_t num_elements = 0ull;
   int* GT_vec = 0; // will point to same address as ptr, but as int*
   int* DP_vec = 0; // ditto
-  //Hold values to figure out if any samples have GQ==0 and PL[0]==0 after the loop
+  //Flag samples with GQ==0 and PL[0]==0 so their GT can be set to missing after the loop
   //see https://github.com/broadinstitute/gatk/pull/8715
-  std::set<int> GQ_zero_values;
-  std::set<int> PL_zero_values;
+  m_GQ_is_zero.assign(variant.get_num_calls(), false);
+  m_PL0_is_zero.assign(variant.get_num_calls(), false);
+  auto any_GQ_zero = false;
+  auto any_PL0_zero = false;
   //Handle all fields - simply need to extend to the largest size
   for (auto i=0u; i<m_FORMAT_fields_vec.size(); ++i) {
     auto& curr_tuple = m_FORMAT_fields_vec[i];
@@ -712,7 +714,10 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
       case GVCF_GQ_IDX: {
         int *GQ_vec = const_cast<int*>(reinterpret_cast<const int*>(ptr));
         for (auto i=0ul; i<variant.get_num_calls(); i++) {
-          if (*(GQ_vec+i) == 0) GQ_zero_values.insert(i);
+          if (*(GQ_vec+i) == 0) {
+            m_GQ_is_zero[i] = true;
+            any_GQ_zero = true;
+          }
         }
         do_insert = m_should_add_GQ_field;
         break;
@@ -737,7 +742,8 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
         int *PL_vec = const_cast<int*>(reinterpret_cast<const int*>(ptr));
         for (auto i=0ul; i<variant.get_num_calls(); i++) {
           if (*(PL_vec+i*num_elements/variant.get_num_calls()) == 0) {
-            PL_zero_values.insert(i);
+            m_PL0_is_zero[i] = true;
+            any_PL0_zero = true;
           }
         }
         break;
@@ -756,10 +762,10 @@ void BroadCombinedGVCFOperator::handle_FORMAT_fields(const Variant& variant) {
   // TODO: The java tests for mixed ploid and with GQ and PL[0] as zero are ignoring ploidy for the
   //       samples having haploid in the t0_haploid_triploid_1_2_3_triploid_deletion_java_produce_GT
   //       tests. Does not seem to affect gatk, need to look at this.
-  if (m_query_config->produce_GT_field() && GQ_zero_values.size() > 0 && PL_zero_values.size() > 0) {
+  if (m_query_config->produce_GT_field() && any_GQ_zero && any_PL0_zero) {
     int32_t *GT_arr = nullptr, num_GT_arr = 0;
     for (auto i=0ul; i<variant.get_num_calls(); i++) {
-      if (GQ_zero_values.find(i) == GQ_zero_values.end() || PL_zero_values.find(i) == PL_zero_values.end()) continue;
+      if (!(m_GQ_is_zero[i] && m_PL0_is_zero[i])) continue;
       if (!GT_arr && !num_GT_arr) {
         auto ngt = bcf_get_genotypes(m_vcf_hdr, m_bcf_out, &GT_arr, &num_GT_arr);
         if (ngt <= 0) {
@@ -853,7 +859,18 @@ void BroadCombinedGVCFOperator::operate(Variant& variant) {
 #endif
   //Handle spanning deletions - change ALT alleles in calls with deletions to *, <NON_REF>
   handle_deletions(variant);
-  GA4GHOperator::operate(variant);
+  //Compute merged REF and ALT
+  SingleVariantOperatorBase::operate(variant);
+  //Remapping only fills m_remapped_variant, which every record rebuilds, so a skipped record leaves no
+  //state behind; the contig bookkeeping below catches up on the next record that is produced
+  if (m_query_config->skip_spanning_deletion_only_intervals()
+      && merged_alt_alleles_are_only_spanning_deletion_or_NON_REF()) {
+#ifdef DO_PROFILING
+    m_bcf_t_creation_timer.stop();
+#endif
+    return;
+  }
+  remap_to_merged_alleles(variant);
   //Moved to new contig
   if (static_cast<int64_t>(m_remapped_variant.get_column_begin()) >= m_next_contig_begin_position) {
     std::string contig_name;
@@ -969,6 +986,13 @@ void BroadCombinedGVCFOperator::operate(Variant& variant) {
   }
 #endif
   m_vcf_adapter->handoff_output_bcf_line(m_bcf_out, m_bcf_record_size);
+}
+
+bool BroadCombinedGVCFOperator::merged_alt_alleles_are_only_spanning_deletion_or_NON_REF() const {
+  for (const auto& allele : m_merged_alt_alleles)
+    if (allele != g_vcf_SPANNING_DELETION && allele != g_vcf_NON_REF)
+      return false;
+  return true;
 }
 
 void BroadCombinedGVCFOperator::switch_contig() {

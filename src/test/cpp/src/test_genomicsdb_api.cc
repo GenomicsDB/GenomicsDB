@@ -30,12 +30,18 @@
 
 #include "genomicsdb.h"
 #include "genomicsdb_config_base.h"
+#include "tiledb_loader.h"
 #include "tiledb_utils.h"
+#include "htslib/bgzf.h"
+#include "htslib/tbx.h"
 
 #include "genomicsdb_export_config.pb.h"
 
 #include "test_base.h"
 
+#include <fstream>
+#include <zlib.h>
+#include <algorithm>
 #include <iostream>
 #include <future>
 #include <string>
@@ -1305,6 +1311,157 @@ TEST_CASE("api generate_vcf with json", "[query_generate_with_json]") {
   delete gdb;
 }
 
+
+// Returns the data lines of a (b)gzipped or plain VCF file
+static std::vector<std::string> read_vcf_records(const std::string& vcf_file) {
+  std::vector<std::string> records;
+  gzFile input = gzopen(vcf_file.c_str(), "r");
+  REQUIRE(input);
+  char buffer[65536];
+  while (gzgets(input, buffer, sizeof(buffer))) {
+    std::string line(buffer);
+    if (!line.empty() && line.back() == '\n') line.pop_back();
+    if (!line.empty() && line[0] != '#') records.push_back(line);
+  }
+  gzclose(input);
+  return records;
+}
+
+static std::string vcf_record_alt(const std::string& record) {
+  auto begin = record.find('\t');
+  for (auto i=0; i<3 && begin != std::string::npos; ++i) begin = record.find('\t', begin+1);
+  REQUIRE(begin != std::string::npos);
+  return record.substr(begin+1, record.find('\t', begin+1)-begin-1);
+}
+
+TEST_CASE("api generate_vcf skipping reference-only intervals drops only NON_REF-only records",
+          "[query_generate_vcf_skip_reference_only_intervals]") {
+  TempDir temp_dir;
+  // Two intervals, the second starting inside sample HG00141's reference block at 12141-12295
+  auto query_json_string = [](const bool skip_reference_only_intervals) {
+    return R"({"workspace": ")" + workspace + R"(", "array_name": ")" + array + R"(",
+      "query_column_ranges": [{"range_list": [{"low": 0, "high": 12149}, {"low": 12150, "high": 1000000000}]}],
+      "query_row_ranges": [{"range_list": [{"low": 0, "high": 3}]}],
+      "reference_genome": ")" + reference_genome + R"(",
+      "vcf_header_filename": ["inputs/template_vcf_header.vcf"],
+      "attributes": ["REF", "ALT", "GT", "GQ", "DP", "AD", "PL", "MIN_DP", "DP_FORMAT"],
+      "produce_GT_field": true, "segment_size": 40,
+      "skip_reference_only_intervals": )" + (skip_reference_only_intervals ? "true" : "false") + "}";
+  };
+  auto generate_records = [&](const bool skip_reference_only_intervals, const std::string& vcf_name) {
+    GenomicsDB* gdb = new GenomicsDB(query_json_string(skip_reference_only_intervals), GenomicsDB::JSON_STRING,
+                                     loader_json);
+    const std::string vcf_file = temp_dir.append(vcf_name);
+    gdb->generate_vcf(vcf_file, "z", true);
+    delete gdb;
+    return read_vcf_records(vcf_file);
+  };
+
+  auto all_records = generate_records(false, "all.vcf.gz");
+  auto skipped_records = generate_records(true, "skipped.vcf.gz");
+
+  std::vector<std::string> expected_records;
+  std::copy_if(all_records.begin(), all_records.end(), std::back_inserter(expected_records),
+               [](const std::string& record) { return vcf_record_alt(record) != "<NON_REF>"; });
+  CHECK(expected_records.size() > 0u);
+  CHECK(expected_records.size() < all_records.size());
+  CHECK(skipped_records == expected_records);
+}
+
+// Writes a bgzipped and indexed single-sample gVCF on contig 1 holding the given records
+static void write_indexed_gvcf(const std::string& path, const std::string& sample,
+                               const std::vector<std::string>& records) {
+  std::ifstream template_header(ctests_input_dir+"template_vcf_header.vcf");
+  REQUIRE(template_header);
+  std::string text((std::istreambuf_iterator<char>(template_header)), std::istreambuf_iterator<char>());
+  text += "##contig=<ID=1,length=249250621>\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t" + sample + "\n";
+  for (const auto& record : records)
+    text += record + "\n";
+  BGZF* output = bgzf_open(path.c_str(), "w");
+  REQUIRE(output);
+  REQUIRE(bgzf_write(output, text.data(), text.size()) == static_cast<ssize_t>(text.size()));
+  REQUIRE(bgzf_close(output) == 0);
+  REQUIRE(tbx_index_build(path.c_str(), 0, &tbx_conf_vcf) == 0);
+}
+
+static std::string ref_block(const int begin, const int end) {
+  return "1\t" + std::to_string(begin) + "\t.\tA\t<NON_REF>\t.\t.\tEND=" + std::to_string(end)
+      + "\tGT:DP:GQ:MIN_DP:PL\t0/0:10:30:8:0,30,300";
+}
+
+static std::string variant(const int pos, const std::string& ref, const std::string& alt) {
+  return "1\t" + std::to_string(pos) + "\t.\t" + ref + "\t" + alt + ",<NON_REF>\t100\t.\tDP=10"
+      + "\tGT:AD:DP:GQ:PL\t0/1:5,5,0:10:99:100,0,100,120,130,250";
+}
+
+TEST_CASE("api generate_vcf skipping spanning-deletion-only intervals drops only records without other ALTs",
+          "[query_generate_vcf_skip_spanning_deletion_only_intervals]") {
+  TempDir temp_dir;
+  // S1's deletion spans 20101-20102. S2's SNV at 20101 keeps that record, while 20102 is left with only *.
+  // S3 has a record of its own at 20200 whose only ALT is *.
+  write_indexed_gvcf(temp_dir.append("S1.g.vcf.gz"), "S1",
+                     {ref_block(20001, 20099), variant(20100, "ACG", "A"), ref_block(20103, 20300)});
+  write_indexed_gvcf(temp_dir.append("S2.g.vcf.gz"), "S2",
+                     {ref_block(20001, 20100), variant(20101, "C", "T"), ref_block(20102, 20300)});
+  write_indexed_gvcf(temp_dir.append("S3.g.vcf.gz"), "S3",
+                     {ref_block(20001, 20199), variant(20200, "G", "*"), ref_block(20201, 20300)});
+
+  const auto callsets = temp_dir.append("callsets.json");
+  std::ofstream(callsets) << R"({"callsets": {)"
+      << R"("S1": {"row_idx": 0, "idx_in_file": 0, "filename": ")" << temp_dir.append("S1.g.vcf.gz") << R"("},)"
+      << R"("S2": {"row_idx": 1, "idx_in_file": 0, "filename": ")" << temp_dir.append("S2.g.vcf.gz") << R"("},)"
+      << R"("S3": {"row_idx": 2, "idx_in_file": 0, "filename": ")" << temp_dir.append("S3.g.vcf.gz") << R"("}}})";
+  const auto spanning_workspace = temp_dir.append("ws");
+  const std::string spanning_array = "spanning_deletions";
+  REQUIRE(TileDBUtils::create_workspace(spanning_workspace, true) == TILEDB_OK);
+  const auto loader = temp_dir.append("loader.json");
+  std::ofstream(loader) << R"({"row_based_partitioning": false,
+      "column_partitions": [{"begin": 0, "workspace": ")" << spanning_workspace
+      << R"(", "array_name": ")" << spanning_array << R"("}],
+      "callset_mapping_file": ")" << callsets << R"(", "vid_mapping_file": ")" << vid_mapping << R"(",
+      "reference_genome": ")" << reference_genome << R"(",
+      "vcf_header_filename": ")" << ctests_input_dir << R"(template_vcf_header.vcf",
+      "treat_deletions_as_intervals": true, "size_per_column_partition": 700, "num_parallel_vcf_files": 1,
+      "do_ping_pong_buffering": false, "offload_vcf_output_processing": false, "discard_vcf_index": true,
+      "produce_combined_vcf": false, "produce_tiledb_array": true, "delete_and_create_tiledb_array": true,
+      "compress_tiledb_array": true, "segment_size": 40, "num_cells_per_tile": 3})";
+  VCF2TileDBLoader(loader, 0).read_all();
+
+  auto generate_records = [&](const bool skip_spanning_deletion_only_intervals, const std::string& vcf_name) {
+    const auto query = R"({"workspace": ")" + spanning_workspace + R"(", "array_name": ")" + spanning_array + R"(",
+      "query_column_ranges": [{"range_list": [{"low": 0, "high": 1000000000}]}],
+      "query_row_ranges": [{"range_list": [{"low": 0, "high": 2}]}],
+      "reference_genome": ")" + reference_genome + R"(",
+      "vcf_header_filename": [")" + ctests_input_dir + R"(template_vcf_header.vcf"],
+      "attributes": ["REF", "ALT", "GT", "GQ", "DP", "AD", "PL", "MIN_DP", "DP_FORMAT"],
+      "produce_GT_field": true, "segment_size": 40,
+      "skip_spanning_deletion_only_intervals": )" + (skip_spanning_deletion_only_intervals ? "true" : "false") + "}";
+    GenomicsDB* gdb = new GenomicsDB(query, GenomicsDB::JSON_STRING, loader);
+    const std::string vcf_file = temp_dir.append(vcf_name);
+    gdb->generate_vcf(vcf_file, "z", true);
+    delete gdb;
+    return read_vcf_records(vcf_file);
+  };
+
+  auto all_records = generate_records(false, "all.vcf.gz");
+  auto skipped_records = generate_records(true, "skipped.vcf.gz");
+
+  auto has_alt = [](const std::string& record, const std::string& alt) { return vcf_record_alt(record) == alt; };
+  CHECK(std::count_if(all_records.begin(), all_records.end(),
+                      [&](const std::string& record) { return has_alt(record, "*,<NON_REF>"); }) == 2);
+  // The record at 20101 carries both S1's * and S2's T
+  CHECK(std::count_if(all_records.begin(), all_records.end(), [&](const std::string& record) {
+          const auto alt = vcf_record_alt(record);
+          return alt.find('*') != std::string::npos && alt.find('T') != std::string::npos;
+        }) == 1);
+  std::vector<std::string> expected_records;
+  std::copy_if(all_records.begin(), all_records.end(), std::back_inserter(expected_records),
+               [&](const std::string& record) {
+                 return !has_alt(record, "*,<NON_REF>") && !has_alt(record, "*") && !has_alt(record, "<NON_REF>");
+               });
+  CHECK(expected_records.size() == 2u);
+  CHECK(skipped_records == expected_records);
+}
 
 TEST_CASE("api generate_vcf with json multiple threads", "[query_generate_with_json_multiple_threads]") {
   // Define a lambda expression

@@ -648,6 +648,10 @@ void GenomicsDBConfigBase::read_from_JSON(const rapidjson::Document& json_doc, c
   //fuzzy search if that is acceptable
   m_bypass_intersecting_intervals_phase = (json_doc.HasMember("bypass_intersecting_intervals_phase")
       && json_doc["bypass_intersecting_intervals_phase"].GetBool());
+  m_skip_reference_only_intervals = (json_doc.HasMember("skip_reference_only_intervals")
+      && json_doc["skip_reference_only_intervals"].GetBool());
+  m_skip_spanning_deletion_only_intervals = (json_doc.HasMember("skip_spanning_deletion_only_intervals")
+      && json_doc["skip_spanning_deletion_only_intervals"].GetBool());
   //Shared posixfs(e.g. NFS/Lustre) optimizations - passed via storage manager
   set_config_field(json_doc, "enable_shared_posixfs_optimizations", m_enable_shared_posixfs_optimizations);
 }

@@ -51,6 +51,8 @@ void check_equal_query_config(const GenomicsDBConfigBase& json_config, const Gen
   CHECK(pb_config.produce_GT_with_min_PL_value_for_spanning_deletions()
       == json_config.produce_GT_with_min_PL_value_for_spanning_deletions());
   CHECK(pb_config.enable_shared_posixfs_optimizations() == json_config.enable_shared_posixfs_optimizations());
+  CHECK(pb_config.skip_reference_only_intervals() == json_config.skip_reference_only_intervals());
+  CHECK(pb_config.skip_spanning_deletion_only_intervals() == json_config.skip_spanning_deletion_only_intervals());
   CHECK(pb_config.get_query_filter() == json_config.get_query_filter());
   CHECK(pb_config.get_attributes() == json_config.get_attributes());
 }
@@ -146,6 +148,43 @@ TEST_CASE("pb_query_config_test", "[protobuf_config]")
     pb_config3.read_from_PB_binary_string(binary_pb_string, 0);
     check_equal_query_config(json_config, pb_config3);
   }
+}
+
+TEST_CASE("pb_skip_reference_only_intervals_test", "[protobuf_config_skip_reference_only_intervals]")
+{
+  genomicsdb_pb::ExportConfiguration export_config;
+  export_config.set_workspace(ctests_input_dir+"ws");
+  export_config.set_array_name("t0_1_2");
+  export_config.set_vid_mapping_file(ctests_input_dir+"vid.json");
+  export_config.set_callset_mapping_file(ctests_input_dir+"callset_t0_1_2.json");
+
+  GenomicsDBConfigBase default_config;
+  default_config.read_from_PB(&export_config, 0);
+  CHECK(default_config.skip_reference_only_intervals() == false);
+
+  export_config.set_skip_reference_only_intervals(true);
+  GenomicsDBConfigBase pb_config;
+  pb_config.read_from_PB(&export_config, 0);
+  CHECK(pb_config.skip_reference_only_intervals() == true);
+}
+
+TEST_CASE("pb_skip_spanning_deletion_only_intervals_test", "[protobuf_config_skip_spanning_deletion_only_intervals]")
+{
+  genomicsdb_pb::ExportConfiguration export_config;
+  export_config.set_workspace(ctests_input_dir+"ws");
+  export_config.set_array_name("t0_1_2");
+  export_config.set_vid_mapping_file(ctests_input_dir+"vid.json");
+  export_config.set_callset_mapping_file(ctests_input_dir+"callset_t0_1_2.json");
+
+  GenomicsDBConfigBase default_config;
+  default_config.read_from_PB(&export_config, 0);
+  CHECK(default_config.skip_spanning_deletion_only_intervals() == false);
+
+  export_config.set_skip_spanning_deletion_only_intervals(true);
+  GenomicsDBConfigBase pb_config;
+  pb_config.read_from_PB(&export_config, 0);
+  CHECK(pb_config.skip_spanning_deletion_only_intervals() == true);
+  CHECK(pb_config.skip_reference_only_intervals() == false);
 }
 
 TEST_CASE("pb_vid_mapping_test", "[vid_protobuf_config]")

@@ -326,6 +326,7 @@ LoaderCombinedGVCFOperator::LoaderCombinedGVCFOperator(const GenomicsDBImportCon
   m_next_start_position = -1ll;
   //Deletion flags
   m_num_calls_with_deletions = 0;
+  m_num_non_reference_block_calls = 0;
   //Profiling
 #ifdef DO_PROFILING
   m_stats_ptr = &m_stats;
@@ -373,7 +374,7 @@ void LoaderCombinedGVCFOperator::operate(const void* cell_ptr) {
                                       m_variant, *m_operator, *m_cell,
                                       m_end_pq, m_tmp_pq_vector,
                                       m_current_start_position, m_next_start_position,
-                                      m_num_calls_with_deletions,
+                                      m_num_calls_with_deletions, m_num_non_reference_block_calls,
                                       m_import_config_ptr->treat_deletions_as_intervals(),
                                       m_stats_ptr);
 #ifdef DO_MEMORY_PROFILING
@@ -400,7 +401,8 @@ void LoaderCombinedGVCFOperator::finish(const int64_t column_interval_end) {
   auto operator_overflow = true;
   while (operator_overflow) {
     m_query_processor->handle_gvcf_ranges(m_end_pq, m_query_config, m_variant, *m_operator,
-                                          m_current_start_position, m_next_start_position, column_interval_end == INT64_MAX, m_num_calls_with_deletions, m_stats_ptr);
+                                          m_current_start_position, m_next_start_position, column_interval_end == INT64_MAX,
+                                          m_num_calls_with_deletions, m_num_non_reference_block_calls, m_stats_ptr);
     operator_overflow = m_operator->overflow(); //must be queried before post_operate_sequential and flush_output() are called
 #ifdef DO_MEMORY_PROFILING
     statm_t mem_result;
