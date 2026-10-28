@@ -1007,7 +1007,7 @@ bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer,
     for (auto i=1; i<line->n_allele; ++i) {
       if (i > 1)
         alt_allele_serialized += TILEDB_ALT_ALLELE_SEPARATOR;
-      alt_allele_serialized += (strncmp(line->d.allele[i], "<NON_REF>", 9) == 0) ? TILEDB_NON_REF_VARIANT_REPRESENTATION
+      alt_allele_serialized += IS_VCF_NON_REF_ALLELE(line->d.allele[i]) ? TILEDB_NON_REF_VARIANT_REPRESENTATION
                                : line->d.allele[i];
     }
     buffer_full = buffer_full || tiledb_buffer_print<const std::string&>(buffer, buffer_offset, buffer_offset_limit, alt_allele_serialized);

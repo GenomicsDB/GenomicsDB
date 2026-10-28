@@ -575,5 +575,54 @@ run_command "vcfdiff $VCFS_DIR/header_idx_gap.vcf.gz $VCFS_DIR/header_no_idx_gap
 assert_true $(grep -c "ERROR: Gold and test differ in the INFO field DP" $TEMP_DIR/output) 1 "Test #52 vcfdiff reports the changed DP"
 assert_true $(grep -c "ERROR: " $TEMP_DIR/output) 1 "Test #52 vcfdiff reports only the changed DP"
 
+# Writes $TEMP_DIR/$1.vcf.gz, bgzipped and indexed, with a single-sample record on contig 1 per further argument,
+# each given as space-separated columns
+write_indexed_vcf() {
+  local vcf=$TEMP_DIR/$1.vcf
+  shift
+  printf '##fileformat=VCFv4.2\n##contig=<ID=1,length=1000>\n' > $vcf
+  printf '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n' >> $vcf
+  printf '#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS0\n' >> $vcf
+  for record in "$@"; do
+    echo "$record" | tr ' ' '\t' >> $vcf
+  done
+  bcftools view -Oz -o $vcf.gz $vcf && bcftools index -f -t $vcf.gz || die "Could not index $vcf"
+}
+
+#    $1 actual
+#    $2 expected
+#    $3 is error message
+assert_equal() {
+  if [[ "$1" != "$2" ]]; then
+    echo "Assertion Failed : $3, actual='$1' expected='$2'"
+    STATUS=1
+  fi
+}
+
+# Positions of the gold and the test record that vcfdiff printed with its second "Lines with different positions"
+second_mismatch_positions() {
+  awk '/^ERROR: Lines with different positions/ {n++; next} n == 2 && /^1\t/ {printf "%s ", $2; if (++p == 2) exit}' $TEMP_DIR/output
+}
+
+# Test how vcfdiff carries on after two records overlap without matching. When one file's record deletes the bases
+# of a * record in the other, it moves past the deletion; otherwise it moves past the record that ends first. The
+# next mismatch it reports shows which file it moved on.
+if command -v bcftools > /dev/null; then
+  write_indexed_vcf spanning "1 100 . A G . . . GT 0/1" "1 102 . C * . . . GT 0/1" "1 110 . T C . . . GT 0/1"
+  write_indexed_vcf snp "1 100 . A G . . . GT 0/1" "1 102 . C T . . . GT 0/1" "1 110 . T C . . . GT 0/1"
+  write_indexed_vcf deletion "1 100 . A G . . . GT 0/1" "1 101 . ACGT A . . . GT 0/1" "1 110 . T C . . . GT 0/1"
+  write_indexed_vcf insertion "1 100 . A G . . . GT 0/1" "1 101 . ACG ACGT . . . GT 0/1" "1 110 . T C . . . GT 0/1"
+  run_command "vcfdiff $TEMP_DIR/spanning.vcf.gz $TEMP_DIR/deletion.vcf.gz"
+  assert_equal "$(second_mismatch_positions)" "102 110 " "Test #53 vcfdiff moves past a test deletion over a gold * allele"
+  run_command "vcfdiff $TEMP_DIR/spanning.vcf.gz $TEMP_DIR/insertion.vcf.gz"
+  assert_equal "$(second_mismatch_positions)" "110 101 " "Test #54 vcfdiff moves past the gold * allele, not a test insertion"
+  run_command "vcfdiff $TEMP_DIR/snp.vcf.gz $TEMP_DIR/deletion.vcf.gz"
+  assert_equal "$(second_mismatch_positions)" "110 101 " "Test #55 vcfdiff moves past a gold SNP inside a test deletion"
+  run_command "vcfdiff $TEMP_DIR/deletion.vcf.gz $TEMP_DIR/spanning.vcf.gz"
+  assert_equal "$(second_mismatch_positions)" "110 102 " "Test #56 vcfdiff moves past a gold deletion over a test * allele"
+else
+  echo "bcftools not found, not running the vcfdiff tests that need indexed VCFs made on the fly"
+fi
+
 cleanup
 exit $STATUS

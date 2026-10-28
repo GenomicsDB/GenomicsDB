@@ -31,23 +31,32 @@ int64_t g_num_callsets = INT64_MAX;
 
 #define VERIFY_OR_THROW(X) if(!(X)) throw VCFDiffException(#X);
 
-//0-based position of the last base of a record: END-1 if it has END, else pos+rlen-1
-static hts_pos_t record_end(const bcf_hdr_t* hdr, bcf1_t* line) {
-  bcf_unpack(line, BCF_UN_INFO);
-  auto end = bcf_get_info(hdr, line, "END");
-  return end ? end->v1.i - 1 : line->pos + line->rlen - 1;
-}
-
 //A reference block has a <NON_REF> ALT allele, and every other ALT allele is a reference allele such as <*>
 static bool is_NON_REF_block(bcf1_t* line) {
   auto has_NON_REF = false;
   for (auto i=1; i<line->n_allele; ++i) {
-    if (strncmp(line->d.allele[i], "<NON_REF>", 9) == 0)
+    if (IS_VCF_NON_REF_ALLELE(line->d.allele[i]))
       has_NON_REF = true;
     else if (bcf_get_variant_type(line, i) != VCF_REF)
       return false;
   }
   return has_NON_REF;
+}
+
+//Whether an ALT allele deletes bases: an indel shorter than REF
+static bool has_deletion_allele(bcf1_t* line) {
+  for (auto i=1; i<line->n_allele; ++i)
+    if (bcf_get_variant_type(line, i) == VCF_INDEL && strlen(line->d.allele[i]) < strlen(line->d.allele[0]))
+      return true;
+  return false;
+}
+
+//Whether an ALT allele is *, a deletion that starts at an earlier position
+static bool has_spanning_deletion_allele(bcf1_t* line) {
+  for (auto i=1; i<line->n_allele; ++i)
+    if (bcf_get_variant_type(line, i) == VCF_OVERLAP)
+      return true;
+  return false;
 }
 
 template<class DataType>
@@ -647,7 +656,7 @@ void VCFDiffFile::compare_line(const bcf_hdr_t* gold_hdr, bcf1_t* gold_line) {
       }
       m_alleles_lut.add_input_merged_idx_pair(0, i, (*iter).second);
     }
-    m_contains_NON_REF_allele = (strcmp(gold_line->d.allele[gold_line->n_allele-1], "<NON_REF>") == 0);
+    m_contains_NON_REF_allele = IS_VCF_NON_REF_ALLELE(gold_line->d.allele[gold_line->n_allele-1]);
   }
   error_message += (m_diff_alleles_flag ? "Allele list different\n" : "");
   diff_line_flag = m_diff_alleles_flag || diff_line_flag;
@@ -704,12 +713,9 @@ std::string VCFDiffFile::create_region(const std::string& regions,
     auto pair = (*iter).second;
     if (pair.first == 1ll && pair.second == INT64_MAX)
       return (quoted_contig + ",");    //full contig
-    if (pair.second == INT64_MAX) {
-      auto contig_idx = bcf_hdr_name2id(m_hdr, contig.c_str());
-      VERIFY_OR_THROW(contig_idx >= 0);
-      auto contig_length = m_hdr->id[BCF_DT_CTG][contig_idx].val->info[0];
-      return (quoted_contig + ":" + std::to_string(pair.first) + "-" + std::to_string(contig_length) + ",");
-    } else
+    if (pair.second == INT64_MAX)
+      return (quoted_contig + ":" + std::to_string(pair.first) + "-,");   //to the end of the contig
+    else
       return (quoted_contig + ":" + std::to_string(pair.first) + "-" + std::to_string(pair.second) + ",");
   } else
     return (quoted_contig + ",");
@@ -1004,11 +1010,9 @@ int main(int argc, char** argv) {
     //Same contig now
     if (have_data && gold.m_line->rid == lut_gold_contig_idx) {
       auto do_compare = true;
-      auto gold_end = record_end(gold.m_hdr, gold.m_line);
-      auto test_end = record_end(test.m_hdr, test.m_line);
-      //Variant types
-      bcf_get_variant_types(gold.m_line);
-      bcf_get_variant_types(test.m_line);
+      //0-based last bases; htslib sets rlen from a valid END
+      auto gold_end = gold.m_line->pos + gold.m_line->rlen - 1;
+      auto test_end = test.m_line->pos + test.m_line->rlen - 1;
       //NON_REF blocks
       auto gold_is_NON_REF_block = is_NON_REF_block(gold.m_line);
       auto test_is_NON_REF_block = is_NON_REF_block(test.m_line);
@@ -1061,16 +1065,16 @@ int main(int argc, char** argv) {
           } else {      //partial overlap
             if (test_end > gold_end) {
               //test contains deletion and gold contains spanning deletion, advance test
-              if (test.m_line->rlen > 1 && (test.m_line->d.var_type & VCF_INDEL)
-                  && (gold.m_line->d.var_type & VCF_OVERLAP) && test.m_line->pos <= gold.m_line->pos) {
+              if (has_deletion_allele(test.m_line) && has_spanning_deletion_allele(gold.m_line)
+                  && test.m_line->pos <= gold.m_line->pos) {
                 test.read_and_advance();
                 both_must_have_valid_lines = before_begin;      //if !before_begin, then error message is already printed
               } else
                 gold.read_and_advance();
             } else if (gold_end > test_end) {
               //gold contains deletion and test contains spanning deletion, advance gold
-              if (gold.m_line->rlen > 1 && (gold.m_line->d.var_type & VCF_INDEL)
-                  && (test.m_line->d.var_type & VCF_OVERLAP) && gold.m_line->pos <= test.m_line->pos) {
+              if (has_deletion_allele(gold.m_line) && has_spanning_deletion_allele(test.m_line)
+                  && gold.m_line->pos <= test.m_line->pos) {
                 gold.read_and_advance();
                 both_must_have_valid_lines = before_begin;      //if !before_begin, then error message is already printed
               } else

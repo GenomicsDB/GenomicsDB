@@ -167,3 +167,8 @@ TEST_CASE_METHOD(TempDir, "VCF import ends a spanning deletion without END at th
   CHECK(import_and_query_calls(*this, "1\t100\t.\tAC\t*,<NON_REF>\t.\t.\t.\tGT\t0/1\n")
         == std::vector<std::string>{"100-101 *|&"});
 }
+
+TEST_CASE_METHOD(TempDir, "VCF import ends a record with an insertion and a deletion at the end of its REF", "[vcf2binary_alleles]") {
+  CHECK(import_and_query_calls(*this, "1\t100\t.\tACGT\tACGTT,A,<NON_REF>\t.\t.\t.\tGT\t1/2\n")
+        == std::vector<std::string>{"100-103 ACGTT|A|&"});
+}
