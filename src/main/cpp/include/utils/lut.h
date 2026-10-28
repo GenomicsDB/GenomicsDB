@@ -65,6 +65,32 @@
  **/
 template<bool inputs_2_merged_LUT_is_input_ordered, bool merged_2_inputs_LUT_is_input_ordered>
 class LUTBase {
+ private:
+  //Most records have few alleles, so each row is written in at most a few columns. Filling this many entries compiles
+  //to a few stores, where filling a variable number compiles to a call to memset per row
+  static constexpr int64_t m_FIXED_RESET_WIDTH = 8;
+  static inline void reset_written_region(std::vector<std::vector<int64_t>>& lut, int64_t& written_rows,
+                                          int64_t& written_cols) {
+    //Entries past written_cols are already missing, so a row at least m_FIXED_RESET_WIDTH wide can be filled that far.
+    //Narrower rows and wider regions are filled in a separate loop, so the compiler can't merge both fills into a
+    //call to memset
+    auto fill_written_cols = written_cols > m_FIXED_RESET_WIDTH;
+    if (!fill_written_cols)
+      for (auto i=0LL; i<written_rows; ++i) {
+        auto& vec = lut[i];
+        if (static_cast<int64_t>(vec.size()) >= m_FIXED_RESET_WIDTH)
+          std::fill_n(vec.begin(), m_FIXED_RESET_WIDTH, lut_missing_value);
+        else
+          fill_written_cols = true;
+      }
+    if (fill_written_cols)
+      for (auto i=0LL; i<written_rows; ++i) {
+        auto& vec = lut[i];
+        std::fill(vec.begin(), vec.begin()+std::min<int64_t>(written_cols, vec.size()), lut_missing_value);
+      }
+    written_rows = 0;
+    written_cols = 0;
+  }
  public:
   /**
    * @brief: clear all mappings
@@ -206,31 +232,6 @@ class LUTBase {
   int64_t m_inputs_2_merged_written_cols;
   int64_t m_merged_2_inputs_written_rows;
   int64_t m_merged_2_inputs_written_cols;
-  //Most records have few alleles, so each row is written in at most a few columns. Filling this many entries compiles
-  //to a few stores, where filling a variable number compiles to a call to memset per row
-  static constexpr int64_t m_FIXED_RESET_WIDTH = 8;
-  static inline void reset_written_region(std::vector<std::vector<int64_t>>& lut, int64_t& written_rows,
-                                          int64_t& written_cols) {
-    //Entries past written_cols are already missing, so a row at least m_FIXED_RESET_WIDTH wide can be filled that far.
-    //Narrower rows and wider regions are filled in a separate loop, so the compiler can't merge both fills into a
-    //call to memset
-    auto fill_written_cols = written_cols > m_FIXED_RESET_WIDTH;
-    if (!fill_written_cols)
-      for (auto i=0LL; i<written_rows; ++i) {
-        auto& vec = lut[i];
-        if (static_cast<int64_t>(vec.size()) >= m_FIXED_RESET_WIDTH)
-          std::fill_n(vec.begin(), m_FIXED_RESET_WIDTH, lut_missing_value);
-        else
-          fill_written_cols = true;
-      }
-    if (fill_written_cols)
-      for (auto i=0LL; i<written_rows; ++i) {
-        auto& vec = lut[i];
-        std::fill(vec.begin(), vec.begin()+std::min<int64_t>(written_cols, vec.size()), lut_missing_value);
-      }
-    written_rows = 0;
-    written_cols = 0;
-  }
   /**
    * @brief invalidate/reset all mappings in a vector
    * @note sets all elements to missing
