@@ -352,7 +352,7 @@ class VCF2Binary : public File2TileDBBinaryBase {
   //Indexed [BCF_HL_*][index in (*m_vcf_fields)[BCF_HL_*]]; only BCF_HL_INFO and BCF_HL_FMT are filled
   std::vector<std::vector<VCFFieldImportInfo>> m_field_import_info;
   //Index of END in the header's BCF_DT_ID dictionary, -1 if the header does not have it
-  int m_END_hdr_field_idx;
+  int m_END_hdr_field_idx = -1;
   //For VCFBufferReader
   size_t m_vcf_buffer_reader_buffer_size;
   bool m_vcf_buffer_reader_is_bcf;

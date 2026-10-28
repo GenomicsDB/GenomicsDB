@@ -418,7 +418,7 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
     if (field_name)
       m_vid_mapper->get_global_field_idx(field_name, m_local_field_idx_to_global_field_idx[i]);
   }
-  //Imported INFO/FORMAT fields - the header no longer changes once the readers are initialized
+  //Imported INFO/FORMAT fields. The header can still grow after this: parsing VCF text adds any undeclared field to it
   m_field_import_info.assign(m_vcf_fields->size(), {});
   for (auto field_type_idx=BCF_HL_INFO; field_type_idx<=BCF_HL_FMT; ++field_type_idx) {
     assert(static_cast<size_t>(field_type_idx) < m_vcf_fields->size());
@@ -437,7 +437,7 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
       VERIFY_OR_THROW(field_import_info.m_hdr_field_idx >= 0
                       && bcf_hdr_idinfo_exists(hdr, field_type_idx, field_import_info.m_hdr_field_idx));
       const auto* field_info_ptr = m_vid_mapper->get_field_info(field_name);
-      assert(field_info_ptr);
+      VERIFY_OR_THROW(field_info_ptr);
       //GT is a string in the VCF header, but BCF encodes it as integers
       field_import_info.m_fetch_bcf_ht_type = field_import_info.m_is_GT ? BCF_HT_INT
                                               : field_info_ptr->get_vcf_type().get_tuple_element_bcf_ht_type(0u);
@@ -456,10 +456,7 @@ void VCF2Binary::initialize(const std::vector<ColumnRange>& partition_bounds) {
                                              || bcf_ht_type == BCF_HT_STR) && !is_GT_field;
       field_import_info.m_length_descriptor = field_import_info.m_is_vcf_str_type ? BCF_VL_VAR : length_descriptor;
       field_import_info.m_bcf_ht_type = bcf_ht_type;
-      assert(static_cast<size_t>(field_idx) < m_local_field_idx_to_global_field_idx.size());
-      assert(static_cast<size_t>(m_local_field_idx_to_global_field_idx[field_idx]) < m_vid_mapper->get_num_fields());
-      field_import_info.m_vid_field_info_ptr =
-        &(m_vid_mapper->get_field_info(m_local_field_idx_to_global_field_idx[field_idx]));
+      field_import_info.m_vid_field_info_ptr = field_info_ptr;
       field_import_info.m_is_INFO_field_with_sum_combine_operation = (field_type_idx == BCF_HL_INFO)
           && field_import_info.m_vid_field_info_ptr->is_VCF_field_combine_operation_sum();
     }
@@ -589,8 +586,7 @@ bool VCF2Binary::convert_record_to_binary(std::vector<uint8_t>& buffer, File2Til
                                             field_name, field_type_idx, field_ht_type);
           break;
         default: //FIXME: handle other types
-          throw VCF2BinaryException(logger.format("Unhandled VCF data type {}",
-                                                  bcf_hdr_id2type(hdr, BCF_DT_ID, field_import_info.m_hdr_field_idx)));
+          throw VCF2BinaryException(logger.format("Unhandled VCF data type {} for field {}", field_ht_type, field_name));
           break;
         }
       }
@@ -1132,8 +1128,8 @@ bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer,
         if (buffer_full) return true;
         break;
       default: //FIXME: handle other types
-        throw VCF2BinaryException(logger.format("Unhandled VCF data type {}",
-                                                bcf_hdr_id2type(hdr, BCF_DT_ID, field_import_info.m_hdr_field_idx)));
+        throw VCF2BinaryException(logger.format("Unhandled VCF data type {} for field {}",
+                                                field_import_info.m_fetch_bcf_ht_type, field_name));
         break;
       }
     }
