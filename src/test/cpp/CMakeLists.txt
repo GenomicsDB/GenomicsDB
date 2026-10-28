@@ -52,6 +52,7 @@ set(CPP_TEST_SOURCES
   src/test_htslib_plugin.cc
   src/test_alleles_combiner.cc
   src/test_gt_remapper.cc
+  src/test_lut.cc
   src/test_bgen.cc
   src/test_query_variants.cc
   src/test_mem_utils.cc

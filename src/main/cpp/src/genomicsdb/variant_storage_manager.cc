@@ -160,6 +160,18 @@ const BufferVariantCell& VariantArrayCellIterator::operator*() {
   return m_cell;
 }
 
+bool VariantArrayCellIterator::is_END_copy(const unsigned END_query_idx) const {
+  const void* coords_ptr = nullptr;
+  const void* END_ptr = nullptr;
+  if (size_t field_size = 0u;
+      tiledb_array_iterator_get_value(m_tiledb_array_iterator, m_num_queried_attributes, &coords_ptr, &field_size)
+      != TILEDB_OK
+      || tiledb_array_iterator_get_value(m_tiledb_array_iterator, END_query_idx, &END_ptr, &field_size) != TILEDB_OK)
+    logger.fatal(VariantStorageManagerException(
+        logger.format("Error while getting co-ordinates or END from TileDB iterator : {}", tiledb_errmsg)));
+  return static_cast<const int64_t*>(coords_ptr)[1] > *static_cast<const int64_t*>(END_ptr);
+}
+
 //VariantArrayInfo functions
 VariantArrayInfo::VariantArrayInfo(int idx, int mode,
                                    const std::string& workspace, const std::string& name,

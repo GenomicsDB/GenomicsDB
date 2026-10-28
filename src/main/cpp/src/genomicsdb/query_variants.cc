@@ -386,18 +386,16 @@ void VariantQueryProcessor::scan_and_operate(
   //Next co-ordinate to consider
   int64_t next_start_position = -1ll;
   auto end_loop = false;
+  const auto END_query_idx = query_config.get_query_idx_for_known_field_enum(GVCF_END_IDX);
   for (; !(forward_iter->end()) && !end_loop && (scan_state == 0 || !(variant_operator.overflow())); ++(*forward_iter)) {
-    auto& cell = **forward_iter;
-
 #ifdef DO_PROFILING
     stats_ptr->update_stat(GTProfileStats::GT_NUM_CELLS, 1u);
     stats_ptr->update_stat(GTProfileStats::GT_NUM_ATTR_CELLS_ACCESSED, query_config.get_num_queried_attributes());
 #endif
-    //Ignore cell copies at END positions
-    auto cell_column_value = cell.get_begin_column();
-    auto END_v = *(cell.get_field_ptr_for_query_idx<int64_t>(query_config.get_query_idx_for_known_field_enum(GVCF_END_IDX)));
-    if (cell_column_value > END_v)
+    //Ignore cell copies at END positions, before fetching all their attributes
+    if (forward_iter->is_END_copy(END_query_idx))
       continue;
+    auto& cell = **forward_iter;
     end_loop = scan_handle_cell(query_config, column_interval_idx, variant, variant_operator, cell,
                                 end_pq, tmp_pq_buffer, current_start_position, next_start_position,
 				num_calls_with_deletions_or_MNVs, handle_spanning_deletions, stats_ptr);
