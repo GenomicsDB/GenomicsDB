@@ -483,14 +483,18 @@ class VariantFieldPrimitiveVectorData : public VariantFieldPrimitiveVectorDataBa
  private:
   //buffer needn't be aligned for DataType, so each element is copied out before it is checked
   static bool all_missing(const char* buffer, const size_t num_elements) {
-    static_assert(std::is_trivially_copyable<DataType>::value, "elements are copied bytewise out of TileDB's buffer");
-    for (size_t i=0; i<num_elements; ++i) {
-      DataType val;
-      memcpy(&val, buffer+i*sizeof(DataType), sizeof(DataType));
-      if (!is_tiledb_missing_value<DataType>(val))
-        return false;
+    //VariantFieldHandler<std::string> instantiates this class with std::string, but no field of that type exists
+    if constexpr (!std::is_trivially_copyable_v<DataType>) {
+      return false;
+    } else {
+      for (size_t i=0; i<num_elements; ++i) {
+        DataType val;
+        memcpy(&val, buffer+i*sizeof(DataType), sizeof(DataType));
+        if (!is_tiledb_missing_value<DataType>(val))
+          return false;
+      }
+      return true;
     }
-    return true;
   }
   std::vector<DataType> m_data;
 };
