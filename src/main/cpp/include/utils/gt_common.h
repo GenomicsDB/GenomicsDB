@@ -43,6 +43,11 @@ inline bool IS_NON_REF_ALLELE(const char allele_char) {
   return allele_char == '&';
 }
 
+//Whether a VCF allele is <NON_REF>, which GenomicsDB stores as &
+inline bool IS_VCF_NON_REF_ALLELE(const STRING_VIEW& allele) {
+  return allele == g_vcf_NON_REF;
+}
+
 #define TILEDB_NON_REF_VARIANT_REPRESENTATION "&"
 #define TILEDB_ALT_ALLELE_SEPARATOR "|"
 
