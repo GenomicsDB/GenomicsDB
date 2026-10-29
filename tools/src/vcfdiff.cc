@@ -46,7 +46,7 @@ static bool is_NON_REF_block(bcf1_t* line) {
 //Whether an ALT allele deletes bases: an indel shorter than REF
 static bool has_deletion_allele(bcf1_t* line) {
   for (auto i=1; i<line->n_allele; ++i)
-    if (bcf_get_variant_type(line, i) == VCF_INDEL && strlen(line->d.allele[i]) < strlen(line->d.allele[0]))
+    if (bcf_get_variant_type(line, i) == VCF_INDEL && strlen(line->d.allele[i]) < strlen(line->d.allele[0]))  // sonar-resolve cpp:S5813 "htslib NUL-terminates every allele"
       return true;
   return false;
 }
@@ -713,8 +713,8 @@ std::string VCFDiffFile::create_region(const std::string& regions,
     auto pair = (*iter).second;
     if (pair.first == 1ll && pair.second == INT64_MAX)
       return (quoted_contig + ",");    //full contig
-    if (pair.second == INT64_MAX)
-      return (quoted_contig + ":" + std::to_string(pair.first) + "-,");   //to the end of the contig
+    if (pair.second == INT64_MAX)    //to the end of the contig
+      return (quoted_contig + ":" + std::to_string(pair.first) + "-,");  // sonar-resolve cpp:S6185 "std::format needs GCC 13, and CI builds with GCC 11"
     else
       return (quoted_contig + ":" + std::to_string(pair.first) + "-" + std::to_string(pair.second) + ",");
   } else

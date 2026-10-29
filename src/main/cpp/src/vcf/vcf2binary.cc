@@ -978,7 +978,7 @@ bool VCF2Binary::convert_VCF_to_binary_for_callset(std::vector<uint8_t>& buffer,
       auto ref_length = strlen(alleles[0]);
       for (auto j=1; j<line->n_allele; ++j) {
         auto vtype = bcf_get_variant_type(line, j);
-        if ((vtype == VCF_INDEL || vtype == VCF_OVERLAP) && ref_length > strlen(alleles[j])) {
+        if ((vtype == VCF_INDEL || vtype == VCF_OVERLAP) && ref_length > strlen(alleles[j])) {  // sonar-resolve cpp:S5813 "htslib NUL-terminates every allele"
           end_column_idx = column_idx + ref_length - 1;
           break;
         }
